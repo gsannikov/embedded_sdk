@@ -1,0 +1,7 @@
+
+# Script:       MANIFEST.in
+# Description:  auto_forge package additional resources
+# Author:       Intel AutoForge team
+
+include src/auto_forge/config/*.jsonc           # Includes all configuration files
+include pyproject.toml                          # Add the package toml

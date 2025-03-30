@@ -1,0 +1,153 @@
+/*
+    AutoForge Solution Schema Configuration
+    ---------------------------------------
+    Purpose:
+    This file defines the schema for validating the structure of AutoForge solution configuration files.
+    It ensures that all required fields and value types are correctly provided, facilitating accurate
+    and predictable configuration processing across diverse project setups.
+
+    Description:
+    The schema outlined in this file uses JSON Schema standards to specify constraints and requirements
+    for the configuration of solutions within the AutoForge ecosystem. Each key and structure within
+    the solution configuration file is validated against this schema to ensure compliance with expected
+    formats, thereby reducing errors during build processes.
+
+    Usability:
+    This schema is integral for developers creating or maintaining solution configuration files, providing
+    a clear contract for what settings are required and how they should be structured. The schema helps in
+    maintaining consistency and reliability in project configuration, especially in complex projects involving
+    multiple components and dependencies.
+
+    Note:
+    While this file contains JSONC-style comments for ease of understanding and documentation, it is important
+    to note that JSON Schema itself does not support comments. Any comments included in a JSON Schema file
+    should be removed before parsing or validation, as they are not standard in JSON and can lead to errors
+    in some parsers.
+*/
+
+{
+	"type": "object",
+	"properties": {
+		"solutions": {
+			"type": "array",
+			"minItems": 1,
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"build_path": {
+						"type": "string"
+					},
+					"environment_config": {
+						"type": "string"
+					},
+					"signature_schema": {
+						"type": "string"
+					},
+					"workspace": {
+						"type": "string"
+					},
+					"projects": {
+						"type": "array",
+						"minItems": 1,
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"description": {
+									"type": "string"
+								},
+								"tool_chain": {
+									"type": "object",
+									"properties": {
+										"name": {
+											"type": "string"
+										},
+										"id": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"name",
+										"id"
+									]
+								},
+								"configurations": {
+									"type": "array",
+									"minItems": 1,
+									"items": {
+										"type": "object",
+										"properties": {
+											"name": {
+												"type": "string"
+											},
+											"board": {
+												"type": "string"
+											},
+											"cmake_top_level_path": {
+												"type": "string"
+											},
+											"build_path": {
+												"type": "string"
+											},
+											"compiler_command": {
+												"type": "string"
+											},
+											"execute_from": {
+												"type": "string"
+											},
+											"expected_result": {
+												"type": "number"
+											},
+											"compiler_options": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											},
+											"artifacts": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											}
+										},
+										"required": [
+											"name",
+											"board",
+											"build_path",
+											"compiler_command",
+											"execute_from",
+											"expected_result",
+											"compiler_options",
+											"artifacts"
+										]
+									}
+								}
+							},
+							"required": [
+								"name",
+								"description",
+								"tool_chain",
+								"configurations"
+							]
+						}
+					}
+				},
+				"required": [
+					"name",
+					"build_path",
+					"workspace",
+					"projects"
+				]
+			}
+		}
+	},
+	"required": [
+		"solutions"
+	]
+}

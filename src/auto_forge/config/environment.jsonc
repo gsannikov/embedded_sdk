@@ -1,0 +1,401 @@
+/*
+    AutoForge environment configuration file
+    ----------------------------------------
+
+    Note: This JSON-structured file supports non-standard inline comments,
+    however, these comments are removed upon file loading.
+*/
+
+{
+	"prefix": "IMCV2_",
+	"force_upper_case": true,
+	"defaults": {
+		"description": "Description not specified",
+		"path_must_exist": false,
+		"create_path_if_not_exist": false
+	},
+	"variables": [
+		{
+			"name": "PROJECT_NAME",
+			"value": "IMCv2",
+			"description": "Intel Integrated Management Complex v2"
+		},
+		{
+			"name": "PROJECT_WORKSPACE",
+			"value": "$IMCV2_INSTALL_PATH",
+			"description": "Project workspace base path"
+		},
+		{
+			"name": "CI_ACTIVE",
+			"value": 0,
+			"description": "IMCv2 CI activation status"
+		},
+		{
+			"name": "BOARD",
+			"value": "imc_simics",
+			"description": "SDK current board"
+		},
+		{
+			"name": "ATF_PLAT",
+			"value": "UNKNOWN",
+			"description": "SDK current ARM platform build"
+		},
+		{
+			"name": "SIMICS_PROJECT",
+			"value": "UNKNOWN",
+			"description": "SDK current Simics project"
+		},
+		{
+			"name": "CI_HOOK_SCRIPT",
+			"value": "",
+			"description": "Running within CI hook shell"
+		},
+		{
+			"name": "BAT_MASK",
+			"value": "FFFFFFFF",
+			"description": "Used internally by the BAT test"
+		},
+		{
+			"name": "SDK_RUNNING",
+			"value": 0,
+			"description": "IMCv2 SDK Running indication"
+		},
+		{
+			"name": "HOME_BASE",
+			"value": "$HOME/.imcv2",
+			"description": "IMCv2 local user data",
+			"path_must_exist": true
+		},
+		{
+			"name": "MACHINE",
+			"value": "UNKNOWN",
+			"description": "SDK current machine"
+		},
+		{
+			"name": "BUILD_MAX_CORES",
+			"value": 30,
+			"description": "Max cores allowed for Ninja"
+		},
+		{
+			"name": "BUILD_BASE",
+			"value": "<$ref_PROJECT_WORKSPACE>/build",
+			"description": "Base path for compilers outputs",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "VSCODE_PROJECT",
+			"value": "<$ref_PROJECT_WORKSPACE>/.vscode",
+			"description": "VSCode related files",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "BUILD_OUT",
+			"value": "<$ref_BUILD_BASE>/out",
+			"description": "Compilation outputs and temporary files",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "BUILD_RESOURCES",
+			"value": "<$ref_BUILD_BASE>/resources",
+			"description": "Other resources required for build",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "IDPF_DRIVER_RESOURCES",
+			"value": "<$ref_BUILD_RESOURCES>/idpf",
+			"description": "IDPF driver files",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "AUTOLOAD_GENERATED_RESOURCES",
+			"value": "<$ref_BUILD_RESOURCES>/generated_al",
+			"description": "generated AL files",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "AUTOLOAD_RESOURCES",
+			"value": "<$ref_BUILD_RESOURCES>/AutoLoad_Files",
+			"description": "AL files",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "BUILD_IMAGES",
+			"value": "<$ref_BUILD_BASE>/images",
+			"description": "Compiled images",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "GENERATED_NVM_FILES",
+			"value": "<$ref_BUILD_BASE>/nvm",
+			"description": "Generated NVM files",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "BUILD_LOGS",
+			"value": "<$ref_BUILD_BASE>/logs",
+			"description": "Runtime build logs",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "PYTHON_VENV",
+			"value": "<$ref_PROJECT_WORKSPACE>/.venv",
+			"description": "Python virtual environment",
+			"path_must_exist": true
+		},
+		{
+			"name": "WEST_CONFIG",
+			"value": "<$ref_PROJECT_WORKSPACE>/.west",
+			"description": "Zephyr 'west' local project configuration path",
+			"path_must_exist": true
+		},
+		{
+			"name": "EXTERNS_BASE",
+			"value": "<$ref_PROJECT_WORKSPACE>/externs",
+			"description": "External sources",
+			"path_must_exist": true
+		},
+		{
+			"name": "AG_BASE",
+			"value": "<$ref_EXTERNS_BASE>/ag",
+			"description": "Auto Generated sources",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "NVM_GENERATOR_BASE",
+			"value": "<$ref_EXTERNS_BASE>/nvm/nvm-generator",
+			"description": "NVM generator sources",
+			"path_must_exist": true
+		},
+		{
+			"name": "NVM_GENERATOR_CONFIG_MMG_BASE",
+			"value": "<$ref_EXTERNS_BASE>/nvm/nvm-generator-config-mmg",
+			"description": "NVM generator config mmg sources",
+			"path_must_exist": true
+		},
+		{
+			"name": "AI_TOOLS_BASE",
+			"value": "<$ref_EXTERNS_BASE>/ai-tools",
+			"description": "AI tools application sources",
+			"path_must_exist": true
+		},
+		{
+			"name": "SIMICS_BASE",
+			"value": "<$ref_EXTERNS_BASE>/tools/simics",
+			"description": "Simics sources",
+			"path_must_exist": true
+		},
+		{
+			"name": "SIMICS_WORKSPACE_TARGET",
+			"value": "<$ref_SIMICS_BASE>/simics-workspace/targets",
+			"description": "Simics Workspace target",
+			"path_must_exist": true
+		},
+		{
+			"name": "ZEPHYR_BASE",
+			"value": "<$ref_EXTERNS_BASE>/zephyr",
+			"description": "Zephyr cloned repository",
+			"path_must_exist": true
+		},
+		{
+			"name": "ZEPHYR_MODULES",
+			"value": "<$ref_EXTERNS_BASE>/modules",
+			"description": "Zephyr builtin extra modules",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_BASE",
+			"value": "<$ref_PROJECT_WORKSPACE>/imcv2",
+			"description": "Intel IMCv2 project base",
+			"path_must_exist": true
+		},
+		{
+			"name": "DOCS_BASE",
+			"value": "<$ref_PROJ_BASE>/docs",
+			"description": "Intel IMCv2 documents",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_SCRIPTS",
+			"value": "<$ref_PROJ_BASE>/scripts",
+			"description": "Intel IMCv2 scripts",
+			"path_must_exist": true
+		},
+		{
+			"name": "TESTS_BASE",
+			"value": "<$ref_PROJ_BASE>/tests",
+			"description": "Intel IMCv2 tests",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_JSONS",
+			"value": "<$ref_PROJ_SCRIPTS>/jsons",
+			"description": "Intel IMCv2 JSON files",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_KCONFIGS",
+			"value": "<$ref_PROJ_SCRIPTS>/kconfigs",
+			"description": "Intel IMCv2 KCONFIG menu resources",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_TEMPLATES",
+			"value": "<$ref_PROJ_SCRIPTS>/templates",
+			"description": "Intel IMCv2 miscalculates templates",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_AUTO_PILOT",
+			"value": "<$ref_PROJ_SCRIPTS>/auto_pilot",
+			"description": "AutoPilot package path",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_KERNEL_BASE",
+			"value": "<$ref_PROJ_BASE>/kernel",
+			"description": "Intel IMCv2 project Zephyr out of tree base path",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_KERNEL_INIT",
+			"value": "<$ref_PROJ_KERNEL_BASE>/init",
+			"description": "Intel IMCv2 project code entry point",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_BASE",
+			"value": "<$ref_PROJ_BASE>/fw",
+			"description": "Intel IMCv2 firmware base path",
+			"path_must_exist": true
+		},
+		{
+			"name": "ARM_TF",
+			"value": "<$ref_PROJ_FW_BASE>/arm-tf",
+			"description": "External ARM secure world software",
+			"path_must_exist": true
+		},
+		{
+			"name": "MMG_IMC_PMU_ROOT",
+			"value": "<$ref_PROJ_FW_BASE>/mmg_pmu",
+			"description": "PMU firmware",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_BOOT",
+			"value": "<$ref_PROJ_FW_BASE>/boot",
+			"description": "Intel IMCv2 Boot",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_APPS",
+			"value": "<$ref_PROJ_FW_BASE>/apps",
+			"description": "Intel IMCv2 Applications",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_DRIVERS",
+			"value": "<$ref_PROJ_FW_BASE>/drivers",
+			"description": "Intel IMCv2 Drivers",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_COMMON",
+			"value": "<$ref_PROJ_FW_BASE>/common",
+			"description": "Intel IMCv2 Common",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_HIF",
+			"value": "<$ref_EXTERNS_BASE>/hif",
+			"description": "Intel IMCv2 Hif",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_HIFMC",
+			"value": "<$ref_PROJ_FW_HIF>/hifmc",
+			"description": "hifmc cloned repository",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_HW",
+			"value": "<$ref_PROJ_FW_BASE>/hw",
+			"description": "Intel IMCv2 HW",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_INFRA",
+			"value": "<$ref_PROJ_FW_BASE>/infra",
+			"description": "Intel IMCv2 Infra",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_LAN",
+			"value": "<$ref_EXTERNS_BASE>/lan",
+			"description": "Intel IMCv2 LAN driver",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_PHYSS",
+			"value": "<$ref_PROJ_FW_BASE>/physs",
+			"description": "Intel IMCv2 Phy",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_HIF_SHARED",
+			"value": "<$ref_PROJ_FW_HIF>/hif-shared",
+			"description": "Intel IMCv2 shared HIF includes",
+			"path_must_exist": true
+		},
+		{
+			"name": "PROJ_FW_IMC_SHARED",
+			"value": "<$ref_PROJ_FW_COMMON>/imc_shared",
+			"description": "Intel IMCv2 shared includes",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "PROJ_SEP",
+			"value": "<$ref_EXTERNS_BASE>/sep",
+			"description": "Intel IMCv2 SEP library",
+			"path_must_exist": true,
+			"create_path_if_not_exist": false
+		},
+		{
+			"name": "ENV_SHELL_NO_FANCY_PROMPT",
+			"value": 0,
+			"description": "Disables the IMCv2 awesome prompt"
+		},
+		{
+			"name": "AI_DB_PATH",
+			"value": "<$ref_AI_TOOLS_BASE>/DB/EMBEDDED",
+			"description": "path to DB of AI tools",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "TEST_RESULTS_DIR",
+			"value": "<$ref_BUILD_BASE>/Tests_Results",
+			"description": "Location for test results to be saved",
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
+		},
+		{
+			"name": "AF_PARTIAL_TEST_RESULTS_PATH",
+			"value": "frozen_results",
+			"description": "partial path in af to save test results",
+			"path_must_exist": false,
+			"create_path_if_not_exist": true
+		}
+	]
+}

@@ -1,0 +1,191 @@
+/*
+    AutoForge Solution Configuration File
+    -------------------------------------
+    Description:
+    Inspired by modular management systems like Microsoft Visual Studio, this configuration file
+    facilitates the detailed description of multiple software and hardware solutions. Each solution
+    can encompass several projects, which in turn can include multiple configurations. This hierarchical
+    structure provides a robust framework for organizing complex build environments.
+
+    Structure:
+    - Solutions: Top-level elements containing one or more projects, each tailored to specific
+      aspects of the broader solution.
+    - Projects: Sub-elements within solutions, representing distinct software or hardware components,
+      each capable of having its own set of configurations.
+    - Configurations: Defined within projects to specify unique setups such as 'debug' or 'release' builds,
+      detailing compiler flags, build paths, target specifications, and other build parameters.
+
+    Use Case:
+    For instance, a solution named "IMCv2" might include projects like "ZephyrRTOS" and "Bootloader",
+    each with configurations tailored for 'debug' and 'release', addressing different aspects of
+    development and deployment.
+
+    Referencing Logic:
+    - This file employs dynamic key-value referencing to link and reuse settings within the JSON structure,
+      ensuring consistency and easing maintenance.
+
+    - Local Referencing: Directly refers to keys within the current context (solution, project, or configuration).
+      Example:
+      "board": "imc_simics",
+      "cmake_top_level_path": "/home/dummy/<$ref_board>",
+
+    - Alternate Local Referencing: Offers the same functionality as local referencing, often used for enhanced
+      readability or specific contextual needs.
+      Example:
+      "board": "imc_simics",
+      "cmake_top_level_path": "/home/dummy/<$ref_configurations[].board>",
+
+    - Explicit Referencing: Enables the use of keys from different scopes, either locally or globally within
+      the document, here we must use the full opath to the referenced variable.
+      Example:
+      "dummy": "<$ref_solutions[IMCv2].projects[Zephyr].configurations[debug].board>"
+
+    - Reference Syntax: Embeds references within "<$ref_" followed by the key name and closed with ">",
+      streamlining dynamic data retrieval.
+
+    Derivation Logic:
+    - Supports dynamic inheritance of settings from one configuration to another, allowing for the extension
+      or modification of base configurations without redundancy.
+
+    - Use Case:
+      If a 'release' configuration forms the baseline for a 'special_release' variant that requires additional
+      features or modifications, it can inherit settings from 'release', overriding or adding properties as needed.
+
+    - Derivation Syntax:
+      Indicated by a "data" key within a configuration, pointing to the source configuration via a structured
+      path: "<$derived_from_solutions[solution_name].projects[project_name].configurations[config_name]>".
+
+    - Derivation Example:
+      A configuration might inherit from 'release' while enabling additional debug tools:
+      {
+        "name": "debug_extended",
+        "data": "<$derived_from_solutions[IMCv2].projects[Zephyr].configurations[release]>"
+        // Subsequent modifications or overrides can be specified here.
+      }
+
+    - Processing:
+      During preprocessing, the system resolves the "data" key, merges the referenced configuration into the
+      new context, and allows for any explicit settings in the new configuration to override the inherited ones.
+
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
+*/
+
+{
+	// Define a list with supported boards
+	"boards": [
+		"imc_simics",
+		"cinic"
+	],
+	// Required configuration files for other core modules
+	"includes": {
+		// Projects environment variables
+		"environment_config": "environment.jsonc",
+		// Supported toolchains
+		"toolchains_config": "toolchains.jsonc",
+		// Binary signatures schema
+		"signature_schema": "signature_schema.jsonc",
+		// The solution tree JSON schema
+		"solution_schema": "solution_schema.jsonc"
+	},
+	// Solutions list
+	"solutions": [
+		{
+			"name": "imcv2",
+			"description": "Integrated Management Complex v2",
+			"build_path": "$IMCV2_BUILD_BASE/test",
+			"workspace": "/home/workspace",
+			"projects": [
+				{
+					"name": "zephyr",
+					"description": "Zephyr RTOS",
+					"tool_chain": {
+						"name": "Zephyr",
+						"id": "SDK_0.16.8"
+					},
+					"configurations": [
+						{
+							"name": "debug",
+							"test_var": "<$ref_solutions[imcv2].projects[app].configurations[release].test_var>",
+							"board": "imc_simics",
+							"menu_system_alias": "bd",
+							"cmake_top_level_path": "/home/dummy/<$ref_board>",
+							"build_path": "<$ref_solutions[imcv2].build_path>/<$ref_projects[].name>/<$ref_board>/<$ref_name>",
+							"compiler_command": "west",
+							"execute_from": "<$ref_solutions[].workspace>",
+							"expected_result": 0,
+							"compiler_options": [
+								"build",
+								"-b <$ref_board>",
+								"<$ref_cmake_top_level_path>",
+								"-o=-j 20",
+								"-p auto",
+								"--build-dir <$ref_build_path>",
+								"--",
+								"-DCONFIG_DEBUG=y",
+								"-DCONFIG_NO_OPTIMIZATIONS=y",
+								"-DCONFIG_DEBUG_INFO=y"
+							],
+							"artifacts": [
+								"<$ref_build_path>/zephyr/zephyr.bin",
+								"<$ref_build_path>/zephyr/zephyr.elf"
+							]
+						},
+						{
+							"name": "release",
+							"board": "cinic",
+							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[debug]>",
+							"compiler_options": [
+								"build",
+								"-b <$ref_board>",
+								"<$ref_cmake_top_level_path>",
+								"-o=-j $IMCV2_BUILD_MAX_CORES",
+								"-p auto",
+								"--build-dir <$ref_build_path>",
+								"--",
+								"-DCONFIG_DEBUG=:n",
+								"-DCONFIG_NO_OPTIMIZATIONS=:n",
+								"-DCONFIG_DEBUG_INFO=:n",
+								"-DCONFIG_SPEED_OPTIMIZATIONS=:y"
+							]
+						},
+						{
+							"name": "release_tag",
+							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[release]>"
+						}
+					]
+				},
+				{
+					"name": "app",
+					"description": "Application",
+					"tool_chain": {
+						"name": "GCC",
+						"id": "1.0"
+					},
+					"configurations": [
+						{
+							"name": "release",
+							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[release]>",
+							"test_var": "<$ref_solutions[imcv2].projects[bootloader].configurations[production].test_var>"
+						}
+					]
+				},
+				{
+					"name": "bootloader",
+					"description": "ARM Boot Loader",
+					"tool_chain": {
+						"name": "GCC",
+						"id": "1.0"
+					},
+					"configurations": [
+						{
+							"name": "production",
+							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[release]>",
+							"test_var": "<$ref_solutions[imcv2].projects[zephyr].configurations[debug].name>"
+						}
+					]
+				}
+			]
+		}
+	]
+}

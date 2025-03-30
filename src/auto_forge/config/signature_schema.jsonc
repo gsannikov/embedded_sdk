@@ -1,0 +1,268 @@
+/*
+    AutoForge binary signatures configuration file
+    ----------------------------------------------
+
+    Note: This JSON-structured file supports non-standard inline comments,
+    however, these comments are removed upon file loading.
+*/
+
+{
+	"signatures": [
+		{
+			"id": 42,
+			"name": "Product signature",
+			"manufacturers": [
+				{
+					"name": "Intel",
+					"id": "0x0001"
+				}
+			],
+			"families": [
+				{
+					"name": "Ethernet Devices",
+					"id": "0x00A5"
+				}
+			],
+			"schemas": [
+				{
+					// Mandatory main signature schema
+					"name": "head",
+					// Default (main) schema
+					"default": true,
+					// Total signature size including markers
+					"size": 256,
+					"header": "0xa55aa55a",
+					"footer": "0x5aa5a55a",
+					"description": "Product static signature that should be embedded into the binary",
+					"type": "struct",
+					"packed": true,
+					"struct_name": "product_signature",
+					"fields": [
+						{
+							"name": "header",
+							"description": "Header 32 bits magic number",
+							"type": "uint32",
+							// Mandatory readonly field
+							"read_only": true
+						},
+						{
+							"name": "sig_id",
+							"description": "Signature id",
+							"type": "uint8",
+							"read_only": true
+						},
+						{
+							"name": "sig_size",
+							"description": "Size of signature structure in bytes",
+							"type": "uint16"
+						},
+						{
+							"name": "logo_string",
+							"description": "Static development team identifier",
+							"type": "char[24]"
+						},
+						{
+							"name": "company_string",
+							"description": "Static company name identifier",
+							"type": "char[8]"
+						},
+						{
+							"name": "product_string",
+							"description": "Static product name identifier",
+							"type": "char[16]"
+						},
+						{
+							"name": "board_string",
+							"description": "Board name - the target this binary is built for",
+							"type": "char[18]"
+						},
+						{
+							"name": "version",
+							"description": "Application version structure",
+							"type": "struct",
+							"struct_name": "product_version",
+							"fields": [
+								{
+									"name": "major",
+									"description": "Application major version",
+									"type": "uint16"
+								},
+								{
+									"name": "minor",
+									"description": "Application minor version",
+									"type": "uint16"
+								},
+								{
+									"name": "patch",
+									"description": "Application patch version (Zephyr specific)",
+									"type": "uint16"
+								},
+								{
+									"name": "build",
+									"description": "Application patch version",
+									"type": "uint16"
+								}
+							]
+						},
+						{
+							"name": "product",
+							"description": "Image product attributes",
+							"type": "struct",
+							"struct_name": "product_info",
+							"fields": [
+								{
+									"name": "manufacturer",
+									"description": "Any of the supported manufacturers defined by this signatures",
+									"type": "uint16"
+								},
+								{
+									"name": "product_family",
+									"description": "Any of the supported product families defined by this signatures",
+									"type": "uint16"
+								},
+								{
+									"name": "product_id",
+									"description": "Product ID decimal identifier",
+									"type": "uint16"
+								},
+								{
+									"name": "sub_product_id",
+									"description": "Product extended ID decimal identifier",
+									"type": "uint16"
+								}
+							]
+						},
+						{
+							"name": "build_date",
+							"description": " Compilation date in \"MMM DD YYYY\" format",
+							"type": "char[12]"
+						},
+						{
+							"name": "build_time",
+							"description": " Compilation time in \"HH:MM:SS\" format",
+							"type": "char[9]"
+						},
+						{
+							"name": "git_commit",
+							"description": "Git commit hash (40 characters + null terminator)",
+							"type": "char[42]"
+						},
+						{
+							"name": "start_addr",
+							"description": "Optional firmware start address",
+							"type": "uint64",
+							"read_only": true
+						},
+						{
+							"name": "image_size",
+							"description": "Size in bytes of the compiled binary",
+							"type": "uint32"
+						},
+						{
+							"name": "flags",
+							"description": "Bits as defined in imcv2_flags",
+							"type": "uint32",
+							"type_info": [
+								{
+									"description": "Various flags",
+									"type": "bits",
+									"enum_name": "signature_flags",
+									"fields": [
+										{
+											"name": "SIG_FLAG_DEBUG",
+											"index": 0,
+											"description": "if on, the binary is a debug version, else release"
+										},
+										{
+											"name": "SIG_FLAG_COMPRESSED",
+											"index": 1,
+											"description": "binary is compressed"
+										},
+										{
+											"name": "SIG_FLAG_FILE",
+											"index": 2,
+											"description": " binary stored as file"
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "end_addr",
+							"description": " Optional firmware end address",
+							"type": "uint64",
+							"read_only": true
+						},
+						{
+							"name": "sig_start_addr",
+							"description": " Optional signature start address",
+							"type": "uint64"
+						},
+						{
+							"name": "padding_bytes",
+							"description": "Optional padding size added to the end of the binary file",
+							"type": "uint32"
+						},
+						{
+							"name": "reserved",
+							"description": "Reserved to maintain 256-byte structure size",
+							"type": "char[60]"
+						},
+						{
+							"name": "crc32",
+							"description": "CRC32 calculated on the final binary excluding those 4 CRC bytes",
+							"type": "uint32",
+							// This field is used for integrity checks and should only appear once
+							"integrity": true
+						},
+						{
+							"name": "footer",
+							"description": "Footer 32 bits magic number",
+							"type": "uint32",
+							// Mandatory readonly field
+							"read_only": true
+						}
+					]
+				}
+			],
+			"products": [
+				{
+					"name": "Zephyr",
+					"description": "IMCv2 Firmware",
+					"family": "0x00A5",
+					"id": "0x00A6",
+					// Zephyr
+					"subId": "0x001"
+				},
+				{
+					"name": "BL2",
+					"description": "IMCv2 ARM Trusted Firmware BL2",
+					"family": "0x00A5",
+					"id": "0x00A6",
+					"subId": "0x002"
+				},
+				{
+					"name": "BL31",
+					"description": "IMCv2 ARM Trusted Firmware BL31",
+					"family": "0x00A5",
+					"id": "0x00A6",
+					"subId": "0x003"
+				},
+				{
+					"name": "BL32",
+					"description": "IMCv2 ARM Trusted Firmware BL32",
+					"family": "0x00A5",
+					"id": "0x00A6",
+					"subId": "0x004"
+				},
+				{
+					"name": "ML",
+					"description": "IMCv2 Mini Loader",
+					"family": "0x00A5",
+					"id": "0x00A6",
+					"subId": "0x005"
+				}
+			]
+		}
+	]
+}
