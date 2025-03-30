@@ -8,10 +8,6 @@ AutoPilot is designed to streamline and enhance the testing processes for develo
 
 This project is licensed under the MIT License—see the LICENSE file for details.
 
-## Contact
-
-For any inquiries, please email us at [imcv2_team@intel.com](mailto:eitan.michaelson@intel.com).
-
 ## Acknowledgments
 
 Thanks to everyone who has contributed to the development of this exciting project!
