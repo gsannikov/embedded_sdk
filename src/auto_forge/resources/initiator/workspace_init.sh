@@ -30,6 +30,10 @@ downloadable_resources=(
 	"https://github.com/emichael72/auto_forge/blob/main/src/auto_forge/resources/bootstrap_example/project_bootstrap.jsonc"
 )
 
+# One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.
+# curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/initiator/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f
+
+
 #
 # @brief SwissKnife wrapper around 'curl' which allows to downloads a file from a specified
 #         URL to a destination path and handles command-line arguments.
