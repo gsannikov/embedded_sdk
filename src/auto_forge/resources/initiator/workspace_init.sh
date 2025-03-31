@@ -418,7 +418,7 @@ main() {
 	done
 
 	# Fire bootstrap along with the project steps
-	python3 "$resources_path/bootstrap.py" -s "$resources_path/project_bootstrap.jsonc"
+	python3 "$resources_path/bootstrap.py" -s "$resources_path/project_bootstrap.jsonc" -w "$WORKSPACE_PATH"
 	ret_val=$?
 
 	return $ret_val
