@@ -195,7 +195,7 @@ download_file() {
 	fi
 
 	# Perform the download
-	http_status=$(curl "${curl_opts[@]}" -f -o "$destination_path" -w "%{http_code}" -s "$remote_url")
+	http_status=$(curl "${curl_opts[@]}" -f -o "$destination_path" -w "%{http_code}" -s "$remote_url?$(date +%s)")
 	curl_exit_status=$?
 
 	if [[ $http_status -lt 200 || $http_status -ge 300 ]]; then
