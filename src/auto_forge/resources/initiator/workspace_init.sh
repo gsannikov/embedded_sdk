@@ -27,6 +27,7 @@ downloadable_resources=(
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/bootstrap.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/json_processor.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/logger.py"
+	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resource/bootstrap_example/project_bootstrap.jsonc"
 )
 
 #
@@ -412,8 +413,8 @@ main() {
 
 	done
 
-	# Fire bootstrap..
-	python3 "$resources_path/bootstrap.py"
+	# Fire bootstrap along with the project steps
+	python3 "$resources_path/bootstrap.py" -s "$resources_path/project_bootstrap.jsonc"
 	ret_val=$?
 
 	return $ret_val
