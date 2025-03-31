@@ -929,7 +929,7 @@ def bootstrap_main() -> int:
     try:
 
         parser = argparse.ArgumentParser(description=AUTO_FORGE_MODULE_NAME)
-        parser.add_argument("-s", "--steps_file",
+        parser.add_argument("-s", "--steps_file",required=True,
                             help="Name of the bootstrap steps file to execute.")
         args = parser.parse_args()
 
