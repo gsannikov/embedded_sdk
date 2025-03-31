@@ -27,7 +27,7 @@ downloadable_resources=(
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/bootstrap.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/json_processor.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/logger.py"
-	"https://github.com/emichael72/auto_forge/blob/main/src/auto_forge/resources/bootstrap_example/project_bootstrap.jsonc"
+	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/bootstrap_example/project_bootstrap.jsonc"
 )
 
 # One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.

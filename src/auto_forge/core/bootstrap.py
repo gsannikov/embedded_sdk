@@ -20,8 +20,11 @@ import time
 import urllib.request
 from contextlib import suppress
 from enum import Enum
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, Dict, Any
 from urllib.parse import urlparse, unquote
+
+# Local AutoForge modules
+from json_processor import JSONProcessorLib
 
 AUTO_FORGE_MODULE_NAME = "Bootstrap"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment creation tools"
@@ -51,6 +54,8 @@ class EnvCreator:
         self._package_manager: Optional[str] = None
         self._workspace_path: Optional[str] = None
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
+        self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
+        self._steps_data: Optional[Dict[str, Any]] = None  # Stores the steps parsed JSON dictionary
 
         # Determine which package manager is available on the system.
         if shutil.which("apt"):
@@ -920,7 +925,15 @@ class EnvCreator:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
 
     def run_steps(self, steps_file: str):
-        pass
+        try:
+            steps_schema = self._procLib.preprocess(steps_file)
+            self._steps_data = steps_schema.get("steps")
+
+            for step in self._steps_data:
+                print(f"{step['description']}")
+
+        except Exception as steps_error:
+            raise RuntimeError(f"'{steps_file}' execution error {steps_error}")
 
 
 def bootstrap_main() -> int:
@@ -934,6 +947,8 @@ def bootstrap_main() -> int:
         args = parser.parse_args()
 
         bootstrap_steps_file = EnvCreator.env_expand_var(args.steps_file)
+        bootstrap_steps_file = os.path.abspath(bootstrap_steps_file) # TConvert to absulute path
+
         if not os.path.exists(bootstrap_steps_file):
             raise RuntimeError(f"steps file '{bootstrap_steps_file}' does not exist")
 
