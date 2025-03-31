@@ -139,11 +139,11 @@
 			}
 		},
 		{
-			"description": "Installing package 'colorama' to virtual environment",
+			"description": "Installing packages to virtual environment",
 			"method": "py_venv_package_add",
 			"arguments": {
 				"venv_path": ".venv",
-				"package_or_requirements": "colorama"
+				"package_or_requirements": "colorama json5 dohq-artifactory rich psutil littlefs-python pyelftools mdv"
 			}
 		},
 		{
@@ -165,4 +165,3 @@
 		}
 	]
 }
-

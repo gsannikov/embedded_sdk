@@ -756,11 +756,12 @@ class EnvCreator:
                 venv_path = self._py_venv_path
 
             # Determine the path to the python executable within the virtual environment
+            python_executable_path = os.path.join(venv_path, 'bin')
             python_executable = os.path.join(venv_path, 'bin', 'python')
 
             # Construct the command to update pip as a single string
             command_arguments = "-m pip install --upgrade pip"
-            self.shell_execute(command=python_executable, arguments=command_arguments)
+            self.shell_execute(command=python_executable, arguments=command_arguments,cwd=python_executable_path)
 
         except Exception as py_env_error:
             raise Exception(f"could not update pip {py_env_error}")
@@ -784,6 +785,7 @@ class EnvCreator:
 
             # Determine the path to the python executable within the virtual environment
             python_executable = os.path.join(venv_path, 'bin', 'python')
+            python_executable_path = os.path.join(venv_path, 'bin')
 
             # Normalize inputs
             package_or_requirements = self._normalize_text(package_or_requirements)
@@ -797,7 +799,7 @@ class EnvCreator:
                 command_arguments = f"-m pip install {package_or_requirements}"
 
             # Execute the command
-            self.shell_execute(command=python_executable, arguments=command_arguments)
+            self.shell_execute(command=python_executable, arguments=command_arguments,cwd=python_executable_path)
 
         except Exception as py_pip_error:
             raise Exception(f"could not install pip package(s) '{package_or_requirements}' {py_pip_error}")
