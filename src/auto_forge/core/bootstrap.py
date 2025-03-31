@@ -8,6 +8,8 @@ SDK environment installation toolbox.
 
 """
 import argparse
+import json
+import logging
 import os
 import platform
 import re
@@ -20,11 +22,12 @@ import time
 import urllib.request
 from contextlib import suppress
 from enum import Enum
-from typing import Optional, Tuple, Union, Dict, Any
+from typing import Optional, Tuple, Union, Any, List
 from urllib.parse import urlparse, unquote
 
 # Local AutoForge modules
 from json_processor import JSONProcessorLib
+from logger import logger_setup
 
 AUTO_FORGE_MODULE_NAME = "Bootstrap"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment creation tools"
@@ -43,9 +46,18 @@ class ValidationMethod(Enum):
     SYS_PACKAGE = 3
 
 
+class LogFacility(Enum):
+    """
+    Enumeration for logging types
+    """
+    LOG_LOGGER = 1
+    LOG_TERMINAL = 2
+    LOG_BOTH = 3
+
+
 class EnvCreator:
 
-    def __init__(self):
+    def __init__(self, logger: Optional[logging.Logger] = None):
         """
         Initialize the environment creator class.
         """
@@ -55,7 +67,8 @@ class EnvCreator:
         self._workspace_path: Optional[str] = None
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
         self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
-        self._steps_data: Optional[Dict[str, Any]] = None  # Stores the steps parsed JSON dictionary
+        self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
+        self._logger = logger
 
         # Determine which package manager is available on the system.
         if shutil.which("apt"):
@@ -69,15 +82,29 @@ class EnvCreator:
         if self._system_type == "linux":
             self._linux_distro, self._linux_version = self._get_linux_distro()
 
-    @staticmethod
-    def _log_in_place(log_line: str):
+    def log_line(self, text: str, facility: LogFacility = LogFacility.LOG_BOTH):
         """
-        Log text to the terminal, updating the same line.
+        Log text to either logger, the terminal while updating the same line or both.
         Args:
-            log_line (str): The text to log.
+            text (str): The text to log.
+            facility (LogFacility): The facility to use.
         """
-        log_line = log_line.strip()
-        if log_line:
+        log_line = text.strip()
+        current_log_level = self._logger.getEffectiveLevel()
+        logger_enabled: bool = False
+
+        if not log_line:
+            return
+
+        # Determine if we can use the logger
+        if current_log_level == logging.DEBUG and self._logger is not None:
+            logger_enabled = True
+
+        if facility == LogFacility.LOG_LOGGER or facility == LogFacility.LOG_BOTH:
+            if logger_enabled:
+                self._logger.debug(log_line)
+
+        elif facility == LogFacility.LOG_TERMINAL or facility == LogFacility.LOG_BOTH:
             sys.stdout.write('\x1b[K')  # Move to the beginning and clear the line.
             sys.stdout.write(f"{log_line}\r")
             sys.stdout.flush()
@@ -274,6 +301,45 @@ class EnvCreator:
         except Exception:
             raise
 
+    def py_execute(self, method_name: str, arguments: Optional[Union[str, dict]] = None) -> int:
+        """
+        Dynamically execute an arbitrary method using its name and arguments read from JSON step.
+        Args:
+            method_name (str): The name of the python method from this class to be invoked.
+            arguments (str or dict, optional): JSON string or dictionary with arguments for the method call.
+        Returns:
+            int: The integer result of the method call.
+
+        Raises:
+            ValueError: If the method does not exist or if there is an issue with the arguments.
+        """
+        # Convert JSON string to dictionary if necessary
+        if isinstance(arguments, str):
+            try:
+                arguments = json.loads(arguments)
+            except json.JSONDecodeError:
+                raise ValueError("invalid JSON string provided for arguments.")
+
+        # Default to empty dict if no arguments provided
+        if arguments is None:
+            arguments = {}
+
+        # Retrieve the method from the class based on method_name
+        method = getattr(self, method_name, None)
+        if not callable(method):
+            raise ValueError(f"method '{method_name}' not found in '{self.__class__.__name__}'")
+
+        # Execute the method with the arguments
+        try:
+            method(**arguments)
+        except Exception:
+            # Propagate exception
+            raise
+
+        # Since the method does not return a value but raises exceptions on errors,
+        # we handle a successful call as returning 0 (similar to system exit codes)
+        return 0
+
     def env_append_sys_path(self, path: str):
         """
         Append a directory to the system's PATH environment variable.
@@ -291,18 +357,25 @@ class EnvCreator:
         os.environ['PATH'] = new_path
 
     @staticmethod
-    def env_expand_var(input_string: str) -> str:
+    def env_expand_var(input_string: str, to_absolute: bool = False) -> str:
         """
         Expand environment variables and user shortcuts in the given path.
         This version ignores command substitution patterns like $(...).
         Args:
             input_string (str): The input string that may contain environment variables and user shortcuts.
+            to_absolute (bool): If True, the input will be normalized and converted to an absolute path.
 
         Returns:
             str: The fully expanded path, ignoring special bash constructs.
         """
         # First expand user tilde
         path_with_user = os.path.expanduser(input_string)
+
+        # Normalize a given path
+        def _normalize_path(input_path) -> str:
+            if to_absolute:
+                return os.path.abspath(os.path.normpath(input_path))
+            return input_path
 
         # Ignore $(...) patterns to avoid mistaking them for environment variables
         def _ignore_command_substitution(match):
@@ -332,6 +405,7 @@ class EnvCreator:
 
             raise ValueError(f"environment variable '{variable_name}' could not be expanded")
 
+        restored_path = _normalize_path(restored_path)
         return restored_path
 
     def set_workspace(self, workspace_path: Optional[str] = None, start_fresh: bool = False, start_empty: bool = False):
@@ -348,10 +422,7 @@ class EnvCreator:
                 workspace_path = os.getcwd()
 
             # Expand environment variables and user home shortcuts in the path
-            expanded_path = self.env_expand_var(input_string=workspace_path)
-
-            # Resolve the path to absolute path
-            self._workspace_path = os.path.abspath(expanded_path)
+            self._workspace_path = self.env_expand_var(input_string=workspace_path, to_absolute=True)
 
             # Safeguard against deleting important directories
             if start_fresh:
@@ -385,8 +456,7 @@ class EnvCreator:
                       sudo: bool = False,
                       expected_return_code: int = 0,
                       cwd: Optional[str] = None,
-                      token: Optional[str] = None,
-                      verbose: bool = False) -> Optional[Tuple[int, Optional[str]]]:
+                      token: Optional[str] = None) -> Optional[Tuple[int, Optional[str]]]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -399,7 +469,6 @@ class EnvCreator:
                                         result will be considered an error.
             cwd (Optional[str]): The directory from which the process should be executed.
             token (Optional[str]): A token to search for in the command output.
-            verbose (bool): If True, the command will be executed in verbose mode. Defaults to False.
 
         Returns:
             Tuple[int, Optional[str]]: The exit code of the command and its output.
@@ -407,6 +476,7 @@ class EnvCreator:
         full_command = f"{'sudo ' if sudo else ''}{command} {arguments}".strip()  # Create a single string
         full_command = self.env_expand_var(input_string=full_command)  # Expand as needed
         base_command = os.path.basename(command)
+        env = os.environ.copy()
 
         # Set default timeout when not provided
         if timeout is None:
@@ -416,14 +486,20 @@ class EnvCreator:
             # When not using shell we have to use list for the arguments rather than string
             full_command = shlex.split(full_command)
 
-        # Validate working path if specified
-        if cwd is not None and not os.path.exists(cwd):
-            raise RuntimeError(f"specified work path '{cwd}' does not exist")
+        # Expand and validate working path if specified
+        if cwd is not None:
+            cwd = self.env_expand_var(input_string=cwd, to_absolute=True)
+            if not os.path.exists(cwd):
+                raise RuntimeError(f"specified work path '{cwd}' does not exist")
+            else:
+                self.env_append_sys_path(path=cwd)
+                env = os.environ.copy()
 
+        # Execute
+        self.log_line(f"Executing: {full_command}")
         process = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, shell=shell, cwd=cwd, bufsize=0)
+                                   stderr=subprocess.STDOUT, shell=shell, cwd=cwd, env=env, bufsize=0)
         try:
-
             output_line = bytearray()
             command_response: str = ""
 
@@ -446,9 +522,8 @@ class EnvCreator:
 
                             # Aggregate all lines into a complete command response string
                             command_response += complete_line + '\n'
-                            # In verbose mode, echo command output on the same line for immediate feedback.
-                            if verbose:
-                                self._log_in_place(complete_line)
+                            # Log the command output
+                            self.log_line(complete_line, facility=LogFacility.LOG_TERMINAL)
 
                 # Handle execution timeout
                 if timeout > 0 and (time.time() - start_time > timeout):
@@ -457,7 +532,10 @@ class EnvCreator:
 
             process.wait()
 
+            # Done executing
             command_response = self._normalize_text(input_string=command_response, allow_empty=True)
+            self.log_line(f"Response: {command_response}", facility=LogFacility.LOG_LOGGER)
+
             return_code = process.returncode
 
             if token and command_response and token not in command_response:
@@ -551,12 +629,12 @@ class EnvCreator:
             elif validation_method == ValidationMethod.SYS_PACKAGE:
                 self._validate_sys_package(package_name=command)
 
-
             else:
                 raise ValueError(f"unsupported validation method: {validation_method}")
 
-        except Exception as validation_error:
-            raise RuntimeError(f"error {validation_error}")
+        # Propagate the exception
+        except Exception:
+            raise
 
     def path_erase(self, path: str, allow_non_empty: bool = False):
         """
@@ -587,8 +665,7 @@ class EnvCreator:
             ]
 
             # Normalize the input path before comparing
-            expanded_path = self.env_expand_var(input_string=path)
-            normalized_path = os.path.abspath(os.path.normpath(expanded_path))
+            normalized_path = self.env_expand_var(input_string=path, to_absolute=True)
 
             if normalized_path in map(os.path.abspath, important_paths):
                 raise RuntimeError(f"refusing to delete important or protected directory: '{normalized_path}'")
@@ -765,8 +842,7 @@ class EnvCreator:
     def git_clone_repo(self, repo_url: str,
                        dest_repo_path: str,
                        timeout: float = 0,
-                       clear_destination_path: bool = True,
-                       verbose: bool = False):
+                       clear_destination_path: bool = True):
         """
         Clones a Git repository from a specified URL into a specified destination directory.
         Args:
@@ -776,8 +852,7 @@ class EnvCreator:
                 A timeout of 0 indicates no timeout. Default is 0.
             clear_destination_path (bool): A flag to specify whether to clear the destination directory if it
                 already exists. Default is True.
-            verbose (bool): If True, the command will be executed in verbose mode. Defaults to False.
-
+.
         Returns:
              None, raising exception on error.
         """
@@ -787,8 +862,7 @@ class EnvCreator:
             dest_repo_path = self._normalize_text(dest_repo_path)
 
             # Normalize and prepare the destination path
-            expanded_path = self.env_expand_var(input_string=dest_repo_path)
-            dest_repo_path = os.path.abspath(os.path.normpath(expanded_path))
+            dest_repo_path = self.env_expand_var(input_string=dest_repo_path, to_absolute=True)
 
             # Optionally clear the destination path
             self.path_erase(path=dest_repo_path, allow_non_empty=clear_destination_path)
@@ -796,15 +870,14 @@ class EnvCreator:
             # Construct and execute the git clone command
             command_arguments = f"clone --progress {repo_url} {dest_repo_path}"
             self.shell_execute(command="git", arguments=command_arguments,
-                               timeout=timeout, verbose=verbose)
+                               timeout=timeout)
 
         except Exception as py_git_error:
             raise Exception(f"git operation failure {str(py_git_error)}")
 
     def git_checkout_revision(self, repo_path: str, revision: str,
                               timeout: float = 0,
-                              pull_latest: bool = True,
-                              verbose: bool = False):
+                              pull_latest: bool = True):
         """
         Checks out a specific revision in a Git repository.
         Args:
@@ -814,15 +887,14 @@ class EnvCreator:
                 A timeout of 0 indicates no timeout. Default is 0.
             pull_latest (bool): Whether to perform a git pull to update the repository with the latest changes from
                 the remote before checking out.
-            verbose (bool): If True, the command will be executed in verbose mode. Defaults to False.
 
         Returns:
             None, raising exception on error.
         """
         try:
             # Validate and prepare the repository path
-            repo_path = self._normalize_text(repo_path)
-            repo_path = os.path.abspath(os.path.normpath(repo_path))
+            normalized_repo_path = self._normalize_text(repo_path)
+            repo_path = self.env_expand_var(input_string=normalized_repo_path, to_absolute=True)
 
             if not os.path.exists(repo_path):
                 raise FileNotFoundError(f"repo path '{repo_path}' does not exist")
@@ -831,12 +903,12 @@ class EnvCreator:
                 # Perform a git pull to update the repository
                 pull_command = "pull"
                 self.shell_execute(command="git", arguments=pull_command,
-                                   cwd=repo_path, timeout=timeout, verbose=verbose)
+                                   cwd=repo_path, timeout=timeout)
 
             # Construct and execute the git checkout command
             command_arguments = f"checkout {revision}"
             self.shell_execute(command="git", arguments=command_arguments,
-                               cwd=repo_path, timeout=timeout, verbose=verbose)
+                               cwd=repo_path, timeout=timeout)
 
         except Exception as py_git_error:
             raise Exception(f"git operation failure {str(py_git_error)}")
@@ -873,8 +945,7 @@ class EnvCreator:
             output_name = self._normalize_text(input_string=output_name)
 
             # Expand and resolve the output path
-            expanded_path = self.env_expand_var(input_string=output_name)
-            output_name = os.path.abspath(os.path.normpath(expanded_path))
+            output_name = self.env_expand_var(input_string=output_name, to_absolute=True)
 
             if os.path.exists(output_name):
                 if not delete_local:
@@ -919,43 +990,58 @@ class EnvCreator:
 
                         if verbose:
                             progress_percentage = (downloaded_size / total_size) * 100
-                            self._log_in_place(f"{progress_percentage:.2f}%")
+                            self.log_line(f"{progress_percentage:.2f}%", facility=LogFacility.LOG_TERMINAL)
 
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
 
     def run_steps(self, steps_file: str):
+        """
+`       Load the steps JSON file and execute them sequentially, exit loop on any error.
+        Args:
+            steps_file (str): Path to the steps JSON file.
+
+        """
+        step_number: int = 0
+
         try:
             steps_schema = self._procLib.preprocess(steps_file)
             self._steps_data = steps_schema.get("steps")
 
             for step in self._steps_data:
-                print(f"{step['description']}")
+                self.log_line(step.get('description', 'Not specified'))
+                self.py_execute(method_name=step.get("method"), arguments=step.get("arguments"))
+                step_number = step_number + 1
 
         except Exception as steps_error:
-            raise RuntimeError(f"'{steps_file}' execution error {steps_error}")
+            raise RuntimeError(f"'{os.path.basename(steps_file)}', step {step_number} {steps_error}")
 
 
 def bootstrap_main() -> int:
     result: int = 1  # Default to internal error
+    logger, _ = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
+    logger.setLevel(level=logging.ERROR)
 
     try:
-
         parser = argparse.ArgumentParser(description=AUTO_FORGE_MODULE_NAME)
-        parser.add_argument("-s", "--steps_file",required=True,
+        parser.add_argument("-s", "--steps_file", required=True,
                             help="Name of the bootstrap steps file to execute.")
+        parser.add_argument("-v", "--verbose", action="store_true", help="Enhanced verbosity level.")
         args = parser.parse_args()
 
-        bootstrap_steps_file = EnvCreator.env_expand_var(args.steps_file)
-        bootstrap_steps_file = os.path.abspath(bootstrap_steps_file) # TConvert to absulute path
+        # Increase logger verbosity
+        if args.verbose:
+            logger.setLevel(level=logging.DEBUG)
+
+        # Expand, convert to absolute path and normilize
+        bootstrap_steps_file = EnvCreator.env_expand_var(input_string=args.steps_file, to_absolute=True)
 
         if not os.path.exists(bootstrap_steps_file):
             raise RuntimeError(f"steps file '{bootstrap_steps_file}' does not exist")
 
-        creator = EnvCreator()
+        creator = EnvCreator(logger=logger)
         creator.run_steps(steps_file=bootstrap_steps_file)
-
-        return 0
+        result = 0
 
     except KeyboardInterrupt:
         print("Interrupted by user, shutting down..")
@@ -965,7 +1051,8 @@ def bootstrap_main() -> int:
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        print(f"Error: {str(runtime_error).capitalize()}.\nFile: {file_name}\nLine: {line_number}\n")
+        logger.error(f"{str(runtime_error).capitalize()}.\nFile: {file_name}\nLine: {line_number}\n")
+    finally:
         return result
 
 

@@ -13,28 +13,44 @@
 	// Steps:
 	"steps": [
 		{
-			"description": "Validating Intel developer tool ('dt') version 2.0.810 or grater",
-			"method": "python:validate_prerequisite",
+			"description": "Setting HTTP PROXY environment variable",
+			"method": "env_set",
 			"arguments": {
-				"command": "$dt",
+				"name": "http_proxy",
+				"value": "http://proxy-dmz.intel.com:911"
+			}
+		},
+		{
+			"description": "Setting HTTPS PROXY environment variable",
+			"method": "env_set",
+			"arguments": {
+				"name": "https_proxy",
+				"value": "http://proxy-dmz.intel.com:911"
+			}
+		},
+		{
+			"description": "Validating Intel developer tool ('dt') version 2.0.810 or grater",
+			"method": "validate_prerequisite",
+			"arguments": {
+				"command": "dt",
 				"arguments": "version",
 				"cwd": "$HOME/bin"
 			}
 		},
 		{
 			"description": "Validating Python version 3.8.0 or grater",
-			"method": "python:validate_prerequisite",
+			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "python",
 				"arguments": "--version",
 				"cwd": "$HOME/.pyenv/shims",
 				"expected_response": "Python 3.8.0",
-				"allow_greater_revision": true
+				"allow_greater_decimal": true
 			}
 		},
 		{
 			"description": "Validating git",
-			"method": "python:validate_prerequisite",
+			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "git",
 				"arguments": "--version"
@@ -42,15 +58,23 @@
 		},
 		{
 			"description": "Validating ninja build",
-			"method": "python:validate_prerequisite",
+			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "ninja",
 				"arguments": "--version"
 			}
 		},
 		{
+			"description": "Validating cmake",
+			"method": "validate_prerequisite",
+			"arguments": {
+				"command": "cmake",
+				"arguments": "--version"
+			}
+		},
+		{
 			"description": "Validating device tree compiled ('dtc')",
-			"method": "python:validate_prerequisite",
+			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "dtc",
 				"arguments": "--version"
@@ -58,23 +82,13 @@
 		},
 		{
 			"description": "Retrieve git token using Intel developer tool ('dt')",
-			"method": "python:shell_execute",
+			"method": "shell_execute",
 			"arguments": {
 				"command": "dt",
 				"arguments": "github print-token",
 				"cwd": "$HOME/bin"
 			},
-			"response_capture":"store_value:dt_token"
-		},
-		{
-			"description": "Retrieve git token using Intel developer tool ('dt')",
-			"method": "python:shell_execute",
-			"arguments": {
-				"command": "dt",
-				"arguments": "github print-token",
-				"cwd": "$HOME/bin"
-			},
-			"response_capture":"store_value:dt_token"
+			"response_capture": "store_value:dt_token"
 		}
 	]
 }
