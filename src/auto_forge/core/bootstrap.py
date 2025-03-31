@@ -4,9 +4,10 @@
 Script:       bootstrap.py
 Version:      1.0.0
 
-SDK initialization toolbox.
+SDK environment installation toolbox.
 
 """
+import argparse
 import os
 import platform
 import re
@@ -21,6 +22,9 @@ from contextlib import suppress
 from enum import Enum
 from typing import Optional, Tuple, Union
 from urllib.parse import urlparse, unquote
+
+AUTO_FORGE_MODULE_NAME = "Bootstrap"
+AUTO_FORGE_MODULE_DESCRIPTION = "Environment creation tools"
 
 
 class ValidationMethod(Enum):
@@ -38,14 +42,14 @@ class ValidationMethod(Enum):
 
 class EnvCreator:
 
-    def __init__(self, base_path: str, start_fresh: bool = False):
+    def __init__(self):
         """
-        Initialize the environment creator with a base path. Expand environment variables and user shortcuts,
-        resolve the path, and optionally clear it if start_fresh is True.
+        Initialize the environment creator class.
         """
 
         self._py_venv_path: Optional[str] = None
         self._package_manager: Optional[str] = None
+        self._workspace_path: Optional[str] = None
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
 
         # Determine which package manager is available on the system.
@@ -59,18 +63,6 @@ class EnvCreator:
         self._is_wsl = True if "wsl" in platform.release().lower() else False
         if self._system_type == "linux":
             self._linux_distro, self._linux_version = self._get_linux_distro()
-
-        # Expand environment variables and user home shortcuts in the path
-        expanded_path = self._smart_expand(input_string=base_path)
-
-        # Resolve the full path (absolute path)
-        self._base_path = os.path.abspath(expanded_path)
-
-        # Safeguard against deleting important directories
-        if start_fresh:
-            self.path_erase(path=self._base_path, allow_non_empty=True)
-            # Make sure the base path exisit
-            os.makedirs(self._base_path, exist_ok=True)
 
     @staticmethod
     def _log_in_place(log_line: str):
@@ -106,6 +98,26 @@ class EnvCreator:
             raise ValueError("Input string cannot be empty after stripping")
 
         return normalized_string
+
+    @staticmethod
+    def _check_directory_empty(path: str):
+        """
+        Check if the given directory is empty.
+        Args:
+            path (str): The directory path to check.
+
+        Returns:
+             None, raising exception on error.
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"'{path}' does not exist: {path}")
+
+        if not os.path.isdir(path):
+            raise ValueError(f"'{path}' is not a directory")
+
+        # List the contents of the directory
+        if os.listdir(path):
+            raise RuntimeError(f"The directory is not empty: '{path}'")
 
     @staticmethod
     def _get_linux_distro() -> Optional[tuple[str, str]]:
@@ -206,7 +218,7 @@ class EnvCreator:
         return filename
 
     @staticmethod
-    def _extract_package_version(package_info: str) -> Optional[str]:
+    def _py_extract_package_version(package_info: str) -> Optional[str]:
         """
         Extracts the package version from the given string of 'pip show' output, allowing
         for case insensitivity in the "Version" label.
@@ -225,13 +237,45 @@ class EnvCreator:
         # If no version is found, raise an error
         raise ValueError("version information not found in the input string")
 
-    def _env_append_sys_path(self, path: str):
+    def _validate_sys_package(self, package_name: str):
+        """
+    `   Check if a package is available in the system's package manager (APT or DNF).
+        Args:
+            package_name (str): The name of the package to check.
+
+        Returns:
+            None, raising exception on error.
+        """
+        try:
+            command: Optional[str] = None
+            search_pattern: Optional[str] = None
+
+            if self._package_manager is None:
+                raise EnvironmentError("no supported package manager found (APT or DNF)")
+
+            # Determine the package manager
+            if self._package_manager == "apt":
+                command = f"apt list --installed {package_name}"
+                search_pattern = "[installed]"
+            elif self._package_manager == "dnf":
+                command = f"dnf list --available {package_name}"
+                search_pattern = package_name
+
+            return_value, command_response = self.shell_execute(command=command)
+            if return_value != 0 or search_pattern not in command_response:
+                raise EnvironmentError(f"system package '{package_name}' not validated using {self._package_manager}")
+
+        # Propagate the exception
+        except Exception:
+            raise
+
+    def env_append_sys_path(self, path: str):
         """
         Append a directory to the system's PATH environment variable.
         Args:
             path (str): The directory path to append to PATH.
         """
-        path = self._smart_expand(path)
+        path = self.env_expand_var(path)
         # Get the current PATH environment variable
         current_path = os.environ.get('PATH', '')
 
@@ -242,7 +286,7 @@ class EnvCreator:
         os.environ['PATH'] = new_path
 
     @staticmethod
-    def _smart_expand(input_string: str) -> str:
+    def env_expand_var(input_string: str) -> str:
         """
         Expand environment variables and user shortcuts in the given path.
         This version ignores command substitution patterns like $(...).
@@ -285,39 +329,52 @@ class EnvCreator:
 
         return restored_path
 
-    def _validate_sys_package(self, package_name: str):
+    def set_workspace(self, workspace_path: Optional[str] = None, start_fresh: bool = False, start_empty: bool = False):
         """
-    `   Check if a package is available in the system's package manager (APT or DNF).
+        Initialize the workspace path.
         Args:
-            package_name (str): The name of the package to check.
-
-        Returns:
-            None, raising exception on error.
+            workspace_path (Optional[str]): The path to set as the workspace path, defaults to None.
+            start_fresh (bool): If true, the workspace path will be erased.
+            start_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
         """
+
         try:
-            command: Optional[str] = None
-            search_pattern: Optional[str] = None
+            if workspace_path is None:
+                workspace_path = os.getcwd()
 
-            if self._package_manager is None:
-                raise EnvironmentError("no supported package manager found (APT or DNF)")
+            # Expand environment variables and user home shortcuts in the path
+            expanded_path = self.env_expand_var(input_string=workspace_path)
 
-            # Determine the package manager
-            if self._package_manager == "apt":
-                command = f"apt list --installed {package_name}"
-                search_pattern = "[installed]"
-            elif self._package_manager == "dnf":
-                command = f"dnf list --available {package_name}"
-                search_pattern = package_name
+            # Resolve the path to absolute path
+            self._workspace_path = os.path.abspath(expanded_path)
 
-            return_value, command_response = self.shell_execute(command=command)
-            if return_value != 0 or search_pattern not in command_response:
-                raise EnvironmentError(f"system package '{package_name}' not validated using {self._package_manager}")
+            # Safeguard against deleting important directories
+            if start_fresh:
+                self.path_erase(path=self._workspace_path, allow_non_empty=True)
+                # Make sure the base path exisit
+                os.makedirs(self._workspace_path, exist_ok=True)
 
-        # Propagate the exception
-        except Exception:
-            raise
+            if start_empty:
+                self._check_directory_empty(path=self._workspace_path)
 
-    def shell_execute(self, command: str, args: str = "",
+            # Move to the workspace path
+            os.chdir(self._workspace_path)
+
+        except Exception as workspace_creation_error:
+            raise RuntimeError(f"workspace init creation {workspace_creation_error}")
+
+    @staticmethod
+    def env_set(name: str, value: str):
+        """
+        Update or set an environment variable.
+        Args:
+            name (str): The name of the environment variable.
+            value (str): The value of the environment variable.
+        """
+        # Update environment
+        os.environ[name] = value
+
+    def shell_execute(self, command: str, arguments: str = "",
                       timeout: Optional[float] = None,
                       shell: bool = True,
                       sudo: bool = False,
@@ -329,7 +386,7 @@ class EnvCreator:
         Executes a shell command with specified arguments and configuration settings.
         Args:
             command (str): The base command to execute (e.g., 'ls', 'ping').
-            args (str): Additional arguments to pass to the command.
+            arguments (str): Additional arguments to pass to the command.
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
             shell (bool): If True, the command will be executed in a shell environment.
             sudo (bool): If True, the command will be executed with superuser privileges. Defaults to False.
@@ -342,8 +399,8 @@ class EnvCreator:
         Returns:
             Tuple[int, Optional[str]]: The exit code of the command and its output.
         """
-        full_command = f"{'sudo ' if sudo else ''}{command} {args}".strip()  # Create a single string
-        full_command = self._smart_expand(input_string=full_command)  # Expand as needed
+        full_command = f"{'sudo ' if sudo else ''}{command} {arguments}".strip()  # Create a single string
+        full_command = self.env_expand_var(input_string=full_command)  # Expand as needed
         base_command = os.path.basename(command)
 
         # Set default timeout when not provided
@@ -412,24 +469,26 @@ class EnvCreator:
             raise
 
     def validate_prerequisite(self,
-                              validation_method: ValidationMethod,
                               command: str,
-                              command_args: Optional[str] = None,
+                              arguments: Optional[str] = None,
+                              cwd: Optional[str] = None,
+                              validation_method: ValidationMethod = ValidationMethod.EXECUTE_PROCESS,
                               expected_return_code: int = 0,
                               expected_response: Optional[str] = None,
-                              allow_greater_revision: bool = False):
+                              allow_greater_decimal: bool = False):
         """
         Validates that a system-level prerequisite is met using a specified method.
         Args:
-            validation_method (ValidationMethod): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE).
             command (str): For EXECUTE_PROCESS: the command to run.
                            For READ_FILE: a string in the form "<path>:<line_number>:<optional_line_count>".
                            For SYS_PACKAGE: the command variable is treated as the system package to be validated.
-            command_args (Optional[str]): Arguments to pass to the command (EXECUTE_PROCESS only).
+            arguments (Optional[str]): Arguments to pass to the command (EXECUTE_PROCESS only).
+            cwd (Optional[str]): The directory from which the process should be executed.
+            validation_method (ValidationMethod): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
             expected_return_code (int): The expected exit code from the command.
             expected_response (Optional[str]): Expected content in output (for EXECUTE_PROCESS)
                 or file content (for READ_FILE).
-            allow_greater_revision (bool): If True, allows actual version to be greater than expected version.
+            allow_greater_decimal (bool): If True, allows the decimal response to be greater than expected repose (as decimal).
 
         Returns:
             None, raising exception on error.
@@ -440,8 +499,9 @@ class EnvCreator:
             if validation_method == ValidationMethod.EXECUTE_PROCESS:
                 return_code, output = self.shell_execute(
                     command=command,
-                    args=command_args or "",
-                    expected_return_code=expected_return_code
+                    arguments=arguments or "",
+                    expected_return_code=expected_return_code,
+                    cwd=cwd
                 )
 
                 if expected_response:
@@ -449,7 +509,7 @@ class EnvCreator:
                         raise RuntimeError(
                             f"'{command}' returned no output while expecting '{expected_response}'")
 
-                    if allow_greater_revision:
+                    if allow_greater_decimal:
                         actual_version = self._extract_decimal(input_string=output)
                         expected_version = self._extract_decimal(input_string=expected_response)
                         if actual_version < expected_version:
@@ -522,7 +582,7 @@ class EnvCreator:
             ]
 
             # Normalize the input path before comparing
-            expanded_path = self._smart_expand(input_string=path)
+            expanded_path = self.env_expand_var(input_string=path)
             normalized_path = os.path.abspath(os.path.normpath(expanded_path))
 
             if normalized_path in map(os.path.abspath, important_paths):
@@ -556,7 +616,7 @@ class EnvCreator:
         try:
             # Construct the full path
             if project_path:
-                path = os.path.join(self._base_path, path)
+                path = os.path.join(self._workspace_path, path)
             full_path = os.path.expanduser(os.path.expandvars(path))
 
             # Delete safely
@@ -586,7 +646,7 @@ class EnvCreator:
             full_py_venv_path = self.path_create(path, erase_if_exist=True, project_path=True)
             python_command = python_command_path or python_version
             command_arguments = f"-m venv {full_py_venv_path}"
-            return_value, _ = self.shell_execute(command=python_command, args=command_arguments)
+            return_value, _ = self.shell_execute(command=python_command, arguments=command_arguments)
             if return_value == 0:
                 self._py_venv_path = full_py_venv_path
 
@@ -614,7 +674,7 @@ class EnvCreator:
 
             # Construct the command to update pip as a single string
             command_arguments = "-m pip install --upgrade pip"
-            self.shell_execute(command=python_executable, args=command_arguments)
+            self.shell_execute(command=python_executable, arguments=command_arguments)
 
         except Exception as py_env_error:
             raise Exception(f"could not update pip {py_env_error}")
@@ -651,7 +711,7 @@ class EnvCreator:
                 command_arguments = f"-m pip install {package_or_requirements}"
 
             # Execute the command
-            self.shell_execute(command=python_executable, args=command_arguments)
+            self.shell_execute(command=python_executable, arguments=command_arguments)
 
         except Exception as py_pip_error:
             raise Exception(f"could not install pip package(s) '{package_or_requirements}' {py_pip_error}")
@@ -684,11 +744,11 @@ class EnvCreator:
             # Construct and execute the command
             command_arguments = f"-m pip show {package_name}"
             return_value, command_response = (
-                self.shell_execute(command=python_executable, args=command_arguments))
+                self.shell_execute(command=python_executable, arguments=command_arguments))
 
             if return_value == 0 and command_response is not None:
                 # Attempt to extract the version out of the text
-                package_version = self._extract_package_version(command_response)
+                package_version = self._py_extract_package_version(command_response)
                 return package_version
 
             raise Exception(f"could not read pip package '{package_name}' version, status: {str(return_value)}")
@@ -722,7 +782,7 @@ class EnvCreator:
             dest_repo_path = self._normalize_text(dest_repo_path)
 
             # Normalize and prepare the destination path
-            expanded_path = self._smart_expand(input_string=dest_repo_path)
+            expanded_path = self.env_expand_var(input_string=dest_repo_path)
             dest_repo_path = os.path.abspath(os.path.normpath(expanded_path))
 
             # Optionally clear the destination path
@@ -730,7 +790,7 @@ class EnvCreator:
 
             # Construct and execute the git clone command
             command_arguments = f"clone --progress {repo_url} {dest_repo_path}"
-            self.shell_execute(command="git", args=command_arguments,
+            self.shell_execute(command="git", arguments=command_arguments,
                                timeout=timeout, verbose=verbose)
 
         except Exception as py_git_error:
@@ -765,12 +825,12 @@ class EnvCreator:
             if pull_latest:
                 # Perform a git pull to update the repository
                 pull_command = "pull"
-                self.shell_execute(command="git", args=pull_command,
+                self.shell_execute(command="git", arguments=pull_command,
                                    cwd=repo_path, timeout=timeout, verbose=verbose)
 
             # Construct and execute the git checkout command
             command_arguments = f"checkout {revision}"
-            self.shell_execute(command="git", args=command_arguments,
+            self.shell_execute(command="git", arguments=command_arguments,
                                cwd=repo_path, timeout=timeout, verbose=verbose)
 
         except Exception as py_git_error:
@@ -808,7 +868,7 @@ class EnvCreator:
             output_name = self._normalize_text(input_string=output_name)
 
             # Expand and resolve the output path
-            expanded_path = self._smart_expand(input_string=output_name)
+            expanded_path = self.env_expand_var(input_string=output_name)
             output_name = os.path.abspath(os.path.normpath(expanded_path))
 
             if os.path.exists(output_name):
@@ -859,46 +919,27 @@ class EnvCreator:
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
 
+    def run_steps(self, steps_file: str):
+        pass
+
 
 def bootstrap_main() -> int:
     result: int = 1  # Default to internal error
 
-    os.environ["USERSPACE_BASE_PATH"] = "/home/emichael/projects/userspace_sdk"
-    # Set proxy environment variables
-    # noinspection HttpUrlsUsage
-    os.environ['http_proxy'] = 'http://proxy-dmz.intel.com:911'
-    # noinspection HttpUrlsUsage
-    os.environ['https_proxy'] = 'http://proxy-dmz.intel.com:911'
-
     try:
 
-        creator = EnvCreator(base_path="$USERSPACE_BASE_PATH/workspace", start_fresh=True)
-        _, token = creator.shell_execute(command="$HOME/bin/dt github print-token")
+        parser = argparse.ArgumentParser(description=AUTO_FORGE_MODULE_NAME)
+        parser.add_argument("-s", "--steps_file",
+                            help="Name of the bootstrap steps file to execute.")
+        args = parser.parse_args()
 
-        creator.download_file(token=token,
-                              url="https://raw.githubusercontent.com/intel-innersource/firmware.ethernet.imcv2/refs/heads/main/scripts/wsl/imcv2_image_creator.py?token=GHSAT0AAAAAAC564XZR4RMV6HBNIHZNLUBEZ7EFVBA",
-                              output_name="~/test.py", delete_local=True, verbose=True)
+        bootstrap_steps_file = EnvCreator.env_expand_var(args.steps_file)
+        if not os.path.exists(bootstrap_steps_file):
+            raise RuntimeError(f"steps file '{bootstrap_steps_file}' does not exist")
 
-        creator.validate_prerequisite(validation_method=ValidationMethod.SYS_PACKAGE, command="perl")
+        creator = EnvCreator()
+        creator.run_steps(steps_file=bootstrap_steps_file)
 
-        creator.validate_prerequisite(validation_method=ValidationMethod.EXECUTE_PROCESS,
-                                      command="$HOME/.pyenv/shims/python", command_args="--version",
-                                      expected_response="Python 3.8.0",
-                                      allow_greater_revision=True)
-
-        creator.validate_prerequisite(validation_method=ValidationMethod.READ_FILE,
-                                      command="/etc/os-release:4:1",
-                                      expected_response="24.04")
-
-        repo_path = creator.path_create(path="userspace/fw")
-        creator.path_create(path="build")
-        creator.path_create(path="userspace/scripts")
-
-        creator.git_clone_repo(
-            repo_url="https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
-            dest_repo_path=repo_path, verbose=True, timeout=360)
-
-        creator.git_checkout_revision(repo_path=repo_path, revision="dev/ditah/fix_coverity_gcmds", verbose=True)
         return 0
 
     except KeyboardInterrupt:
