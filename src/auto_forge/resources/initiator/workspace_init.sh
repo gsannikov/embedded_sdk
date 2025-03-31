@@ -169,7 +169,7 @@ download_file() {
 	RESOURCES_PATH="$directory_path"
 
 	# Initialize the array for curl options
-	local curl_opts=("--silent" "--fail")
+	local curl_opts=("--silent" "--fail" "-H Cache-Control: no-store")
 
 	# Conditionally add verbose output option
 	if [[ $extra_verbose -eq 1 ]]; then
