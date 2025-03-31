@@ -27,7 +27,7 @@ downloadable_resources=(
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/bootstrap.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/json_processor.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/logger.py"
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resource/bootstrap_example/project_bootstrap.jsonc"
+	"https://github.com/emichael72/auto_forge/blob/main/src/auto_forge/resources/bootstrap_example/project_bootstrap.jsonc"
 )
 
 #
@@ -70,42 +70,42 @@ download_file() {
 	# Print an error string if verbosity is enabled and a message is provided
 	print_error() {
 		if [[ -n $1 && $verbose -eq 1 ]]; then
-			printf "Error: %S\n" "$1"
+			printf "Error: %s\n" "$1"
 		fi
 	}
 
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-		-u | --url)
-			remote_url="$2"
-			shift 2
-			;;
-		-d | --destination)
-			destination_path="$2"
-			shift 2
-			;;
-		-t | --timeout)
-			timeout="$2"
-			shift 2
-			;;
-		-v | --verbose)
-			verbose=1
-			shift
-			;;
-		-vv | --extra_verbose)
-			verbose=1
-			extra_verbose=1
-			shift
-			;;
-		-h | --help | -? | --?)
-			display_help
-			return 1
-			;;
-		*)
-			printf "Error: Unknown option: %S\n" "$1"
-			return 1
-			;;
+			-u | --url)
+				remote_url="$2"
+				shift 2
+				;;
+			-d | --destination)
+				destination_path="$2"
+				shift 2
+				;;
+			-t | --timeout)
+				timeout="$2"
+				shift 2
+				;;
+			-v | --verbose)
+				verbose=1
+				shift
+				;;
+			-vv | --extra_verbose)
+				verbose=1
+				extra_verbose=1
+				shift
+				;;
+			-h | --help | -? | --?)
+				display_help
+				return 1
+				;;
+			*)
+				printf "Error: Unknown option: %S\n" "$1"
+				return 1
+				;;
 		esac
 
 	done
@@ -117,7 +117,7 @@ download_file() {
 	fi
 
 	# Check if 'curl' is available
-	if ! command -v curl &>/dev/null; then
+	if ! command -v curl &> /dev/null; then
 		print_error "'curl' not found"
 		return 3
 	fi
@@ -246,7 +246,7 @@ prepare_workspace() {
 		# Normalize the path to remove any trailing slashes for consistent counting
 		path="${path%/}"
 		# Count the slashes in the path, which represent directory boundaries
-		depth=$(awk -F"/" '{print NF-1}' <<<"$path")
+		depth=$(awk -F"/" '{print NF-1}' <<< "$path")
 		echo "$depth"
 	}
 
@@ -293,7 +293,7 @@ prepare_workspace() {
 			# Safety check to avoid deleting critical system directories
 			if can_delete_directory "$workspace_path"; then
 				# Delete the directory and its contents silently
-				rm -rf "$workspace_path" >/dev/null 2>&1
+				rm -rf "$workspace_path" > /dev/null 2>&1
 				ret_val=$?
 				if [[ $ret_val -ne 0 ]]; then
 					[[ $verbose -eq 1 ]] && printf "Error: Failed to delete existing workspace path: %s\n" "$workspace_path"
@@ -358,26 +358,26 @@ main() {
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
 
-		-w | --workspace)
-			workspace_path="$2"
-			shift 2
-			;;
-		-f | --force_create)
-			force_create=1
-			shift
-			;;
-		-v | --verbose)
-			verbose=1
-			shift
-			;;
-		-h | --help | -? | --?)
-			display_help
-			return 1
-			;;
-		*)
-			printf "Error: Unknown option: %s\n" "$1"
-			return 1
-			;;
+			-w | --workspace)
+				workspace_path="$2"
+				shift 2
+				;;
+			-f | --force_create)
+				force_create=1
+				shift
+				;;
+			-v | --verbose)
+				verbose=1
+				shift
+				;;
+			-h | --help | -? | --?)
+				display_help
+				return 1
+				;;
+			*)
+				printf "Error: Unknown option: %s\n" "$1"
+				return 1
+				;;
 		esac
 	done
 
@@ -386,7 +386,7 @@ main() {
 
 	# Set the destination path where resources will be downloaded into.
 	resources_path="$WORKSPACE_PATH/.init"
-	mkdir -p "$resources_path" >/dev/null 2>&1
+	mkdir -p "$resources_path" > /dev/null 2>&1
 
 	# Loop and process each downloadable resource.
 	for url in "${downloadable_resources[@]}"; do
