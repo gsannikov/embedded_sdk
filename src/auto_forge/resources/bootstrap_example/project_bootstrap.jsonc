@@ -88,7 +88,80 @@
 				"arguments": "github print-token",
 				"cwd": "$HOME/bin"
 			},
-			"response_capture": "store_value:dt_token"
+			// Store the executed command response in key name 'dt_token'
+			"response_store_key": "dt_token"
+		},
+		{
+			"description": "Initialize the workspace",
+			"method": "set_workspace",
+			"arguments": {
+				"start_fresh": false,
+				"start_empty": false
+			},
+			// Store the executed command response in key name 'dt_token'
+			"response_store_key": "dt_token"
+		},
+		{
+			"description": "Create firmware sources path",
+			"method": "path_create",
+			"arguments": {
+				"path": "userspace/fw"
+			}
+		},
+		{
+			"description": "Create build system path",
+			"method": "path_create",
+			"arguments": {
+				"path": "userspace/scripts"
+			}
+		},
+		{
+			"description": "Create build output path",
+			"method": "path_create",
+			"arguments": {
+				"path": "build"
+			}
+		},
+		{
+			"description": "Creating Python virtual environment",
+			"method": "py_venv_create",
+			"arguments": {
+				"venv_path": ".venv",
+				"python_version": "python3.9",
+				"python_command_path": "$HOME/.pyenv/shims/python3.9"
+			}
+		},
+		{
+			"description": "Updating Python PIP in virtual environment",
+			"method": "py_venv_update_pip",
+			"arguments": {
+				"venv_path": ".venv"
+			}
+		},
+		{
+			"description": "Installing package 'colorama' to virtual environment",
+			"method": "py_venv_package_add",
+			"arguments": {
+				"venv_path": ".venv",
+				"package_or_requirements": "colorama"
+			}
+		},
+		{
+			"description": "Cloning 'userspace'",
+			"method": "git_clone_repo",
+			"arguments": {
+				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
+				"dest_repo_path": "userspace/fw",
+				"timeout": 360
+			}
+		},
+		{
+			"description": "Switching 'userspace' revision",
+			"method": "git_checkout_revision",
+			"arguments": {
+				"dest_repo_path": "userspace/fw",
+				"revision": "origin"
+			}
 		}
 	]
 }
