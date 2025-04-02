@@ -21,6 +21,23 @@ from colorama import Fore, Style, init
 # Initialize Colorama (needed for Windows, optional on other platforms)
 init(autoreset=True)
 
+class NullLogger:
+    """
+    A logger that does nothing with log messages.
+
+    This class provides empty implementations for common logging methods,
+    allowing it to be used as a drop-in replacement where logging might be optional.
+    """
+    def debug(self, msg):
+        pass
+    def info(self, msg):
+        pass
+    def warning(self, msg):
+        pass
+    def error(self, msg):
+        pass
+    def critical(self, msg):
+        pass
 
 class LogCounterHandler(logging.Handler):
     def __init__(self):

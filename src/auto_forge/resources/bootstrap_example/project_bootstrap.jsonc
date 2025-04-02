@@ -8,12 +8,15 @@
 
 {
 	"project_name": "Our Project",
-	"log_file": "log.txt",
+	"status_title_length": 60,
+	"status_add_time_prefix": true,
+	"status_new_line": false,
+	// Default status will be shown in place, could be overridden in any step
 	"workspace": "~/projects/af_install/ws",
 	// Steps:
 	"steps": [
 		{
-			"description": "Setting HTTP PROXY environment variable",
+			"description": "Setting HTTP PROXY environment",
 			"method": "env_set",
 			"arguments": {
 				"name": "http_proxy",
@@ -21,15 +24,16 @@
 			}
 		},
 		{
-			"description": "Setting HTTPS PROXY environment variable",
+			"description": "Setting HTTPS PROXY environment",
 			"method": "env_set",
+			"status_new_line": true,
 			"arguments": {
 				"name": "https_proxy",
 				"value": "http://proxy-dmz.intel.com:911"
 			}
 		},
 		{
-			"description": "Validating Intel developer tool ('dt') version 2.0.810 or grater",
+			"description": "Looking for 'dt' 2.0.810 or grater",
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "dt",
@@ -38,7 +42,7 @@
 			}
 		},
 		{
-			"description": "Validating Python version 3.8.0 or grater",
+			"description": "Looking for 'python' 3.8.0 or grater",
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "python",
@@ -49,7 +53,7 @@
 			}
 		},
 		{
-			"description": "Validating git",
+			"description": "Looking for 'git'",
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "git",
@@ -57,7 +61,7 @@
 			}
 		},
 		{
-			"description": "Validating ninja build",
+			"description": "Looking for 'ninja'",
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "ninja",
@@ -65,7 +69,7 @@
 			}
 		},
 		{
-			"description": "Validating cmake",
+			"description": "Looking for 'cmake'",
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "cmake",
@@ -73,16 +77,18 @@
 			}
 		},
 		{
-			"description": "Validating device tree compiled ('dtc')",
+			"description": "Looking for 'dtc'",
 			"method": "validate_prerequisite",
+			"status_new_line": true,
 			"arguments": {
 				"command": "dtc",
 				"arguments": "--version"
 			}
 		},
 		{
-			"description": "Retrieve git token using Intel developer tool ('dt')",
+			"description": "Getting git access token using 'dt'",
 			"method": "shell_execute",
+			"status_new_line": true,
 			"arguments": {
 				"command": "dt",
 				"arguments": "github print-token",
@@ -92,7 +98,7 @@
 			"response_store_key": "dt_token"
 		},
 		{
-			"description": "Initialize the workspace",
+			"description": "Initializing workspace path",
 			"method": "set_workspace",
 			"arguments": {
 				"start_fresh": false,
@@ -102,21 +108,21 @@
 			"response_store_key": "dt_token"
 		},
 		{
-			"description": "Create firmware sources path",
+			"description": "Creating firmware sources path",
 			"method": "path_create",
 			"arguments": {
 				"path": "userspace/fw"
 			}
 		},
 		{
-			"description": "Create build system path",
+			"description": "Creating build system path",
 			"method": "path_create",
 			"arguments": {
 				"path": "userspace/scripts"
 			}
 		},
 		{
-			"description": "Create build output path",
+			"description": "Creating build output path",
 			"method": "path_create",
 			"arguments": {
 				"path": "build"
@@ -125,6 +131,7 @@
 		{
 			"description": "Creating Python virtual environment",
 			"method": "py_venv_create",
+			"status_new_line": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"python_version": "python3.9",
@@ -132,15 +139,17 @@
 			}
 		},
 		{
-			"description": "Updating Python PIP in virtual environment",
+			"description": "Updating PIP in virtual environment",
 			"method": "py_venv_update_pip",
+			"status_new_line": true,
 			"arguments": {
 				"venv_path": ".venv"
 			}
 		},
 		{
-			"description": "Installing packages to virtual environment",
+			"description": "Installing Python packages",
 			"method": "py_venv_package_add",
+			"status_new_line": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "colorama json5"
@@ -149,6 +158,7 @@
 		{
 			"description": "Cloning 'userspace'",
 			"method": "git_clone_repo",
+			"status_new_line": true,
 			"arguments": {
 				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
 				"dest_repo_path": "userspace/fw",
@@ -161,6 +171,16 @@
 			"arguments": {
 				"dest_repo_path": "userspace/fw",
 				"revision": "origin"
+			}
+		},
+		{
+			"description": "Downloading the Zephyr SDK",
+			"method": "download_file",
+			"arguments": {
+				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
+				"proxy": "http://proxy-dmz.intel.com:911",
+				"local_path": "~/test",
+				"delete_local": true
 			}
 		}
 	]

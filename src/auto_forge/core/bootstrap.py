@@ -21,13 +21,14 @@ import sys
 import time
 import urllib.request
 from contextlib import suppress
+from datetime import datetime
 from enum import Enum
-from typing import Optional, Union, Any, List
+from typing import Optional, Union, Any, List, Tuple, Match
 from urllib.parse import urlparse, unquote
 
 # Local AutoForge modules
 from json_processor import JSONProcessorLib
-from logger import logger_setup
+from logger import logger_setup, NullLogger
 
 AUTO_FORGE_MODULE_NAME = "Bootstrap"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment creation tools"
@@ -46,20 +47,150 @@ class ValidationMethod(Enum):
     SYS_PACKAGE = 3
 
 
-class LogFacility(Enum):
+class StatusTextType(Enum):
     """
-    Enumeration for logging types
+    Enum to specify the types of text display for status messages.
+
+    Attributes:
+        TITLE: Initial text padded with dots, e.g., "Status ........."
+        PROGRESS: In-place text which is updated and cleared with each new progress step, e.g., "Status ......... 90%"
+        STATUS: Final operation stats, typically followed by a newline, e.g., "Status ......... OK"
     """
-    LOG_LOGGER = 1
-    LOG_TERMINAL = 2
-    LOG_BOTH = 3
+    TITLE = 1
+    PROGRESS = 2
+    STATUS = 3
+
+
+class ANSIGuru:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def set_cursor_visibility(visible: bool):
+        if visible:
+            sys.stdout.write('\033[?25h')  # ANSI code to show the cursor
+        else:
+            sys.stdout.write('\033[?25l')  # ANSI code to hide the cursor
+        sys.stdout.flush()
+
+    @staticmethod
+    def save_cursor_position():
+        """Saves the current cursor position."""
+        sys.stdout.write("\033[s")
+        sys.stdout.flush()
+
+    @staticmethod
+    def restore_cursor_position():
+        """Restores the cursor to the last saved position."""
+        sys.stdout.write("\033[u")
+        sys.stdout.flush()
+
+    def move_cursor(self, row: Optional[int] = None, col: Optional[int] = None):
+        """
+        Moves the cursor to the specified (row, col). If only one parameter is provided,
+        it attempts to move to that row or column maintaining the other coordinate unchanged.
+
+        Args:
+            row (Optional[int]): The row to move to (1-based indexing).
+            col (Optional[int]): The column to move to (1-based indexing).
+        """
+        current_pos = self.get_cursor_position()
+
+        # Position unknown or nothing to do when both are none.
+        if current_pos is None or (row is None and col is None):
+            return
+
+        if row is not None and col is not None:
+            # Move to exact row and column
+            sys.stdout.write(f"\033[{row + 1};{col + 1}H")
+        elif row is None:
+            # Move to specific column in the current row
+            if current_pos != (-1, -1):
+                sys.stdout.write(f"\033[{current_pos[0] + 1};{col + 1}H")
+        elif col is None:
+            # Move to specific row in the current column
+            if current_pos != (-1, -1):
+                sys.stdout.write(f"\033[{row + 1};{current_pos[1] + 1}H")
+
+        sys.stdout.flush()
+
+    @staticmethod
+    def erase_line_to_end():
+        """Erases from the current cursor position to the end of the line."""
+        sys.stdout.write("\033[K")
+        sys.stdout.flush()
+
+    @staticmethod
+    def get_cursor_position() -> Optional[Tuple[int, int]]:
+        """
+        Queries the terminal for the current cursor position and returns it as a tuple (row, col).
+        This function might not work in all environments. It requires the terminal to respond to the query.
+
+        Returns:
+            Optional[Tuple[int, int]]: The current cursor position (row, col) as zero-based indices,
+            or None if the position cannot be determined.
+        """
+        sys.stdout.write("\033[6n")
+        sys.stdout.flush()
+        response: str = ""
+
+        while True:
+            ch = sys.stdin.read(1)
+            response += ch
+            if ch == 'R':
+                break
+        # Expected response format is ESC[row;colR
+        match: Match = re.search(r"\033\[(\d+);(\d+)R", response)
+        if match:
+            row, col = map(int, match.groups())
+            return row - 1, col - 1  # Convert from 1-based to 0-based.
+        return None  # Return an invalid position if something goes wrong.
+
+    @staticmethod
+    def write_color(text: Optional[str] = None, color_code: int = 0):
+        """
+        Args:
+            text (str): The text to display. If None or empty, only sets the color without text output.
+            color_code (int): The ANSI color code for setting the text color. If 0, resets all attributes to default.
+
+        Supported ANSI Color Codes:
+        - 0: Reset all attributes
+        - 30: Black
+        - 31: Red
+        - 32: Green
+        - 33: Yellow
+        - 34: Blue
+        - 35: Magenta
+        - 36: Cyan
+        - 37: White
+        - 90: Bright Black (Gray)
+        - 91: Bright Red
+        - 92: Bright Green
+        - 93: Bright Yellow
+        - 94: Bright Blue
+        - 95: Bright Magenta
+        - 96: Bright Cyan
+        - 97: Bright White
+        """
+        if color_code == 0:
+            # Reset all attributes
+            sys.stdout.write("\033[0m")
+
+        elif text is None or len(text) == 0:
+            # Only set the color without followed text and auto color reset
+            sys.stdout.write(f"\033[{color_code}m")
+        else:
+            # ANSI color code is prefixed with \033[ and suffixed with m. Default reset code is \033[0m
+            sys.stdout.write(f"\033[{color_code}m{text}\033[0m")
+
+        sys.stdout.flush()
 
 
 class EnvCreator:
 
     def __init__(self, logger: Optional[logging.Logger] = None, workspace_path: Optional[str] = None):
         """
-        Initialize the environment creator class.
+        Initialize the bootstrap toolbox class,
         """
 
         self._py_venv_path: Optional[str] = None
@@ -69,7 +200,18 @@ class EnvCreator:
         self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
-        self._logger = logger
+        self._ansi_term = ANSIGuru()  # Instance the local ANSI trickery gadgets
+        self._logger = logger if logger is not None else NullLogger()
+        self._logger_enabled: bool = False
+
+        # Take a note if we're using the real modem rather then the place holder.
+        if not isinstance(self._logger, NullLogger):
+            self._logger_enabled = True
+
+        # The following are defaults used when printing user friendly terminal status
+        self._status_title_length: int = 80
+        self._status_add_time_prefix: bool = True
+        self._status_new_line: bool = False
 
         # Determine which package manager is available on the system.
         if shutil.which("apt"):
@@ -80,54 +222,118 @@ class EnvCreator:
         # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
         self._system_type = platform.system().lower()
         self._is_wsl = True if "wsl" in platform.release().lower() else False
+
+        # Get extended distro info when we're running under Linux
         if self._system_type == "linux":
             self._linux_distro, self._linux_version = self._get_linux_distro()
 
-    def log_line(self, text: str, facility: LogFacility = LogFacility.LOG_BOTH):
+    def show_status(self, text: str,
+                    text_type: StatusTextType = StatusTextType.TITLE,
+                    new_line: bool = False,
+                    operation_status_code: Optional[int] = 0):
         """
-        Log text to either logger, the terminal while updating the same line or both.
+        Prints the status message to the console in a formatted manner with color codes.
+
         Args:
             text (str): The text to log.
-            facility (LogFacility): The facility to use.
+            text_type (StatusTextType): TITLE, PROGRESS and cSTATUS.
+            new_line (bool): If True, the message is written in a new line rather than in place.
+            operation_status_code (int): If specified it will be used for colored final status
         """
-        log_line = text.strip()
-        current_log_level = self._logger.getEffectiveLevel()
-        logger_enabled: bool = False
-        terminal_width: int = shutil.get_terminal_size().columns
 
-        if not log_line:
+        # Either logger or terminal user status, not both.
+        if self._logger_enabled:
             return
 
-        # Determine if we can use the logger
-        if current_log_level == logging.DEBUG and self._logger is not None:
-            logger_enabled = True
+        terminal_width: int = shutil.get_terminal_size().columns
+        text = self._normalize_text(text=text, allow_empty=True)
+        text_length: int = len(text)
+        time_string: Optional[str] = None
 
-        if facility == LogFacility.LOG_LOGGER or facility == LogFacility.LOG_BOTH:
-            if logger_enabled:
-                self._logger.debug(log_line[:terminal_width - 48])
+        # Terminal width too small
+        if text_length >= terminal_width:
+            return
 
-        elif facility == LogFacility.LOG_TERMINAL or facility == LogFacility.LOG_BOTH:
-            sys.stdout.write('\x1b[K')  # Move to the beginning and clear the line.
-            sys.stdout.write(f"{log_line[:terminal_width]}\r")
-            sys.stdout.flush()
+        if text_type not in StatusTextType or text_length == 0:
+            return
+
+        #
+        # Print the title, dots and optional time prefix
+        #
+
+        if text_type == StatusTextType.TITLE:
+
+            # adjust screen text length to accommodate for the time prefix
+            if self._status_add_time_prefix:
+                now = datetime.now()
+                time_string = now.strftime("%H:%M:%S ")
+                text_length = len(time_string) + text_length
+
+            # Crop text the maximum allowed title length
+            if text_length > self._status_title_length:
+                text = text[:self._status_title_length - 4]
+                text_length = self._status_title_length - 4
+
+            # Adjust the number of dots for the alignment and print the text with one space before and after the dots.
+            dots_count = self._status_title_length - text_length - 2
+            dots = "." * dots_count
+
+            if not new_line:
+                self._ansi_term.erase_line_to_end()
+
+            # Prefixed with the colored time
+            if time_string is not None:
+                self._ansi_term.write_color(text=time_string, color_code=34)
+
+            sys.stdout.write(f"{text} {dots} ")
+            self._ansi_term.erase_line_to_end()
+            self._ansi_term.save_cursor_position()
+
+        #
+        # Print the intermediate progress text or operation final status
+        #
+
+        elif text_type == StatusTextType.PROGRESS or text_type == StatusTextType.STATUS:
+
+            self._ansi_term.restore_cursor_position()
+
+            if text_type == StatusTextType.PROGRESS:
+                sys.stdout.write(text[:terminal_width - self._status_title_length])
+                self._ansi_term.erase_line_to_end()
+                self._ansi_term.restore_cursor_position()
+            else:
+                # Use green / red colors when we know the operation shell status
+                if operation_status_code is not None:
+                    if operation_status_code == 0:
+                        self._ansi_term.write_color(text=text, color_code=32)
+                    else:
+                        self._ansi_term.write_color(text=text, color_code=31)
+                else:
+                    sys.stdout.write(text)
+
+                self._ansi_term.erase_line_to_end()
+                if new_line:
+                    sys.stdout.write('\n')
+                else:
+                    sys.stdout.write('\r')
 
     @staticmethod
-    def _normalize_text(input_string: Optional[str], allow_empty: bool = False) -> str:
+    def _normalize_text(text: Optional[str], allow_empty: bool = False) -> str:
         """
         Normalize the input string by stripping leading and trailing whitespace.
         Args:
-            input_string (Optional[str]): The string to be normalized.
+            text (Optional[str]): The string to be normalized.
             allow_empty (Optional[bool]): No exception of the output is an empty string
 
         Returns:
             str: A normalized string with no leading or trailing whitespace.
         """
         # Check for None or empty string after potential stripping
-        if input_string is None or not isinstance(input_string, str):
+        if text is None or not isinstance(text, str):
             raise ValueError("Input must be a non-empty string.")
 
         # Strip whitespace
-        normalized_string = input_string.strip()
+        normalized_string = text.strip()
         if not allow_empty and not normalized_string:
             raise ValueError("Input string cannot be empty after stripping")
 
@@ -494,8 +700,8 @@ class EnvCreator:
                 self.env_append_sys_path(path=cwd)
                 env = os.environ.copy()
 
-        # Execute
-        self.log_line(f"Executing: {full_command}")
+        # Execute the external command
+        self._logger.debug(f"Executing: {full_command}")
         process = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, shell=shell, cwd=cwd, env=env, bufsize=0)
         try:
@@ -522,7 +728,7 @@ class EnvCreator:
                             # Aggregate all lines into a complete command response string
                             command_response += complete_line + '\n'
                             # Log the command output
-                            self.log_line(complete_line, facility=LogFacility.LOG_TERMINAL)
+                            self.show_status(text_type=StatusTextType.PROGRESS, text=complete_line)
 
                 # Handle execution timeout
                 if timeout > 0 and (time.time() - start_time > timeout):
@@ -532,8 +738,8 @@ class EnvCreator:
             process.wait()
 
             # Done executing
-            command_response = self._normalize_text(input_string=command_response, allow_empty=True)
-            self.log_line(f"Response: {command_response}", facility=LogFacility.LOG_LOGGER)
+            command_response = self._normalize_text(text=command_response, allow_empty=True)
+            self._logger.debug(f"Response: {command_response}")
 
             return_code = process.returncode
 
@@ -916,25 +1122,23 @@ class EnvCreator:
         except Exception as py_git_error:
             raise Exception(f"git operation failure {str(py_git_error)}")
 
-    def download_file(self, url: str, output_name: str,
+    def download_file(self, url: str, local_path: str,
                       delete_local: bool = False,
                       proxy: Optional[str] = None,
                       token: Optional[str] = None,
                       timeout: Optional[float] = None,
-                      extra_headers: Optional[dict] = None,
-                      verbose: bool = False):
+                      extra_headers: Optional[dict] = None):
         """
         Downloads a file from a specified URL to a specified local path, with optional authentication, proxy support,
         and additional HTTP headers. When verbosity is on the download progress is shown.
         Args:
             url (str): The URL from which to download the file.
-            output_name (str): The local path where the downloaded file should be saved.
+            local_path (str): The local path / file where the downloaded file should be saved.
             delete_local (bool): Delete local copy of the file if exists.
             proxy (Optional[str]): The proxy server URL to use for the download.
             token (Optional[str]): An authorization token for accessing the file.
             timeout (Optional[float]): The timeout for the download operation, in seconds.
             extra_headers (Optional[dict]): Additional headers to include in the download request.
-            verbose (bool): If True, the command will be executed in verbose mode. Defaults to False.
 
         Returns:
             None, raising exception on error.
@@ -945,16 +1149,22 @@ class EnvCreator:
             # Normalize URL and output name
             url = self._normalize_text(url)
             remote_file = self._extract_filename_from_url(url=url)
-            output_name = self._normalize_text(input_string=output_name)
+            local_path = self.env_expand_var(input_string=local_path, to_absolute=True)
 
-            # Expand and resolve the output path
-            output_name = self.env_expand_var(input_string=output_name, to_absolute=True)
+            # If we got just a plain path use the remote file to create a path that point to file name
+            if os.path.isdir(local_path):
+                local_path = os.path.join(local_path, remote_file)
 
-            if os.path.exists(output_name):
+            if os.path.exists(local_path):
                 if not delete_local:
-                    raise FileExistsError(f"destination file '{os.path.basename(output_name)}' already exists")
+                    raise FileExistsError(f"destination file '{os.path.basename(local_path)}' already exists")
                 else:
-                    os.remove(output_name)
+                    os.remove(local_path)
+
+            # Create the directory if it does not exist
+            local_dir = os.path.dirname(local_path)
+            if not os.path.exists(local_dir):
+                self.path_create(path=local_dir, erase_if_exist=False)
 
             # Set up the HTTP request
             request = urllib.request.Request(url)
@@ -983,7 +1193,7 @@ class EnvCreator:
                 downloaded_size = 0
                 chunk_size = 1024 * 10  # 10KB chunk size
 
-                with open(output_name, 'wb') as out_file:
+                with open(local_path, 'wb') as out_file:
                     while True:
                         chunk = response.read(chunk_size)
                         if not chunk:
@@ -991,9 +1201,8 @@ class EnvCreator:
                         out_file.write(chunk)
                         downloaded_size += len(chunk)
 
-                        if verbose:
-                            progress_percentage = (downloaded_size / total_size) * 100
-                            self.log_line(f"{progress_percentage:.2f}%", facility=LogFacility.LOG_TERMINAL)
+                        progress_percentage = (downloaded_size / total_size) * 100
+                        self.show_status(text=f"{progress_percentage:.2f}%", text_type=StatusTextType.PROGRESS)
 
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
@@ -1003,7 +1212,6 @@ class EnvCreator:
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
             steps_file (str): Path to the steps JSON file.
-
         """
         step_number: int = 0
 
@@ -1011,27 +1219,48 @@ class EnvCreator:
             steps_schema = self._procLib.preprocess(steps_file)
             self._steps_data = steps_schema.get("steps")
 
+            # Attempt to get status view defaults
+            self._status_new_line = steps_schema.get("status_new_line", self._status_new_line)
+            self._status_title_length = steps_schema.get("status_title_length", self._status_title_length)
+            self._status_add_time_prefix = steps_schema.get("status_add_time_prefix", self._status_add_time_prefix)
+
+            # Hide the  cursor
+            self._ansi_term.set_cursor_visibility(False)
+
             for step in self._steps_data:
-                self.log_line(step.get('description', 'Not specified'))
+
+                # Allow a step to temporary override in place status output behaviour
+                status_new_line: bool = step.get("status_new_line", self._status_new_line)
+
+                self.show_status(text_type=StatusTextType.TITLE, text=step.get('description'), new_line=status_new_line)
                 response = self.py_execute(method_name=step.get("method"), arguments=step.get("arguments"))
 
                 # Handle command output capture to a variable
                 store_key = step.get('response_store_key', None)
                 # Store the command response as a value If it's a string and we got the skey name from the JSON
                 if isinstance(response, str) and store_key is not None:
-                    self.log_line(f"Storing value '{response}' in '{store_key}'")
+                    self._logger.debug(f"Storing value '{response}' in '{store_key}'")
                     self._local_storage[store_key] = response
+
+                self.show_status(text_type=StatusTextType.STATUS, text="OK", new_line=status_new_line)
 
                 step_number = step_number + 1
 
         except Exception as steps_error:
+            ANSIGuru.write_color(text="Error\n", color_code=31)
             raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}")
+        finally:
+            # Restore terminal cursor on exit
+            self._ansi_term.set_cursor_visibility(True)
 
 
 def bootstrap_main() -> int:
+    """
+    Command line entry point for the AutoForge bootstrap.
+    """
     result: int = 1  # Default to internal error
-    logger, _ = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
-    logger.setLevel(level=logging.ERROR)
+    logger = NullLogger()  # Dummy null logger by default
+    exception_message: Optional[str] = None
 
     try:
         parser = argparse.ArgumentParser(description=AUTO_FORGE_MODULE_NAME)
@@ -1039,11 +1268,12 @@ def bootstrap_main() -> int:
                             help="Name of the bootstrap steps file to execute.")
         parser.add_argument("-w", "--workspace_path", required=True,
                             help="Project workspace path")
-        parser.add_argument("-v", "--verbose", action="store_true", help="Enhanced verbosity level.")
+        parser.add_argument("-hl", "--headless", action="store_true", help="Headless automation mode")
         args = parser.parse_args()
 
-        # Increase logger verbosity
-        if args.verbose:
+        # Use normal logger with debug level for max verbosity in automation mode
+        if args.headless:
+            logger, _ = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
             logger.setLevel(level=logging.DEBUG)
 
         # Expand, convert to absolute path and normilize
@@ -1057,17 +1287,23 @@ def bootstrap_main() -> int:
         result = 0
 
     except KeyboardInterrupt:
-        print("Interrupted by user, shutting down..")
-        return result
+        exception_message = "\nInterrupted by user, shutting down.."
+
     except Exception as runtime_error:
         # Should produce 'friendlier' error message than the typical Python backtrace.
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        logger.error(f"Exception: {str(runtime_error)}.")
-        logger.error(f"Exception: file: {file_name}, line: {line_number}")
+        exception_message = f"\nException: {str(runtime_error)} in {file_name}:{line_number}"
 
     finally:
+        if exception_message is not None:
+            if isinstance(logger, NullLogger):
+                print(exception_message)
+            else:
+                logger.error(exception_message)
+                logging.shutdown()
+
         return result
 
 
