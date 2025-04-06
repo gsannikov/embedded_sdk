@@ -12,12 +12,13 @@ Description:
 
 # Main module imports must not be optimized by PyCharm, order  does matter here.
 # noinspection PyUnresolvedReferences
-from auto_forge.logger import logger, logger_setup, logger_counter, logger_get_filename, logger_close
+from auto_forge.logger import logger, logger_setup, logger_get_filename, logger_close, NullLogger
 from auto_forge.core.json_processor import JSONProcessorLib
 from auto_forge.core.variables import VariablesLib
 from auto_forge.core.binary_signatures import (SignaturesLib, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
 from auto_forge.core.solution_processor import SolutionProcessorLib
+from auto_forge.core.bootstrap import EnvCreator
 
 # Globals provided by the project setting module
 from .settings import PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE
@@ -38,10 +39,10 @@ __all__ = [
     "PROJECT_NAME",
     "PROJECT_REPO",
     "PROJECT_PACKAGE",
+    "NullLogger",
     "logger",
     "logger_setup",
     "logger_close",
     "logger_get_filename",
-    "logger_counter",
     "main"
 ]

@@ -55,7 +55,7 @@ def auto_forge_main() -> Optional[int]:
     """
 
     result: int = 1  # Default to internal error
-    logger, _ = logger_setup(level=logging.DEBUG, no_colors=False)
+    logger  = logger_setup(level=logging.DEBUG, no_colors=False)
 
     try:
 

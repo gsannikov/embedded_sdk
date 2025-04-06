@@ -21,6 +21,7 @@ from colorama import Fore, Style, init
 # Initialize Colorama (needed for Windows, optional on other platforms)
 init(autoreset=True)
 
+
 class NullLogger:
     """
     A logger that does nothing with log messages.
@@ -28,28 +29,21 @@ class NullLogger:
     This class provides empty implementations for common logging methods,
     allowing it to be used as a drop-in replacement where logging might be optional.
     """
+
     def debug(self, msg):
         pass
+
     def info(self, msg):
         pass
+
     def warning(self, msg):
         pass
+
     def error(self, msg):
         pass
+
     def critical(self, msg):
         pass
-
-class LogCounterHandler(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        self.warning_count = 0
-        self.errors_count = 0
-
-    def emit(self, record):
-        if record.levelno == logging.WARNING:
-            self.warning_count += 1
-        if record.levelno == logging.ERROR:
-            self.errors_count += 1
 
 
 class AutoForgeColorFormatter(logging.Formatter):
@@ -144,7 +138,7 @@ class AutoForgeColorFormatter(logging.Formatter):
         Returns:
             str: The log message with JSON or HTML content formatted, if detected.
         """
-        error_parts:list = []  # Build the error message parts and clean each component
+        error_parts: list = []  # Build the error message parts and clean each component
 
         # Check if the message contains JSON-like structure
         try:
@@ -285,12 +279,9 @@ def logger_setup(name='AutoForge', level=logging.DEBUG, log_file=None, no_colors
             file_handler.setFormatter(file_formatter)
             auto_forge_logger.addHandler(file_handler)
 
-        # Create the custom warning counter handler
-        logs_counter = LogCounterHandler()
-        auto_forge_logger.addHandler(logs_counter)
         auto_forge_logger.name = name
-        return auto_forge_logger, logs_counter
+        return auto_forge_logger
 
 
 # Sets the logger with defaults upon startup
-logger, logger_counter = logger_setup()
+logger = logger_setup()

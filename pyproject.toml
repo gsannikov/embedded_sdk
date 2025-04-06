@@ -1,7 +1,6 @@
 
 # Script:       pyproject.toml
 # Description:  auto_forge package configuration
-# Author:       Intel AutoForge team
 
 [build-system]
 requires = ["setuptools", "wheel"]
@@ -26,7 +25,9 @@ dependencies = [
     "psutil",
     "toml",
     "gitpython",
-    "jsonpath-ng"
+    "jsonpath-ng",
+    "json5",
+    "cmd2"
 ]
 
 [project.urls]
@@ -47,7 +48,3 @@ packages = [
 # Extended package properties should only be placed here to ensure compliance with PEP 621.
 [tool.autopilot_metadata]
 fancy_name = "AutoForge"
-
-
-
-

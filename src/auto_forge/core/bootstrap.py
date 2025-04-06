@@ -26,9 +26,9 @@ from enum import Enum
 from typing import Optional, Union, Any, List, Tuple, Match
 from urllib.parse import urlparse, unquote
 
-# Local AutoForge modules
-from json_processor import JSONProcessorLib
-from logger import logger_setup, NullLogger
+if __name__ != '__main__':
+    # Running as part of AutoForge package
+    from auto_forge import (JSONProcessorLib, NullLogger)
 
 AUTO_FORGE_MODULE_NAME = "Bootstrap"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment creation tools"
@@ -191,6 +191,7 @@ class EnvCreator:
     def __init__(self, logger: Optional[logging.Logger] = None, workspace_path: Optional[str] = None):
         """
         Initialize the bootstrap toolbox class,
+
         """
 
         self._py_venv_path: Optional[str] = None
@@ -201,8 +202,15 @@ class EnvCreator:
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
         self._ansi_term = ANSIGuru()  # Instance the local ANSI trickery gadgets
-        self._logger = logger if logger is not None else NullLogger()
-        self._logger_enabled: bool = False
+        self._logger_enabled: bool = False  # Default logger state
+
+        if logger is not None:
+            self._logger = logger
+        else:
+            if __name__ != '__main__':
+                # Running as AutoForge package
+                self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
+                self._logger.setLevel(level=logging.DEBUG)
 
         # Take a note if we're using the real modem rather then the place holder.
         if not isinstance(self._logger, NullLogger):
@@ -1216,6 +1224,13 @@ class EnvCreator:
         step_number: int = 0
 
         try:
+
+            # Expand, convert to absolute path and verify
+            steps_file = EnvCreator.env_expand_var(input_string=steps_file, to_absolute=True)
+            if not os.path.exists(steps_file):
+                raise RuntimeError(f"steps file '{steps_file}' does not exist")
+
+            # Process as JSON
             steps_schema = self._procLib.preprocess(steps_file)
             self._steps_data = steps_schema.get("steps")
 
@@ -1258,6 +1273,18 @@ def bootstrap_main() -> int:
     """
     Command line entry point for the AutoForge bootstrap.
     """
+
+    if __name__ != '__main__':
+        raise RuntimeError("code is intended to be executed only in standalone mode")
+    else:
+        try:
+            # Stand alone mode: assuming we have the those dependencies locally
+            from json_processor import JSONProcessorLib
+            # noinspection PyUnresolvedReferences
+            from logger import logger_setup, NullLogger
+        except ImportError as impo_error:
+            raise RuntimeError(f"failed to import required modules: {impo_error}")
+
     result: int = 1  # Default to internal error
     logger = NullLogger()  # Dummy null logger by default
     exception_message: Optional[str] = None
@@ -1273,17 +1300,11 @@ def bootstrap_main() -> int:
 
         # Use normal logger with debug level for max verbosity in automation mode
         if args.headless:
-            logger, _ = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
+            logger = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
             logger.setLevel(level=logging.DEBUG)
 
-        # Expand, convert to absolute path and normilize
-        bootstrap_steps_file = EnvCreator.env_expand_var(input_string=args.steps_file, to_absolute=True)
-
-        if not os.path.exists(bootstrap_steps_file):
-            raise RuntimeError(f"steps file '{bootstrap_steps_file}' does not exist")
-
         creator = EnvCreator(logger=logger, workspace_path=args.workspace_path)
-        creator.run_steps(steps_file=bootstrap_steps_file)
+        creator.run_steps(steps_file=args.steps_file)
         result = 0
 
     except KeyboardInterrupt:
