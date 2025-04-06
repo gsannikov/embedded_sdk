@@ -27,11 +27,11 @@ from typing import Optional, Union, Any, List, Tuple, Match
 from urllib.parse import urlparse, unquote
 
 if __name__ != '__main__':
-    # Running as part of AutoForge package
+    # Use package imports when running as part of AutoForge
     from auto_forge import (JSONProcessorLib, NullLogger)
 
-AUTO_FORGE_MODULE_NAME = "Bootstrap"
-AUTO_FORGE_MODULE_DESCRIPTION = "Environment creation tools"
+AUTO_FORGE_MODULE_NAME = "EnvSetup"
+AUTO_FORGE_MODULE_DESCRIPTION = "Environment setup tools"
 
 
 class ValidationMethod(Enum):
@@ -186,31 +186,36 @@ class ANSIGuru:
         sys.stdout.flush()
 
 
-class EnvCreator:
+class EnvSetupToolsLib:
 
-    def __init__(self, logger: Optional[logging.Logger] = None, workspace_path: Optional[str] = None):
+    def __init__(self, logger: Optional[logging.Logger] = None, workspace_path: Optional[str] = None,
+                 proc_lib: Optional[Any] = None):
         """
-        Initialize the bootstrap toolbox class,
-
+        Initialize the environment setup toolbox class.
+        Args:
+            logger(Optional[logging.Logger]): a logger external instance to use  rather than create a local one.
+            workspace_path(Optional[str]): The workspace path.
+            proc_lib (Optional[Any]): an external instance of JSONProcessorLib() to use rather than create a local one.
         """
 
         self._py_venv_path: Optional[str] = None
         self._package_manager: Optional[str] = None
         self._workspace_path: Optional[str] = workspace_path
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-        self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
+        self._procLib = proc_lib  # Instantiate JSON processing library
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
         self._ansi_term = ANSIGuru()  # Instance the local ANSI trickery gadgets
         self._logger_enabled: bool = False  # Default logger state
+        self._logger = logger
 
-        if logger is not None:
-            self._logger = logger
+        if __name__ != '__main__':
+            # Running as AutoForge package
+            self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
+            self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
+            self._logger.setLevel(level=logging.DEBUG)
         else:
-            if __name__ != '__main__':
-                # Running as AutoForge package
-                self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-                self._logger.setLevel(level=logging.DEBUG)
+            from logger import NullLogger
 
         # Take a note if we're using the real modem rather then the place holder.
         if not isinstance(self._logger, NullLogger):
@@ -1226,7 +1231,7 @@ class EnvCreator:
         try:
 
             # Expand, convert to absolute path and verify
-            steps_file = EnvCreator.env_expand_var(input_string=steps_file, to_absolute=True)
+            steps_file = EnvSetupToolsLib.env_expand_var(input_string=steps_file, to_absolute=True)
             if not os.path.exists(steps_file):
                 raise RuntimeError(f"steps file '{steps_file}' does not exist")
 
@@ -1246,6 +1251,11 @@ class EnvCreator:
 
                 # Allow a step to temporary override in place status output behaviour
                 status_new_line: bool = step.get("status_new_line", self._status_new_line)
+
+                # Allow to skip a step when 'status_step_disabled' exist and set to True
+                status_step_disabled: bool = step.get("status_step_disabled", False)
+                if status_step_disabled:
+                    continue
 
                 self.show_status(text_type=StatusTextType.TITLE, text=step.get('description'), new_line=status_new_line)
                 response = self.py_execute(method_name=step.get("method"), arguments=step.get("arguments"))
@@ -1269,9 +1279,9 @@ class EnvCreator:
             self._ansi_term.set_cursor_visibility(True)
 
 
-def bootstrap_main() -> int:
+def env_setup_main() -> int:
     """
-    Command line entry point for the AutoForge bootstrap.
+    Command line entry point for the AutoForge EnvSetup class.
     """
 
     if __name__ != '__main__':
@@ -1280,19 +1290,20 @@ def bootstrap_main() -> int:
         try:
             # Stand alone mode: assuming we have the those dependencies locally
             from json_processor import JSONProcessorLib
+            proc_lib = JSONProcessorLib()
             # noinspection PyUnresolvedReferences
             from logger import logger_setup, NullLogger
+            logger = NullLogger()  # Dummy null logger by default
         except ImportError as impo_error:
             raise RuntimeError(f"failed to import required modules: {impo_error}")
 
     result: int = 1  # Default to internal error
-    logger = NullLogger()  # Dummy null logger by default
     exception_message: Optional[str] = None
 
     try:
         parser = argparse.ArgumentParser(description=AUTO_FORGE_MODULE_NAME)
         parser.add_argument("-s", "--steps_file", required=True,
-                            help="Name of the bootstrap steps file to execute.")
+                            help="Name of the steps file to execute.")
         parser.add_argument("-w", "--workspace_path", required=True,
                             help="Project workspace path")
         parser.add_argument("-hl", "--headless", action="store_true", help="Headless automation mode")
@@ -1303,8 +1314,8 @@ def bootstrap_main() -> int:
             logger = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
             logger.setLevel(level=logging.DEBUG)
 
-        creator = EnvCreator(logger=logger, workspace_path=args.workspace_path)
-        creator.run_steps(steps_file=args.steps_file)
+        env_setup = EnvSetupToolsLib(logger=logger, workspace_path=args.workspace_path, proc_lib=proc_lib)
+        env_setup.run_steps(steps_file=args.steps_file)
         result = 0
 
     except KeyboardInterrupt:
@@ -1329,4 +1340,4 @@ def bootstrap_main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(bootstrap_main())
+    sys.exit(env_setup_main())

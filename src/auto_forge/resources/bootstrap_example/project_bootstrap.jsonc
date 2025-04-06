@@ -176,6 +176,7 @@
 		{
 			"description": "Downloading the Zephyr SDK",
 			"method": "download_file",
+			"status_step_disabled": true,
 			"arguments": {
 				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
 				"proxy": "http://proxy-dmz.intel.com:911",
