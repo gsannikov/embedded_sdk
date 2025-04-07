@@ -27,6 +27,7 @@ dependencies = [
     "gitpython",
     "jsonpath-ng",
     "json5",
+    "jsonschema",
     "cmd2"
 ]
 

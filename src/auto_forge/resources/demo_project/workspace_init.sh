@@ -24,10 +24,10 @@ RESOURCES_PATH=""
 
 # An array of resources we have to download locally
 downloadable_resources=(
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/bootstrap.py"
+	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/setup_tools.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/json_processor.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/logger.py"
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/bootstrap_example/project_bootstrap.jsonc"
+	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/setup.jsonc"
 )
 
 # One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.
@@ -417,8 +417,8 @@ main() {
 
 	done
 
-	# Fire bootstrap along with the project steps
-	python3 "$resources_path/bootstrap.py" -s "$resources_path/project_bootstrap.jsonc" -w "$WORKSPACE_PATH"
+	# Fire setup tools along with a project specific steps JSON
+	python3 "$resources_path/setup_tools.py" -s "$resources_path/setup.jsonc" -w "$WORKSPACE_PATH"
 	ret_val=$?
 
 	return $ret_val
