@@ -43,7 +43,7 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (JSONProcessorLib, VariablesLib, SignaturesLib)
+from auto_forge import (JSONProcessorLib, VariablesLib, SignaturesLib, PROJECT_SCHEMAS_PATH)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
@@ -216,18 +216,27 @@ class SolutionProcessorLib:
             config_file = f"{self._solution_file_path}/{self._includes.get('environment')}"
             self._varLib = VariablesLib(config_file_name=config_file)
 
-            # Instantiate the optional signatures core module based on the configuration file we got
-            config_file = self._includes.get('signature_schema', None)
-            if config_file is not None:
-                config_file = f"{self._solution_file_path}/{config_file}"
-                self._sigLib = SignaturesLib(descriptor_file=config_file)
+            schema_version = self._includes.get("schema")
+            if schema_version is not None:
+                schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
+                if os.path.exists(schema_path):
 
-            # Initialize the optional schema used for validating the solution structuire
-            # If file is specified, attempt to preprocess and load it
-            config_file = self._includes.get('solution_schema', None)
-            if config_file is not None:
-                config_file = f"{self._solution_file_path}/{config_file}"
-                self._solution_schema = self._procLib.preprocess(file_name=config_file)
+                    self._logger.debug(f"Using schemas version '{schema_version}' from '{schema_path}'")
+
+                    # Try to locate and load expected schema files
+                    signature_schema_file = os.path.join(schema_path.__str__(), "signature.jsonc")
+                    solution_schema_file = os.path.join(schema_path.__str__(), "solution.jsonc")
+
+                    # Instantiate the optional signatures core module based on the configuration file we got
+                    if os.path.exists(signature_schema_file):
+                        self._sigLib = SignaturesLib(descriptor_file=signature_schema_file)
+
+                    # Initialize the optional schema used for validating the solution structuire
+                    # If file is specified, attempt to preprocess and load it
+                    if os.path.exists(solution_schema_file):
+                        self._solution_schema = self._procLib.preprocess(file_name=solution_schema_file)
+                else:
+                    self._logger.warning(f"Schemas path '{schema_path} does not exist'")
 
             # Having the solution structure validated we can build the tree
             self._solution_data = self._root_context

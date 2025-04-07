@@ -79,7 +79,7 @@ class SignaturesLib:
             if schemas is None:
                 raise RuntimeError(f"schemas not found in {descriptor_file}")
 
-            self._logger.debug(f"Building schema based on '{os.path.basename(self._json_descriptor_file)}'")
+            self._logger.debug(f"Initialized using '{os.path.basename(self._json_descriptor_file)}'")
             for raw_schema in schemas:
                 schema: SignatureSchema = SignatureSchema()  # Create new instance
                 schema.dictionary = raw_schema
@@ -132,7 +132,6 @@ class SignaturesLib:
                 self._schemas.append(schema)
 
             self._initialized = True
-            self._logger.debug(f"Initialized")
 
         except Exception as exception:
             raise RuntimeError(exception) from exception
