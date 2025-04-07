@@ -72,22 +72,24 @@
 */
 
 {
+
+	// Required configuration files for other core modules
+	"includes": {
+		// Workspace initialization
+		"setup": "setup.jsonc",
+		// Projects environment variables
+		"environment": "environment.jsonc",
+		// Supported toolchains
+		"toolchains": "toolchains.jsonc",
+		// Defines schema version be used
+		"schema": "1.0"
+	},
+
 	// Define a list with supported boards
 	"boards": [
 		"imc_simics",
 		"cinic"
 	],
-	// Required configuration files for other core modules
-	"includes": {
-		// Projects environment variables
-		"environment_config": "environment.jsonc",
-		// Supported toolchains
-		"toolchains_config": "toolchains.jsonc",
-		// Binary signatures schema
-		"signature_schema": "signature_schema.jsonc",
-		// The solution tree JSON schema
-		"solution_schema": "solution_schema.jsonc"
-	},
 	// Solutions list
 	"solutions": [
 		{

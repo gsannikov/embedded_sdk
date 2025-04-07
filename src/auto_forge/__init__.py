@@ -18,10 +18,11 @@ from auto_forge.core.variables import VariablesLib
 from auto_forge.core.binary_signatures import (SignaturesLib, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
 from auto_forge.core.solution_processor import SolutionProcessorLib
-from auto_forge.core.bootstrap import EnvCreator
+from auto_forge.core.setup_tools import SetupToolsLib
 
 # Globals provided by the project setting module
-from .settings import PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE
+from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME,
+                       PROJECT_REPO, PROJECT_PACKAGE)
 from auto_forge.auto_forge import AutoForge, auto_forge_main as main
 
 # Exported symbols
@@ -33,8 +34,10 @@ __all__ = [
     "SignatureFileHandler",
     "Signature",
     "SignatureSchema",
+    "SetupToolsLib",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
+    "PROJECT_RESOURCES_PATH",
     "PROJECT_VERSION",
     "PROJECT_NAME",
     "PROJECT_REPO",

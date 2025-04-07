@@ -15,6 +15,7 @@ import toml
 # Determine the base directory of the project
 PROJECT_BASE_PATH = Path(__file__).resolve().parent
 PROJECT_CONFIG_PATH = PROJECT_BASE_PATH / "config"
+PROJECT_RESOURCES_PATH = PROJECT_BASE_PATH / "resources"
 PROJECT_PACKAGE_BASE_PATH = Path(__file__).resolve().parent.parent.parent
 
 # Initialize default values for global variables
@@ -47,6 +48,7 @@ def auto_forge_get_info(base_path: Path):
         os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_PACKAGE_BASE_PATH'] = str(PROJECT_PACKAGE_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
+        os.environ['AUTO_FORGE_PROJECT_RESOURCES_PATH'] = str(PROJECT_RESOURCES_PATH)
 
         # Try to open and load the TOML file
         with open(toml_path, "r") as toml_file:

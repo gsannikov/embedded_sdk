@@ -2,6 +2,7 @@
 """
 Script:     relocate.py
 Version:    0.1
+Author:         Intel AutoForge team
 
 Description:
 Automate the process of relocating directories and files from one location to another based on specified

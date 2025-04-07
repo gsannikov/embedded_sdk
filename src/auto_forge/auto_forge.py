@@ -17,7 +17,7 @@ from typing import Optional
 from colorama import init
 
 # Internal AutoForge imports
-from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, PROJECT_CONFIG_PATH)
+from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH)
 
 
 class AutoForge:
@@ -51,16 +51,17 @@ def auto_forge_main() -> Optional[int]:
     This function handles user arguments and launches AutoForge to execute the required test.
 
     Returns:
-        int: Exit code of the function.
-    """
+        int: Exit code of the function.    """
 
     result: int = 1  # Default to internal error
+    demo_project_path: Path = PROJECT_RESOURCES_PATH / "demo_project"
     logger  = logger_setup(level=logging.DEBUG, no_colors=False)
 
     try:
 
         # For now, we assume that the solution is in the library 'config' path
-        solution_file: Path = PROJECT_CONFIG_PATH / "solution.jsonc"
+        solution_file: Path = demo_project_path / "solution.jsonc"
+
 
         # Instantiate AutoForge
         auto_forge: AutoForge = AutoForge(solution_file=solution_file.__str__(), logger=logger)

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 
-Script:       bootstrap.py
-Version:      1.0.0
+Script:         bootstrap.py
+Version:        1.0.0
+Author:         Intel AutoForge team
 
 SDK environment installation toolbox.
 
@@ -30,7 +31,7 @@ if __name__ != '__main__':
     # Use package imports when running as part of AutoForge
     from auto_forge import (JSONProcessorLib, NullLogger)
 
-AUTO_FORGE_MODULE_NAME = "EnvSetup"
+AUTO_FORGE_MODULE_NAME = "SetupTools"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment setup tools"
 
 
@@ -186,7 +187,7 @@ class ANSIGuru:
         sys.stdout.flush()
 
 
-class EnvSetupToolsLib:
+class SetupToolsLib:
 
     def __init__(self, logger: Optional[logging.Logger] = None, workspace_path: Optional[str] = None,
                  proc_lib: Optional[Any] = None):
@@ -1231,7 +1232,7 @@ class EnvSetupToolsLib:
         try:
 
             # Expand, convert to absolute path and verify
-            steps_file = EnvSetupToolsLib.env_expand_var(input_string=steps_file, to_absolute=True)
+            steps_file = SetupToolsLib.env_expand_var(input_string=steps_file, to_absolute=True)
             if not os.path.exists(steps_file):
                 raise RuntimeError(f"steps file '{steps_file}' does not exist")
 
@@ -1314,8 +1315,8 @@ def env_setup_main() -> int:
             logger = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
             logger.setLevel(level=logging.DEBUG)
 
-        env_setup = EnvSetupToolsLib(logger=logger, workspace_path=args.workspace_path, proc_lib=proc_lib)
-        env_setup.run_steps(steps_file=args.steps_file)
+        setup_tools = SetupToolsLib(logger=logger, workspace_path=args.workspace_path, proc_lib=proc_lib)
+        setup_tools.run_steps(steps_file=args.steps_file)
         result = 0
 
     except KeyboardInterrupt:

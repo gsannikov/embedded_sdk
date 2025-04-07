@@ -23,6 +23,12 @@
 					"id": "0x00A5"
 				}
 			],
+			"projects_id": [
+				{
+					"name": "IMCv2",
+					"id": "0x00A6"
+				}
+			],
 			"schemas": [
 				{
 					// Mandatory main signature schema
@@ -121,13 +127,13 @@
 									"type": "uint16"
 								},
 								{
-									"name": "product_id",
-									"description": "Product ID decimal identifier",
+									"name": "project_id",
+									"description": "Any of the known project defined by this signatures",
 									"type": "uint16"
 								},
 								{
-									"name": "sub_product_id",
-									"description": "Product extended ID decimal identifier",
+									"name": "project_sub_id",
+									"description": "Project semiofficial extended ID decimal identifier",
 									"type": "uint16"
 								}
 							]
@@ -160,7 +166,7 @@
 						},
 						{
 							"name": "flags",
-							"description": "Bits as defined in imcv2_flags",
+							"description": "Product flags (bits)",
 							"type": "uint32",
 							"type_info": [
 								{
@@ -228,39 +234,39 @@
 			"products": [
 				{
 					"name": "Zephyr",
-					"description": "IMCv2 Firmware",
+					"description": "Zephyr RTOS Firmware",
 					"family": "0x00A5",
+					// Ex. IMCv2
 					"id": "0x00A6",
-					// Zephyr
-					"subId": "0x001"
+					"sub_id": "0x001"
 				},
 				{
 					"name": "BL2",
-					"description": "IMCv2 ARM Trusted Firmware BL2",
+					"description": "ARM Trusted Firmware BL2",
 					"family": "0x00A5",
 					"id": "0x00A6",
-					"subId": "0x002"
+					"sub_id": "0x002"
 				},
 				{
 					"name": "BL31",
-					"description": "IMCv2 ARM Trusted Firmware BL31",
+					"description": "ARM Trusted Firmware BL31",
 					"family": "0x00A5",
 					"id": "0x00A6",
-					"subId": "0x003"
+					"sub_id": "0x003"
 				},
 				{
 					"name": "BL32",
-					"description": "IMCv2 ARM Trusted Firmware BL32",
+					"description": "ARM Trusted Firmware BL32",
 					"family": "0x00A5",
-					"id": "0x00A6",
-					"subId": "0x004"
+					"is": "0x00A6",
+					"sub_id": "0x004"
 				},
 				{
 					"name": "ML",
-					"description": "IMCv2 Mini Loader",
+					"description": "Mini Loader",
 					"family": "0x00A5",
-					"id": "0x00A6",
-					"subId": "0x005"
+					"is": "0x00A6",
+					"sub_id": "0x005"
 				}
 			]
 		}
