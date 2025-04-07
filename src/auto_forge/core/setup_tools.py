@@ -207,7 +207,7 @@ class SetupToolsLib:
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
         self._ansi_term = ANSIGuru()  # Instance the local ANSI trickery gadgets
-        self._logger_enabled: bool = False  # Default logger state
+        self._logger_enabled: bool = True  # Default logger state
         self._logger = logger
 
         if __name__ != '__main__':
@@ -215,12 +215,6 @@ class SetupToolsLib:
             self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
             self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
             self._logger.setLevel(level=logging.DEBUG)
-        else:
-            from logger import NullLogger
-
-        # Take a note if we're using the real modem rather then the place holder.
-        if not isinstance(self._logger, NullLogger):
-            self._logger_enabled = True
 
         # The following are defaults used when printing user friendly terminal status
         self._status_title_length: int = 80
@@ -626,12 +620,15 @@ class SetupToolsLib:
         restored_path = _normalize_path(restored_path)
         return restored_path
 
-    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False):
+    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False) ->Optional[str]:
         """
         Initialize the workspace path.
         Args:
             start_fresh (bool): If true, the workspace path will be erased.
             start_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
+
+        Returns:
+            str: The workspace expanded and verified path.
         """
         try:
 
@@ -652,6 +649,7 @@ class SetupToolsLib:
 
             # Move to the workspace path
             os.chdir(self._workspace_path)
+            return self._workspace_path
 
         # Propagate the exception
         except Exception:

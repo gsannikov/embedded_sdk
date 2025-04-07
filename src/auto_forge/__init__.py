@@ -35,6 +35,7 @@ __all__ = [
     "Signature",
     "SignatureSchema",
     "SetupToolsLib",
+    "AutoForge",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
     "PROJECT_RESOURCES_PATH",

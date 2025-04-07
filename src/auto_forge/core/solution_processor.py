@@ -56,12 +56,12 @@ class SolutionProcessorLib:
     predefined schemas, and expanding variables to their actual values.
 
     Args:
-        solution_file_name (str): The path to the JSON configuration file.
+        solution_config_file_name (str): The path to the JSON configuration file.
         max_iterations (int): Specifies how many times the class should attempt to resolve references
                               before stopping to avoid endless loops.
     """
 
-    def __init__(self, solution_file_name: str, max_iterations: int = 20) -> None:
+    def __init__(self, solution_config_file_name: str, max_iterations: int = 20) -> None:
         self._service_name: str = self.__class__.__name__
 
         # Initialize a logger instance
@@ -84,10 +84,8 @@ class SolutionProcessorLib:
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
 
         # Load the solution
-        self._preprocess(solution_file_name)
-
+        self._preprocess(solution_config_file_name)
         self._initialized = True
-        self._logger.debug(f"Initialized")
 
     def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[List, Dict]]:
         """
@@ -164,6 +162,14 @@ class SolutionProcessorLib:
         path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*].name"
         return self._query_json_path(path)
 
+    def get_primary_solution_name(self):
+        """ Gets the name of the first solution """
+        solutions = self.get_solutions_list()
+        if solutions is not None and len(solutions) > 0:
+            return solutions[0]
+        else:
+            raise Exception("no solutions found")
+
     def show(self):
         """Prints the loaded solution as a formated JSON string"""
         if not self._solution_loaded:
@@ -207,8 +213,8 @@ class SolutionProcessorLib:
                 raise RuntimeError(f"no includes defined in '{os.path.basename(self._solution_file_name)}'")
 
             # Initialize the environment core module based on the configuration file we got
-            config_file = f"{self._solution_file_path}/{self._includes.get('environment_config')}"
-            self._varLib = VariablesLib(environment_file=config_file)
+            config_file = f"{self._solution_file_path}/{self._includes.get('environment')}"
+            self._varLib = VariablesLib(config_file_name=config_file)
 
             # Instantiate the optional signatures core module based on the configuration file we got
             config_file = self._includes.get('signature_schema', None)
@@ -228,7 +234,7 @@ class SolutionProcessorLib:
 
             # Start the heavy lifting
             self._build_solution_tree()
-            self._logger.debug(f"Solution loaded from '{os.path.basename(self._solution_file_name)}'")
+            self._logger.debug(f"Initialized using '{os.path.basename(self._solution_file_name)}'")
 
         except Exception as exception:
             raise RuntimeError(exception) from Exception

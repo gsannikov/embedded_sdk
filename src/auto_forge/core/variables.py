@@ -16,8 +16,9 @@ import threading
 from bisect import bisect_left
 from typing import Optional, Any, Dict, List, Tuple, Match
 
+import auto_forge
 # Builtin AutoForge core libraries
-from auto_forge import JSONProcessorLib
+from auto_forge import (JSONProcessorLib)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment core service"
@@ -43,42 +44,37 @@ class VariablesLib:
     _is_initialized = False
     _lock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, environment_file: Optional[str] = None):
+    def __new__(cls, config_file_name: Optional[str] = None):
         """
         Basic class initialization in a singleton mode
         """
 
         if cls._instance is None:
             cls._instance = super(VariablesLib, cls).__new__(cls)
-            cls._environment_file: Optional[str] = environment_file
+            cls._config_file_name: Optional[str] = config_file_name
 
         return cls._instance
 
-    def __init__(self, environment_file: Optional[str] = None):
+    def __init__(self, config_file_name: Optional[str] = None):
         """
         Manages a collection of configuration variables derived from a JSON dictionary and provides
         functionality to manipulate these variables efficiently. The class supports operations such
         as adding, removing, and updating variables, ensuring data integrity and providing thread-safe
         access.
-
-        Key attributes:
-            _variables (Optional[List[Variable]]): A list of Variable objects representing the current
-                                                   configuration. Each variable includes attributes
-                                                   such as name, value, and description.
-            _search_keys (Optional[List[Tuple[bool, str]]]): A list of tuples used for optimized search
-                                                             operations, synchronized with the _variables list.
-            _lock (Lock): A threading lock used to ensure thread-safe modifications to the variables.
         """
 
         if not self._is_initialized:
 
             try:
                 self._service_name: str = self.__class__.__name__
+                self._auto_forge = auto_forge.AutoForge()
 
                 # Initialize a logger instance
                 self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
                 self._logger.setLevel(level=logging.DEBUG)
-
+                self._workspace_path = self._auto_forge.get_workspace_path()
+                self._base_config_file_name:Optional[str] = None
+                self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
                 self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
                 self._variable_capitalize_description: bool = True  # Description field formatting
                 self._variables_defaults: Optional[dict] = None  # Optional default variables properties
@@ -91,10 +87,10 @@ class VariablesLib:
                 self._processor: JSONProcessorLib = JSONProcessorLib()
 
                 # Build variables list
-                if self._environment_file is not None:
-                    self._load_from_file(file_name=environment_file, rebuild=True)
+                if self._config_file_name is not None:
+                    self._load_from_file(config_file_name=config_file_name, rebuild=True)
 
-                self._logger.debug(f"Initialized")
+                self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
                 self._is_initialized = True
 
             except Exception as exception:
@@ -197,7 +193,7 @@ class VariablesLib:
             self._variables_defaults = None
             self._search_keys = None
 
-    def _load_from_file(self, file_name: str, rebuild: bool = False) -> Optional[int]:
+    def _load_from_file(self, config_file_name: str, rebuild: bool = False) -> Optional[int]:
         """
         Constructs or rebuilds the configuration data based on an environment JSONc file.
 
@@ -206,7 +202,7 @@ class VariablesLib:
         and `_variables` is already initialized, the method raises a RuntimeError.
 
         Args:
-            file_name(str): JSON file containing variables to load
+            config_file_name(str): JSON file containing variables to load
             rebuild (bool): Specifies whether to forcibly rebuild the variable list even if it
                             already exists. Defaults to False.
 
@@ -221,22 +217,37 @@ class VariablesLib:
                     raise RuntimeError(f"variables dictionary exist")
 
                 # Preprocess
-                raw_data: Optional[Dict[str, Any]] = self._processor.preprocess(file_name=file_name)
+                raw_data: Optional[Dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
                 if raw_data is None:
-                    raise RuntimeError(f"unable to load environment file: {file_name}")
+                    raise RuntimeError(f"unable to load environment file: {config_file_name}")
 
                 # Extract variables, defaults and other options
                 raw_variables = raw_data.get('variables', {})
                 if raw_variables is None or len(raw_variables) == 0:
-                    raise RuntimeError(f"environment file: '{file_name}' contain no variables")
+                    raise RuntimeError(f"environment file: '{config_file_name}' contain no variables")
 
+                self._base_file_name = os.path.basename(config_file_name)
                 self._variables_defaults = raw_data.get('defaults', {})
-                self._variable_prefix: Optional[str] = raw_data.get('prefix', None)
+
+                #  If auto prefix is enabled, use the project name (upper cased) as prefix
+                self._variable_auto_prefix =  raw_data.get('auto_prefix', self._variable_auto_prefix)
+                # Try to locate an element whose  'name' is "PROJECT_NAME"
+                target_dict = next((item for item in raw_variables if item['name'] == 'PROJECT_NAME'), None)
+                if target_dict:
+                    project_name = target_dict.get('value', None)
+                if self._variable_auto_prefix and isinstance(project_name,str):
+                    self._variable_prefix: Optional[str] = f"{project_name.upper()}_"
+
                 self._variable_force_upper_case_names = raw_data.get('force_upper_case_names', False)
+                self._base_config_file_name = os.path.basename(config_file_name)
 
                 # Invalidate the list we might have
                 if rebuild is True:
                     self._variables = None
+
+                # Statically add workspace path
+                self.add(variable_name="PROJECT_WORKSPACE", value=self._workspace_path,
+                             description="Workspace path", path_must_exist=True, create_path_if_not_exist=False)
 
                 # Process each variable from the dictionary
                 for var in raw_variables:
@@ -252,7 +263,7 @@ class VariablesLib:
 
             except Exception as exception:
                 self._variables = None
-                raise RuntimeError(f"unable to load environment file: {file_name}") from exception
+                raise RuntimeError(f"environment file '{self._base_file_name}' error {exception}")
 
     def _expand_variable_value(self, value: Any) -> Any:
         """
@@ -391,6 +402,10 @@ class VariablesLib:
         # Use defaults if None was specified
         if new_var.create_path_if_not_exist is None:
             new_var.create_path_if_not_exist = self._variables_defaults.get('create_path_if_not_exist', False)
+
+        if new_var.create_path_if_not_exist:
+            os.makedirs(new_var.value, exist_ok=True)
+
         if new_var.path_must_exist is None:
             new_var.path_must_exist = self._variables_defaults.get('path_must_exist', False)
 
@@ -399,7 +414,7 @@ class VariablesLib:
             if not path_exist:
                 if not new_var.create_path_if_not_exist:
                     raise RuntimeError(
-                        f"Specified path '{new_var.path_must_exist}' does not exist and marked as must exist")
+                        f"path '{new_var.value}' does not exist and marked as must exist")
                 else:
                     self._logger.warning(f"Specified path: '{new_var.value}' does not exist and needs be created ")
 

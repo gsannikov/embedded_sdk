@@ -16,7 +16,7 @@
       detailing compiler flags, build paths, target specifications, and other build parameters.
 
     Use Case:
-    For instance, a solution named "IMCv2" might include projects like "ZephyrRTOS" and "Bootloader",
+    For instance, a solution named "OurSolution" might include projects like "ZephyrRTOS" and "Bootloader",
     each with configurations tailored for 'debug' and 'release', addressing different aspects of
     development and deployment.
 
@@ -38,7 +38,7 @@
     - Explicit Referencing: Enables the use of keys from different scopes, either locally or globally within
       the document, here we must use the full opath to the referenced variable.
       Example:
-      "dummy": "<$ref_solutions[IMCv2].projects[Zephyr].configurations[debug].board>"
+      "dummy": "<$ref_solutions[OurSolution].projects[Zephyr].configurations[debug].board>"
 
     - Reference Syntax: Embeds references within "<$ref_" followed by the key name and closed with ">",
       streamlining dynamic data retrieval.
@@ -59,7 +59,7 @@
       A configuration might inherit from 'release' while enabling additional debug tools:
       {
         "name": "debug_extended",
-        "data": "<$derived_from_solutions[IMCv2].projects[Zephyr].configurations[release]>"
+        "data": "<$derived_from_solutions[OurSolution].projects[Zephyr].configurations[release]>"
         // Subsequent modifications or overrides can be specified here.
       }
 
@@ -93,9 +93,9 @@
 	// Solutions list
 	"solutions": [
 		{
-			"name": "imcv2",
+			"name": "userspace",
 			"description": "Integrated Management Complex v2",
-			"build_path": "$IMCV2_BUILD_BASE/test",
+			"build_path": "$BUILD_BASE/test",
 			"workspace": "/home/workspace",
 			"projects": [
 				{
@@ -108,11 +108,11 @@
 					"configurations": [
 						{
 							"name": "debug",
-							"test_var": "<$ref_solutions[imcv2].projects[app].configurations[release].test_var>",
+							"test_var": "<$ref_solutions[userspace].projects[app].configurations[release].test_var>",
 							"board": "imc_simics",
 							"menu_system_alias": "bd",
 							"cmake_top_level_path": "/home/dummy/<$ref_board>",
-							"build_path": "<$ref_solutions[imcv2].build_path>/<$ref_projects[].name>/<$ref_board>/<$ref_name>",
+							"build_path": "<$ref_solutions[userspace].build_path>/<$ref_projects[].name>/<$ref_board>/<$ref_name>",
 							"compiler_command": "west",
 							"execute_from": "<$ref_solutions[].workspace>",
 							"expected_result": 0,
@@ -136,12 +136,12 @@
 						{
 							"name": "release",
 							"board": "cinic",
-							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[debug]>",
+							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[debug]>",
 							"compiler_options": [
 								"build",
 								"-b <$ref_board>",
 								"<$ref_cmake_top_level_path>",
-								"-o=-j $IMCV2_BUILD_MAX_CORES",
+								"-o=-j $BUILD_MAX_CORES",
 								"-p auto",
 								"--build-dir <$ref_build_path>",
 								"--",
@@ -153,7 +153,7 @@
 						},
 						{
 							"name": "release_tag",
-							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[release]>"
+							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[release]>"
 						}
 					]
 				},
@@ -167,8 +167,8 @@
 					"configurations": [
 						{
 							"name": "release",
-							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[release]>",
-							"test_var": "<$ref_solutions[imcv2].projects[bootloader].configurations[production].test_var>"
+							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[release]>",
+							"test_var": "<$ref_solutions[userspace].projects[bootloader].configurations[production].test_var>"
 						}
 					]
 				},
@@ -182,8 +182,8 @@
 					"configurations": [
 						{
 							"name": "production",
-							"data": "<$derived_from_solutions[imcv2].projects[zephyr].configurations[release]>",
-							"test_var": "<$ref_solutions[imcv2].projects[zephyr].configurations[debug].name>"
+							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[release]>",
+							"test_var": "<$ref_solutions[userspace].projects[zephyr].configurations[debug].name>"
 						}
 					]
 				}

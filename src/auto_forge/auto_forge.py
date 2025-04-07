@@ -14,35 +14,79 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from colorama import init
-
 # Internal AutoForge imports
-from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH)
+from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, SetupToolsLib, PROJECT_RESOURCES_PATH)
 
 
 class AutoForge:
-    def __init__(self, solution_file: str, logger: logging.Logger):
+    _instance = None
+    _is_initialized = False
+
+    def __new__(cls, workspace_path: Optional[str] = None, logger: Optional[logging.Logger] = None):
         """
-        Initializes AutoForge main class - placeholder.
+        Basic class initialization in a singleton mode
+        """
+
+        if cls._instance is None:
+            cls._instance = super(AutoForge, cls).__new__(cls)
+
+        return cls._instance
+
+    def __init__(self, workspace_path: Optional[str] = None):
+        """
+        Initializes AutoForge main class
         Args:
-            logger (object): an instance of a configured logger object.
+            workspace_path (str): Path to the workspace folder.
         """
-        init(autoreset=True, strip=False)  # Required by 'colorama'
 
-        self._logger = logger
-        self._logger.propagate = True
-        self.varLib: Optional[VariablesLib] = None
-        self.solutionLib: Optional[SolutionProcessorLib] = None
+        if not self._is_initialized:
 
+            self._workspace_path: Optional[str] = workspace_path
+            self._logger: Optional[logging.Logger] = logger_setup(level=logging.DEBUG, no_colors=False)
+            self._solution_file: Optional[str] = None
+            self._solution_name: Optional[str] = None
+            self._varLib: Optional[VariablesLib] = None
+            self._solutionLib: Optional[SolutionProcessorLib] = None
+
+            try:
+                self._setupLib: SetupToolsLib = SetupToolsLib(workspace_path=workspace_path, logger=self._logger)
+                self._workspace_path = self._setupLib.set_workspace()
+                self._is_initialized = True
+
+            # Propagate
+            except Exception:
+                raise
+
+    def load_solution(self, solution_file: Optional[str] = None):
+        """
+        Load the solution file, preprocess it and make it ready for execution
+         Args:
+            solution_file (str): Path to the solution file.
+        """
         try:
-            # Load the solution file, preprocess it and make it ready for execution
-            self.solutionLib = SolutionProcessorLib(solution_file_name=solution_file)
-            self.varLib = VariablesLib()  # Get an instanced of the singleton variables class
 
-            self._logger.debug(f"Initialized")
+            if self._solutionLib is not None:
+                raise RuntimeError(f"solution already loaded.")
 
-        except Exception as init_error:
-            raise RuntimeError(f"initialization error: {init_error}.")
+            self._solutionLib = SolutionProcessorLib(solution_config_file_name=solution_file)
+            self._varLib = VariablesLib()  # Get an instanced of the singleton variables class
+
+            # Store the primary solution name
+            self._solution_name = self._solutionLib.get_primary_solution_name()
+            self._logger.debug(f"Primary solution: '{self._solution_name}'")
+
+        # Propagate
+        except Exception:
+            raise
+
+    def get_workspace_path(self) -> Optional[str]:
+        """
+        Returns the full path to the workspace folder.
+        """
+        if self._workspace_path is None:
+            raise RuntimeError("workspace folder not set")
+
+        return self._workspace_path
 
 
 def auto_forge_main() -> Optional[int]:
@@ -51,39 +95,31 @@ def auto_forge_main() -> Optional[int]:
     This function handles user arguments and launches AutoForge to execute the required test.
 
     Returns:
-        int: Exit code of the function.    """
-
+        int: Exit code of the function.
+    """
     result: int = 1  # Default to internal error
     demo_project_path: Path = PROJECT_RESOURCES_PATH / "demo_project"
-    logger  = logger_setup(level=logging.DEBUG, no_colors=False)
 
     try:
 
         # For now, we assume that the solution is in the library 'config' path
         solution_file: Path = demo_project_path / "solution.jsonc"
 
-
         # Instantiate AutoForge
-        auto_forge: AutoForge = AutoForge(solution_file=solution_file.__str__(), logger=logger)
+        auto_forge: AutoForge = AutoForge(workspace_path="~/projects/af_install/ws")
+        auto_forge.load_solution(solution_file=solution_file.__str__())
 
-        # Example: iterating through a searched list of configurations
-        config_list = auto_forge.solutionLib.get_configurations_list(solution_name="imcv2", project_name="zephyr")
-        for config in config_list:
-            config_data = auto_forge.solutionLib.query_configurations(solution_name="imcv2",
-                                                                      project_name="zephyr", configuration_name=config)
-            print(f"- {config}, board: {config_data.get('board')}")
         return 0
 
     except KeyboardInterrupt:
         print("033[A\r", end='')
-        if logger is not None:
-            logger.error("Interrupted by user, shutting down..")
+        print("Interrupted by user, shutting down..")
 
     except Exception as runtime_error:
         # Should produce 'friendlier' error message than the typical Python backtrace.
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        print(f"Runtime error:{runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
+        print(f"Exception {runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
 
     return result

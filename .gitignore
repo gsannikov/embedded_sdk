@@ -1,2 +1,3 @@
-# Package
+# Package caching
 /src/auto_forge.egg-info/
+__pycache__/
