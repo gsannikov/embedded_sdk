@@ -120,7 +120,7 @@ class RelocateLib:
             json_recipe_file (str): Path to the JSON recipe file.
         """
 
-        self._json_processor:JSONProcessorLib = JSONProcessorLib()  # Class instance
+        self._json_processor: JSONProcessorLib = JSONProcessorLib()  # Class instance
         self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
         self._relocate_defaults: Optional[RelocateDefaults] = None
         self._relocate_folders_data: Optional[List[str, Any]] = None

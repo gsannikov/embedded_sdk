@@ -1249,7 +1249,8 @@ class SetupToolsLib:
                 if status_step_disabled:
                     continue
 
-                self._show_status(text_type=StatusTextType.TITLE, text=step.get('description'), new_line=status_new_line)
+                self._show_status(text_type=StatusTextType.TITLE, text=step.get('description'),
+                                  new_line=status_new_line)
                 response = self.py_execute(method_name=step.get("method"), arguments=step.get("arguments"))
 
                 # Handle command output capture to a variable
@@ -1270,4 +1271,3 @@ class SetupToolsLib:
         finally:
             # Restore terminal cursor on exit
             self._ansi_term.set_cursor_visibility(True)
-
