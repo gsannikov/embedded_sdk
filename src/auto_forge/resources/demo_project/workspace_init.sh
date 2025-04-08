@@ -378,17 +378,17 @@ install_autoforge() {
 	pip3 uninstall -y auto_forge &> /dev/null
 
 	# Install auto_forge from the provided URL, without any output
-	if  pip3 install git+$AUTO_FORGE_URL -q > /dev/null 2>&1; then
+	if pip3 install git+$AUTO_FORGE_URL -q > /dev/null 2>&1; then
 		# Check if installation was successful
-		if     pip3 list 2> /dev/null | grep -q 'auto_forge'; then
-			return        0
+		if pip3 list 2> /dev/null | grep -q 'auto_forge'; then
+			return 0
 		else
-			echo        "Failed to install auto_forge."
-			return        1
+			echo "Failed to install auto_forge."
+			return 1
 		fi
 	else
-		echo     "Failed to install auto_forge."
-		return     1
+		echo "Failed to install auto_forge."
+		return
 	fi
 }
 
