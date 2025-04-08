@@ -340,18 +340,18 @@ setup_proxy_environment() {
 
 	# Check if HTTP_PROXY_SERVER is set and not empty
 	if [ -n "$HTTP_PROXY_SERVER" ]; then
-		export   http_proxy=$HTTP_PROXY_SERVER
-		export   HTTP_PROXY=$HTTP_PROXY_SERVER
+		export http_proxy=$HTTP_PROXY_SERVER
+		export HTTP_PROXY=$HTTP_PROXY_SERVER
 	else
-		echo   "HTTP proxy not set."
+		echo "HTTP proxy not set."
 	fi
 
 	# Check if HTTPS_PROXY_SERVER is set and not empty
 	if [ -n "$HTTPS_PROXY_SERVER" ]; then
-		export   https_proxy=$HTTPS_PROXY_SERVER
-		export   HTTPS_PROXY=$HTTPS_PROXY_SERVER
+		export https_proxy=$HTTPS_PROXY_SERVER
+		export HTTPS_PROXY=$HTTPS_PROXY_SERVER
 	else
-		echo   "HTTPS proxy not set."
+		echo "HTTPS proxy not set."
 	fi
 }
 
@@ -364,32 +364,32 @@ install_autoforge() {
 
 	# Check for Python 3.9 or higher
 	if ! python3 --version | grep -qE 'Python 3\.(9|[1-9][0-9])'; then
-		echo   "Python 3.9 or higher is not installed."
-		return   1
+		echo "Python 3.9 or higher is not installed."
+		return 1
 	fi
 
 	# Check if pip is installed
 	if ! command -v pip3 &> /dev/null; then
-		echo   "pip is not installed."
-		return   1
+		echo "pip is not installed."
+		return 1
 	fi
 
 	# Uninstall auto_forge if it exists, without any output
 	pip3 uninstall -y auto_forge &> /dev/null
 
 	# Install auto_forge from the provided URL, without any output
-    if pip3 install git+$AUTO_FORGE_URL -q >/dev/null 2>&1; then
-        # Check if installation was successful
-        if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
-            return 0
-        else
-            echo "Failed to install auto_forge."
-            return 1
-        fi
-    else
-        echo "Failed to install auto_forge."
-        return 1
-    fi
+	if  pip3 install git+$AUTO_FORGE_URL -q > /dev/null 2>&1; then
+		# Check if installation was successful
+		if     pip3 list 2> /dev/null | grep -q 'auto_forge'; then
+			return        0
+		else
+			echo        "Failed to install auto_forge."
+			return        1
+		fi
+	else
+		echo     "Failed to install auto_forge."
+		return     1
+	fi
 }
 
 #
@@ -457,7 +457,7 @@ main() {
 	prepare_workspace "$workspace_path" "$force_create" "$verbose" || return 1
 
 	if [[ $use_autoforge -eq 1 ]]; then
-	 	printf "\nGetting AutoForge Package...\n\n"
+		printf "\nGetting AutoForge Package...\n\n"
 
 		install_autoforge || return 1
 
