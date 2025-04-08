@@ -156,6 +156,15 @@
 			}
 		},
 		{
+			"description": "Installing AutoForge in local environment",
+			"method": "py_venv_package_add",
+			"status_new_line": true,
+			"arguments": {
+				"venv_path": ".venv",
+				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
+			}
+		},
+		{
 			"description": "Cloning 'userspace'",
 			"method": "git_clone_repo",
 			"status_new_line": true,
