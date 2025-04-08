@@ -457,7 +457,7 @@ main() {
 	prepare_workspace "$workspace_path" "$force_create" "$verbose" || return 1
 
 	if [[ $use_autoforge -eq 1 ]]; then
-	 	printf "Getting AutoForge Package...\n"
+	 	printf "\nGetting AutoForge Package...\n"
 
 		install_autoforge || return 1
 
