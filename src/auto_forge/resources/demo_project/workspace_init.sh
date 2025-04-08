@@ -20,19 +20,17 @@ HTTPS_PROXY_SERVER="http://proxy-dmz.intel.com:911"
 WORKSPACE_PATH=""
 
 # Variable to hold the path used for downloading and storing temporary files.
-RESOURCES_PATH=""
+AUTO_FORGE_URL="https://github.com/emichael72/auto_forge"
+
+# AutoForge URL
 
 # An array of resources we have to download locally
 downloadable_resources=(
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/setup_tools.py"
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/core/json_processor.py"
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/logger.py"
 	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/setup.jsonc"
 )
 
 # One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.
-# curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/initiator/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f
-
+# curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/setup.jsonc/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f -a
 
 #
 # @brief SwissKnife wrapper around 'curl' which allows to downloads a file from a specified
@@ -44,15 +42,15 @@ downloadable_resources=(
 
 download_file() {
 
-	local remote_url=""
-	local destination_path=""
-	local destination_filename=""
-	local proxy_configured=""
 	local http_status=0
 	local curl_exit_status=0
 	local timeout=0
 	local verbose=0
 	local extra_verbose=0
+	local remote_url=""
+	local destination_path=""
+	local destination_filename=""
+	local proxy_configured=""
 
 	# Help message function
 	display_help() {
@@ -334,6 +332,65 @@ prepare_workspace() {
 }
 
 #
+# @brief Update the environment with proxy settings if we have them defined in this scriprt.
+# @return Returns 0 on overall success, else failure.
+#
+
+setup_proxy_environment() {
+
+	# Check if HTTP_PROXY_SERVER is set and not empty
+	if [ -n "$HTTP_PROXY_SERVER" ]; then
+		export   http_proxy=$HTTP_PROXY_SERVER
+		export   HTTP_PROXY=$HTTP_PROXY_SERVER
+	else
+		echo   "HTTP proxy not set."
+	fi
+
+	# Check if HTTPS_PROXY_SERVER is set and not empty
+	if [ -n "$HTTPS_PROXY_SERVER" ]; then
+		export   https_proxy=$HTTPS_PROXY_SERVER
+		export   HTTPS_PROXY=$HTTPS_PROXY_SERVER
+	else
+		echo   "HTTPS proxy not set."
+	fi
+}
+
+#
+# @brief Install AutoForge python object.
+# @return Returns 0 on overall success, else failure.
+#
+
+install_autoforge() {
+
+	# Check for Python 3.9 or higher
+	if ! python3 --version | grep -qE 'Python 3\.(9|[1-9][0-9])'; then
+		echo   "Python 3.9 or higher is not installed."
+		return   1
+	fi
+
+	# Check if pip is installed
+	if ! command -v pip3 &> /dev/null; then
+		echo   "pip is not installed."
+		return   1
+	fi
+
+	# Uninstall auto_forge if it exists, without any output
+	pip3 uninstall -y auto_forge &> /dev/null
+
+	# Install auto_forge from the provided URL, without any output
+	pip3 install git+$AUTO_FORGE_URL &> /dev/null
+
+	# Check if installation was successful
+	if pip3 list | grep -q 'auto-forge'; then
+		echo   "auto_forge installed successfully."
+		return   0
+	else
+		echo   "Failed to install auto_forge."
+		return   1
+	fi
+}
+
+#
 # @brief Installer entry point function.
 # @return Returns 0 on overall success, else failure.
 #
@@ -343,6 +400,7 @@ main() {
 	local ret_val=0
 	local force_create=0
 	local verbose=0
+	loacl use_autoforge=0
 	local url=""
 	local resources_path=""
 	local workspace_path=""
@@ -354,6 +412,7 @@ main() {
 		echo "  -w,  --workspace [path  ]   Destination workspace path."
 		echo "  -f,  --force_create         Erase and recreate the workspace path if already exists."
 		echo "  -v,  --verbose              Enable verbose output."
+		echo "  -a,  --autoforge            Install AutoForge."
 		echo "  -h,  --help                 Display this help and exit."
 		echo
 	}
@@ -368,6 +427,10 @@ main() {
 				;;
 			-f | --force_create)
 				force_create=1
+				shift
+				;;
+			-a | --autoforge)
+				use_autoforge=1
 				shift
 				;;
 			-v | --verbose)
@@ -385,8 +448,18 @@ main() {
 		esac
 	done
 
+	# Set proxy as needed
+	setup_proxy_environment
+
 	# Validate workspace argument and create the path.
 	prepare_workspace "$workspace_path" "$force_create" "$verbose" || return 1
+
+	if [[ $use_autoforge -eq 1 ]]; then
+	 	printf "Getting AutoForge ...\n"
+		install_autoforge
+		ret_val=$?
+		return $ret_val
+	fi
 
 	# Set the destination path where resources will be downloaded into.
 	resources_path="$WORKSPACE_PATH/.init"
