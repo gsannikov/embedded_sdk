@@ -317,12 +317,6 @@ prepare_workspace() {
 		return 1
 	}
 
-	# Change current directory to the newly created path
-	cd "$workspace_path" || {
-		[[ $verbose -eq 1 ]] && printf "Error: Failed to change directory to %s\n" "$workspace_path"
-		return 1
-	}
-
 	[[ $verbose -eq 1 ]] && printf "Workspace directory prepared at %s\n" "$workspace_path"
 
 	# Store globally
