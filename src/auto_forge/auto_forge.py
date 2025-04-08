@@ -111,6 +111,7 @@ def auto_forge_main() -> Optional[int]:
 
     try:
         parser = argparse.ArgumentParser(description=PROJECT_NAME)
+        parser = argparse.ArgumentParser(prog="auto_forge", description="AutoForge Package Help")
         parser.add_argument("-w", "--workspace_path", required=True,
                             help="Project workspace path")
 
