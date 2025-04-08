@@ -8,7 +8,6 @@ Author:         Intel AutoForge team
 SDK environment installation toolbox.
 
 """
-import argparse
 import json
 import logging
 import os
@@ -27,9 +26,7 @@ from enum import Enum
 from typing import Optional, Union, Any, List, Tuple, Match
 from urllib.parse import urlparse, unquote
 
-if __name__ != '__main__':
-    # Use package imports when running as part of AutoForge
-    from auto_forge import (JSONProcessorLib, NullLogger)
+from auto_forge import (JSONProcessorLib, NullLogger)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment setup tools"
@@ -189,32 +186,28 @@ class ANSIGuru:
 
 class SetupToolsLib:
 
-    def __init__(self, logger: Optional[logging.Logger] = None, workspace_path: Optional[str] = None,
-                 proc_lib: Optional[Any] = None):
+    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
         Initialize the environment setup toolbox class.
         Args:
-            logger(Optional[logging.Logger]): a logger external instance to use  rather than create a local one.
             workspace_path(Optional[str]): The workspace path.
-            proc_lib (Optional[Any]): an external instance of JSONProcessorLib() to use rather than create a local one.
+            automated_mode(bool): Specify if we're running in automation mode
         """
 
         self._py_venv_path: Optional[str] = None
         self._package_manager: Optional[str] = None
         self._workspace_path: Optional[str] = workspace_path
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-        self._procLib = proc_lib  # Instantiate JSON processing library
+        self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
         self._ansi_term = ANSIGuru()  # Instance the local ANSI trickery gadgets
-        self._logger_enabled: bool = True  # Default logger state
-        self._logger = logger
+        self._automated_mode: bool = automated_mode  # Default execution mode
 
-        if __name__ != '__main__':
-            # Running as AutoForge package
-            self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
-            self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-            self._logger.setLevel(level=logging.DEBUG)
+        if automated_mode:
+            self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
+        else:
+            self._logger = NullLogger()  #
 
         # The following are defaults used when printing user friendly terminal status
         self._status_title_length: int = 80
@@ -250,7 +243,7 @@ class SetupToolsLib:
         """
 
         # Either logger or terminal user status, not both.
-        if self._logger_enabled:
+        if self._automated_mode:
             return
 
         terminal_width: int = shutil.get_terminal_size().columns
@@ -620,7 +613,7 @@ class SetupToolsLib:
         restored_path = _normalize_path(restored_path)
         return restored_path
 
-    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False) ->Optional[str]:
+    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False) -> Optional[str]:
         """
         Initialize the workspace path.
         Args:
@@ -1276,67 +1269,3 @@ class SetupToolsLib:
         finally:
             # Restore terminal cursor on exit
             self._ansi_term.set_cursor_visibility(True)
-
-
-def env_setup_main() -> int:
-    """
-    Command line entry point for the AutoForge EnvSetup class.
-    """
-
-    if __name__ != '__main__':
-        raise RuntimeError("code is intended to be executed only in standalone mode")
-    else:
-        try:
-            # Stand alone mode: assuming we have the those dependencies locally
-            from json_processor import JSONProcessorLib
-            proc_lib = JSONProcessorLib()
-            # noinspection PyUnresolvedReferences
-            from logger import logger_setup, NullLogger
-            logger = NullLogger()  # Dummy null logger by default
-        except ImportError as impo_error:
-            raise RuntimeError(f"failed to import required modules: {impo_error}")
-
-    result: int = 1  # Default to internal error
-    exception_message: Optional[str] = None
-
-    try:
-        parser = argparse.ArgumentParser(description=AUTO_FORGE_MODULE_NAME)
-        parser.add_argument("-s", "--steps_file", required=True,
-                            help="Name of the steps file to execute.")
-        parser.add_argument("-w", "--workspace_path", required=True,
-                            help="Project workspace path")
-        parser.add_argument("-hl", "--headless", action="store_true", help="Headless automation mode")
-        args = parser.parse_args()
-
-        # Use normal logger with debug level for max verbosity in automation mode
-        if args.headless:
-            logger = logger_setup(name=AUTO_FORGE_MODULE_NAME, no_colors=False)
-            logger.setLevel(level=logging.DEBUG)
-
-        setup_tools = SetupToolsLib(logger=logger, workspace_path=args.workspace_path, proc_lib=proc_lib)
-        setup_tools.run_steps(steps_file=args.steps_file)
-        result = 0
-
-    except KeyboardInterrupt:
-        exception_message = "\nInterrupted by user, shutting down.."
-
-    except Exception as runtime_error:
-        # Should produce 'friendlier' error message than the typical Python backtrace.
-        exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
-        file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
-        line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        exception_message = f"\nException: {str(runtime_error)} in {file_name}:{line_number}"
-
-    finally:
-        if exception_message is not None:
-            if isinstance(logger, NullLogger):
-                print(exception_message)
-            else:
-                logger.error(exception_message)
-                logging.shutdown()
-
-        return result
-
-
-if __name__ == "__main__":
-    sys.exit(env_setup_main())

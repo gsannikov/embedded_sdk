@@ -14,6 +14,7 @@ Description:
 # noinspection PyUnresolvedReferences
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SCHEMAS_PATH,
                        PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
+
 from auto_forge.logger import logger, logger_setup, logger_get_filename, logger_close, NullLogger
 from auto_forge.core.json_processor import JSONProcessorLib
 from auto_forge.core.variables import VariablesLib
@@ -30,10 +31,10 @@ __all__ = [
     "VariablesLib",
     "SignaturesLib",
     "SolutionProcessorLib",
+    "SetupToolsLib",
     "SignatureFileHandler",
     "Signature",
     "SignatureSchema",
-    "SetupToolsLib",
     "AutoForge",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",

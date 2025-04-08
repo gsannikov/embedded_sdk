@@ -16,9 +16,9 @@ import threading
 from bisect import bisect_left
 from typing import Optional, Any, Dict, List, Tuple, Match
 
-import auto_forge
 # Builtin AutoForge core libraries
-from auto_forge import (JSONProcessorLib)
+import auto_forge
+from auto_forge import ( JSONProcessorLib)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment core service"
