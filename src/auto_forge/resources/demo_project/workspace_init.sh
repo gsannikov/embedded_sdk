@@ -380,6 +380,7 @@ install_autoforge() {
 	# Install auto_forge from the provided URL, without any output
     if pip3 install git+$AUTO_FORGE_URL &> /dev/null; then
         # Check if installation was successful
+        echo "Listing ... "
         if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
             echo "AutoForge installed successfully."
             return 0
