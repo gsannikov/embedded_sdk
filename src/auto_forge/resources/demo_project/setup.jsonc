@@ -12,7 +12,7 @@
 	"status_add_time_prefix": true,
 	"status_new_line": false,
 	// Default status will be shown in place, could be overridden in any step
-	"workspace": "~/projects/af_install/ws",
+	"workspace": "ws",
 	// Steps:
 	"steps": [
 		{
