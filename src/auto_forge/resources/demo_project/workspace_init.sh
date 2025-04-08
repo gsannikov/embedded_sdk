@@ -20,7 +20,7 @@ HTTPS_PROXY_SERVER="http://proxy-dmz.intel.com:911"
 WORKSPACE_PATH=""
 
 # Variable to hold the path used for downloading and storing temporary files.
-AUTO_FORGE_URL="https://github.com/emichael72/auto_forge"
+AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
 
 # AutoForge URL
 
@@ -375,10 +375,10 @@ install_autoforge() {
 	fi
 
 	# Uninstall auto_forge if it exists, without any output
-	pip3 uninstall -y auto_forge &> /dev/null
+	pip3 uninstall -y auto_forge # &> /dev/null
 
 	# Install auto_forge from the provided URL, without any output
-	pip3 install git+$AUTO_FORGE_URL &> /dev/null
+	pip3 install git+$AUTO_FORGE_URL # &> /dev/null
 
 	# Check if installation was successful
 	if pip3 list | grep -q 'auto-forge'; then
