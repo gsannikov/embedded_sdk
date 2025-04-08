@@ -30,7 +30,7 @@ downloadable_resources=(
 )
 
 # One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.
-# curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/setup.jsonc/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f -a
+# curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f -a
 
 #
 # @brief SwissKnife wrapper around 'curl' which allows to downloads a file from a specified
@@ -400,7 +400,7 @@ main() {
 	local ret_val=0
 	local force_create=0
 	local verbose=0
-	loacl use_autoforge=0
+	local use_autoforge=0
 	local url=""
 	local resources_path=""
 	local workspace_path=""
