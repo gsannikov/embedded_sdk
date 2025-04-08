@@ -462,7 +462,7 @@ main() {
 		install_autoforge || return 1
 
 		# Execute AutoForge
-		python3.9 -m auto_forge
+		python3.9 -m auto_forge -std -w ws
 		ret_val=$?
 		return $ret_val
 	fi
