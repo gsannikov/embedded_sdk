@@ -17,7 +17,7 @@ from typing import Optional
 
 # Internal AutoForge imports
 from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, SetupToolsLib, PROJECT_NAME,
-                        PROJECT_RESOURCES_PATH)
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION)
 
 
 class AutoForge:
@@ -119,11 +119,17 @@ def auto_forge_main() -> Optional[int]:
                             help="Manage a solution by executing a solution file.")
 
         parser.add_argument("-st", "--steps_file", required=False,
-                            help="Create environment by execution steps file and exit.")
+                            help="Create environment by execution steps file and exit")
         parser.add_argument("-am", "--automated_mode", action="store_true", help="Set to enable automation mode")
         parser.add_argument("-sd", "--demo_solution", action="store_true", help="Set to execute a demo solution")
         parser.add_argument("-std", "--demo_steps", action="store_true", help="Set to execute demo steps")
+        parser.add_argument("-v", "--version", action="store_true", help="Show version and exit")
         args = parser.parse_args()
+
+        # Show apackage version and exit
+        if args.version:
+            print(f"Version: {PROJECT_VERSION}")
+            return 0
 
         # Instantiate AutoForge with a given workspace
         auto_forge: AutoForge = AutoForge(workspace_path=args.workspace_path, automated_mode=args.automated_mode)
@@ -134,7 +140,6 @@ def auto_forge_main() -> Optional[int]:
             args.solution_file = auto_forge.tools.env_expand_var(input_string=args.solution_file, to_absolute=True)
             if os.path.exists(args.solution_file):
                 return auto_forge.load_solution(solution_file=args.solution_file)
-
             RuntimeError(f"could not located provided solution file '{args.solution_file}")
 
         else:
@@ -143,7 +148,6 @@ def auto_forge_main() -> Optional[int]:
                 demo_solution_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "solution.jsonc")
                 if os.path.exists(demo_solution_file):
                     return auto_forge.load_solution(solution_file=demo_solution_file, is_demo=True)
-
                 RuntimeError(f"could not located demo solution file '{demo_solution_file}")
 
         # Execute steps file
@@ -152,7 +156,6 @@ def auto_forge_main() -> Optional[int]:
             args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file)
             if os.path.exists(args.steps_file):
                 auto_forge.tools.run_steps(steps_file=args.steps_file)
-
             RuntimeError(f"could not located provided steps file '{args.steps_file}")
         else:
             # Executing the packge builtin demo steps
@@ -160,7 +163,6 @@ def auto_forge_main() -> Optional[int]:
                 demo_steps_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "setup.jsonc")
                 if os.path.exists(demo_steps_file):
                     auto_forge.tools.run_steps(steps_file=demo_steps_file)
-
                 RuntimeError(f"could not located demo steps file '{demo_steps_file}")
 
         return 0
