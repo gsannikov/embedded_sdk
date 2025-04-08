@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     relocate.py
-Version:    0.1
+Script:         relocate.py
+Version:        0.1
 Author:         Intel AutoForge team
 
 Description:
@@ -10,15 +10,15 @@ configuration settings. It supports complex operations like filtering specific f
 creating a 'graveyard' for unwanted files, and ensuring directory structure integrity up to a defined depth.
 
 """
-import argparse
 import logging
 import os
 import shutil
-import sys
 from typing import Optional, Any, Dict, List
 
-import json_processor
-from logger import logger_setup
+from auto_forge import (JSONProcessorLib)
+
+AUTO_FORGE_MODULE_NAME = "Relocator"
+AUTO_FORGE_MODULE_DESCRIPTION = "Code tree relocator"
 
 
 class RelocateDefaults:
@@ -112,7 +112,7 @@ class RelocatedFolder:
                                                                defaults.create_empty_cmake_file)
 
 
-class Relocate:
+class RelocateLib:
     def __init__(self, json_recipe_file: str):
         """
         Initializes Relocate class.
@@ -120,16 +120,14 @@ class Relocate:
             json_recipe_file (str): Path to the JSON recipe file.
         """
 
-        self._json_processor = json_processor.JSONProcessorLib()  # Class instance
+        self._json_processor:JSONProcessorLib = JSONProcessorLib()  # Class instance
         self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
         self._relocate_defaults: Optional[RelocateDefaults] = None
         self._relocate_folders_data: Optional[List[str, Any]] = None
         self._relocate_folders_count: Optional[int] = 0
 
         # Initialize the logger
-        self.logger = logger_setup(name="Relocate", no_colors=False)
-        self.logger.setLevel(logging.INFO)
-        self.logger.propagate = True
+        self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
 
         # Use JSONProcessorLib to filter out any comments and load the recipe as a clean JSON dictionary
         try:
@@ -140,7 +138,7 @@ class Relocate:
 
             # Sets the logger to debug if specified
             if self._relocate_defaults.full_debug:
-                self.logger.setLevel(logging.DEBUG)
+                self._logger.setLevel(logging.DEBUG)
 
             # Load the folders list and make sure we got something sensible
             self._relocate_folders_data = self._recipe_data.get('folders', None)
@@ -157,9 +155,9 @@ class Relocate:
 
             # Be nice
             if self._relocate_defaults.create_empty_cmake_file:
-                self.logger.warning("Sorry,'create_empty_cmake_file' is not yet coded :)")
+                self._logger.warning("Sorry,'create_empty_cmake_file' is not yet coded :)")
 
-            self.logger.debug(f"Class initialized successfully, total {self._relocate_folders_count} folders defined.")
+            self._logger.debug(f"Class initialized successfully, total {self._relocate_folders_count} folders defined.")
 
         # Forwarded the exception
         except Exception as exception:
@@ -172,7 +170,7 @@ class Relocate:
             int: Operation exit status (the usual 0|1).
         """
         if not self._relocated_folders:
-            self.logger.error("'relocate' has not been initialized with any folders.")
+            self._logger.error("'relocate' has not been initialized with any folders.")
             return 1
 
         graveyard_path: Optional[str] = None
@@ -184,15 +182,15 @@ class Relocate:
                 try:
                     # Remove the entire directory tree
                     shutil.rmtree(self._relocate_defaults.base_destination_path)
-                    self.logger.info(
+                    self._logger.info(
                         f"Deleted existing destination directory: '{self._relocate_defaults.base_destination_path}'")
                 except Exception as clear_path_error:
-                    self.logger.error(f"Failed to delete the destination directory: {str(clear_path_error)}")
+                    self._logger.error(f"Failed to delete the destination directory: {str(clear_path_error)}")
                     return 1
         else:
             # Check if the base destination path exists and is a directory
             if os.path.exists(self._relocate_defaults.base_destination_path):
-                self.logger.error(
+                self._logger.error(
                     f"Destination directory '{self._relocate_defaults.base_destination_path}' already exists.")
                 return 1
 
@@ -202,7 +200,7 @@ class Relocate:
         for folder in self._relocated_folders:
             try:
                 os.makedirs(folder.destination, exist_ok=True)
-                self.logger.info(f"Processing folder from {folder.source} to {folder.destination}")
+                self._logger.info(f"Processing folder from {folder.source} to {folder.destination}")
 
                 # Prepare 'graveyard' directory if needed
                 if folder.create_grave_yard:
@@ -216,7 +214,7 @@ class Relocate:
                     current_depth = root.count(os.sep) - base_level
                     if max_depth != -1 and current_depth > max_depth:
                         error_msg = f"exceeded maximum copy depth ({max_depth}) at '{root}'"
-                        self.logger.error(error_msg)
+                        self._logger.error(error_msg)
                         raise RuntimeError(error_msg)
 
                     for file in files:
@@ -227,7 +225,7 @@ class Relocate:
                             dest_path = os.path.join(folder.destination, os.path.relpath(root, folder.source), file)
                             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                             shutil.copy2(src_path, dest_path)
-                            self.logger.debug(f"{src_path} -> {dest_path}")
+                            self._logger.debug(f"{src_path} -> {dest_path}")
 
                         elif folder.create_grave_yard:
                             # Move files that do not match file types into the graveyard
@@ -235,48 +233,11 @@ class Relocate:
                                                                file)
                             os.makedirs(os.path.dirname(graveyard_file_path), exist_ok=True)
                             shutil.move(src_path, graveyard_file_path)
-                            self.logger.debug(f"{src_path} -> {graveyard_file_path}")
+                            self._logger.debug(f"{src_path} -> {graveyard_file_path}")
 
             except Exception as process_error:
-                self.logger.error(f"Failed to process folder {folder.source}: {str(process_error)}")
+                self._logger.error(f"Failed to process folder {folder.source}: {str(process_error)}")
                 return 1
 
-        self.logger.info("All folders processed successfully.")
+        self._logger.info("All folders processed successfully.")
         return 0
-
-
-def relocate_main():
-    """
-    Console entry point for the 'Relocate' class.
-    Handles user arguments and launches Relocate to execute the required task.
-    Returns:
-        int: Exit code of the function.
-    """
-
-    result: int = 1  # Default to internal error
-
-    try:
-        parser = argparse.ArgumentParser(description="Reconstruct repository source tree based on JSON precipice`.")
-        parser.add_argument('-j', '--json_recipe', help="Process JSON recipe file.")
-        args = parser.parse_args()
-
-        relocate: Relocate = Relocate(args.json_recipe)
-        result = relocate.process()
-
-    except KeyboardInterrupt:
-        print("Program interrupted with Ctrl + C")
-
-    except Exception as runtime_error:
-        # Should produce 'friendlier' error message than the typical Python backtrace.
-        exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
-        file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
-        line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        print(f"Runtime error:{runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
-
-    return result
-
-
-if __name__ == "__main__":
-    # We have to start somewhere
-    return_code = relocate_main()
-    sys.exit(return_code)

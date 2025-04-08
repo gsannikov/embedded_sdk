@@ -20,6 +20,7 @@ from auto_forge.core.json_processor import JSONProcessorLib
 from auto_forge.core.variables import VariablesLib
 from auto_forge.core.binary_signatures import (SignaturesLib, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
+from auto_forge.core.relocate import RelocateLib
 from auto_forge.core.solution_processor import SolutionProcessorLib
 from auto_forge.core.setup_tools import SetupToolsLib
 
@@ -29,9 +30,10 @@ from auto_forge.auto_forge import AutoForge, auto_forge_main as main
 __all__ = [
     "JSONProcessorLib",
     "VariablesLib",
-    "SignaturesLib",
     "SolutionProcessorLib",
     "SetupToolsLib",
+    "RelocateLib",
+    "SignaturesLib",
     "SignatureFileHandler",
     "Signature",
     "SignatureSchema",

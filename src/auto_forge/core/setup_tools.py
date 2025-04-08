@@ -1269,3 +1269,4 @@ class SetupToolsLib:
         finally:
             # Restore terminal cursor on exit
             self._ansi_term.set_cursor_visibility(True)
+
