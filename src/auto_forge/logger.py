@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script:         logger.py
-Author:         Intel AutoForge Team
+Author:         Intel AutoForge team
 
 Description:
     AutoForge logging module allows for console and file logging, with and without ANSI colors.

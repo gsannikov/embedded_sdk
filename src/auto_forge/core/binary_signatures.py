@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     signatures.py
-Version:    0.1
+Script:         signatures.py
+Author:         Intel AutoForge team
 
 Description:
     SignaturesLib is a core module that simplifies the user os binary signatures

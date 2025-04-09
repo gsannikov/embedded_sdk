@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     solution_processor.py
-Version:    1.3
+Script:         solution_processor.py
+Author:         Intel AutoForge team
 
 Description:
     The AutoForge Solution Processor is designed to handle the processing of structured JSON configuration files,

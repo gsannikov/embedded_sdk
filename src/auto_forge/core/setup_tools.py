@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 
-Script:         bootstrap.py
-Version:        1.0.0
+Script:         setup_tools.py
 Author:         Intel AutoForge team
 
 SDK environment installation toolbox.

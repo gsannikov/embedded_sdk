@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Script:       imcv2_sig_tool_ex.py
-Author:       Intel AutoForge team
-Version:      1.0.0
+Script:     imcv2_sig_tool.py
+Author:     Intel AutoForge team
+
 
 TBD: <Placeholder, mockup only>"
 """
@@ -11,9 +11,8 @@ import logging
 import os
 from typing import Optional
 
-from git import Commit, Repo
-
 from auto_forge import SignaturesLib, logger_setup
+from git import Commit, Repo
 
 
 class SigUtils:

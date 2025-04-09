@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     auto_forge.py
-Author:     Intel AutoForge team
+Script:         auto_forge.py
+Author:         Intel AutoForge team
 
 Description:
     This module serves as the core of the AutoForge system. It is responsible for initializing all core libraries
@@ -16,7 +16,7 @@ import sys
 from typing import Optional
 
 # Internal AutoForge imports
-from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, SetupToolsLib, PROJECT_NAME,
+from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, SetupToolsLib,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION)
 
 
@@ -110,7 +110,6 @@ def auto_forge_main() -> Optional[int]:
     result: int = 1  # Default to internal error
 
     try:
-        parser = argparse.ArgumentParser(description=PROJECT_NAME)
         parser = argparse.ArgumentParser(prog="auto_forge", description="AutoForge Package Help")
         parser.add_argument("-w", "--workspace_path", required=True,
                             help="Project workspace path")

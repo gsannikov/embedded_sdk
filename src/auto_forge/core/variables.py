@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     environment.py
-Version:    0.1
+Script:         environment.py
+Author:         Intel AutoForge team
 
 Description: The Environment core module is designed to initialize variables with specific attributes and values,
     prevent duplicates, and allow for quick lookup and modification through methods that leverage binary search.

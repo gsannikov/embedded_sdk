@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     pre_processor.py
-Version:    0.1
+Script:         pre_processor.py
+Author:         Intel AutoForge team
 
 Description:
     Preprocessor is a core module that allows to convincingly read JSONs, which were

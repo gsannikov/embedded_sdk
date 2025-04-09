@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Script:         relocate.py
-Version:        0.1
 Author:         Intel AutoForge team
 
 Description:
