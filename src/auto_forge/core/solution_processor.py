@@ -43,13 +43,13 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (JSONProcessorLib, VariablesLib, SignaturesLib, PROJECT_SCHEMAS_PATH)
+from auto_forge import (JSONProcessor, Variables, Signatures, PROJECT_SCHEMAS_PATH)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
 
 
-class SolutionProcessorLib:
+class SolutionProcessor:
     """
     A class dedicated to preparing and processing solution files for execution. This includes
     resolving references within the solution's JSON data, validating configurations against
@@ -78,9 +78,9 @@ class SolutionProcessorLib:
         self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
-        self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
-        self._sigLib: Optional[SignaturesLib] = None  # Product binary signatures core class
-        self._varLib: Optional[VariablesLib] = None  # Instantiate variable management library
+        self._procLib = JSONProcessor()  # Instantiate JSON processing library
+        self._sigLib: Optional[Signatures] = None  # Product binary signatures core class
+        self._varLib: Optional[Variables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
 
         # Load the solution
@@ -214,7 +214,7 @@ class SolutionProcessorLib:
 
             # Initialize the environment core module based on the configuration file we got
             config_file = f"{self._solution_file_path}/{self._includes.get('environment')}"
-            self._varLib = VariablesLib(config_file_name=config_file)
+            self._varLib = Variables(config_file_name=config_file)
 
             schema_version = self._includes.get("schema")
             if schema_version is not None:
@@ -229,7 +229,7 @@ class SolutionProcessorLib:
 
                     # Instantiate the optional signatures core module based on the configuration file we got
                     if os.path.exists(signature_schema_file):
-                        self._sigLib = SignaturesLib(descriptor_file=signature_schema_file)
+                        self._sigLib = Signatures(descriptor_file=signature_schema_file)
 
                     # Initialize the optional schema used for validating the solution structuire
                     # If file is specified, attempt to preprocess and load it

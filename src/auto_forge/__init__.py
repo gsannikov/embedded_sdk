@@ -16,27 +16,31 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
                        PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
 from auto_forge.logger import logger, logger_setup, logger_get_filename, logger_close, NullLogger
-from auto_forge.core.json_processor import JSONProcessorLib
-from auto_forge.core.variables import VariablesLib
-from auto_forge.core.binary_signatures import (SignaturesLib, SignatureFileHandler, Signature,
+from auto_forge.common.progress_tracker import ProgressTracker
+from auto_forge.common.toolbox import ToolBox
+from auto_forge.core.json_processor import JSONProcessor
+from auto_forge.core.variables import Variables
+from auto_forge.core.binary_signatures import (Signatures, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
-from auto_forge.core.relocate import RelocateLib
-from auto_forge.core.solution_processor import SolutionProcessorLib
-from auto_forge.core.west_world import WestWorldLib
-from auto_forge.core.setup_tools import SetupToolsLib
+from auto_forge.core.relocate import Relocator
+from auto_forge.core.solution_processor import SolutionProcessor
+from auto_forge.core.west_world import WestWorld
+from auto_forge.core.setup_tools import (SetupTools)
 
 
 from auto_forge.auto_forge import AutoForge, auto_forge_main as main
 
 # Exported symbols
 __all__ = [
-    "JSONProcessorLib",
-    "VariablesLib",
-    "SolutionProcessorLib",
-    "SetupToolsLib",
-    "RelocateLib",
-    "SignaturesLib",
-    "WestWorldLib",
+    "ToolBox",
+    "ProgressTracker",
+    "JSONProcessor",
+    "Variables",
+    "SolutionProcessor",
+    "SetupTools",
+    "Relocator",
+    "Signatures",
+    "WestWorld",
     "SignatureFileHandler",
     "Signature",
     "SignatureField",

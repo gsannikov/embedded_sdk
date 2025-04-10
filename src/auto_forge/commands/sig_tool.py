@@ -11,7 +11,7 @@ import logging
 import os
 from typing import Optional
 
-from auto_forge import SignaturesLib, logger_setup
+from auto_forge import Signatures, logger_setup
 from git import Commit, Repo
 
 
@@ -19,7 +19,7 @@ class SigUtils:
     def __init__(self, descriptor_file: str, signature_id: int, git_repo_path: str, logger: Optional[logging.Logger]):
 
         self._service_name: str = self.__class__.__name__
-        self._sig_tool: Optional[SignaturesLib] = None
+        self._sig_tool: Optional[Signatures] = None
         self._descriptor_file: str = self._expand_path(descriptor_file)
         self._signature_id: int = signature_id
         self._git_repo_path: Optional[str] = self._expand_path(git_repo_path)
@@ -43,8 +43,8 @@ class SigUtils:
         self._git_commit_hash = self._git_commit.hexsha
 
         # Create SignaturesLib instance using the provided schema a\nd the signature id.
-        self._sig_tool = SignaturesLib(descriptor_file=self._descriptor_file,
-                                       signature_id=self._signature_id)
+        self._sig_tool = Signatures(descriptor_file=self._descriptor_file,
+                                    signature_id=self._signature_id)
 
     def update_crc(self, source_binary_file: str, validate_only: Optional[bool] = True,
                    destination_path: Optional[str] = None, pad_to_size: Optional[int] = None) -> Optional[bool]:

@@ -10,9 +10,9 @@
 	"project_name": "demo",
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
-	"status_new_line": false,
+	"status_new_line": true,
 	"status_pre_message": "\nHello, welcome to the demo project setup\n",
-	"status_post_message": "\nSetup is done.\n\n",
+	"status_post_message": "\n\nSetup is done.\n\n",
 	// Steps:
 	"steps": [
 		{
@@ -26,7 +26,6 @@
 		{
 			"description": "Setting HTTPS PROXY environment",
 			"method": "env_set",
-			"status_new_line": true,
 			"arguments": {
 				"name": "https_proxy",
 				"value": "http://proxy-dmz.intel.com:911"
@@ -79,7 +78,6 @@
 		{
 			"description": "Looking for 'dtc'",
 			"method": "validate_prerequisite",
-			"status_new_line": true,
 			"arguments": {
 				"command": "dtc",
 				"arguments": "--version"
@@ -88,7 +86,6 @@
 		{
 			"description": "Getting git access token using 'dt'",
 			"method": "shell_execute",
-			"status_new_line": true,
 			"arguments": {
 				"command": "dt",
 				"arguments": "github print-token",
@@ -102,36 +99,28 @@
 			"method": "set_workspace",
 			"arguments": {
 				"start_fresh": false,
-				"start_empty": false
+				"start_empty": true,
+				"create_as_needed": true,
+				"change_dir": true
 			},
 			// Store the executed command response in key name 'dt_token'
 			"response_store_key": "dt_token"
 		},
 		{
-			"description": "Creating firmware sources path",
+			"description": "Creating essential paths",
 			"method": "path_create",
 			"arguments": {
-				"path": "userspace/fw"
-			}
-		},
-		{
-			"description": "Creating build system path",
-			"method": "path_create",
-			"arguments": {
-				"path": "userspace/scripts"
-			}
-		},
-		{
-			"description": "Creating build output path",
-			"method": "path_create",
-			"arguments": {
-				"path": "build"
+				"paths": [
+					"build",
+					"externs",
+					"build/logs"
+				]
 			}
 		},
 		{
 			"description": "Creating Python virtual environment",
 			"method": "py_venv_create",
-			"status_new_line": true,
+			"status_step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"python_version": "python3.9",
@@ -141,7 +130,7 @@
 		{
 			"description": "Updating PIP in virtual environment",
 			"method": "py_venv_update_pip",
-			"status_new_line": true,
+			"status_step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv"
 			}
@@ -149,7 +138,7 @@
 		{
 			"description": "Installing Python packages",
 			"method": "py_venv_package_add",
-			"status_new_line": true,
+			"status_step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython"
@@ -158,20 +147,30 @@
 		{
 			"description": "Installing AutoForge in local environment",
 			"method": "py_venv_package_add",
-			"status_new_line": true,
+			"status_step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
 			}
 		},
 		{
-			"description": "Downloading the Zephyr SDK",
+			"description": "Running project manifest (west)",
 			"method": "download_file",
 			"status_step_disabled": true,
 			"arguments": {
 				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
 				"proxy": "http://proxy-dmz.intel.com:911",
 				"local_path": "~/test",
+				"delete_local": true
+			}
+		},
+		{
+			"description": "Downloading the Zephyr SDK",
+			"method": "download_file",
+			"arguments": {
+				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
+				"proxy": "http://proxy-dmz.intel.com:911",
+				"local_path": "externs",
 				"delete_local": true
 			}
 		}

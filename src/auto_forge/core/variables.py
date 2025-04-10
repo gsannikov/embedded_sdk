@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Script:         environment.py
+Script:         variables.py
 Author:         Intel AutoForge team
 
-Description: The Environment core module is designed to initialize variables with specific attributes and values,
+Description: The variables core module is designed to initialize variables with specific attributes and values,
     prevent duplicates, and allow for quick lookup and modification through methods that leverage binary search.
     It also handles dynamic changes to the variables' configuration by maintaining a sorted state and updating search
     keys accordingly.
@@ -18,10 +18,10 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
 import auto_forge
-from auto_forge import (JSONProcessorLib)
+from auto_forge import (JSONProcessor)
 
-AUTO_FORGE_MODULE_NAME = "Environment"
-AUTO_FORGE_MODULE_DESCRIPTION = "Environment core service"
+AUTO_FORGE_MODULE_NAME = "Variables"
+AUTO_FORGE_MODULE_DESCRIPTION = "Environment variables core service"
 
 
 class Variable:
@@ -39,7 +39,7 @@ class Variable:
         self.kwargs: Optional[Dict[str, Any]] = None  # Store unrecognized JSON properties
 
 
-class VariablesLib:
+class Variables:
     _instance = None
     _is_initialized = False
     _lock = threading.RLock()  # Initialize the re-entrant lock
@@ -50,7 +50,7 @@ class VariablesLib:
         """
 
         if cls._instance is None:
-            cls._instance = super(VariablesLib, cls).__new__(cls)
+            cls._instance = super(Variables, cls).__new__(cls)
             cls._config_file_name: Optional[str] = config_file_name
 
         return cls._instance
@@ -84,7 +84,7 @@ class VariablesLib:
                     List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
                 # Create an instance of the JSON preprocessing library
-                self._processor: JSONProcessorLib = JSONProcessorLib()
+                self._processor: JSONProcessor = JSONProcessor()
 
                 # Build variables list
                 if self._config_file_name is not None:

@@ -14,7 +14,7 @@ import os
 import shutil
 from typing import Optional, Any, Dict, List
 
-from auto_forge import (JSONProcessorLib)
+from auto_forge import (JSONProcessor)
 
 AUTO_FORGE_MODULE_NAME = "Relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code tree relocator"
@@ -111,7 +111,7 @@ class RelocatedFolder:
                                                                defaults.create_empty_cmake_file)
 
 
-class RelocateLib:
+class Relocator:
     def __init__(self, json_recipe_file: str):
         """
         Initializes Relocate class.
@@ -119,7 +119,7 @@ class RelocateLib:
             json_recipe_file (str): Path to the JSON recipe file.
         """
 
-        self._json_processor: JSONProcessorLib = JSONProcessorLib()  # Class instance
+        self._json_processor: JSONProcessor = JSONProcessor()  # Class instance
         self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
         self._relocate_defaults: Optional[RelocateDefaults] = None
         self._relocate_folders_data: Optional[List[str, Any]] = None

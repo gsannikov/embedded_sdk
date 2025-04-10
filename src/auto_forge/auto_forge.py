@@ -16,8 +16,8 @@ import sys
 from typing import Optional
 
 # Internal AutoForge imports
-from auto_forge import (logger_setup, VariablesLib, SolutionProcessorLib, SetupToolsLib,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION)
+from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools,
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, logger_setup)
 
 
 class AutoForge:
@@ -45,15 +45,16 @@ class AutoForge:
         if not self._is_initialized:
 
             self._logger: Optional[logging.Logger] = logger_setup(level=logging.DEBUG, no_colors=False)
+            self._Toolbox: Optional[ToolBox] = ToolBox(parent=self)
             self._solution_file: Optional[str] = None
             self._solution_name: Optional[str] = None
-            self._varLib: Optional[VariablesLib] = None
-            self._solutionLib: Optional[SolutionProcessorLib] = None
-            self._workspace_path = SetupToolsLib.env_expand_var(input_string=workspace_path, to_absolute=True)
+            self._varLib: Optional[Variables] = None
+            self._solutionLib: Optional[SolutionProcessor] = None
+            self._workspace_path = SetupTools.env_expand_var(input_string=workspace_path, to_absolute=True)
 
             try:
 
-                self.tools: SetupToolsLib = SetupToolsLib(workspace_path=self._workspace_path, automated_mode=automated_mode)
+                self.tools: SetupTools = SetupTools(workspace_path=self._workspace_path, automated_mode=automated_mode)
                 self._is_initialized = True
 
             # Propagate
@@ -77,8 +78,8 @@ class AutoForge:
 
             self._logger.debug(f"Workspace path: {self._workspace_path}")
 
-            self._solutionLib = SolutionProcessorLib(solution_config_file_name=solution_file)
-            self._varLib = VariablesLib()  # Get an instanced of the singleton variables class
+            self._solutionLib = SolutionProcessor(solution_config_file_name=solution_file)
+            self._varLib = Variables()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
             self._solution_name = self._solutionLib.get_primary_solution_name()

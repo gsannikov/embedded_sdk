@@ -60,7 +60,7 @@ class WestProject:
         self.formated_message: Optional[str] = None
 
 
-class WestWorldLib:
+class WestWorld:
 
     def __init__(self, automated_mode: bool = False):
         """

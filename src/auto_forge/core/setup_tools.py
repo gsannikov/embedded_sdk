@@ -15,18 +15,16 @@ import re
 import shlex
 import shutil
 import subprocess
-import sys
 import time
 import urllib.request
 from contextlib import suppress
-from datetime import datetime
 from enum import Enum
-from typing import Optional, Union, Any, List, Tuple, Match
+from typing import Optional, Union, Any, List
 from urllib.parse import urlparse, unquote
 
 import select
 
-from auto_forge import (JSONProcessorLib, NullLogger)
+from auto_forge import (JSONProcessor, ProgressTracker, NullLogger)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment setup tools"
@@ -45,146 +43,7 @@ class ValidationMethod(Enum):
     SYS_PACKAGE = 3
 
 
-class StatusTextType(Enum):
-    """
-    Enum to specify the types of text display for status messages.
-
-    Attributes:
-        TITLE: Initial text padded with dots, e.g., "Status ........."
-        PROGRESS: In-place text which is updated and cleared with each new progress step, e.g., "Status ......... 90%"
-        STATUS: Final operation stats, typically followed by a newline, e.g., "Status ......... OK"
-    """
-    TITLE = 1
-    PROGRESS = 2
-    STATUS = 3
-
-
-class ANSIGuru:
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def set_cursor_visibility(visible: bool):
-        if visible:
-            sys.stdout.write('\033[?25h')  # ANSI code to show the cursor
-        else:
-            sys.stdout.write('\033[?25l')  # ANSI code to hide the cursor
-        sys.stdout.flush()
-
-    @staticmethod
-    def save_cursor_position():
-        """Saves the current cursor position."""
-        sys.stdout.write("\033[s")
-        sys.stdout.flush()
-
-    @staticmethod
-    def restore_cursor_position():
-        """Restores the cursor to the last saved position."""
-        sys.stdout.write("\033[u")
-        sys.stdout.flush()
-
-    def move_cursor(self, row: Optional[int] = None, col: Optional[int] = None):
-        """
-        Moves the cursor to the specified (row, col). If only one parameter is provided,
-        it attempts to move to that row or column maintaining the other coordinate unchanged.
-
-        Args:
-            row (Optional[int]): The row to move to (1-based indexing).
-            col (Optional[int]): The column to move to (1-based indexing).
-        """
-        current_pos = self.get_cursor_position()
-
-        # Position unknown or nothing to do when both are none.
-        if current_pos is None or (row is None and col is None):
-            return
-
-        if row is not None and col is not None:
-            # Move to exact row and column
-            sys.stdout.write(f"\033[{row + 1};{col + 1}H")
-        elif row is None:
-            # Move to specific column in the current row
-            if current_pos != (-1, -1):
-                sys.stdout.write(f"\033[{current_pos[0] + 1};{col + 1}H")
-        elif col is None:
-            # Move to specific row in the current column
-            if current_pos != (-1, -1):
-                sys.stdout.write(f"\033[{row + 1};{current_pos[1] + 1}H")
-
-        sys.stdout.flush()
-
-    @staticmethod
-    def erase_line_to_end():
-        """Erases from the current cursor position to the end of the line."""
-        sys.stdout.write("\033[K")
-        sys.stdout.flush()
-
-    @staticmethod
-    def get_cursor_position() -> Optional[Tuple[int, int]]:
-        """
-        Queries the terminal for the current cursor position and returns it as a tuple (row, col).
-        This function might not work in all environments. It requires the terminal to respond to the query.
-
-        Returns:
-            Optional[Tuple[int, int]]: The current cursor position (row, col) as zero-based indices,
-            or None if the position cannot be determined.
-        """
-        sys.stdout.write("\033[6n")
-        sys.stdout.flush()
-        response: str = ""
-
-        while True:
-            ch = sys.stdin.read(1)
-            response += ch
-            if ch == 'R':
-                break
-        # Expected response format is ESC[row;colR
-        match: Match = re.search(r"\033\[(\d+);(\d+)R", response)
-        if match:
-            row, col = map(int, match.groups())
-            return row - 1, col - 1  # Convert from 1-based to 0-based.
-        return None  # Return an invalid position if something goes wrong.
-
-    @staticmethod
-    def write_color(text: Optional[str] = None, color_code: int = 0):
-        """
-        Args:
-            text (str): The text to display. If None or empty, only sets the color without text output.
-            color_code (int): The ANSI color code for setting the text color. If 0, resets all attributes to default.
-
-        Supported ANSI Color Codes:
-        - 0: Reset all attributes
-        - 30: Black
-        - 31: Red
-        - 32: Green
-        - 33: Yellow
-        - 34: Blue
-        - 35: Magenta
-        - 36: Cyan
-        - 37: White
-        - 90: Bright Black (Gray)
-        - 91: Bright Red
-        - 92: Bright Green
-        - 93: Bright Yellow
-        - 94: Bright Blue
-        - 95: Bright Magenta
-        - 96: Bright Cyan
-        - 97: Bright White
-        """
-        if color_code == 0:
-            # Reset all attributes
-            sys.stdout.write("\033[0m")
-
-        elif text is None or len(text) == 0:
-            # Only set the color without followed text and auto color reset
-            sys.stdout.write(f"\033[{color_code}m")
-        else:
-            # ANSI color code is prefixed with \033[ and suffixed with m. Default reset code is \033[0m
-            sys.stdout.write(f"\033[{color_code}m{text}\033[0m")
-
-        sys.stdout.flush()
-
-
-class SetupToolsLib:
+class SetupTools:
 
     def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
@@ -199,16 +58,16 @@ class SetupToolsLib:
         self._package_manager: Optional[str] = None
         self._workspace_path: Optional[str] = workspace_path
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-        self._procLib = JSONProcessorLib()  # Instantiate JSON processing library
+        self._procLib = JSONProcessor()  # Instantiate JSON processing library
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
-        self._ansi_term = ANSIGuru()  # Instance the local ANSI trickery gadgets
         self._automated_mode: bool = automated_mode  # Default execution mode
+        self._tracker: Optional[ProgressTracker] = None
 
         if automated_mode:
             self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
         else:
-            self._logger = NullLogger()  #
+            self._logger = NullLogger()
 
         # The following are defaults used when printing user friendly terminal status
         self._status_title_length: int = 80
@@ -237,96 +96,6 @@ class SetupToolsLib:
         """
         if not self._automated_mode and isinstance(text, str):
             print(text)
-
-    def _print_status(self, text: str,
-                      text_type: StatusTextType = StatusTextType.TITLE,
-                      new_line: bool = False,
-                      operation_status_code: Optional[int] = 0):
-        """
-        Prints the status message to the console in a formatted manner with color codes.
-
-        Args:
-            text (str): The text to log.
-            text_type (StatusTextType): TITLE, PROGRESS and cSTATUS.
-            new_line (bool): If True, the message is written in a new line rather than in place.
-            operation_status_code (int): If specified it will be used for colored final status
-        """
-
-        # Either logger or terminal user status, not both.
-        if self._automated_mode:
-            return
-
-        terminal_width: int = shutil.get_terminal_size().columns
-        text = self._normalize_text(text=text, allow_empty=True)
-        text_length: int = len(text)
-        time_string: Optional[str] = None
-
-        # Terminal width too small
-        if text_length >= terminal_width:
-            return
-
-        if text_type not in StatusTextType or text_length == 0:
-            return
-
-        #
-        # Print the title, dots and optional time prefix
-        #
-
-        if text_type == StatusTextType.TITLE:
-
-            # adjust screen text length to accommodate for the time prefix
-            if self._status_add_time_prefix:
-                now = datetime.now()
-                time_string = now.strftime("%H:%M:%S ")
-                text_length = len(time_string) + text_length
-
-            # Crop text the maximum allowed title length
-            if text_length > self._status_title_length:
-                text = text[:self._status_title_length - 4]
-                text_length = self._status_title_length - 4
-
-            # Adjust the number of dots for the alignment and print the text with one space before and after the dots.
-            dots_count = self._status_title_length - text_length - 2
-            dots = "." * dots_count
-
-            if not new_line:
-                self._ansi_term.erase_line_to_end()
-
-            # Prefixed with the colored time
-            if time_string is not None:
-                self._ansi_term.write_color(text=time_string, color_code=34)
-
-            sys.stdout.write(f"{text} {dots} ")
-            self._ansi_term.erase_line_to_end()
-            self._ansi_term.save_cursor_position()
-
-        #
-        # Print the intermediate progress text or operation final status
-        #
-
-        elif text_type == StatusTextType.PROGRESS or text_type == StatusTextType.STATUS:
-
-            self._ansi_term.restore_cursor_position()
-
-            if text_type == StatusTextType.PROGRESS:
-                sys.stdout.write(text[:terminal_width - self._status_title_length])
-                self._ansi_term.erase_line_to_end()
-                self._ansi_term.restore_cursor_position()
-            else:
-                # Use green / red colors when we know the operation shell status
-                if operation_status_code is not None:
-                    if operation_status_code == 0:
-                        self._ansi_term.write_color(text=text, color_code=32)
-                    else:
-                        self._ansi_term.write_color(text=text, color_code=31)
-                else:
-                    sys.stdout.write(text)
-
-                self._ansi_term.erase_line_to_end()
-                if new_line:
-                    sys.stdout.write('\n')
-                else:
-                    sys.stdout.write('\r')
 
     @staticmethod
     def _normalize_text(text: Optional[str], allow_empty: bool = False) -> str:
@@ -753,7 +522,7 @@ class SetupToolsLib:
                             # Aggregate all lines into a complete command response string
                             command_response += complete_line + '\n'
                             # Log the command output
-                            self._print_status(text_type=StatusTextType.PROGRESS, text=complete_line)
+                            self._tracker.set_body_in_place(text=complete_line)
 
                 # Handle execution timeout
                 if timeout > 0 and (time.time() - start_time > timeout):
@@ -1236,7 +1005,8 @@ class SetupToolsLib:
                         downloaded_size += len(chunk)
 
                         progress_percentage = (downloaded_size / total_size) * 100
-                        self._print_status(text=f"{progress_percentage:.2f}%", text_type=StatusTextType.PROGRESS)
+                        percentage_text = f"{progress_percentage:.2f}%"
+                        self._tracker.set_body_in_place(text=percentage_text)
 
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
@@ -1254,7 +1024,7 @@ class SetupToolsLib:
 
         try:
             # Expand, convert to absolute path and verify
-            steps_file = SetupToolsLib.env_expand_var(input_string=steps_file, to_absolute=True)
+            steps_file = SetupTools.env_expand_var(input_string=steps_file, to_absolute=True)
             if not os.path.exists(steps_file):
                 raise RuntimeError(f"steps file '{steps_file}' does not exist")
 
@@ -1267,8 +1037,9 @@ class SetupToolsLib:
             self._status_title_length = steps_schema.get("status_title_length", self._status_title_length)
             self._status_add_time_prefix = steps_schema.get("status_add_time_prefix", self._status_add_time_prefix)
 
-            # Hide the  cursor
-            self._ansi_term.set_cursor_visibility(False)
+            # Initialize a track instance
+            self._tracker = ProgressTracker(title_length=self._status_title_length,
+                                            add_time_prefix=self._status_add_time_prefix)
 
             # User optional greetings messages
             self._print(steps_schema.get("status_pre_message"))
@@ -1287,8 +1058,8 @@ class SetupToolsLib:
                 if status_step_disabled:
                     continue
 
-                self._print_status(text_type=StatusTextType.TITLE, text=step.get('description'),
-                                   new_line=status_new_line)
+                self._tracker.set_pre(text=step.get('description'), new_line=status_new_line)
+
                 response = self.py_execute(method_name=step.get("method"), arguments=step.get("arguments"))
 
                 # Handle command output capture to a variable
@@ -1298,7 +1069,7 @@ class SetupToolsLib:
                     self._logger.debug(f"Storing value '{response}' in '{store_key}'")
                     self._local_storage[store_key] = response
 
-                self._print_status(text_type=StatusTextType.STATUS, text="OK", new_line=status_new_line)
+                self._tracker.set_result(text="OK", status_code=0)
                 step_number = step_number + 1
 
             # User optional signoff messages
@@ -1306,9 +1077,9 @@ class SetupToolsLib:
             return 0
 
         except Exception as steps_error:
-            ANSIGuru.write_color(text="Error\n", color_code=31)
+            self._tracker.set_result(text="Error\n", status_code=1)
             raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}")
         finally:
             # Restore terminal cursor on exit
             os.chdir(local_path)  # Restore initial path
-            self._ansi_term.set_cursor_visibility(True)
+            self._tracker.close()

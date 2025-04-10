@@ -18,7 +18,7 @@ AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
 
 
-class JSONProcessorLib:
+class JSONProcessor:
     """
     About...
     """

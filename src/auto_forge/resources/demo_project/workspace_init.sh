@@ -451,11 +451,10 @@ main() {
 	# Validate workspace argument and create the path.
 	prepare_workspace "$workspace_path" "$force_create" "$verbose" || return 1
 
-	# Create temporary path within the workspace where resources will be downloaded / copied into.
-	resources_path="$WORKSPACE_PATH/.init"
-	mkdir -p "$resources_path" > /dev/null 2>&1 || {
-		printf "Error: could not create resource path.\n"
-		return 1
+	# Attempt to create a temporary directory
+	resources_path=$(mktemp -d "${WORKSPACE_PATH}/.init_XXXXXX") || {
+		printf "\nError: failed to create temporary directory in '%s'\n" "${WORKSPACE_PATH}/.init"
+		exit 1
 	}
 
 	# Check if the setup file argument is local and if so, store it
@@ -488,6 +487,9 @@ main() {
 		printf "Error: the setup file '%s' appears to be neither a local file nor a URL.\n\n" "$setup_file"
 		ret_val=1 # Mark as error
 	fi
+
+	# Remove residual files
+	rm -rf "${resources_path}" > /dev/null 2>&1
 
 	# Exit on any error
 	if [[ $ret_val -ne 0 ]]; then

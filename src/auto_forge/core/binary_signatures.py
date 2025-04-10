@@ -4,27 +4,28 @@ Script:         signatures.py
 Author:         Intel AutoForge team
 
 Description:
-    SignaturesLib is a core module that simplifies the user os binary signatures
+    Signatures is a core module that simplifies the user os binary signatures
 """
 
 import logging
-import mmap
 import os
 import re
 import struct
-import zlib
 from typing import Match, Optional, Any, Dict, List
 
+import mmap
+import zlib
+
 # Internal AutoForge imports
-from auto_forge import (JSONProcessorLib, VariablesLib)
+from auto_forge import (JSONProcessor, Variables)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures core service"
 
 
-class SignaturesLib:
+class Signatures:
     """
-    SignaturesLib is the root class which ties all the Auxilery classes to provide a functional
+    Signatures is the root class which ties all the Auxilery classes to provide a functional
     interface around signatures.
     """
 
@@ -44,8 +45,8 @@ class SignaturesLib:
         self._signature_id: Optional[int] = None
         self._raw_dictionary: Optional[Dict[str, Any]] = {}
         self._schemas: List[SignatureSchema] = []
-        self._procLib: JSONProcessorLib = JSONProcessorLib()
-        self._varLib: Optional[VariablesLib] = VariablesLib()
+        self._procLib: JSONProcessor = JSONProcessor()
+        self._varLib: Optional[Variables] = Variables()
         self._initialized = False
 
         # Initialize a logger instance
@@ -848,13 +849,13 @@ class SignatureFileHandler:
     parses their fields based on a predefined schema, and stores them in nested lists.
     """
 
-    def __init__(self, file_name: str, signatures_lib: SignaturesLib, schema_name: Optional[str] = None):
+    def __init__(self, file_name: str, signatures_lib: Signatures, schema_name: Optional[str] = None):
         """
         Initialize the FileHandler class with the file name.
 
         Args:
             file_name (str): The name of the file to handle.
-            signatures_lib (SignaturesLib): The instance of the parent 'SignaturesLib' class that created this object.
+            signatures_lib (Signatures): The instance of the parent 'SignaturesLib' class that created this object.
             schema_name (str, optional): The name of the schema to handle, use default if not set.
         """
         # Preform expansion
@@ -871,7 +872,7 @@ class SignatureFileHandler:
         self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
         self.schema_name: Optional[str] = schema_name
         self.signatures: List[Signature] = []  # Empty list to store found signatures
-        self.signatures_lib: Optional[SignaturesLib] = signatures_lib
+        self.signatures_lib: Optional[Signatures] = signatures_lib
 
         # Load the binary file and scan for signatures
         if self._build_signatures_list() == 0:
