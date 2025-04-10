@@ -11,6 +11,8 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": false,
+	"status_pre_message": "\nHello, welcome to the demo project setup\n",
+	"status_post_message": "\nSetup is done.\n\n",
 	// Steps:
 	"steps": [
 		{
