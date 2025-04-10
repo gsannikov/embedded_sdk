@@ -1,5 +1,5 @@
 /*
-    Bootstrap exam,ple script
+    Bootstrap example script
     -------------------------
 
     Note:
@@ -7,12 +7,10 @@
 */
 
 {
-	"project_name": "Our Project",
+	"project_name": "demo",
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": false,
-	// Default status will be shown in place, could be overridden in any step
-
 	// Steps:
 	"steps": [
 		{
@@ -152,7 +150,7 @@
 			"status_new_line": true,
 			"arguments": {
 				"venv_path": ".venv",
-				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython jsonpath-ng cmd2"
+				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython"
 			}
 		},
 		{
@@ -162,24 +160,6 @@
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
-			}
-		},
-		{
-			"description": "Cloning 'userspace'",
-			"method": "git_clone_repo",
-			"status_new_line": true,
-			"arguments": {
-				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
-				"dest_repo_path": "userspace/fw",
-				"timeout": 360
-			}
-		},
-		{
-			"description": "Switching 'userspace' revision",
-			"method": "git_checkout_revision",
-			"arguments": {
-				"dest_repo_path": "userspace/fw",
-				"revision": "origin"
 			}
 		},
 		{
