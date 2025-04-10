@@ -399,19 +399,18 @@ main() {
 	# Help message function
 	display_help() {
 		echo
-		echo   "Usage: $(basename "$0") [options]"
-		echo   "  -w, --workspace [path]      Destination workspace path."
-		echo   "  -f, --force-create          Erase and recreate the workspace path if it already exists."
-		echo   "  -v, --verbose               Enable verbose output."
-		echo   "  -s, --setup-file [file/url] Setup file, could be a local file or a URL."
-		echo   "  -h, --help                  Display this help and exit."
+		echo "Usage: $(basename "$0") [options]"
+		echo "  -w, --workspace [path]      Destination workspace path."
+		echo "  -f, --force-create          Erase and recreate the workspace path if it already exists."
+		echo "  -v, --verbose               Enable verbose output."
+		echo "  -s, --setup-file [file/url] Setup file, could be a local file or a URL."
+		echo "  -h, --help                  Display this help and exit."
 		echo
 	}
 
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-
 			-w | --workspace)
 				workspace_path="$2"
 				shift 2
@@ -433,7 +432,7 @@ main() {
 				return 1
 				;;
 			*)
-				printf "Error: Unknown option: %s\n" "$1"
+				echo "Error: Unknown option: {$1}"
 				return 1
 				;;
 		esac
@@ -461,14 +460,14 @@ main() {
 	# Check if the setup file argument is local and if so, store it
 	if [[ -f "$setup_file" ]]; then
 		local_stored_setup_file="$resources_path/$setup_file"
-		cp   -f "$setup_file" "$resources_path" > /dev/null 2>&1
+		cp -f "$setup_file" "$resources_path" > /dev/null 2>&1
 		ret_val=$?
 
 	# Check if it's a URL and download it
 	elif [[ $setup_file =~ ^https?:// ]]; then
 
 		# Get the actual file name from the URL
-		filename=$(  extract_filename "$setup_file")
+		filename=$(extract_filename "$setup_file")
 		local_stored_setup_file="$resources_path/filename"
 
 		# Create an array of download options
