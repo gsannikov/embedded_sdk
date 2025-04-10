@@ -139,7 +139,7 @@ def auto_forge_main() -> Optional[int]:
             args.solution_file = auto_forge.tools.env_expand_var(input_string=args.solution_file, to_absolute=True)
             if os.path.exists(args.solution_file):
                 return auto_forge.load_solution(solution_file=args.solution_file)
-            RuntimeError(f"could not located provided solution file '{args.solution_file}")
+            raise RuntimeError(f"could not located provided solution file '{args.solution_file}")
 
         else:
             # Executing the packge builtin demo solution
@@ -147,22 +147,22 @@ def auto_forge_main() -> Optional[int]:
                 demo_solution_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "solution.jsonc")
                 if os.path.exists(demo_solution_file):
                     return auto_forge.load_solution(solution_file=demo_solution_file, is_demo=True)
-                RuntimeError(f"could not located demo solution file '{demo_solution_file}")
+                raise RuntimeError(f"could not located demo solution file '{demo_solution_file}")
 
         # Execute steps file
         if args.steps_file is not None:
             # Expand as needed
-            args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file)
+            args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file,to_absolute=True)
             if os.path.exists(args.steps_file):
                 auto_forge.tools.run_steps(steps_file=args.steps_file)
-            RuntimeError(f"could not located provided steps file '{args.steps_file}")
+            raise RuntimeError(f"could not located provided steps file '{args.steps_file}")
         else:
             # Executing the packge builtin demo steps
             if args.demo_steps:
                 demo_steps_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "setup.jsonc")
                 if os.path.exists(demo_steps_file):
                     auto_forge.tools.run_steps(steps_file=demo_steps_file)
-                RuntimeError(f"could not located demo steps file '{demo_steps_file}")
+                raise RuntimeError(f"could not located demo steps file '{demo_steps_file}")
 
         return 0
 

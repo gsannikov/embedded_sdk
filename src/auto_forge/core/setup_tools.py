@@ -228,7 +228,7 @@ class SetupToolsLib:
         if self._system_type == "linux":
             self._linux_distro, self._linux_version = self._get_linux_distro()
 
-    def _print(self, text:str):
+    def _print(self, text: str):
         """
         Print text taking into consideration automation mode.
         Args:
@@ -649,8 +649,6 @@ class SetupToolsLib:
             if start_empty:
                 self._check_directory_empty(path=self._workspace_path)
 
-            # Move to the workspace path
-            os.chdir(self._workspace_path)
             return self._workspace_path
 
         # Propagate the exception
@@ -1228,9 +1226,9 @@ class SetupToolsLib:
             steps_file (str): Path to the steps JSON file.
         """
         step_number: int = 0
+        local_path = os.path.abspath(os.getcwd())  # Store initial path
 
         try:
-
             # Expand, convert to absolute path and verify
             steps_file = SetupToolsLib.env_expand_var(input_string=steps_file, to_absolute=True)
             if not os.path.exists(steps_file):
@@ -1249,7 +1247,10 @@ class SetupToolsLib:
             self._ansi_term.set_cursor_visibility(False)
 
             # User optional greetings messages
-            self._print( steps_schema.get("status_pre_message"))
+            self._print(steps_schema.get("status_pre_message"))
+
+            # Move to the workspace path
+            os.chdir(self._workspace_path)
 
             for step in self._steps_data:
 
@@ -1276,11 +1277,12 @@ class SetupToolsLib:
                 step_number = step_number + 1
 
             # User optional signoff messages
-            self._print( steps_schema.get("status_post_message"))
+            self._print(steps_schema.get("status_post_message"))
 
         except Exception as steps_error:
             ANSIGuru.write_color(text="Error\n", color_code=31)
             raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}")
         finally:
             # Restore terminal cursor on exit
+            os.chdir(local_path)  # Restore initial path
             self._ansi_term.set_cursor_visibility(True)
