@@ -152,16 +152,16 @@ def auto_forge_main() -> Optional[int]:
         # Execute steps file
         if args.steps_file is not None:
             # Expand as needed
-            args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file,to_absolute=True)
+            args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file, to_absolute=True)
             if os.path.exists(args.steps_file):
-                auto_forge.tools.run_steps(steps_file=args.steps_file)
+                return auto_forge.tools.execute_script(steps_file=args.steps_file)
             raise RuntimeError(f"could not located provided steps file '{args.steps_file}")
         else:
             # Executing the packge builtin demo steps
             if args.demo_steps:
                 demo_steps_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "setup.jsonc")
                 if os.path.exists(demo_steps_file):
-                    auto_forge.tools.run_steps(steps_file=demo_steps_file)
+                    return auto_forge.tools.execute_script(steps_file=demo_steps_file)
                 raise RuntimeError(f"could not located demo steps file '{demo_steps_file}")
 
         return 0

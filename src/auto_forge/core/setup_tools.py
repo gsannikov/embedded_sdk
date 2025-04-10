@@ -1219,13 +1219,17 @@ class SetupToolsLib:
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
 
-    def run_steps(self, steps_file: str):
+    def execute_script(self, steps_file: str) -> int:
         """
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
             steps_file (str): Path to the steps JSON file.
+        Returns:
+            int: Exit code of the function.
         """
         step_number: int = 0
+        result: int = 1  # Default to internal error
+
         local_path = os.path.abspath(os.getcwd())  # Store initial path
 
         try:
@@ -1278,6 +1282,7 @@ class SetupToolsLib:
 
             # User optional signoff messages
             self._print(steps_schema.get("status_post_message"))
+            result = 0
 
         except Exception as steps_error:
             ANSIGuru.write_color(text="Error\n", color_code=31)
@@ -1286,3 +1291,4 @@ class SetupToolsLib:
             # Restore terminal cursor on exit
             os.chdir(local_path)  # Restore initial path
             self._ansi_term.set_cursor_visibility(True)
+            return result
