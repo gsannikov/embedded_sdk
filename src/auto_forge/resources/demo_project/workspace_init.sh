@@ -421,7 +421,7 @@ main() {
 				;;
 			-s | --setup_file)
 				setup_file="$2"
-				shift
+				shift 2
 				;;
 			-v | --verbose)
 				verbose=1
@@ -429,10 +429,11 @@ main() {
 				;;
 			-h | --help)
 				display_help
-				return 1
+				return 0
 				;;
 			*)
 				printf "\nError: Unknown option: %s\n\n" "{$1}"
+				display_help
 				return 1
 				;;
 		esac
