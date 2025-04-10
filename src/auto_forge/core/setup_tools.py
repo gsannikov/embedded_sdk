@@ -188,6 +188,7 @@ class SetupToolsLib:
     def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
         Initialize the environment setup toolbox class.
+        Collect few basic system properties and prepare for execution a step file.
         Args:
             workspace_path(Optional[str]): The workspace path.
             automated_mode(bool): Specify if we're running in automation mode
@@ -236,10 +237,10 @@ class SetupToolsLib:
         if not self._automated_mode and isinstance(text, str):
             print(text)
 
-    def _show_status(self, text: str,
-                     text_type: StatusTextType = StatusTextType.TITLE,
-                     new_line: bool = False,
-                     operation_status_code: Optional[int] = 0):
+    def _print_status(self, text: str,
+                      text_type: StatusTextType = StatusTextType.TITLE,
+                      new_line: bool = False,
+                      operation_status_code: Optional[int] = 0):
         """
         Prints the status message to the console in a formatted manner with color codes.
 
@@ -741,7 +742,7 @@ class SetupToolsLib:
                             # Aggregate all lines into a complete command response string
                             command_response += complete_line + '\n'
                             # Log the command output
-                            self._show_status(text_type=StatusTextType.PROGRESS, text=complete_line)
+                            self._print_status(text_type=StatusTextType.PROGRESS, text=complete_line)
 
                 # Handle execution timeout
                 if timeout > 0 and (time.time() - start_time > timeout):
@@ -1215,7 +1216,7 @@ class SetupToolsLib:
                         downloaded_size += len(chunk)
 
                         progress_percentage = (downloaded_size / total_size) * 100
-                        self._show_status(text=f"{progress_percentage:.2f}%", text_type=StatusTextType.PROGRESS)
+                        self._print_status(text=f"{progress_percentage:.2f}%", text_type=StatusTextType.PROGRESS)
 
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
@@ -1260,8 +1261,8 @@ class SetupToolsLib:
                 if status_step_disabled:
                     continue
 
-                self._show_status(text_type=StatusTextType.TITLE, text=step.get('description'),
-                                  new_line=status_new_line)
+                self._print_status(text_type=StatusTextType.TITLE, text=step.get('description'),
+                                   new_line=status_new_line)
                 response = self.py_execute(method_name=step.get("method"), arguments=step.get("arguments"))
 
                 # Handle command output capture to a variable
@@ -1271,7 +1272,7 @@ class SetupToolsLib:
                     self._logger.debug(f"Storing value '{response}' in '{store_key}'")
                     self._local_storage[store_key] = response
 
-                self._show_status(text_type=StatusTextType.STATUS, text="OK", new_line=status_new_line)
+                self._print_status(text_type=StatusTextType.STATUS, text="OK", new_line=status_new_line)
                 step_number = step_number + 1
 
             # User optional signoff messages

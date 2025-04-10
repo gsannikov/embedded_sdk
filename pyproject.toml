@@ -28,6 +28,8 @@ dependencies = [
     "jsonpath-ng",
     "json5",
     "jsonschema",
+    "pyaml",
+    "ruamel.yaml",
     "cmd2"
 ]
 
