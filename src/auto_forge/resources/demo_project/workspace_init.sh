@@ -427,7 +427,7 @@ main() {
 				verbose=1
 				shift
 				;;
-			-h | --help | -? | --?)
+			-h | --help)
 				display_help
 				return 1
 				;;
