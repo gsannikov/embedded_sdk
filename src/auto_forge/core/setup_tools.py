@@ -227,6 +227,15 @@ class SetupToolsLib:
         if self._system_type == "linux":
             self._linux_distro, self._linux_version = self._get_linux_distro()
 
+    def _print(self, text:str):
+        """
+        Print text taking into consideration automation mode.
+        Args:
+            text (str): The text to print.
+        """
+        if not self._automated_mode and isinstance(text, str):
+            print(text)
+
     def _show_status(self, text: str,
                      text_type: StatusTextType = StatusTextType.TITLE,
                      new_line: bool = False,
@@ -1238,6 +1247,9 @@ class SetupToolsLib:
             # Hide the  cursor
             self._ansi_term.set_cursor_visibility(False)
 
+            # User optional greetings messages
+            self._print( steps_schema.get("status_pre_message"))
+
             for step in self._steps_data:
 
                 # Allow a step to temporary override in place status output behaviour
@@ -1262,7 +1274,8 @@ class SetupToolsLib:
                 self._show_status(text_type=StatusTextType.STATUS, text="OK", new_line=status_new_line)
                 step_number = step_number + 1
 
-            print("\n")
+            # User optional signoff messages
+            self._print( steps_schema.get("status_post_message"))
 
         except Exception as steps_error:
             ANSIGuru.write_color(text="Error\n", color_code=31)
