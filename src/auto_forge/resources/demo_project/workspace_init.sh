@@ -427,12 +427,12 @@ main() {
 				verbose=1
 				shift
 				;;
-			-h | --help | -? | --?)
+			-h | --help)
 				display_help
 				return 1
 				;;
 			*)
-				echo "Error: Unknown option: {$1}"
+				printf "\nError: Unknown option: %s\n\n" "{$1}"
 				return 1
 				;;
 		esac
@@ -440,7 +440,7 @@ main() {
 
 	# Validate that we got something in the 'setup_file' argument
 	if [[ -z "$setup_file" ]]; then
-		printf "Error: Setup file not provided (-s).\n"
+		printf "\nError: Setup file not provided (-s).\n\n"
 		return 1
 	fi
 
