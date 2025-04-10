@@ -22,18 +22,12 @@ WORKSPACE_PATH=""
 # Variable to hold the path used for downloading and storing temporary files.
 AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
 
-# AutoForge URL
-
-# An array of resources we have to download locally
-downloadable_resources=(
-	"https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/setup.jsonc"
-)
-
 # One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.
 # curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f -a
 
 # Function to extract the filename from a URL
 extract_filename() {
+
 	echo "${1##*/}"
 }
 
@@ -105,7 +99,7 @@ download_file() {
 				return 1
 				;;
 			*)
-				printf "Error: Unknown option: %S\n" "$1"
+				printf "Error: Unknown option: %s\n" "$1"
 				return 1
 				;;
 		esac
@@ -402,17 +396,17 @@ main() {
 	local resources_path=""
 	local workspace_path=""
 
-	 # Help message function
-    display_help() {
-        echo
-        echo "Usage: $(basename "$0") [options]"
-        echo "  -w, --workspace [path]      Destination workspace path."
-        echo "  -f, --force-create          Erase and recreate the workspace path if it already exists."
-        echo "  -v, --verbose               Enable verbose output."
-        echo "  -s, --setup-file [file/url] Setup file, could be a local file or a URL."
-        echo "  -h, --help                  Display this help and exit."
-        echo
-    }
+	# Help message function
+	display_help() {
+		echo
+		echo   "Usage: $(basename "$0") [options]"
+		echo   "  -w, --workspace [path]      Destination workspace path."
+		echo   "  -f, --force-create          Erase and recreate the workspace path if it already exists."
+		echo   "  -v, --verbose               Enable verbose output."
+		echo   "  -s, --setup-file [file/url] Setup file, could be a local file or a URL."
+		echo   "  -h, --help                  Display this help and exit."
+		echo
+	}
 
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
@@ -446,10 +440,10 @@ main() {
 	done
 
 	# Validate that we got something in the 'setup_file' argument
-    if [[ -z "$setup_file" ]]; then
-        printf "Error: Setup file not provided (-s).\n"
-        return 1
-    fi
+	if [[ -z "$setup_file" ]]; then
+		printf "Error: Setup file not provided (-s).\n"
+		return 1
+	fi
 
 	# Set optional proxy as needed
 	setup_proxy_environment
@@ -459,22 +453,25 @@ main() {
 
 	# Create temporary path within the workspace where resources will be downloaded / copied into.
 	resources_path="$WORKSPACE_PATH/.init"
-	mkdir -p "$resources_path" > /dev/null 2>&1 || { echo "Error: could not create resource path"; return 1; }
+	mkdir -p "$resources_path" > /dev/null 2>&1 || {
+		printf "Error: could not create resource path.\n"
+		return 1
+	}
 
 	# Check if the setup file argument is local and if so, store it
-    if [[ -f "$setup_file" ]]; then
-        local_stored_setup_file="$resources_path/$setup_file"
-        cp -f "$setup_file" "$resources_path" > /dev/null 2>&1
-        ret_val=$?
+	if [[ -f "$setup_file" ]]; then
+		local_stored_setup_file="$resources_path/$setup_file"
+		cp   -f "$setup_file" "$resources_path" > /dev/null 2>&1
+		ret_val=$?
 
-    # Check if it's a URL and download it
-    elif [[ $setup_file =~ ^https?:// ]]; then
+	# Check if it's a URL and download it
+	elif [[ $setup_file =~ ^https?:// ]]; then
 
-        # Get the actual file name from the URL
-        filename=$(extract_filename "$setup_file")
+		# Get the actual file name from the URL
+		filename=$(  extract_filename "$setup_file")
 		local_stored_setup_file="$resources_path/filename"
 
-        # Create an array of download options
+		# Create an array of download options
 		download_options=(-d "$resources_path")
 		download_options+=(-u "$setup_file")
 		# Add verbose option if verbose flag is set
@@ -485,12 +482,12 @@ main() {
 		download_file "${download_options[@]}"
 		ret_val=$?
 	else
-	   printf "Error: environment setup file appear to be neither local or URL\n\n"
-	   ret_val=1 # Mark as error
-    fi
+		printf "Error: environment setup file appear to be neither local or URL\n\n"
+		ret_val=1 # Mark as error
+	fi
 
 	# Exit on any error
- 	if [[ $ret_val -ne 0 ]]; then
+	if [[ $ret_val -ne 0 ]]; then
 		return $ret_val
 	fi
 
