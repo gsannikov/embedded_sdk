@@ -498,8 +498,8 @@ main() {
 	printf "\nGetting AutoForge Package...\n\n"
 	install_autoforge || return 1
 
-	# Execute AutoForge
-	python -m auto_forge -s "$local_stored_setup_file" -w "$workspace_path"
+	# Execute AutoForge along with the setup steps file
+	python -m auto_forge -st "$local_stored_setup_file" -w "$workspace_path"
 	ret_val=$?
 
 	return $ret_val
