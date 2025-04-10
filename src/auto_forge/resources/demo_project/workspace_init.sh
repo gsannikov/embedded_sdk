@@ -460,29 +460,33 @@ main() {
 
 	# Check if the setup file argument is local and if so, store it
 	if [[ -f "$setup_file" ]]; then
-		local_stored_setup_file="$resources_path/$setup_file"
-		cp -f "$setup_file" "$resources_path" > /dev/null 2>&1
-		ret_val=$?
+		local_stored_setup_file="${resources_path}/$(basename "$setup_file")"
+		if cp -f "$setup_file" "$local_stored_setup_file" > /dev/null 2>&1; then
+			printf "Error: file copied successfully to '%s'.\n" "${local_stored_setup_file}"
+			ret_val=0
+		else
+			printf "Error: failed to copy '%s'. Check file permissions and existence.\n" "$setup_file"
+			ret_val=1
+		fi
 
 	# Check if it's a URL and download it
 	elif [[ $setup_file =~ ^https?:// ]]; then
+		filename=$(basename "$setup_file")
+		local_stored_setup_file="${resources_path}/${filename}"
 
-		# Get the actual file name from the URL
-		filename=$(extract_filename "$setup_file")
-		local_stored_setup_file="$resources_path/filename"
+		# Prepare download options
+		download_options=(-d "$resources_path" -u "$setup_file")
+		[[ $verbose -eq 1 ]] && download_options+=(-v) # Add verbose option if verbose flag is set
 
-		# Create an array of download options
-		download_options=(-d "$resources_path")
-		download_options+=(-u "$setup_file")
-		# Add verbose option if verbose flag is set
-		if [[ $verbose -eq 1 ]]; then
-			download_options+=(-v)
-		fi
 		# Execute the download
-		download_file "${download_options[@]}"
-		ret_val=$?
+		if download_file "${download_options[@]}"; then
+			ret_val=0
+		else
+			printf "Error: failed to download file from URL: %s\n" "$setup_file"
+			ret_val=1
+		fi
 	else
-		printf "Error: environment setup file appear to be neither local or URL\n\n"
+		printf "Error: the setup file appears to be neither a local file nor a URL.\n\n"
 		ret_val=1 # Mark as error
 	fi
 
