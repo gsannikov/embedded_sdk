@@ -38,6 +38,7 @@ __all__ = [
     "WestWorldLib",
     "SignatureFileHandler",
     "Signature",
+    "SignatureField",
     "SignatureSchema",
     "AutoForge",
     "PROJECT_BASE_PATH",

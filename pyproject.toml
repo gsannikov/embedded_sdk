@@ -30,6 +30,7 @@ dependencies = [
     "jsonschema",
     "pyaml",
     "ruamel.yaml",
+    "git",
     "cmd2"
 ]
 
