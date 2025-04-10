@@ -35,6 +35,7 @@ __all__ = [
     "SetupToolsLib",
     "RelocateLib",
     "SignaturesLib",
+    "WestWorldLib",
     "SignatureFileHandler",
     "Signature",
     "SignatureSchema",
