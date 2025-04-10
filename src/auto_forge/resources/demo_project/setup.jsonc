@@ -32,7 +32,7 @@
 			}
 		},
 		{
-			"description": "Looking for 'dt' 2.0.810 or grater",
+			"description": "Looking for 'dt'",
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "dt",
@@ -98,8 +98,8 @@
 			"description": "Initializing workspace path",
 			"method": "set_workspace",
 			"arguments": {
-				"start_fresh": false,
-				"start_empty": true,
+				"delete_existing": false,
+				"must_be_empty": true,
 				"create_as_needed": true,
 				"change_dir": true
 			},

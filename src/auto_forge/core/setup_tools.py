@@ -27,7 +27,7 @@ import select
 from auto_forge import (JSONProcessor, ProgressTracker, NullLogger)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
-AUTO_FORGE_MODULE_DESCRIPTION = "Environment setup tools"
+AUTO_FORGE_MODULE_DESCRIPTION = "User Environment Creation API"
 
 
 class ValidationMethod(Enum):
@@ -391,14 +391,14 @@ class SetupTools:
         restored_path = _normalize_path(restored_path)
         return restored_path
 
-    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False, create_as_needed: bool = False,
+    def set_workspace(self, delete_existing: bool = False, must_be_empty: bool = False, create_as_needed: bool = False,
                       change_dir: bool = False) -> \
             Optional[str]:
         """
         Initialize the workspace path.
         Args:
-            start_fresh (bool): If true, the workspace path will be erased.
-            start_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
+            delete_existing (bool): If true, the workspace path will be erased.
+            must_be_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
             create_as_needed (bool): If true, the workspace path will be created, defaults to False.
             change_dir (bool): If true, switch to the workspace directory, defaults to False.
 
@@ -414,7 +414,7 @@ class SetupTools:
             self._workspace_path = self.env_expand_var(input_string=self._workspace_path, to_absolute=True)
 
             # Safeguard against deleting important directories
-            if start_fresh:
+            if delete_existing:
                 self.path_erase(path=self._workspace_path, allow_non_empty=True)
                 # Make sure the base path exisit
                 os.makedirs(self._workspace_path, exist_ok=True)
@@ -424,7 +424,7 @@ class SetupTools:
                 os.makedirs(self._workspace_path, exist_ok=True)
 
             # Enforce empty path
-            if start_empty:
+            if must_be_empty:
                 self._check_directory_empty(path=self._workspace_path)
 
             # Set the workspace as a working directory, may raise an exception if does not exist
