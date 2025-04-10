@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 
 Script:         west_world.py
@@ -41,7 +40,7 @@ class WestProject:
 
     def __init__(self):
         self.name: Optional[str] = None  # west.yml mandatory property
-        self.description: Optional[str] = None  # west.yml mandatory property
+        self.description: Optional[str] = None  # west.yml mandatory proerty
         self.url: Optional[str] = None  # west.yml mandatory property
         self.revision: Optional[str] = None  # west.yml mandatory property
         self.path: Optional[str] = None  # west.yml mandatory property
@@ -541,54 +540,3 @@ class WestWorldLib:
 
         # Return the number of exceptions encountered during regular operation, if not forcibly terminated
         return self._exceptions
-
-
-"""
-def mini_west_main() -> Optional[int]:
-    exit_code: int = 1
-    init()  # Initialize Colorama
-
-    parser = argparse.ArgumentParser(description="Parallel cloning tool.")
-    parser.add_argument('-w', '--west_yml', type=str, required=True, help='Imported .yml file name')
-    parser.add_argument('-b', '--base_path', type=str, required=False, help='Base path for cloned projects')
-    parser.add_argument('-o', '--override', type=str, required=False, help='west.yaml overrides')
-    parser.add_argument('-r', '--retry_count', type=int, default=3, required=False, help='Git clone attempts count')
-    # Add the boolean IMCv2 CI indicator with inline environment check
-    parser.add_argument("-nc", "--no_colors", action='store_true',
-                        default=os.getenv('IMCV2_CI_ACTIVE') == '1',
-                        help="Disable colors, which are off by default when CI is detected.")
-    parser.add_argument('-i', '--workers', type=int, default=10, required=False,
-                        help="Number of concurrent Git clone instances")
-    parser.add_argument('-l', '--text_len', type=int, default=54, required=False,
-                        help='Length of the printed status line')
-
-    args = parser.parse_args()
-    mini_west: MiniWest = MiniWest(no_colors=args.no_colors)
-
-    # Parse the override string into a list of dictionaries
-    west_overrides = mini_west.parse_override_string(args.override)
-    if not mini_west.patch_yml(args.west_yml, west_overrides):
-        return exit_code
-
-    try:
-        exit_code = mini_west.process_yml(args.west_yml, args.base_path, args.text_len, args.workers,
-                                          args.retry_count)
-        sys.stdout.write('\r\033[K')  # Erase the current line in the console
-        return exit_code
-
-    except KeyboardInterrupt:
-        sys.stdout.write("\nProcess interrupted by user.\n")
-        mini_west.close()
-    except Exception as exception:
-        print(f'\n{Fore.RED}Error:{Style.RESET_ALL} {exception}')
-    finally:
-        mini_west.close()
-    return exit_code
-
-
-if __name__ == "__main__":
-    # We have to start somewhere
-    exit_status = mini_west_main()
-    sys.exit(exit_status)
-
-"""

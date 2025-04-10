@@ -23,7 +23,7 @@ from auto_forge.core.binary_signatures import (SignaturesLib, SignatureFileHandl
 from auto_forge.core.relocate import RelocateLib
 from auto_forge.core.solution_processor import SolutionProcessorLib
 from auto_forge.core.setup_tools import SetupToolsLib
-
+from auto_forge.core.west_world import WestWorldLib
 
 from auto_forge.auto_forge import AutoForge, auto_forge_main as main
 
