@@ -15,6 +15,9 @@ import os
 import sys
 from typing import Optional
 
+# Colorama
+from colorama import Fore, Style
+
 # Internal AutoForge imports
 from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, logger_setup)
@@ -34,7 +37,7 @@ class AutoForge:
 
         return cls._instance
 
-    def __init__(self, workspace_path: str, automated_mode: bool = False ):
+    def __init__(self, workspace_path: str, automated_mode: bool = False):
         """
         Initializes AutoForge main class
         Args:
@@ -168,14 +171,13 @@ def auto_forge_main() -> Optional[int]:
         return 0
 
     except KeyboardInterrupt:
-        print("033[A\r", end='')
-        print("Interrupted by user, shutting down..")
+        print(f"\n{Fore.YELLOW}Interrupted by user, shutting down.{Style.RESET_ALL}\n")
 
     except Exception as runtime_error:
         # Should produce 'friendlier' error message than the typical Python backtrace.
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        print(f"\nException: {runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
+        print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
 
     return result

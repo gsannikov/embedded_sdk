@@ -1077,7 +1077,7 @@ class SetupTools:
             return 0
 
         except Exception as steps_error:
-            self._tracker.set_result(text="Error\n", status_code=1)
+            self._tracker.set_result(text="Error", status_code=1)
             raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}")
         finally:
             # Restore terminal cursor on exit

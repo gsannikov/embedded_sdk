@@ -28,7 +28,7 @@ from enum import Enum
 from typing import Optional
 from typing import Tuple
 
-from colorama import init, Fore, Style
+from colorama import Fore, Style
 
 
 class TrackerState(Enum):
@@ -143,8 +143,6 @@ class ProgressTracker:
         # Hide the cursor
         if hide_cursor:
             self._ansi_term.set_cursor_visibility(False)
-
-        init()
 
     @staticmethod
     def _normalize_text(text: Optional[str], allow_empty: bool = False) -> str:
@@ -286,5 +284,6 @@ class ProgressTracker:
         Closes the ProgressTracker instance by making the cursor visible again and marking
         the state as uninitialized.
         """
+        sys.stdout.write('\n')
         self._ansi_term.set_cursor_visibility(True)
         self._state = TrackerState.UN_INITIALIZES
