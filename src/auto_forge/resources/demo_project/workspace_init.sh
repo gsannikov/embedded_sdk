@@ -486,7 +486,7 @@ main() {
 			ret_val=1
 		fi
 	else
-		printf "Error: the setup file appears to be neither a local file nor a URL.\n\n"
+		printf "Error: the setup file '%s' appears to be neither a local file nor a URL.\n\n" "$setup_file"
 		ret_val=1 # Mark as error
 	fi
 
