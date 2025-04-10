@@ -12,7 +12,6 @@ import logging
 import os
 import platform
 import re
-import select
 import shlex
 import shutil
 import subprocess
@@ -24,6 +23,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, Union, Any, List, Tuple, Match
 from urllib.parse import urlparse, unquote
+
+import select
 
 from auto_forge import (JSONProcessorLib, NullLogger)
 
@@ -367,7 +368,7 @@ class SetupToolsLib:
 
         # List the contents of the directory
         if os.listdir(path):
-            raise RuntimeError(f"'{path}' is not empty")
+            raise RuntimeError(f"'{path}' path not empty")
 
     @staticmethod
     def _get_linux_distro() -> Optional[tuple[str, str]]:
@@ -550,9 +551,8 @@ class SetupToolsLib:
             execution_result = method(**arguments)
             return execution_result
 
-        except Exception:
-            # Propagate exception
-            raise
+        except Exception as exception:
+            raise exception
 
     def env_append_sys_path(self, path: str):
         """
@@ -622,12 +622,16 @@ class SetupToolsLib:
         restored_path = _normalize_path(restored_path)
         return restored_path
 
-    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False) -> Optional[str]:
+    def set_workspace(self, start_fresh: bool = False, start_empty: bool = False, create_as_needed: bool = False,
+                      change_dir: bool = False) -> \
+            Optional[str]:
         """
         Initialize the workspace path.
         Args:
             start_fresh (bool): If true, the workspace path will be erased.
             start_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
+            create_as_needed (bool): If true, the workspace path will be created, defaults to False.
+            change_dir (bool): If true, switch to the workspace directory, defaults to False.
 
         Returns:
             str: The workspace expanded and verified path.
@@ -646,14 +650,23 @@ class SetupToolsLib:
                 # Make sure the base path exisit
                 os.makedirs(self._workspace_path, exist_ok=True)
 
+            # Create if does not exisit
+            if create_as_needed:
+                os.makedirs(self._workspace_path, exist_ok=True)
+
+            # Enforce empty path
             if start_empty:
                 self._check_directory_empty(path=self._workspace_path)
+
+            # Set the workspace as a working directory, may raise an exception if does not exist
+            if change_dir:
+                os.chdir(self._workspace_path)
 
             return self._workspace_path
 
         # Propagate the exception
-        except Exception:
-            raise
+        except Exception as exception:
+            raise exception
 
     @staticmethod
     def env_set(name: str, value: str):
@@ -903,36 +916,45 @@ class SetupToolsLib:
         except Exception:
             raise
 
-    def path_create(self, path: str, erase_if_exist: bool = False, project_path: bool = True) -> Optional[str]:
+    def path_create(self, path: Optional[str] = None, paths: Optional[List[str]] = None,
+                    erase_if_exist: bool = False, project_path: bool = True) -> Optional[str]:
         """
         Create a path or folder tree. Optionally erase if it exists.
-        If `project_path` is True, the path is assumed to be relative to `self.base_path`.
+        If `project_path` is True, the path is assumed to be relative to `self._workspace_path`.
         Args:
-            path (str): The path to create.
+            path: (str, optional): A single path to create.
+            paths: (List[str], optional): A list of paths to create.
             erase_if_exist (bool): Whether to erase the path if it exists.
             project_path (bool): Whether the path is part of the project base path.
 
         Returns:
-            str: The full path to the created directory.
+            Optional[str]: The full path to the last created directory, or None if no path was created.
         """
-        full_path: Optional[str] = None
+        if path is None and paths is None:
+            raise ValueError("must specify either 'path' or 'paths'")
 
-        try:
-            # Construct the full path
-            if project_path:
-                path = os.path.join(self._workspace_path, path)
-            full_path = os.path.expanduser(os.path.expandvars(path))
+        if path:
+            paths = [path]  # If only a single path is given, make it a list
 
-            # Delete safely
-            if erase_if_exist and os.path.exists(full_path):
-                self.path_erase(path=full_path, allow_non_empty=True)
+        last_full_path = None
+        full_path = None
 
-            # Create the directory
-            os.makedirs(full_path, exist_ok=True)
-            return full_path  # Return the successfully created path
+        for path in paths:
+            try:
+                full_path = os.path.join(self._workspace_path, path) if project_path else path
+                full_path = os.path.expanduser(os.path.expandvars(full_path))
 
-        except Exception as path_create_error:
-            raise Exception(f"could not create '{full_path}': {str(path_create_error)}")
+                if erase_if_exist and os.path.exists(full_path):
+                    # Assuming self.path_erase() is correctly implemented to safely delete paths
+                    self.path_erase(path=full_path, allow_non_empty=True)
+
+                os.makedirs(full_path, exist_ok=not erase_if_exist)
+                last_full_path = full_path  # Update the last path created
+
+            except Exception as path_create_error:
+                raise Exception(f"could not create '{full_path}': {str(path_create_error)}")
+
+        return last_full_path  # Return the path of the last directory successfully created
 
     def py_venv_create(self, venv_path: str, python_version: str = "python3",
                        python_command_path: Optional[str] = None):
@@ -1219,7 +1241,7 @@ class SetupToolsLib:
         except Exception as download_error:
             raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
 
-    def execute_script(self, steps_file: str) -> int:
+    def execute_script(self, steps_file: str) -> Optional[int]:
         """
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
@@ -1228,8 +1250,6 @@ class SetupToolsLib:
             int: Exit code of the function.
         """
         step_number: int = 0
-        result: int = 1  # Default to internal error
-
         local_path = os.path.abspath(os.getcwd())  # Store initial path
 
         try:
@@ -1253,8 +1273,9 @@ class SetupToolsLib:
             # User optional greetings messages
             self._print(steps_schema.get("status_pre_message"))
 
-            # Move to the workspace path
-            os.chdir(self._workspace_path)
+            # Move to the workspace path if exisit as early as possible
+            if os.path.exists(self._workspace_path):
+                os.chdir(self._workspace_path)
 
             for step in self._steps_data:
 
@@ -1282,7 +1303,7 @@ class SetupToolsLib:
 
             # User optional signoff messages
             self._print(steps_schema.get("status_post_message"))
-            result = 0
+            return 0
 
         except Exception as steps_error:
             ANSIGuru.write_color(text="Error\n", color_code=31)
@@ -1291,4 +1312,3 @@ class SetupToolsLib:
             # Restore terminal cursor on exit
             os.chdir(local_path)  # Restore initial path
             self._ansi_term.set_cursor_visibility(True)
-            return result

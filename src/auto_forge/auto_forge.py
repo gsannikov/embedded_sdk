@@ -34,7 +34,7 @@ class AutoForge:
 
         return cls._instance
 
-    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
+    def __init__(self, workspace_path: str, automated_mode: bool = False ):
         """
         Initializes AutoForge main class
         Args:
@@ -44,16 +44,16 @@ class AutoForge:
 
         if not self._is_initialized:
 
-            self._workspace_path: Optional[str] = workspace_path
             self._logger: Optional[logging.Logger] = logger_setup(level=logging.DEBUG, no_colors=False)
             self._solution_file: Optional[str] = None
             self._solution_name: Optional[str] = None
             self._varLib: Optional[VariablesLib] = None
             self._solutionLib: Optional[SolutionProcessorLib] = None
+            self._workspace_path = SetupToolsLib.env_expand_var(input_string=workspace_path, to_absolute=True)
 
             try:
-                self.tools: SetupToolsLib = SetupToolsLib(workspace_path=workspace_path, automated_mode=automated_mode)
-                self._workspace_path = self.tools.set_workspace()
+
+                self.tools: SetupToolsLib = SetupToolsLib(workspace_path=self._workspace_path, automated_mode=automated_mode)
                 self._is_initialized = True
 
             # Propagate
@@ -149,7 +149,7 @@ def auto_forge_main() -> Optional[int]:
                     return auto_forge.load_solution(solution_file=demo_solution_file, is_demo=True)
                 raise RuntimeError(f"could not located demo solution file '{demo_solution_file}")
 
-        # Execute steps file
+        # Execute a steps script
         if args.steps_file is not None:
             # Expand as needed
             args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file, to_absolute=True)
@@ -157,7 +157,7 @@ def auto_forge_main() -> Optional[int]:
                 return auto_forge.tools.execute_script(steps_file=args.steps_file)
             raise RuntimeError(f"could not located provided steps file '{args.steps_file}")
         else:
-            # Executing the packge builtin demo steps
+            # Executing this packge builtin demo steps script
             if args.demo_steps:
                 demo_steps_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "setup.jsonc")
                 if os.path.exists(demo_steps_file):
@@ -175,6 +175,6 @@ def auto_forge_main() -> Optional[int]:
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        print(f"Exception: {runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
+        print(f"\nException: {runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
 
     return result
