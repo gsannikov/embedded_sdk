@@ -462,7 +462,6 @@ main() {
 	if [[ -f "$setup_file" ]]; then
 		local_stored_setup_file="${resources_path}/$(basename "$setup_file")"
 		if cp -f "$setup_file" "$local_stored_setup_file" > /dev/null 2>&1; then
-			printf "Error: file copied successfully to '%s'.\n" "${local_stored_setup_file}"
 			ret_val=0
 		else
 			printf "Error: failed to copy '%s'. Check file permissions and existence.\n" "$setup_file"

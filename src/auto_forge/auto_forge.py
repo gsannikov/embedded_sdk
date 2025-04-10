@@ -175,6 +175,6 @@ def auto_forge_main() -> Optional[int]:
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
-        print(f"Exception {runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
+        print(f"Exception: {runtime_error}\nFile: {file_name}\nLine: {line_number}\n")
 
     return result
