@@ -72,7 +72,6 @@
 */
 
 {
-
 	// Required configuration files for other core modules
 	"includes": {
 		// Workspace initialization
@@ -84,7 +83,6 @@
 		// Defines schema version be used
 		"schema": "1.0"
 	},
-
 	// Define a list with supported boards
 	"boards": [
 		"imc_simics",

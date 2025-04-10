@@ -9,7 +9,6 @@
 {
 	"force_upper_case": true,
 	"auto_prefix": false,
-
 	"defaults": {
 		"description": "Description not specified",
 		"path_must_exist": false,

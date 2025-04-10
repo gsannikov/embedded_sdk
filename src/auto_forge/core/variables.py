@@ -18,7 +18,7 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
 import auto_forge
-from auto_forge import ( JSONProcessorLib)
+from auto_forge import (JSONProcessorLib)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment core service"
@@ -73,7 +73,7 @@ class VariablesLib:
                 self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
                 self._logger.setLevel(level=logging.DEBUG)
                 self._workspace_path = self._auto_forge.get_workspace_path()
-                self._base_config_file_name:Optional[str] = None
+                self._base_config_file_name: Optional[str] = None
                 self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
                 self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
                 self._variable_capitalize_description: bool = True  # Description field formatting
@@ -230,12 +230,12 @@ class VariablesLib:
                 self._variables_defaults = raw_data.get('defaults', {})
 
                 #  If auto prefix is enabled, use the project name (upper cased) as prefix
-                self._variable_auto_prefix =  raw_data.get('auto_prefix', self._variable_auto_prefix)
+                self._variable_auto_prefix = raw_data.get('auto_prefix', self._variable_auto_prefix)
                 # Try to locate an element whose  'name' is "PROJECT_NAME"
                 target_dict = next((item for item in raw_variables if item['name'] == 'PROJECT_NAME'), None)
                 if target_dict:
                     project_name = target_dict.get('value', None)
-                if self._variable_auto_prefix and isinstance(project_name,str):
+                if self._variable_auto_prefix and isinstance(project_name, str):
                     self._variable_prefix: Optional[str] = f"{project_name.upper()}_"
 
                 self._variable_force_upper_case_names = raw_data.get('force_upper_case_names', False)
@@ -247,7 +247,7 @@ class VariablesLib:
 
                 # Statically add workspace path
                 self.add(variable_name="PROJECT_WORKSPACE", value=self._workspace_path,
-                             description="Workspace path", path_must_exist=True, create_path_if_not_exist=False)
+                         description="Workspace path", path_must_exist=True, create_path_if_not_exist=False)
 
                 # Process each variable from the dictionary
                 for var in raw_variables:

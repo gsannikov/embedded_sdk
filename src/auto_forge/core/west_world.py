@@ -40,7 +40,7 @@ class WestProject:
 
     def __init__(self):
         self.name: Optional[str] = None  # west.yml mandatory property
-        self.description: Optional[str] = None  # west.yml mandatory proerty
+        self.description: Optional[str] = None  # west.yml mandatory property
         self.url: Optional[str] = None  # west.yml mandatory property
         self.revision: Optional[str] = None  # west.yml mandatory property
         self.path: Optional[str] = None  # west.yml mandatory property
