@@ -399,7 +399,7 @@ main() {
 	# Help message function
 	display_help() {
 		echo
-		printf "Usage: %s [options]:\n" "$(basename "$0")"
+		printf "Usage: [options]:\n\n"
 		echo "  -w, --workspace [path]      Destination workspace path."
 		echo "  -f, --force-create          Erase and recreate the workspace path if it already exists."
 		echo "  -v, --verbose               Enable verbose output."
