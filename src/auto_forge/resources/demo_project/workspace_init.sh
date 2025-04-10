@@ -494,7 +494,7 @@ main() {
 		return $ret_val
 	fi
 
-	printf "\nGetting AutoForge Package...\n\n"
+	# Install AutoForge package
 	install_autoforge || return 1
 
 	# Execute AutoForge along with the setup steps file
