@@ -32,6 +32,11 @@ downloadable_resources=(
 # One liner installer link example that adds cache-buster to the URL to mitigate Proxy aggressive caching.
 # curl -s -S -H "Cache-Control: no-store" --proxy http://proxy-dmz.intel.com:911 "https://raw.githubusercontent.com/emichael72/auto_forge/refs/heads/main/src/auto_forge/resources/demo_project/workspace_init.sh?$(date +%s)" | bash -s -- -w ws -f -a
 
+# Function to extract the filename from a URL
+extract_filename() {
+	echo "${1##*/}"
+}
+
 #
 # @brief SwissKnife wrapper around 'curl' which allows to downloads a file from a specified
 #         URL to a destination path and handles command-line arguments.
@@ -62,11 +67,6 @@ download_file() {
 		echo "  -vv, --extra_verbose        Enable extra 'curl' verbose output."
 		echo "  -h,  --help                 Display this help and exit."
 		echo
-	}
-
-	# Function to extract the filename from a URL
-	extract_filename() {
-		echo "${1##*/}"
 	}
 
 	# Print an error string if verbosity is enabled and a message is provided
@@ -396,22 +396,23 @@ main() {
 	local ret_val=0
 	local force_create=0
 	local verbose=0
-	local use_autoforge=0
 	local url=""
+	local setup_file=""
+	local local_stored_setup_file=""
 	local resources_path=""
 	local workspace_path=""
 
-	# Help message function
-	display_help() {
-		echo
-		echo "Usage: $(basename "$0") [options]"
-		echo "  -w,  --workspace [path  ]   Destination workspace path."
-		echo "  -f,  --force_create         Erase and recreate the workspace path if already exists."
-		echo "  -v,  --verbose              Enable verbose output."
-		echo "  -a,  --autoforge            Install AutoForge."
-		echo "  -h,  --help                 Display this help and exit."
-		echo
-	}
+	 # Help message function
+    display_help() {
+        echo
+        echo "Usage: $(basename "$0") [options]"
+        echo "  -w, --workspace [path]      Destination workspace path."
+        echo "  -f, --force-create          Erase and recreate the workspace path if it already exists."
+        echo "  -v, --verbose               Enable verbose output."
+        echo "  -s, --setup-file [file/url] Setup file, could be a local file or a URL."
+        echo "  -h, --help                  Display this help and exit."
+        echo
+    }
 
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
@@ -425,8 +426,8 @@ main() {
 				force_create=1
 				shift
 				;;
-			-a | --autoforge)
-				use_autoforge=1
+			-s | --setup_file)
+				setup_file="$2"
 				shift
 				;;
 			-v | --verbose)
@@ -444,54 +445,60 @@ main() {
 		esac
 	done
 
-	# Set proxy as needed
+	# Validate that we got something in the 'setup_file' argument
+    if [[ -z "$setup_file" ]]; then
+        printf "Error: Setup file not provided (-s).\n"
+        return 1
+    fi
+
+	# Set optional proxy as needed
 	setup_proxy_environment
 
 	# Validate workspace argument and create the path.
 	prepare_workspace "$workspace_path" "$force_create" "$verbose" || return 1
 
-	if [[ $use_autoforge -eq 1 ]]; then
-		printf "\nGetting AutoForge Package...\n\n"
-
-		install_autoforge || return 1
-
-		# Execute AutoForge
-		python3.9 -m auto_forge -std -w ws
-		ret_val=$?
-		return $ret_val
-	fi
-
-	# Set the destination path where resources will be downloaded into.
+	# Create temporary path within the workspace where resources will be downloaded / copied into.
 	resources_path="$WORKSPACE_PATH/.init"
-	mkdir -p "$resources_path" > /dev/null 2>&1
+	mkdir -p "$resources_path" > /dev/null 2>&1 || { echo "Error: could not create resource path"; return 1; }
 
-	# Loop and process each downloadable resource.
-	for url in "${downloadable_resources[@]}"; do
+	# Check if the setup file argument is local and if so, store it
+    if [[ -f "$setup_file" ]]; then
+        local_stored_setup_file="$resources_path/$setup_file"
+        cp -f "$setup_file" "$resources_path" > /dev/null 2>&1
+        ret_val=$?
 
-		# Create an array of download options
+    # Check if it's a URL and download it
+    elif [[ $setup_file =~ ^https?:// ]]; then
+
+        # Get the actual file name from the URL
+        filename=$(extract_filename "$setup_file")
+		local_stored_setup_file="$resources_path/filename"
+
+        # Create an array of download options
 		download_options=(-d "$resources_path")
-
-		# Add the URL to the options
-		download_options+=(-u "$url")
-
+		download_options+=(-u "$setup_file")
 		# Add verbose option if verbose flag is set
 		if [[ $verbose -eq 1 ]]; then
 			download_options+=(-v)
 		fi
-
 		# Execute the download
 		download_file "${download_options[@]}"
 		ret_val=$?
+	else
+	   printf "Error: environment setup file appear to be neither local or URL\n\n"
+	   ret_val=1 # Mark as error
+    fi
 
-		# Check the return value from the download function
-		if [[ $ret_val -ne 0 ]]; then
-			break
-		fi
+	# Exit on any error
+ 	if [[ $ret_val -ne 0 ]]; then
+		return $ret_val
+	fi
 
-	done
+	printf "\nGetting AutoForge Package...\n\n"
+	install_autoforge || return 1
 
-	# Fire setup tools along with a project specific steps JSON
-	python3 "$resources_path/setup_tools.py" -s "$resources_path/setup.jsonc" -w "$WORKSPACE_PATH"
+	# Execute AutoForge
+	python -m auto_forge -s "$local_stored_setup_file" -w "$workspace_path"
 	ret_val=$?
 
 	return $ret_val
