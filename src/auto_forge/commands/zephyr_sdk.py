@@ -10,7 +10,8 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-from auto_forge.commands.cli_coomand_interfcae import CLICommand
+# AutoForge imports
+from auto_forge import CLICommand
 
 AUTO_FORGE_COMMAND_NAME = "zephyr_sdk"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr SDK utilities"

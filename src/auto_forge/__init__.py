@@ -28,6 +28,9 @@ from auto_forge.core.solution_processor import SolutionProcessor
 from auto_forge.core.west_world import WestWorld
 from auto_forge.core.setup_tools import (SetupTools)
 
+# Interfaces
+from auto_forge.commands.cli_command_interface import CLICommand
+
 from auto_forge.auto_forge import AutoForge, auto_forge_main as main
 
 # Exported symbols
@@ -46,6 +49,7 @@ __all__ = [
     "SignatureField",
     "SignatureSchema",
     "AutoForge",
+    "CLICommand",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
     "PROJECT_RESOURCES_PATH",
