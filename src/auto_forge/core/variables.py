@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:         variables.py
 Author:         Intel AutoForge team

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:         west_world.py
 Author:         Intel AutoForge team

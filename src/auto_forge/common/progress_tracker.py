@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script: progress_tracker.py
 Author: Intel AutoForge Team
@@ -192,7 +191,7 @@ class ProgressTracker:
 
         return formatted_text
 
-    def set_pre(self, text: str, new_line: bool = True):
+    def set_pre(self, text: str, new_line: bool = True) -> bool:
         """
         Sets the preliminary message, preparing the display format in the console.
 
@@ -202,12 +201,12 @@ class ProgressTracker:
         """
 
         if self._state != TrackerState.PRE:
-            return
+            return False
 
         text = self._normalize_text(text, allow_empty=True)
         formatted_text = self._pre_format(text)
         if len(formatted_text) >= self._terminal_width:
-            return  # formatted text is too wide for the terminal
+            return False  # formatted text is too wide for the terminal
 
         self._ansi_term.erase_line_to_end()
         sys.stdout.write(('\n' if new_line else '\r') + formatted_text)
@@ -215,8 +214,9 @@ class ProgressTracker:
         self._ansi_term.save_cursor_position()
         self._pre_text = text
         self._state = TrackerState.BODY
+        return True
 
-    def set_body_in_place(self, text: str, pre_text: Optional[str] = None, update_clock: bool = True):
+    def set_body_in_place(self, text: str, pre_text: Optional[str] = None, update_clock: bool = True) -> bool:
         """
         Updates the message body in place, optionally updating the timestamp (clock)
         to reflect the current time when the update occurs.
@@ -227,11 +227,11 @@ class ProgressTracker:
             update_clock (bool): Whether to update the message clock.
         """
         if self._state != TrackerState.BODY:
-            return
+            return False
 
         current_time = time.time() * 1000  # Get current time in milliseconds
         if current_time - self._last_update_time < self._min_update_interval_ms:
-            return  # Exit if the minimum interval has not passed
+            return False  # Exit if the minimum interval has not passed
 
         # Move the cursor to the beginning of the line to potentially update the whole line
         self._ansi_term.restore_cursor_position()
@@ -258,8 +258,9 @@ class ProgressTracker:
 
         # Update the last update time
         self._last_update_time = current_time
+        return True
 
-    def set_result(self, text: str, status_code: Optional[int] = None):
+    def set_result(self, text: str, status_code: Optional[int] = None) -> bool:
         """
         Sets the result message with an optional status code and decides whether to add a new line.
 
@@ -268,7 +269,7 @@ class ProgressTracker:
             status_code (Optional[int]): The status code to determine message color.
         """
         if self._state != TrackerState.BODY:
-            return
+            return False
 
         self._ansi_term.restore_cursor_position()
         color = Fore.GREEN if status_code == 0 else Fore.RED
@@ -278,6 +279,22 @@ class ProgressTracker:
         self._ansi_term.erase_line_to_end()
         self._pre_text = None
         self._state = TrackerState.PRE
+        return True
+
+    def set_complete(self, pre_text: str, result_text: str, status_code: Optional[int] = None) -> bool:
+        """
+        Sets a complete line in a single call by printing the preliminary text with a timestamp,
+        followed by the result text.
+
+        Args:
+            pre_text (str): Preliminary message text.
+            result_text (str): Result message text.
+            status_code (Optional[int]): Optional status code used to determine message color.
+        """
+        if self.set_pre(text=pre_text, new_line=True):
+            return self.set_result(text=result_text, status_code=status_code)
+
+        return False
 
     def close(self):
         """

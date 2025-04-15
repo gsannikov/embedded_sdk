@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:         solution_processor.py
 Author:         Intel AutoForge team

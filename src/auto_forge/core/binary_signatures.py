@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:         signatures.py
 Author:         Intel AutoForge team

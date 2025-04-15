@@ -18,8 +18,10 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type, Union, SupportsInt
 from typing import Optional
+from urllib.parse import urlparse, unquote
 
 import psutil
+
 # Retrieve our package base path from settings
 from auto_forge.settings import PROJECT_BASE_PATH
 
@@ -146,7 +148,6 @@ class ToolBox:
         if len(path.parts) > 1:
             return True
         return False
-
 
     def store_value(self, key: Any, value: Any) -> bool:
         """
@@ -751,7 +752,24 @@ class ToolBox:
         return normalized_string
 
     @staticmethod
-    def is_empty_directory(path: str, raise_exception: bool = False) -> bool:
+    def filename_from_url(url: str) -> str:
+        """
+        Extracts the filename from a given URL.
+        Args:
+            url (str): The URL from which to extract the filename.
+
+        Returns:
+            str: The extracted filename.
+        """
+        parsed_url = urlparse(url)
+        # Extract the path part of the URL
+        path = parsed_url.path
+        # Unquote URL-encoded characters and extract the base name of the file
+        filename = os.path.basename(unquote(path))
+        return filename
+
+    @staticmethod
+    def is_directory_empty(path: str, raise_exception: bool = False) -> bool:
         """
         Check if the given directory is empty.
         Args:

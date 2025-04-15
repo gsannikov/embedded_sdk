@@ -53,7 +53,7 @@ class AutoForge:
             self._solution_name: Optional[str] = None
             self._varLib: Optional[Variables] = None
             self._solutionLib: Optional[SolutionProcessor] = None
-            self._workspace_path = SetupTools.env_expand_var(input_string=workspace_path, to_absolute=True)
+            self._workspace_path = SetupTools.environment_variable_expand(text=workspace_path, to_absolute_path=True)
 
             try:
 
@@ -90,8 +90,8 @@ class AutoForge:
             return 0
 
         # Propagate
-        except Exception:
-            raise
+        except Exception as solution_exception:
+            raise solution_exception
 
     def get_workspace_path(self) -> Optional[str]:
         """
@@ -114,7 +114,7 @@ def auto_forge_main() -> Optional[int]:
     result: int = 1  # Default to internal error
 
     try:
-        parser = argparse.ArgumentParser(prog="auto_forge", description="AutoForge Package Help")
+        parser = argparse.ArgumentParser(prog="autoforge", description="AutoForge Package Help")
         parser.add_argument("-w", "--workspace_path", required=True,
                             help="Project workspace path")
 
@@ -140,7 +140,8 @@ def auto_forge_main() -> Optional[int]:
         # Normal flow excepting a solution
         if args.solution_file is not None:
             # Expand as needed
-            args.solution_file = auto_forge.tools.env_expand_var(input_string=args.solution_file, to_absolute=True)
+            args.solution_file = auto_forge.tools.environment_variable_expand(text=args.solution_file,
+                                                                              to_absolute_path=True)
             if os.path.exists(args.solution_file):
                 return auto_forge.load_solution(solution_file=args.solution_file)
             raise RuntimeError(f"could not located provided solution file '{args.solution_file}")
@@ -156,16 +157,16 @@ def auto_forge_main() -> Optional[int]:
         # Execute a steps script
         if args.steps_file is not None:
             # Expand as needed
-            args.steps_file = auto_forge.tools.env_expand_var(input_string=args.steps_file, to_absolute=True)
+            args.steps_file = auto_forge.tools.environment_variable_expand(text=args.steps_file, to_absolute_path=True)
             if os.path.exists(args.steps_file):
-                return auto_forge.tools.execute_script(steps_file=args.steps_file)
+                return auto_forge.tools.follow_steps(steps_file=args.steps_file)
             raise RuntimeError(f"could not located provided steps file '{args.steps_file}")
         else:
             # Executing this packge builtin demo steps script
             if args.demo_steps:
                 demo_steps_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "setup.jsonc")
                 if os.path.exists(demo_steps_file):
-                    return auto_forge.tools.execute_script(steps_file=demo_steps_file)
+                    return auto_forge.tools.follow_steps(steps_file=demo_steps_file)
                 raise RuntimeError(f"could not located demo steps file '{demo_steps_file}")
 
         return 0
