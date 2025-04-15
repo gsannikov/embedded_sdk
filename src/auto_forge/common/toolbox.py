@@ -147,28 +147,6 @@ class ToolBox:
             return True
         return False
 
-    @staticmethod
-    def is_path(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
-        """
-        Check whether the given text represents an existing directory.
-
-        Args:
-            text (str): The path string to check.
-            raise_exception (bool, optional): If True, raises an exception when the path is invalid.
-                                              Defaults to True.
-        Returns:
-            bool: True if the path exists and is a directory, False otherwise.
-        """
-        try:
-            path = Path(text)
-            if path.exists() and path.is_dir():
-                return True
-            if raise_exception:
-                raise FileNotFoundError(f"path does not exist or is not a directory: {text}")
-        except Exception as e:
-            if raise_exception:
-                raise e
-        return False
 
     def store_value(self, key: Any, value: Any) -> bool:
         """
@@ -605,23 +583,28 @@ class ToolBox:
             sys.stdout.flush()
 
     @staticmethod
-    def validate_path(path: str) -> Optional[str]:
+    def validate_path(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
         """
-        Validates a provided path, expands it, and checks if it exists.
-        Args:
-            path (str): The input path to validate.
-        Returns:
-            Optional[str]: The absolute path if valid, None otherwise.
-        """
-        path = os.path.expanduser(os.path.expandvars(path))
-        if ToolBox.looks_like_path(path):
-            path = os.path.abspath(path)  # Resolve relative paths to absolute paths
+        Check whether the given text represents an existing directory.
 
-        # Check if the path exists
-        if os.path.exists(path):
-            return path
-        else:
-            return None
+        Args:
+            text (str): The path string to check.
+            raise_exception (bool, optional): If True, raises an exception when the path is invalid.
+                                              Defaults to True.
+        Returns:
+            bool: True if the path exists and is a directory, False otherwise.
+        """
+        try:
+            expanded_path = os.path.expanduser(os.path.expandvars(text))
+            path = Path(expanded_path)
+            if path.exists() and path.is_dir():
+                return True
+            if raise_exception:
+                raise FileNotFoundError(f"path does not exist or is not a directory: {text}")
+        except Exception as e:
+            if raise_exception:
+                raise e
+        return False
 
     @staticmethod
     def tail(f, n):
@@ -796,3 +779,28 @@ class ToolBox:
             return False
 
         return True
+
+    @staticmethod
+    def strip_ansi(text: str) -> str:
+        """
+        Remove ANSI escape sequences from a string.
+        Args:
+            text (str): The text from which ANSI escape sequences should be removed.
+
+        Returns:
+            str: The cleaned text without ANSI codes.
+        """
+        # ANSI escape sequences regex pattern
+        ansi_escape_pattern = re.compile(r'''
+                \x1B  # ESC
+                (?:   # 7-bit C1 Fe (except CSI)
+                    [@-Z\\-_]
+                |     # or [ for CSI, followed by a control sequence
+                    \[
+                    [0-?]*  # Parameter bytes
+                    [ -/]*  # Intermediate bytes
+                    [@-~]   # Final byte
+                )
+            ''', re.VERBOSE)
+
+        return ansi_escape_pattern.sub('', text)

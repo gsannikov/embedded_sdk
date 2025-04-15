@@ -98,28 +98,6 @@ class SetupTools:
             print(text)
 
     @staticmethod
-    def _normalize_text(text: Optional[str], allow_empty: bool = False) -> str:
-        """
-        Normalize the input string by stripping leading and trailing whitespace.
-        Args:
-            text (Optional[str]): The string to be normalized.
-            allow_empty (Optional[bool]): No exception of the output is an empty string
-
-        Returns:
-            str: A normalized string with no leading or trailing whitespace.
-        """
-        # Check for None or empty string after potential stripping
-        if text is None or not isinstance(text, str):
-            raise ValueError("Input must be a non-empty string.")
-
-        # Strip whitespace
-        normalized_string = text.strip()
-        if not allow_empty and not normalized_string:
-            raise ValueError("Input string cannot be empty after stripping")
-
-        return normalized_string
-
-    @staticmethod
     def _check_directory_empty(path: str):
         """
         Check if the given directory is empty.
@@ -163,30 +141,6 @@ class SetupTools:
                 return distro_info['name'], distro_info['version']
 
         return None
-
-    @staticmethod
-    def _strip_ansi_chars(text: str) -> str:
-        """
-        Remove ANSI escape sequences from a string.
-        Args:
-            text (str): The text from which ANSI escape sequences should be removed.
-
-        Returns:
-            str: The cleaned text without ANSI codes.
-        """
-        # ANSI escape sequences regex pattern
-        ansi_escape_pattern = re.compile(r'''
-            \x1B  # ESC
-            (?:   # 7-bit C1 Fe (except CSI)
-                [@-Z\\-_]
-            |     # or [ for CSI, followed by a control sequence
-                \[
-                [0-?]*  # Parameter bytes
-                [ -/]*  # Intermediate bytes
-                [@-~]   # Final byte
-            )
-        ''', re.VERBOSE)
-        return ansi_escape_pattern.sub('', text)
 
     @staticmethod
     def _extract_decimal(input_string: str, treat_no_decimal_as_zero: bool = True) -> Union[float, int]:
@@ -516,7 +470,7 @@ class SetupTools:
 
                         if received_byte in (b'\n', b'\r'):
                             complete_line = output_line.decode('utf-8').strip()
-                            complete_line = self._strip_ansi_chars(complete_line)
+                            complete_line = self._toolbox.strip_ansi(complete_line)
                             output_line.clear()
 
                             # Aggregate all lines into a complete command response string
@@ -532,7 +486,7 @@ class SetupTools:
             process.wait()
 
             # Done executing
-            command_response = self._normalize_text(text=command_response, allow_empty=True)
+            command_response = self._toolbox.normalize_text(text=command_response, allow_empty=True)
             self._logger.debug(f"Response: {command_response}")
 
             return_code = process.returncode
@@ -544,12 +498,13 @@ class SetupTools:
                 raise ValueError(
                     f"'{base_command}' failed with return code {return_code}: {command_response}")
 
+            return command_response
+
         except subprocess.TimeoutExpired:
             process.kill()
             raise
-
-        finally:
-            return command_response
+        except Exception as execution_error:
+            raise execution_error
 
     def validate_prerequisite(self,
                               command: str,
@@ -731,7 +686,7 @@ class SetupTools:
         Initialize a Python virtual environment using a specified Python interpreter.
         Args:
             venv_path (str): The directory path where the virtual environment will be created.
-            python_version (str): The Python interpreter to use (e.g., 'python', 'python3').
+            python_version (str): The Python interpreter to use (e.g., '3', '3.9').
             python_binary_path (Optional[str]): Optional explicit path to the Python binary.
 
         Returns:
@@ -739,10 +694,24 @@ class SetupTools:
         """
         try:
             expanded_path = self.env_expand_var(input_string=venv_path, to_absolute=True)
+
+            # Verify inputs
+            if python_binary_path is not None:
+                expanded_python_binary_path = self.env_expand_var(input_string=python_binary_path, to_absolute=True)
+                self._toolbox.validate_path(expanded_python_binary_path)
+                python_binary = os.path.join(expanded_python_binary_path, f"python{python_version}")
+            else:
+                expanded_python_binary_path = None
+                python_binary = f"python{python_version}"
+
+            if not os.path.exists(python_binary):
+                raise RuntimeError(f"Python binary '{python_binary}' could not be found")
+
             full_py_venv_path = self.path_create(expanded_path, erase_if_exist=True, project_path=True)
-            python_command = python_binary_path or python_version
+
+            python_command = python_binary
             command_arguments = f"-m venv {full_py_venv_path}"
-            self.shell_execute(command=python_command, arguments=command_arguments)
+            self.shell_execute(command=python_command, arguments=command_arguments, cwd=expanded_python_binary_path)
             self._py_venv_path = full_py_venv_path
 
         except Exception as py_venv_error:
@@ -795,7 +764,7 @@ class SetupTools:
             python_executable = os.path.join(venv_path, 'bin', 'python')
 
             # Normalize inputs
-            package_or_requirements = self._normalize_text(package_or_requirements)
+            package_or_requirements = self._toolbox.normalize_text(package_or_requirements)
             if len(package_or_requirements) == 0:
                 raise RuntimeError(f"no package or requirements file specified for pip")
 
@@ -834,7 +803,7 @@ class SetupTools:
             python_executable = os.path.join(venv_path, 'bin', 'python')
 
             # Normalize inputs
-            package_name = self._normalize_text(package_name)
+            package_name = self._toolbox.normalize_text(package_name)
 
             # Construct and execute the command
             command_arguments = f"-m pip show {package_name}"
@@ -871,7 +840,7 @@ class SetupTools:
         """
         try:
             # Normalize inputs
-            repo_url = self._normalize_text(repo_url)
+            repo_url = self._toolbox.normalize_text(repo_url)
 
             # Normalize and prepare the destination path
             dest_repo_path = self.env_expand_var(input_string=dest_repo_path, to_absolute=True)
@@ -905,7 +874,7 @@ class SetupTools:
         """
         try:
             # Validate and prepare the repository path
-            normalized_repo_path = self._normalize_text(dest_repo_path)
+            normalized_repo_path = self._toolbox.normalize_text(dest_repo_path)
             dest_repo_path = self.env_expand_var(input_string=normalized_repo_path, to_absolute=True)
 
             if not os.path.exists(dest_repo_path):
@@ -950,7 +919,7 @@ class SetupTools:
 
         try:
             # Normalize URL and output name
-            url = self._normalize_text(url)
+            url = self._toolbox.normalize_text(url)
             remote_file = self._extract_filename_from_url(url=url)
             local_path = self.env_expand_var(input_string=local_path, to_absolute=True)
 
