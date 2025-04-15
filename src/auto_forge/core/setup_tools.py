@@ -12,6 +12,7 @@ import logging
 import os
 import platform
 import re
+import select
 import shlex
 import shutil
 import subprocess
@@ -22,9 +23,7 @@ from enum import Enum
 from typing import Optional, Union, Any, List
 from urllib.parse import urlparse, unquote
 
-import select
-
-from auto_forge import (JSONProcessor, ProgressTracker, NullLogger)
+from auto_forge import (JSONProcessor, ProgressTracker, NullLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
 AUTO_FORGE_MODULE_DESCRIPTION = "User Environment Creation API"
@@ -63,6 +62,7 @@ class SetupTools:
         self._local_storage = {}  # Initialize an empty dictionary for stored variables
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._tracker: Optional[ProgressTracker] = None
+        self._toolbox: Optional[ToolBox] = ToolBox()
 
         if automated_mode:
             self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
@@ -725,14 +725,14 @@ class SetupTools:
 
         return last_full_path  # Return the path of the last directory successfully created
 
-    def py_venv_create(self, venv_path: str, python_version: str = "python3",
-                       python_command_path: Optional[str] = None):
+    def py_venv_create(self, venv_path: str, python_version: Optional[str],
+                       python_binary_path: Optional[str] = None):
         """
         Initialize a Python virtual environment using a specified Python interpreter.
         Args:
             venv_path (str): The directory path where the virtual environment will be created.
             python_version (str): The Python interpreter to use (e.g., 'python', 'python3').
-            python_command_path (Optional[str]): Optional explicit path to the Python binary.
+            python_binary_path (Optional[str]): Optional explicit path to the Python binary.
 
         Returns:
             None, raising exception on error.
@@ -740,7 +740,7 @@ class SetupTools:
         try:
             expanded_path = self.env_expand_var(input_string=venv_path, to_absolute=True)
             full_py_venv_path = self.path_create(expanded_path, erase_if_exist=True, project_path=True)
-            python_command = python_command_path or python_version
+            python_command = python_binary_path or python_version
             command_arguments = f"-m venv {full_py_venv_path}"
             self.shell_execute(command=python_command, arguments=command_arguments)
             self._py_venv_path = full_py_venv_path

@@ -11,7 +11,7 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
-	"status_pre_message": "\nHello, welcome to the demo project setup\n",
+	"status_pre_message": "\nHello, welcome to the demo project setup.\n",
 	"status_post_message": "\n\nSetup is done.\n\n",
 	// Steps:
 	"steps": [
@@ -120,11 +120,11 @@
 		{
 			"description": "Creating Python virtual environment",
 			"method": "py_venv_create",
-			"status_step_disabled": true,
+			// "status_step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"python_version": "python3.9",
-				"python_command_path": "$HOME/.pyenv/shims/python3.9"
+				"python_binary_path": "$HOME/.pyenv/shims"
 			}
 		},
 		{

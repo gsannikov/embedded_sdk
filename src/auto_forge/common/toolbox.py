@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:     toolbox,py
 Author:     Intel AutoForge team
@@ -16,14 +15,11 @@ import re
 import sys
 import tempfile
 from contextlib import suppress
-from multiprocessing import Lock
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type, Union, SupportsInt
 from typing import Optional
 
 import psutil
-
-import auto_forge
 # Retrieve our package base path from settings
 from auto_forge.settings import PROJECT_BASE_PATH
 
@@ -34,9 +30,8 @@ AUTO_FORGE_MODULE_DESCRIPTION = "General Purpose Support Routines"
 class ToolBox:
     _instance = None
     _is_initialized = False
-    _global_lock = Lock()
 
-    def __new__(cls, parent: Any = None, logger_level: int = logging.INFO):
+    def __new__(cls, parent: Optional[Any] = None, logger_level: Optional[int] = logging.INFO):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Args:
@@ -48,43 +43,47 @@ class ToolBox:
         """
         if cls._instance is None:
             cls._instance = super(ToolBox, cls).__new__(cls)
-            cls._logger_level = logger_level
-            cls.storage = {}
-
-            # Initialize the instance variables only once
-            cls._instance.parent = parent
 
         return cls._instance
 
-    def __init__(self, parent: Any, logger_level: int = logging.INFO):
+    def __init__(self, parent: Optional[Any] = None, logger_level: Optional[int] = logging.INFO):
         """
         Initialize the class; actual initialization logic is handled in __new__.
         Args:
-            parent (Any): Unused, the parent context or object for this queue.
+            parent (Any, optional): The parent context or object for this queue.
             logger_level(int,Optional): specific required logging level.
         """
         if not self._is_initialized:
+
+            # Initialize the instance variables only once
+            if parent is None:
+                raise RuntimeError("toolbox can't be initialized without a parent instance")
+
+            self._parent = parent
+
+            self._logger_level = logger_level
             self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
             self._logger.setLevel(level=logger_level)
-            self.parent: auto_forge.AutoForge = parent
+            self._storage = {}  # Local static dictionary for managed session variables
+
             self._is_initialized = True
 
-    def print_byte_array(self, byte_array, bytes_per_line=16):
+    @staticmethod
+    def print_bytes(byte_array: bytes, bytes_per_line: int = 16):
         """
         Prints a byte array as hex values formatted in specified number of bytes per line.
         Args:
         byte_array (bytes): The byte array to be printed.
         bytes_per_line (int, optional): Number of hex values to print per line. Default is 16.
         """
-        if byte_array is None:
+        if byte_array is None or not isinstance(byte_array, bytes):
             return
 
-        with self._global_lock:
-            output = []
-            hex_values = [f'{byte:02x}' for byte in byte_array]
-            for i in range(0, len(hex_values), bytes_per_line):
-                output.append(' '.join(hex_values[i:i + bytes_per_line]))
-            print("\n".join(output) + "\n")
+        output = []
+        hex_values = [f'{byte:02x}' for byte in byte_array]
+        for i in range(0, len(hex_values), bytes_per_line):
+            output.append(' '.join(hex_values[i:i + bytes_per_line]))
+        print("\n".join(output) + "\n")
 
     @staticmethod
     def set_realtime_priority(priority: int = 10):
@@ -148,6 +147,29 @@ class ToolBox:
             return True
         return False
 
+    @staticmethod
+    def is_path(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
+        """
+        Check whether the given text represents an existing directory.
+
+        Args:
+            text (str): The path string to check.
+            raise_exception (bool, optional): If True, raises an exception when the path is invalid.
+                                              Defaults to True.
+        Returns:
+            bool: True if the path exists and is a directory, False otherwise.
+        """
+        try:
+            path = Path(text)
+            if path.exists() and path.is_dir():
+                return True
+            if raise_exception:
+                raise FileNotFoundError(f"path does not exist or is not a directory: {text}")
+        except Exception as e:
+            if raise_exception:
+                raise e
+        return False
+
     def store_value(self, key: Any, value: Any) -> bool:
         """
         Provide a simple interface to store values into a RAM-based storage.
@@ -167,12 +189,12 @@ class ToolBox:
         normalized_key = key.lower()
 
         # Check if we have something to do
-        if normalized_key in self.storage and self.storage[normalized_key] == value:
+        if normalized_key in self._storage and self._storage[normalized_key] == value:
             self._logger.warning(f"Key '{normalized_key}' is already stored and has the same value '{value}'")
             return True
 
         # Store the value
-        self.storage[normalized_key] = value
+        self._storage[normalized_key] = value
         return True
 
     def load_value(self, key: Any, default_value: Any = None) -> Any:
@@ -202,12 +224,12 @@ class ToolBox:
                 # Normalize the actual key to ensure case-insensitivity
                 key = actual_key.lower()
                 # Return the value if the key exists, otherwise return an empty string
-                value = self.storage.get(key, default_value)
+                value = self._storage.get(key, default_value)
             else:
                 # Normalize the key to ensure case-insensitivity
                 key = key.lower()
                 # Return the value if the key exists, otherwise return an empty string
-                value = self.storage.get(key, default_value)
+                value = self._storage.get(key, default_value)
 
         if value is None:
             value = key  # Probably JSON value was passed, return it
