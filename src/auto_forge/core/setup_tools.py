@@ -428,7 +428,6 @@ class SetupTools:
         full_command = f"{'sudo ' if sudo else ''}{command} {arguments}".strip()  # Create a single string
         full_command = self.env_expand_var(input_string=full_command)  # Expand as needed
         base_command = os.path.basename(command)
-        command_response: Optional[str] = None
         env = os.environ.copy()
 
         # Set default timeout when not provided
