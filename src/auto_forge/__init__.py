@@ -17,9 +17,11 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
 
 from auto_forge.logger import logger, logger_setup, logger_get_filename, logger_close, NullLogger
 from auto_forge.common.toolbox import ToolBox
+
 # Interfaces
 from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface, CLICommandInfo)
 
+# Core / common modules
 from auto_forge.core.commands_loader import CommandsLoader
 from auto_forge.common.progress_tracker import ProgressTracker
 from auto_forge.core.json_processor import JSONProcessor
@@ -31,7 +33,9 @@ from auto_forge.core.solution_processor import SolutionProcessor
 from auto_forge.core.west_world import WestWorld
 from auto_forge.core.setup_tools import SetupTools
 
-from auto_forge.auto_forge import AutoForge, auto_forge_main as main
+# AutoForg main
+from auto_forge.auto_forge import auto_forge_main as main
+import auto_forge.auto_forge as module
 
 # Exported symbols
 __all__ = [
@@ -49,7 +53,6 @@ __all__ = [
     "SignatureField",
     "SignatureSchema",
     "CommandsLoader",
-    "AutoForge",
     "CLICommandInterface",
     "CLICommandInfo",
     "PROJECT_BASE_PATH",
@@ -66,5 +69,6 @@ __all__ = [
     "logger_setup",
     "logger_close",
     "logger_get_filename",
-    "main"
+    "main",
+    "module"
 ]

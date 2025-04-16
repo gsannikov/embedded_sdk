@@ -8,6 +8,7 @@ Description:
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 from typing import Optional, Any
 
@@ -154,7 +155,8 @@ class ZephyrSDKCommand(CLICommandInterface):
             print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
         else:
             # No arguments provided, show command usage
-            args.print_usage()
+            sys.stdout.write("No arguments provided.\n")
+            self._parser.print_usage()
             return_value = 1
 
         return return_value

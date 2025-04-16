@@ -22,6 +22,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Union, Any, List
 
+# AutoForge imports
 from auto_forge import (JSONProcessor, ProgressTracker, NullLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
@@ -43,7 +44,7 @@ class ValidationMethod(Enum):
 
 class SetupTools:
 
-    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
+    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False) -> None:
         """
         Initialize the environment setup toolbox class.
         Collect few basic system properties and prepare for execution a step file.
@@ -51,6 +52,8 @@ class SetupTools:
             workspace_path(Optional[str]): The workspace path.
             automated_mode(bool): Specify if we're running in automation mode
         """
+        # Local import to avoid circular dependency on AutoForge
+        from auto_forge.auto_forge import AutoForge
 
         self._py_venv_path: Optional[str] = None
         self._package_manager: Optional[str] = None
@@ -61,6 +64,9 @@ class SetupTools:
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._tracker: Optional[ProgressTracker] = None
         self._toolbox: Optional[ToolBox] = ToolBox()
+
+        # Get AutoForge instance
+        self._autoforge: AutoForge = AutoForge.get_instance()
 
         if automated_mode:
             self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
@@ -393,6 +399,34 @@ class SetupTools:
         except Exception as exception:
             raise exception
 
+    def execute_cli_command(self, command: str, arguments: str, expected_return_code: int = 0,
+                            suppress_output: bool = False) -> Optional[str]:
+        """
+        Executes a registered CLI command by name with shell-style arguments.
+
+        Args:
+            command (str): The name of the CLI command to execute.
+            arguments (str): A shell-style argument string to pass to the command.
+            expected_return_code (int): The return code expected from the command. Defaults to 0.
+            suppress_output (bool): If True, suppresses terminal output while still capturing it.
+
+        Returns:
+            Optional[str]: Captured output from the command, or None if an exception occurs.
+
+        Raises:
+            RuntimeError: If the actual return code does not match the expected one.
+        """
+        return_code = self._autoforge.commands.execute(command=command, arguments=arguments,
+                                                       suppress_output=suppress_output)
+        # Get the command output
+        command_response = self._autoforge.commands.get_last_output().strip()
+
+        if return_code != expected_return_code:
+            raise RuntimeError(
+                f"'{command}' failed with return code {return_code}, expected {expected_return_code}")
+
+        return command_response
+
     def execute_shell_command(self, command: str, arguments: str = "",
                               timeout: Optional[float] = None,
                               shell: bool = True,
@@ -414,7 +448,7 @@ class SetupTools:
             searched_token (Optional[str]): A token to search for in the command output.
 
         Returns:
-            str: The executed command output or None on error.
+            str: The executed command output or None if exception is raised.
         """
         full_command = f"{'sudo ' if sudo else ''}{command} {arguments}".strip()  # Create a single string
         full_command = self.environment_variable_expand(text=full_command)  # Expand as needed
@@ -485,7 +519,7 @@ class SetupTools:
                 raise ValueError(f"token '{searched_token}' not found in response")
 
             if expected_return_code is not None and return_code != expected_return_code:
-                raise ValueError(
+                raise RuntimeError(
                     f"'{base_command}' failed with return code {return_code}: {command_response}")
 
             return command_response
@@ -1083,6 +1117,7 @@ class SetupTools:
 
                 self._tracker.set_pre(text=step.get('description'), new_line=status_new_line)
 
+                # Execute the method
                 response = self.execute_python_method(method_name=step.get("method"), arguments=step.get("arguments"))
 
                 # Handle command output capture to a variable

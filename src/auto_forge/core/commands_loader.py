@@ -10,15 +10,34 @@ Description:
 
 import glob
 import importlib.util
+import io
 import logging
 import os
+import sys
+from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
-from typing import Optional, Any, Dict, cast
+from typing import Optional, Any, Dict, TextIO, cast
 
 from auto_forge import PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
+
+
+class TeeStream(io.StringIO):  # Yes, inherit from StringIO directly
+    def __init__(self, *targets: TextIO):
+        super().__init__()
+        self._targets = targets
+
+    def write(self, data: str) -> int:
+        for target in self._targets:
+            target.write(data)
+        return len(data)
+
+    def flush(self) -> None:
+        for target in self._targets:
+            if hasattr(target, "flush"):
+                target.flush()
 
 
 class CommandsLoader:
@@ -30,6 +49,7 @@ class CommandsLoader:
         self._loaded_commands: int = 0
         self._commands_registry: Dict[str, Dict[str, Any]] = {}
         self._commands_path: Path = PROJECT_COMMANDS_PATH
+        self._command_output: Optional[str] = None
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {
@@ -151,7 +171,10 @@ class CommandsLoader:
 
         return self._loaded_commands
 
-    def execute(self, command: str, arguments: Optional[str] = None) -> Optional[int]:
+    def get_last_output(self) -> Optional[str]:
+        return self._command_output
+
+    def execute(self, command: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[int]:
         """
         Executes a registered CLI command by name with optional shell-style arguments.
 
@@ -159,11 +182,15 @@ class CommandsLoader:
             command (str): The name of the command to execute.
             arguments (Optional[str]): A shell-style argument string (e.g., "-p --verbose").
                                        If None, the command will run with default or no arguments.
+            suppress_output (bool): suppress_output (bool): If True, suppress terminal output.
 
         Returns:
             Optional[int]: The result code returned by the command's `execute()` method.
                            Typically 0 for success, non-zero for error.
         """
+
+        self._command_output = None  # Invalidate last command output
+
         command_record = self._get_command_record_by_name(command.strip())
         if command_record is None:
             raise RuntimeError(f"command '{command}' is not recognized.")
@@ -173,4 +200,13 @@ class CommandsLoader:
         if not isinstance(command_instance, CLICommandInterface):
             raise RuntimeError(f"command '{command}' does not implement the expected 'CLICommandInterface'")
 
-        return command_instance.execute(flat_args=arguments)
+        buffer = io.StringIO()
+        # Set the stream based on the suppress flag
+        output_stream = buffer if suppress_output else TeeStream(sys.stdout, buffer)
+
+        with redirect_stdout(output_stream), redirect_stderr(output_stream):
+            result = command_instance.execute(flat_args=arguments)
+
+        # Store the command output in the class - lsat command output
+        self._command_output = buffer.getvalue()
+        return result

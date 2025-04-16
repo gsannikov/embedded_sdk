@@ -1,9 +1,24 @@
 /*
-    Bootstrap example script
-    -------------------------
+    Environment Setup Example Script
+    --------------------------------
+
+    The following example demonstrates how to define the necessary steps to prepare
+    a complete development environment with the following setup:
+
+    1. Configure required proxy environment variables — these are essential for any
+       subsequently launched shell tools that access online resources (e.g., pip, curl, etc.).
+    2. Validate the presence of required prerequisite binaries such as Python, CMake, Git,
+       Ninja, and others.
+    3. Create the workspace skeleton directory structure.
+    4. Set up a dedicated Python 3.9 virtual environment for the project, update pip,
+       and install required Python packages.
+    5. Install AutoForge into the newly created virtual environment.
+    6. Use the dynamically loaded CLI command 'zephyr_sdk' to detect any existing
+       Zephyr SDK installation.
+    7. Download the Zephyr SDK to a temporary directory if not already present.
 
     Note:
-    This script is formatted as JSON, where q JSON preprocessor remove any comments before execution.
+    This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
 */
 
 {
@@ -11,13 +26,13 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
-	"status_pre_message": "\nHello, welcome to the demo project setup.\n",
+	"status_pre_message": "\nHello, welcome to the demo project setup\n",
 	"status_post_message": "\n\nSetup is done.\n\n",
 	// Steps:
 	"steps": [
 		{
 			"description": "Setting HTTP PROXY environment",
-			"method": "env_set",
+			"method": "environment_variable_set",
 			"arguments": {
 				"name": "http_proxy",
 				"value": "http://proxy-dmz.intel.com:911"
@@ -25,7 +40,7 @@
 		},
 		{
 			"description": "Setting HTTPS PROXY environment",
-			"method": "env_set",
+			"method": "environment_variable_set",
 			"arguments": {
 				"name": "https_proxy",
 				"value": "http://proxy-dmz.intel.com:911"
@@ -85,7 +100,7 @@
 		},
 		{
 			"description": "Getting git access token using 'dt'",
-			"method": "shell_execute",
+			"method": "execute_shell_command",
 			"arguments": {
 				"command": "dt",
 				"arguments": "github print-token",
@@ -102,9 +117,7 @@
 				"must_be_empty": true,
 				"create_as_needed": true,
 				"change_dir": true
-			},
-			// Store the executed command response in key name 'dt_token'
-			"response_store_key": "dt_token"
+			}
 		},
 		{
 			"description": "Creating essential paths",
@@ -119,26 +132,26 @@
 		},
 		{
 			"description": "Creating Python virtual environment",
-			"method": "py_venv_create",
-			// "status_step_disabled": true,
+			"method": "python_virtualenv_create",
+			// "step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
-				"python_version": "python3.9",
+				"python_version": "3.9",
 				"python_binary_path": "$HOME/.pyenv/shims"
 			}
 		},
 		{
 			"description": "Updating PIP in virtual environment",
-			"method": "py_venv_update_pip",
-			"status_step_disabled": true,
+			"method": "python_virtualenv_update_pip",
+			// "step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv"
 			}
 		},
 		{
 			"description": "Installing Python packages",
-			"method": "py_venv_package_add",
-			"status_step_disabled": true,
+			"method": "python_virtualenv_package_add",
+			// "step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython"
@@ -146,27 +159,37 @@
 		},
 		{
 			"description": "Installing AutoForge in local environment",
-			"method": "py_venv_package_add",
-			"status_step_disabled": true,
+			"method": "python_virtualenv_package_add",
+			// "step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
 			}
 		},
 		{
-			"description": "Running project manifest (west)",
-			"method": "download_file",
-			"status_step_disabled": true,
+			"description": "Locating Zephyr SDK Path",
+			"method": "execute_cli_command",
 			"arguments": {
-				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
-				"proxy": "http://proxy-dmz.intel.com:911",
-				"local_path": "~/test",
-				"delete_local": true
-			}
+				"command": "zephyr_sdk",
+				"arguments": "--get-path",
+				"suppress_output": true
+			},
+			"response_store_key": "zephyr_sdk_path"
+		},
+		{
+			"description": "Locating Zephyr SDK Version",
+			"method": "execute_cli_command",
+			"arguments": {
+				"command": "zephyr_sdk",
+				"arguments": "--get-version",
+				"suppress_output": true
+			},
+			"response_store_key": "zephyr_sdk_version"
 		},
 		{
 			"description": "Downloading the Zephyr SDK",
 			"method": "download_file",
+			"step_disabled": true,
 			"arguments": {
 				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
 				"proxy": "http://proxy-dmz.intel.com:911",

@@ -65,11 +65,22 @@ class AutoForge:
 
                 self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
                 self.tools: SetupTools = SetupTools(workspace_path=self._workspace_path, automated_mode=automated_mode)
+
+                # Done initializing
                 self._is_initialized = True
 
             # Propagate
             except Exception:
                 raise
+
+    @staticmethod
+    def get_instance() -> "AutoForge":
+        """
+        Returns the singleton instance of the AutoForge class.
+        Returns:
+            AutoForge: The global AutoForge instance.
+        """
+        return AutoForge._instance
 
     def load_solution(self, solution_file: Optional[str] = None, is_demo: bool = False) -> Optional[int]:
         """

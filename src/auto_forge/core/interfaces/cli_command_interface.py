@@ -72,7 +72,7 @@ class CLICommandInfo(NamedTuple):
     """ Define a named tuple type for the information data cluster """
     name: str
     description: str
-    version:str
+    version: str
     class_name: str
     class_instance: Any
 
@@ -175,8 +175,11 @@ class CLICommandInterface(ABC):
             self._last_error = str(execution_exception).strip()
         finally:
             time.sleep(0.1)
-            if self._raise_exceptions and self._last_error is not None:
-                raise RuntimeError(self._last_error)
+            if self._last_error is not None:
+                if self._raise_exceptions:
+                    raise RuntimeError(self._last_error)
+                else:
+                    print(self._last_error)
 
             return return_value
 
