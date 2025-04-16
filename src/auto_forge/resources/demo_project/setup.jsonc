@@ -155,11 +155,18 @@
 			}
 		},
 		{
-			"description": "Installing AutoForge in local environment",
+			"description": "Installing AutoForge in virtual environment",
 			"method": "python_package_add",
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
+			}
+		},
+		{
+			"description": "Removing AutoForge from non virtual environment",
+			"method": "python_package_uninstall",
+			"arguments": {
+				"package": "auto_forge"
 			}
 		},
 		{
