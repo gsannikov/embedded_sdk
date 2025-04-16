@@ -35,7 +35,6 @@ from auto_forge.core.setup_tools import SetupTools
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
-import auto_forge.auto_forge as module
 
 # Exported symbols
 __all__ = [
@@ -69,6 +68,5 @@ __all__ = [
     "logger_setup",
     "logger_close",
     "logger_get_filename",
-    "main",
-    "module"
+    "main"
 ]

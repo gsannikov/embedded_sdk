@@ -133,7 +133,6 @@
 		{
 			"description": "Creating Python virtual environment",
 			"method": "python_virtualenv_create",
-			// "step_disabled": true,
 			"arguments": {
 				"venv_path": ".venv",
 				"python_version": "3.9",
@@ -142,16 +141,14 @@
 		},
 		{
 			"description": "Updating PIP in virtual environment",
-			"method": "python_virtualenv_update_pip",
-			// "step_disabled": true,
+			"method": "python_update_pip",
 			"arguments": {
 				"venv_path": ".venv"
 			}
 		},
 		{
 			"description": "Installing Python packages",
-			"method": "python_virtualenv_package_add",
-			// "step_disabled": true,
+			"method": "python_package_add",
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython"
@@ -159,8 +156,7 @@
 		},
 		{
 			"description": "Installing AutoForge in local environment",
-			"method": "python_virtualenv_package_add",
-			// "step_disabled": true,
+			"method": "python_package_add",
 			"arguments": {
 				"venv_path": ".venv",
 				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"

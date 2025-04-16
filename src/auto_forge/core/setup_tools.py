@@ -126,6 +126,29 @@ class SetupTools:
 
         return None
 
+    def _get_python_binary_path(self, venv_path: Optional[str] = None) -> Optional[str]:
+        """
+        Determines the path to the Python executable.
+        If a virtual environment path is provided, constructs the expected Python binary path
+        inside its 'bin' directory. Otherwise, falls back to the system default Python executable.
+
+        Args:
+            venv_path (Optional[str]): Path to a Python virtual environment, if applicable.
+
+        Returns:
+            Optional[str]: Full path to the resolved Python executable.
+        """
+        if venv_path:
+            venv_path = self._toolbox.get_expanded_path(path=venv_path.strip())
+            python_executable = os.path.join(venv_path, 'bin', 'python')
+        else:
+            python_executable = shutil.which("python")
+
+        if not python_executable or not os.path.exists(python_executable):
+            raise RuntimeError(f"Python executable not found at: '{python_executable}'")
+
+        return python_executable
+
     @staticmethod
     def _extract_decimal(text: str, treat_no_decimal_as_zero: bool = True) -> Union[float, int]:
         """
@@ -749,51 +772,39 @@ class SetupTools:
         except Exception as py_venv_error:
             raise Exception(f"could not create virtual environment in '{venv_path}' {str(py_venv_error)}")
 
-    def python_virtualenv_update_pip(self, venv_path: Optional[str] = None):
+    def python_update_pip(self, venv_path: Optional[str] = None):
         """
         Update pip in a virtual environment using the specified Python interpreter within that environment.
         Args:
-            venv_path (Optional[str]): The path to the virtual environment, optional.
+            venv_path (Optional[str]): The path to the virtual environment. If None use system default.
 
         Returns:
             None, raising exception on error.
         """
         try:
-            # Determine the path to use for the virtual environment
-            if venv_path is None:
-                if self._py_venv_path is None:
-                    raise ValueError("virtual environment path not provided and default is not set")
-                venv_path = self._py_venv_path
+            # Determines the path to the Python executable.
+            python_executable = self._get_python_binary_path(venv_path=venv_path)
 
-            # Determine the path to the python executable within the virtual environment
-            python_executable = os.path.join(venv_path, 'bin', 'python')
-
-            # Construct the command to update pip as a single string
+            # Construct the command to update pip
             command_arguments = "-m pip install --upgrade pip"
             self.execute_shell_command(command=python_executable, arguments=command_arguments)
 
         except Exception as py_env_error:
             raise Exception(f"could not update pip {py_env_error}")
 
-    def python_virtualenv_package_add(self, venv_path: Optional[str] = None, package_or_requirements: str = ""):
+    def python_package_add(self, package_or_requirements: str, venv_path: Optional[str] = None):
         """
         Installs a package or a list of packages from a requirements file into a specified virtual environment using pip.
         Args:
-            venv_path (Optional[str]): The path to the virtual environment. If None, uses the default virtual environment path.
             package_or_requirements (str): The package name to install or path to a requirements file.
+            venv_path (Optional[str]): The path to the virtual environment. If None use system default.
 
         Returns:
             None, raising exception on error.
         """
         try:
-            # Determine the path to use for the virtual environment
-            if venv_path is None:
-                if self._py_venv_path is None:
-                    raise ValueError("virtual environment path not provided and default is not set")
-                venv_path = self._py_venv_path
-
-            # Determine the path to the python executable within the virtual environment
-            python_executable = os.path.join(venv_path, 'bin', 'python')
+            # Determines the path to the Python executable.
+            python_executable = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
             package_or_requirements = self._toolbox.normalize_text(package_or_requirements)
@@ -802,17 +813,43 @@ class SetupTools:
 
             # Determine if the input is a package name or a path to a requirements file
             if package_or_requirements.endswith('.txt'):
-                command_arguments = f"-m pip install -r {package_or_requirements}"
+                command_arguments = f"-m pip install -q -r {package_or_requirements}"
             else:
-                command_arguments = f"-m pip install {package_or_requirements}"
+                command_arguments = f"-m pip install -q {package_or_requirements}"
 
             # Execute the command
             self.execute_shell_command(command=python_executable, arguments=command_arguments, shell=False)
 
-        except Exception as py_pip_error:
-            raise Exception(f"could not install pip package(s) '{package_or_requirements}' {py_pip_error}")
+        except Exception as python_pip_error:
+            raise Exception(f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}")
 
-    def python_virtualenv_package_get_version(self, venv_path: Optional[str] = None, package_name: str = "") -> \
+    def python_package_uninstall(self, package: str, venv_path: Optional[str] = None):
+        """
+        Uninstall a package using pip.
+        Args:
+            package (str): The package name to uninstall.
+            venv_path (Optional[str]): The path to the virtual environment. If None use system default.
+        Returns:
+            None, raising exception on error.
+        """
+        try:
+            # Determines the path to the Python executable.
+            python_executable = self._get_python_binary_path(venv_path=venv_path)
+
+            # Normalize inputs
+            package = self._toolbox.normalize_text(package)
+            if len(package) == 0:
+                raise RuntimeError(f"no package specified for pip")
+
+            command_arguments = f"-m pip uninstall -y {package}"
+
+            # Execute the command
+            self.execute_shell_command(command=python_executable, arguments=command_arguments, shell=False)
+
+        except Exception as python_pip_error:
+            raise Exception(f"could not uninstall pip package(s) '{package}' {python_pip_error}")
+
+    def python_package_get_version(self, venv_path: Optional[str] = None, package_name: str = "") -> \
             Optional[str]:
         """
         Retrieves the version of a specified package installed in the given virtual environment.
@@ -826,14 +863,9 @@ class SetupTools:
         """
 
         try:
-            # Determine the path to use for the virtual environment
-            if venv_path is None:
-                if self._py_venv_path is None:
-                    raise ValueError("virtual environment path not provided and default is not set")
-                venv_path = self._py_venv_path
 
-            # Determine the path to the python executable within the virtual environment
-            python_executable = os.path.join(venv_path, 'bin', 'python')
+            # Determines the path to the Python executable.
+            python_executable = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
             package_name = self._toolbox.normalize_text(package_name)
