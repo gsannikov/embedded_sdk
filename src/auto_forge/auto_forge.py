@@ -62,16 +62,14 @@ class AutoForge:
             self._workspace_path = SetupTools.environment_variable_expand(text=workspace_path, to_absolute_path=True)
 
             try:
-
                 self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
                 self.tools: SetupTools = SetupTools(workspace_path=self._workspace_path, automated_mode=automated_mode)
 
-                # Done initializing
-                self._is_initialized = True
+                self._toolbox.print_logo(clear_screen=True)  # Show logo
+                self._is_initialized = True  # Done initializing
 
-            # Propagate
             except Exception:
-                raise
+                raise  # Propagate
 
     @staticmethod
     def get_instance() -> "AutoForge":

@@ -21,9 +21,10 @@ from typing import Optional
 from urllib.parse import urlparse, unquote
 
 import psutil
+from colorama import Fore
 
 # Retrieve our package base path from settings
-from auto_forge.settings import PROJECT_BASE_PATH
+from auto_forge.settings import (PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General Purpose Support Routines"
@@ -838,3 +839,38 @@ class ToolBox:
             ''', re.VERBOSE)
 
         return ansi_escape_pattern.sub('', text)
+
+    @staticmethod
+    def print_logo(ascii_art_file: Optional[str] = None, clear_screen: bool = False) -> int:
+        """
+        Displays an ASCII logo from a file with alternating colors per line.
+
+        Args:
+            ascii_art_file (str): Path to the logo file.
+            clear_screen (bool): Whether to clear the screen before printing.
+
+        Returns:
+            int: 0 if successful, 1 if the file does not exist.
+        """
+
+        # Demo ASCII Art file
+        demo_file = str(PROJECT_RESOURCES_PATH / "demo_project" / "teamlogo.txt")
+
+        # Use to the demo file if not provided
+        if not ascii_art_file or not os.path.isfile(ascii_art_file):
+            ascii_art_file = demo_file
+            if not os.path.isfile(ascii_art_file):
+                return 1
+
+        # Clear screen and move cursor to top-left
+        if clear_screen:
+            print("\033[2J\033[H", end='')
+        print()
+
+        with open(ascii_art_file, 'r', encoding='utf-8') as f:
+            for i, line in enumerate(f):
+                color = Fore.LIGHTBLUE_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
+                print(f"{color}{line}", end='')
+
+        print()  # Final newline
+        return 0
