@@ -4,9 +4,9 @@ Script:         auto_forge.py
 Author:         AutoForge Team
 
 Description:
-    This module serves as the core of the AutoForge system. It is responsible for initializing all core libraries
-    and loading various configuration files. The main objective is to provide a fully loaded and validated build
-    environment based on the specified solution configurations.
+    This module serves as the core of the AutoForge system.
+    Here we initialize all core libraries, parse and load the various configuration files,
+    dynamically load CLI commands and start the build system shell.
 """
 
 import argparse

@@ -813,9 +813,9 @@ class SetupTools:
 
             # Determine if the input is a package name or a path to a requirements file
             if package_or_requirements.endswith('.txt'):
-                command_arguments = f"-m pip install -q -r {package_or_requirements}"
+                command_arguments = f"-m pip install -r {package_or_requirements}"
             else:
-                command_arguments = f"-m pip install -q {package_or_requirements}"
+                command_arguments = f"-m pip install {package_or_requirements}"
 
             # Execute the command
             self.execute_shell_command(command=python_executable, arguments=command_arguments, shell=False)
@@ -838,7 +838,7 @@ class SetupTools:
 
             # Normalize inputs
             package = self._toolbox.normalize_text(package)
-            if len(package) == 0:
+            if not package:
                 raise RuntimeError(f"no package specified for pip")
 
             command_arguments = f"-m pip uninstall -y {package}"
@@ -849,38 +849,37 @@ class SetupTools:
         except Exception as python_pip_error:
             raise Exception(f"could not uninstall pip package(s) '{package}' {python_pip_error}")
 
-    def python_package_get_version(self, venv_path: Optional[str] = None, package_name: str = "") -> \
+    def python_package_get_version(self, package: str, venv_path: Optional[str] = None) -> \
             Optional[str]:
         """
         Retrieves the version of a specified package installed in the given virtual environment.
         Args:
-            venv_path (Optional[str]): The path to the virtual environment. If None, the default virtual
-                environment path is used.
-            package_name (str): The name of the package to check.
+            package (str): The package name to uninstall.
+            venv_path (Optional[str]): The path to the virtual environment. If None use system default.
 
         Returns:
             str: The version of the package if found, otherwise raising exception.
         """
 
         try:
-
             # Determines the path to the Python executable.
             python_executable = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
-            package_name = self._toolbox.normalize_text(package_name)
+            package = self._toolbox.normalize_text(package)
+            if not package:
+                raise RuntimeError(f"no package specified for pip")
 
             # Construct and execute the command
-            command_arguments = f"-m pip show {package_name}"
-            command_response = (
-                self.execute_shell_command(command=python_executable, arguments=command_arguments))
+            command_arguments = f"-m pip show {package}"
+            command_response = self.execute_shell_command(command=python_executable, arguments=command_arguments)
 
             if command_response is not None:
                 # Attempt to extract the version out of the text
                 package_version = self._extract_python_package_version(command_response)
                 return package_version
 
-            raise Exception(f"could not read '{package_name}' version, no response from process")
+            raise Exception(f"could not read '{package}' version, no response from process")
 
         # Propagate the exception
         except Exception:
