@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script:     __main__.py
-Author:     AutoForge team
+Script:         __main__.py
+Author:         AutoForge Team
 
 Description:
     This script serves as the entry point for the AutoForge package, enabling it to be run as a console application.

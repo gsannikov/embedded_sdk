@@ -1,6 +1,6 @@
 """
-Script:     zephyr_sdk.py
-Author:     AutoForge Team
+Script:         zephyr_sdk.py
+Author:         AutoForge Team
 
 Description:
     Support tool for querying Zephyr SDK installation details using the CMake user package registry.

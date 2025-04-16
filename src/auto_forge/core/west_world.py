@@ -1,13 +1,11 @@
 """
 Script:         west_world.py
-Author:         AutoForge team
+Author:         AutoForge Team
 
-Description
-------------
-
-This module processes a typical west.yml file and clones projects in parallel,
-unlike Zephyr's 'west' which clones projects sequentially.
-Parallel cloning reduces clone times significantly.
+Description:
+    This module processes a typical west.yml file and clones projects in parallel,
+    unlike Zephyr's 'west' which clones projects sequentially.
+    Parallel cloning reduces clone times significantly.
 
 """
 

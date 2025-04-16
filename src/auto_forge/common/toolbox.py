@@ -1,6 +1,6 @@
 """
-Script:     toolbox,py
-Author:     Intel AutoForge team
+Script:         toolbox,py
+Author:         AutoForge Team
 
 Description:
     A collection of general-purpose functions required by the AutoForge system.

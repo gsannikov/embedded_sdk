@@ -1,9 +1,10 @@
 """
 Script:         settings.py
-Author:         AutoForge team
+Author:         AutoForge Team
 
-Description:    Configuration script that retrieves project information from the pyproject.toml file and sets
-                global variables for project version and name.
+Description:
+    Configuration script that retrieves project information from the pyproject.toml file and sets
+    global variables for project version and name.
 """
 import importlib.metadata
 import os

@@ -1,6 +1,6 @@
 """
-Script:     imcv2_sig_tool.py
-Author:     AutoForge Team
+Script:         imcv2_sig_tool.py
+Author:         AutoForge Team
 
 Description:
     Utility for binary signing operations, leveraging the internal `Signatures` class for implementation.

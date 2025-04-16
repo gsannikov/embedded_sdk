@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script:         auto_forge.py
-Author:         AutoForge team
+Author:         AutoForge Team
 
 Description:
     This module serves as the core of the AutoForge system. It is responsible for initializing all core libraries

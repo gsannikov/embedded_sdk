@@ -1,6 +1,6 @@
 """
-Script:     progress_tracker.py
-Author:     AutoForge Team
+Script:         progress_tracker.py
+Author:         AutoForge Team
 
 Description:
     This module defines the ProgressTracker class, a utility designed for terminal-based status

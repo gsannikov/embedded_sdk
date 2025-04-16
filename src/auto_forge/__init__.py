@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 """
-Script:     __init__.py
-Author:     AutoForge Team
+Script:         __init__.py
+Author:         AutoForge Team
 
 Description:
     This module serves as the centralized import hub for the AutoForge application, managing the import of essential

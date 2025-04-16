@@ -1,8 +1,9 @@
 """
 Script:         setup_tools.py
-Author:         AutoForge team
+Author:         AutoForge Team
 
-SDK environment installation toolbox.
+Description:
+    SDK environment installation toolbox.
 
 """
 import json

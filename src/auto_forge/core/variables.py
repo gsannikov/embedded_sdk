@@ -1,8 +1,9 @@
 """
 Script:         variables.py
-Author:         AutoForge team
+Author:         AutoForge Team
 
-Description: The variables core module is designed to initialize variables with specific attributes and values,
+Description:
+    The variables core module is designed to initialize variables with specific attributes and values,
     prevent duplicates, and allow for quick lookup and modification through methods that leverage binary search.
     It also handles dynamic changes to the variables' configuration by maintaining a sorted state and updating search
     keys accordingly.
