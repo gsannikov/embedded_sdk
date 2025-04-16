@@ -1,6 +1,6 @@
 """
 Script:         signatures.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description:
     Signatures is a core module that simplifies the user os binary signatures

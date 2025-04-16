@@ -7,17 +7,22 @@ Description:
 """
 
 import argparse
+import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 # AutoForge imports
-from auto_forge import CLICommand
+from auto_forge import (CLICommandInterface, CLICommandInfo)
 
 AUTO_FORGE_COMMAND_NAME = "zephyr_sdk"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr SDK utilities"
+AUTO_FORGE_COMMAND_VERSION = "1.0"
+
+# Default CMake user package registry path where the Zephyr SDK is expected to be registered
+CMAKE_PACKAGE_PATH: Path = Path.home() / ".cmake/packages/Zephyr-sdk"
 
 
-class ZephyrSDKCommand(CLICommand):
+class ZephyrSDKCommand(CLICommandInterface):
     """
     CLI command for interacting with the Zephyr SDK.
 
@@ -26,26 +31,40 @@ class ZephyrSDKCommand(CLICommand):
     and version if found.
     """
 
-    def __init__(self):
-        super().__init__()
-        self._path: Optional[str] = None
-        self._version: Optional[str] = None
-        self._cmake_pkg_dir: Path = Path.home() / ".cmake/packages/Zephyr-sdk"
-        self._detect()
+    def __init__(self, **kwargs: Any):
+        """
+        Constructor for ZephyrSDKCommand.
 
-    def _detect(self) -> bool:
+        Initializes internal state and allows for optional overrides such as custom CMake
+        package registry path and error handling behavior.
+
+        Args:
+            **kwargs (Any): Optional keyword arguments:
+                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
+                - cmake_pkg_dir (Path or str): Custom path to the CMake package registry directory.
+        """
+        self._path: Optional[str] = None  # Detected Zephyr SDK path
+        self._version: Optional[str] = None  # Detected SDK version
+
+        # Set logger instance
+        self._logger = logging.getLogger(AUTO_FORGE_COMMAND_NAME)
+
+        # Extract optional parameters
+        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
+        self._cmake_pkg_dir: Path = Path(kwargs.get('cmake_pkg_dir', CMAKE_PACKAGE_PATH))
+
+        # Base class initialization
+        super().__init__(raise_exceptions=raise_exceptions)
+
+    def initialize(self, **kwargs: Any) -> bool:
         """
         Detect the installed Zephyr SDK by examining the CMake user package registry.
+        Note: Assumes standard SDK install with 'zephyr-sdk-setup.sh' registration.
 
+        Args:
+            **kwargs (Any): Optional keyword arguments:
         Returns:
-            dict or None: A dictionary with:
-                - 'sdk_path' (str): Absolute path to the Zephyr SDK.
-                - 'version' (str): Version string inferred from the directory name.
-            Returns None if the SDK is not found or appears invalid.
-
-        Notes:
-            - This does not rely on environment variables or PATH.
-            - Assumes standard SDK install with 'zephyr-sdk-setup.sh' registration.
+            bool: True if initialization succeeded, False otherwise.
         """
 
         if not self._cmake_pkg_dir.is_dir():
@@ -84,19 +103,19 @@ class ZephyrSDKCommand(CLICommand):
 
         return False
 
-    def get_name(self) -> str:
+    def get_info(self) -> CLICommandInfo:
         """
         Returns:
-            str: The CLI command keyword used to invoke this command.
+            CLICommandInfo: a named tuple containing the implemented command id
         """
-        return AUTO_FORGE_COMMAND_NAME
-
-    def get_description(self) -> str:
-        """
-        Returns:
-            str: A human-readable description of the command.
-        """
-        return AUTO_FORGE_COMMAND_DESCRIPTION
+        # Populate and return the command info type
+        if self._command_info is None:
+            self._command_info = CLICommandInfo(name=AUTO_FORGE_COMMAND_NAME,
+                                                description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                                                version=AUTO_FORGE_COMMAND_VERSION,
+                                                class_name=self.__class__.__name__,
+                                                class_instance=self)
+        return self._command_info
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -104,18 +123,11 @@ class ZephyrSDKCommand(CLICommand):
         Args:
             parser (argparse.ArgumentParser): The parser to extend.
         """
-        parser.add_argument(
-            '-p', '--get-path',
-            action='store_true',
-            dest='get_path',
-            help='Prints the detected SDK installation path.'
-        )
-        parser.add_argument(
-            '-v', '--get-version',
-            action='store_true',
-            dest='get_version',
-            help='Prints the detected SDK version.'
-        )
+        parser.add_argument('-p', '--get-path', action='store_true',
+                            help='Prints the detected SDK installation path.')
+        parser.add_argument('-v', '--get-version', action='store_true',
+                            help='Prints the detected SDK version.')
+        parser.add_argument("-ver", "--version", action="store_true", help="Show this command version and exit.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -126,16 +138,23 @@ class ZephyrSDKCommand(CLICommand):
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
+        return_value: int = 0
+
+        # The SDK path should have been discovered when this class was created.
         if not self._path:
-            print("Zephyr SDK not found.")
+            print("Error: Zephyr SDK not found.")
             return 1
 
+        # Handle arguments
         if args.get_path:
             print(self._path)
-            return 0
         elif args.get_version:
             print(self._version)
-            return 0
+        elif args.version:
+            print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
         else:
-            print("No flag provided. Use -p or -v.")
-            return 1
+            # No arguments provided, show command usage
+            args.print_usage()
+            return_value = 1
+
+        return return_value

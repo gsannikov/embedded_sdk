@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script:         logger.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description:
     AutoForge logging module allows for console and file logging, with and without ANSI colors.
@@ -235,14 +235,16 @@ def logger_get_filename(logger_instance: logging.Logger) -> Optional[str]:
     return None
 
 
-def logger_setup(name='AutoForge', level=logging.DEBUG, log_file=None, no_colors=False):
+def logger_setup(name='AutoForge', level=logging.WARNING, log_console: bool= True,
+                 log_file:Optional[str]=None, no_colors:bool=False):
     """
-    Set up the logger with color formatting and a custom TRACE and BUILD levels.
+    Set up the logger with color formatting using any of file / console handlers.
 
     Args:
         name (str): Name of the logger (default: 'Logging').
-        level (int): Logging level (default: DEBUG).
-        log_file (str): Optional log file to create
+        level (int): Logging level (default: WARNING).
+        log_console (bool): Disable or enable console handlers (default: True).
+        log_file (str): If set, a file handler will be enabled automatically
         no_colors(bool): Whether to disable colored output (default: False).
 
     Returns:
@@ -255,30 +257,27 @@ def logger_setup(name='AutoForge', level=logging.DEBUG, log_file=None, no_colors
 
     _logger_initialize()
 
-    auto_forge_logger = logging.getLogger(name)
+    auto_forge_logger = logging.getLogger()
+    auto_forge_logger.setLevel(level) # Default level
 
     # Ensure no duplicate handlers are added
     if not auto_forge_logger.hasHandlers():
 
         # Create a console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        formatter = AutoForgeColorFormatter(log_format, datefmt=base_date_format, no_colors=no_colors)
-        console_handler.setFormatter(formatter)
-        auto_forge_logger.setLevel(level)
-
-        # Get the root logger and set the handler and level
-        auto_forge_logger = logging.getLogger()
-        auto_forge_logger.addHandler(console_handler)
-        auto_forge_logger.propagate = True
+        if log_console:
+            console_handler = logging.StreamHandler(sys.stdout)
+            formatter = AutoForgeColorFormatter(log_format, datefmt=base_date_format, no_colors=no_colors)
+            console_handler.setFormatter(formatter)
+            auto_forge_logger.addHandler(console_handler)
 
         # Configure log filer handler
         if log_file is not None:
             file_formatter = AutoForgeColorFormatter(log_format, datefmt=base_date_format, no_colors=True)
             file_handler = logging.FileHandler(log_file)
-            file_handler.setLevel(level)
             file_handler.setFormatter(file_formatter)
             auto_forge_logger.addHandler(file_handler)
 
+        auto_forge_logger.propagate = True
         auto_forge_logger.name = name
         return auto_forge_logger
 

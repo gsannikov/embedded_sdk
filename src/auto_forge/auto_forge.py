@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script:         auto_forge.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description:
     This module serves as the core of the AutoForge system. It is responsible for initializing all core libraries
@@ -19,7 +19,7 @@ from typing import Optional
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools,
+from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools, CommandsLoader,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, logger_setup)
 
 
@@ -47,7 +47,13 @@ class AutoForge:
 
         if not self._is_initialized:
 
-            self._logger: Optional[logging.Logger] = logger_setup(level=logging.DEBUG, no_colors=False)
+            if automated_mode:
+                self._logger: Optional[logging.Logger] = logger_setup(
+                    level=logging.DEBUG, log_console=True, log_file="auto_forge.log")
+            else:
+                self._logger: Optional[logging.Logger] = logger_setup(
+                    level=logging.WARNING, log_console=False, log_file="auto_forge.log")
+
             self._Toolbox: Optional[ToolBox] = ToolBox(parent=self)
             self._solution_file: Optional[str] = None
             self._solution_name: Optional[str] = None
@@ -57,6 +63,7 @@ class AutoForge:
 
             try:
 
+                self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
                 self.tools: SetupTools = SetupTools(workspace_path=self._workspace_path, automated_mode=automated_mode)
                 self._is_initialized = True
 

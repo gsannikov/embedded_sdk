@@ -570,6 +570,22 @@ class ToolBox:
         raise ValueError(f"cannot convert '{value}' to an integer.")
 
     @staticmethod
+    def get_expanded_path(path: str, to_absolute: bool = True) -> str:
+        """
+        Expands environment variables and user symbols in the given path.
+        Args:
+            path (str): The input path string, which may contain '~' or environment variables.
+            to_absolute (bool): If True (default), the path is resolved to an absolute path.
+
+        Returns:
+            str: The expanded (and optionally absolute) path.
+        """
+        expanded_path = os.path.expanduser(os.path.expandvars(path))
+        if to_absolute:
+            expanded_path = os.path.abspath(expanded_path)
+        return expanded_path
+
+    @staticmethod
     def set_terminal_title(title: Optional[str] = None):
         """
         Sets the terminal title

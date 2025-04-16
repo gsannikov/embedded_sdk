@@ -1,6 +1,6 @@
 """
 Script:         pre_processor.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description:
     Preprocessor is a core module that allows to convincingly read JSONs, which were

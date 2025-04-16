@@ -1,8 +1,20 @@
 # AutoForge
 
-Welcome to **Forge**, the SDK companion Bob the Builder.
+Welcome to **AutoForge**, the SDK companion Bob the Builder.
 
-AutoPilot is designed to streamline and enhance the testing processes for developers working with the **IMCv2** SDK. As a critical component of our software development kit, AutoPilot aims to automate and simplify the verification of code functionality, ensuring high-quality and reliable software products.es.
+**AutoForge** is a flexible and extensible Python framework designed to streamline and enhance modern build workflows. It provides a powerful set of tools to define and manage complete build systems — from initial setup and environment preparation, through compilation and deployment, all the way to logging, error handling, and reporting.
+
+At its core, AutoForge is driven by a set of simple, declarative JSON definitions, allowing teams to configure build behavior with minimal boilerplate.
+
+Key features include:
+
+- Modular, CLI-driven architecture
+- Standardized logging and structured error reporting
+- Automated environment setup and teardown
+- JSON-based configuration for repeatable builds
+- Dynamic command loading for easy extension
+
+AutoForge was built with scalability in mind — whether you're managing a small embedded project or orchestrating complex multi-stage builds, it provides the right balance of automation, clarity, and control.
 
 ## License
 

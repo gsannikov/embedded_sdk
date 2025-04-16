@@ -1,6 +1,6 @@
 """
-Script: progress_tracker.py
-Author: Intel AutoForge Team
+Script:     progress_tracker.py
+Author:     AutoForge Team
 
 Description:
     This module defines the ProgressTracker class, a utility designed for terminal-based status
@@ -81,6 +81,18 @@ class ANSIGuru:
     @staticmethod
     def restore_cursor_position():
         """Restores the cursor to the last saved position."""
+        sys.stdout.write("\033[u")
+        sys.stdout.flush()
+
+    @staticmethod
+    def restore_cursor_position_and_erase_line_to_end():
+        """
+        Restores the cursor to the last saved position,
+        erases from the cursor to the end of the line,
+        and restores the cursor back to the same position again.
+        """
+        sys.stdout.write("\033[u")
+        sys.stdout.write("\033[K")
         sys.stdout.write("\033[u")
         sys.stdout.flush()
 

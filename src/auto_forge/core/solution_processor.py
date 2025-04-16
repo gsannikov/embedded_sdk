@@ -1,6 +1,6 @@
 """
 Script:         solution_processor.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description:
     The AutoForge Solution Processor is designed to handle the processing of structured JSON configuration files,

@@ -1,9 +1,9 @@
 """
 Script:         settings.py
-Author:         Intel AutoForge team
-Description:    Configuration script that retrieves project information from the
-                pyproject.toml file and sets global variables for project version
-                and name.
+Author:         AutoForge team
+
+Description:    Configuration script that retrieves project information from the pyproject.toml file and sets
+                global variables for project version and name.
 """
 import importlib.metadata
 import os
@@ -15,6 +15,7 @@ import toml
 # Determine the base directory of the project
 PROJECT_BASE_PATH = Path(__file__).resolve().parent
 PROJECT_CONFIG_PATH = PROJECT_BASE_PATH / "config"
+PROJECT_COMMANDS_PATH = PROJECT_BASE_PATH / "commands"
 PROJECT_RESOURCES_PATH = PROJECT_BASE_PATH / "resources"
 PROJECT_SCHEMAS_PATH = PROJECT_CONFIG_PATH / "schemas"
 PROJECT_PACKAGE_BASE_PATH = Path(__file__).resolve().parent.parent.parent
@@ -22,7 +23,7 @@ PROJECT_PACKAGE_BASE_PATH = Path(__file__).resolve().parent.parent.parent
 # Initialize default values for global variables
 PROJECT_VERSION = "1.1.0"
 PROJECT_NAME = "AutoForge"
-PROJECT_REPO = "https://github.com/intel-innersource/firmware.ethernet.imcv2/tree/main/scripts/auto_forge"
+PROJECT_REPO = "https://github.com/emichael72/auto_forge.git"
 PROJECT_PACKAGE = "auto_forge"
 
 
@@ -47,10 +48,11 @@ def auto_forge_get_info(base_path: Path):
 
         # Export paths so we could use those in our configuration files
         os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
-        os.environ['AUTO_FORGE_PROJECT_PACKAGE_BASE_PATH'] = str(PROJECT_PACKAGE_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
+        os.environ['AUTO_FORGE_PROJECT_COMMANDS_PATH'] = str(PROJECT_COMMANDS_PATH)
         os.environ['AUTO_FORGE_PROJECT_RESOURCES_PATH'] = str(PROJECT_RESOURCES_PATH)
         os.environ['AUTO_FORGE_PROJECT_SCHEMAS_PATH'] = str(PROJECT_SCHEMAS_PATH)
+        os.environ['AUTO_FORGE_PROJECT_PACKAGE_BASE_PATH'] = str(PROJECT_PACKAGE_BASE_PATH)
 
         # Try to open and load the TOML file
         with open(toml_path, "r") as toml_file:

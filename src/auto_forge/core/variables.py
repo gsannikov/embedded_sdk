@@ -1,6 +1,6 @@
 """
 Script:         variables.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description: The variables core module is designed to initialize variables with specific attributes and values,
     prevent duplicates, and allow for quick lookup and modification through methods that leverage binary search.

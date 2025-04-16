@@ -1,6 +1,6 @@
 """
 Script:         setup_tools.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 SDK environment installation toolbox.
 

@@ -5,7 +5,7 @@
 #
 # Script Name:    workspace_init.sh
 # Description:    Generic project workspace initiation script.
-# Copyright:      2025 Intel Corporation.
+# Author:         AutoForge team.
 #
 # ------------------------------------------------------------------------------
 

@@ -1,9 +1,13 @@
 /*
- * Configuration File for Source Tree Reorganization.
- * Purpose: This JSON file defines the settings and mappings required to reorganize a large source tree into a new structure. 
- * It specifies the paths, file types, and other options to manage the copying and restructuring processes.
- *
- */
+    AutoForge Relocator Configuration File
+    --------------------------------------
+
+    Configuration File for Source Tree Reorganization.
+	Purpose: This JSON file defines the settings and mappings required to reorganize a large source tree into
+	a new structure. It specifies the paths, file types, and other options to manage the copying
+	and restructuring processes.
+
+*/
 
 {
 	"defaults": {

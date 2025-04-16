@@ -1,6 +1,6 @@
 """
 Script:         west_world.py
-Author:         Intel AutoForge team
+Author:         AutoForge team
 
 Description
 ------------
