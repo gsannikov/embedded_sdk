@@ -54,7 +54,7 @@ class AutoForge:
                 self._logger: Optional[logging.Logger] = logger_setup(
                     level=logging.WARNING, log_console=False, log_file="auto_forge.log")
 
-            self._Toolbox: Optional[ToolBox] = ToolBox(parent=self)
+            self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
             self._solution_file: Optional[str] = None
             self._solution_name: Optional[str] = None
             self._varLib: Optional[Variables] = None
