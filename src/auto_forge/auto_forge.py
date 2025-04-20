@@ -20,7 +20,7 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools, CommandsLoader,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, AutoHandlers)
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, PromptEngine, AutoHandlers)
 
 
 class AutoForge:
@@ -72,6 +72,7 @@ class AutoForge:
             try:
                 self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
                 self.tools: SetupTools = SetupTools(workspace_path=self._workspace_path, automated_mode=automated_mode)
+                self.prompt =  PromptEngine()
 
                 self._toolbox.print_logo(clear_screen=True)  # Show logo
                 self._is_initialized = True  # Done initializing
@@ -131,6 +132,9 @@ class AutoForge:
             # Store the primary solution name
             self._solution_name = self._solutionLib.get_primary_solution_name()
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
+
+            # Enter build system prompt loop
+            self.prompt.cmdloop()
             return 0
 
         # Propagate

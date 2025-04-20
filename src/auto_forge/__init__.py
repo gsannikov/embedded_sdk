@@ -32,6 +32,7 @@ from auto_forge.core.relocate import Relocator
 from auto_forge.core.solution_processor import SolutionProcessor
 from auto_forge.core.west_world import WestWorld
 from auto_forge.core.setup_tools import SetupTools
+from auto_forge.core.prompt_engine import PromptEngine
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
@@ -54,6 +55,7 @@ __all__ = [
     "CommandsLoader",
     "CLICommandInterface",
     "CLICommandInfo",
+    "PromptEngine",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH",
