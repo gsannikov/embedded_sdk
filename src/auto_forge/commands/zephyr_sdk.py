@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional, Any
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CLICommandInfo)
+from auto_forge import (CLICommandInterface, CLICommandInfo, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "zephyr_sdk"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr SDK utilities"
@@ -47,8 +47,8 @@ class ZephyrSDKCommand(CLICommandInterface):
         self._path: Optional[str] = None  # Detected Zephyr SDK path
         self._version: Optional[str] = None  # Detected SDK version
 
-        # Set logger instance
-        self._logger = logging.getLogger(AUTO_FORGE_COMMAND_NAME)
+        # Get logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)

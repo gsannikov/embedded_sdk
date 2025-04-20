@@ -7,7 +7,6 @@ Description:
 """
 
 import argparse
-import logging
 import os
 import sys
 from pathlib import Path
@@ -16,7 +15,7 @@ from typing import Optional, Any
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CLICommandInfo, Signatures, ToolBox)
+from auto_forge import (CLICommandInterface, CLICommandInfo, Signatures, ToolBox, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "sig_tool"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Binary file signing tool"
@@ -40,8 +39,8 @@ class SigToolCommand(CLICommandInterface):
         self._git_commit: Optional[Commit] = None
         self._git_commit_hash: Optional[str] = None
 
-        # Set logger instance
-        self._logger = logging.getLogger(AUTO_FORGE_COMMAND_NAME)
+        # Get logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
@@ -156,6 +155,7 @@ class SigToolCommand(CLICommandInterface):
             if validate_only:
                 if not signature.verified:
                     raise RuntimeError(f"CRC verification for '{source_binary_file_base_name}' failed")
+                return 1 # Error
             else:
                 # Update the git hash and image size in the signature
                 git_field = signature.find_first_field('git_commit')

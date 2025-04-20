@@ -9,7 +9,6 @@ import base64
 import importlib.metadata
 import importlib.util
 import inspect
-import logging
 import os
 import re
 import sys
@@ -24,7 +23,7 @@ import psutil
 from colorama import Fore
 
 # Retrieve our package base path from settings
-from auto_forge.settings import (PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
+from auto_forge import (PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General Purpose Support Routines"
@@ -34,12 +33,11 @@ class ToolBox:
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, parent: Optional[Any] = None, logger_level: Optional[int] = logging.INFO):
+    def __new__(cls, parent: Optional[Any] = None):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Args:
             parent (Any, optional): The parent context or object for this queue.
-            logger_level(int,Optional): specific required logging level
 
         Returns:
             ToolBox: The singleton instance of this class.
@@ -49,12 +47,11 @@ class ToolBox:
 
         return cls._instance
 
-    def __init__(self, parent: Optional[Any] = None, logger_level: Optional[int] = logging.INFO):
+    def __init__(self, parent: Optional[Any] = None):
         """
         Initialize the class; actual initialization logic is handled in __new__.
         Args:
             parent (Any, optional): The parent context or object for this queue.
-            logger_level(int,Optional): specific required logging level.
         """
         if not self._is_initialized:
 
@@ -64,11 +61,10 @@ class ToolBox:
 
             self._parent = parent
 
-            self._logger_level = logger_level
-            self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-            self._logger.setLevel(level=logger_level)
-            self._storage = {}  # Local static dictionary for managed session variables
+            # Get a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
+            self._storage = {}  # Local static dictionary for managed session variables
             self._is_initialized = True
 
     @staticmethod
@@ -628,23 +624,28 @@ class ToolBox:
     def tail(f, n):
         """
         Efficiently reads the last n lines from a file object.
-        Parameters:
+
+        Args:
             f (file object): The file object from which to read.
             n (int): The number of lines to read from the end of the file.
+
         Returns:
             list: A list containing the last n lines of the file.
         """
-        assert n >= 0  # Ensure that n is non-negative
+        assert n >= 0, "n must be non-negative"
+        if n == 0:
+            return []
+
         pos, lines = n + 1, []
         while len(lines) <= n:
             try:
                 f.seek(-pos, os.SEEK_END)
-            except IOError:  # Handle the case where pos is greater than the file size
+            except OSError:  # more general than IOError
                 f.seek(0)
+                lines = f.readlines()
                 break
-            finally:
-                lines = list(f)
-            pos *= 2  # Increase the seek position to move further back in the file
+            lines = f.readlines()
+            pos *= 2
         return lines[-n:]
 
     @staticmethod
@@ -711,6 +712,7 @@ class ToolBox:
             return True
 
         # Environment variable checks (adjust as needed for your environment)
+        # noinspection SpellCheckingInspection
         debug_env_vars = ['VSCODE_DEBUGGER', 'PYCHARM_DEBUG', 'PYTHONUNBUFFERED']
         for var in debug_env_vars:
             if var in os.environ:

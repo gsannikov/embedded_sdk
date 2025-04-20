@@ -8,10 +8,12 @@ Description:
 """
 
 import json
-import logging
 import os
 import re
 from typing import Optional, Any, Dict
+
+# AutoForge local imports
+from auto_forge import AutoLogger
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
@@ -26,9 +28,9 @@ class JSONProcessor:
 
         self._service_name: str = self.__class__.__name__
 
-        # Initialize a logger instance
-        self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-        self._logger.setLevel(level=logging.DEBUG)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        
         self._initialized = True
 
     def preprocess(self, file_name: str) -> Optional[Dict[str, Any]]:

@@ -9,7 +9,6 @@ Description:
     keys accordingly.
 """
 
-import logging
 import os
 import re
 import threading
@@ -18,7 +17,7 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
 import auto_forge
-from auto_forge import (JSONProcessor)
+from auto_forge import (JSONProcessor, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment variables core service"
@@ -67,11 +66,11 @@ class Variables:
 
             try:
                 self._service_name: str = self.__class__.__name__
-                self._auto_forge = auto_forge.AutoForge()
+                self._auto_forge = auto_forge.auto_forge.AutoForge()
 
-                # Initialize a logger instance
-                self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-                self._logger.setLevel(level=logging.DEBUG)
+                # Get a logger instance
+                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+
                 self._workspace_path = self._auto_forge.get_workspace_path()
                 self._base_config_file_name: Optional[str] = None
                 self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
@@ -143,13 +142,13 @@ class Variables:
                 return index
             return -1
 
-    def _construct_name(self, variable_name: str) -> str:
+    def _construct_name(self, variable_name: Any) -> str:
         """
         Constructs a modified variable name by applying normalization rules such as trimming,
         adding a prefix, and adjusting case sensitivity based on the class configuration.
 
         Args:
-            variable_name (str): The raw variable name to be processed.
+            variable_name (Any): The raw variable name to be processed.
 
         Returns:
             str: The processed variable name, which is trimmed, potentially prefixed,

@@ -27,7 +27,6 @@ TODO:
 """
 import copy
 import json
-import logging
 import os
 import re
 from collections import deque
@@ -42,7 +41,7 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (JSONProcessor, Variables, Signatures, PROJECT_SCHEMAS_PATH)
+from auto_forge import (JSONProcessor, Variables, Signatures, PROJECT_SCHEMAS_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
@@ -63,9 +62,8 @@ class SolutionProcessor:
     def __init__(self, solution_config_file_name: str, max_iterations: int = 20) -> None:
         self._service_name: str = self.__class__.__name__
 
-        # Initialize a logger instance
-        self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-        self._logger.setLevel(level=logging.DEBUG)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
         self._solution_file_name: Optional[str] = None  # Loaded solution file name
         self._solution_file_path: Optional[str] = None  # Loaded solution file path

@@ -11,14 +11,13 @@ Description:
 import glob
 import importlib.util
 import io
-import logging
 import os
 import sys
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from typing import Optional, Any, Dict, TextIO, cast
 
-from auto_forge import PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo
+from auto_forge import (PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
@@ -44,8 +43,9 @@ class CommandsLoader:
     def __init__(self):
         """Initializes the command loader and prepares the command registry."""
 
-        self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-        # self._logger.setLevel(logging.DEBUG)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+
         self._loaded_commands: int = 0
         self._commands_registry: Dict[str, Dict[str, Any]] = {}
         self._commands_path: Path = PROJECT_COMMANDS_PATH

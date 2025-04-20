@@ -13,7 +13,7 @@ import os
 import shutil
 from typing import Optional, Any, Dict, List
 
-from auto_forge import (JSONProcessor)
+from auto_forge import (JSONProcessor, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code tree relocator"
@@ -124,8 +124,8 @@ class Relocator:
         self._relocate_folders_data: Optional[List[str, Any]] = None
         self._relocate_folders_count: Optional[int] = 0
 
-        # Initialize the logger
-        self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
         # Use JSONProcessorLib to filter out any comments and load the recipe as a clean JSON dictionary
         try:

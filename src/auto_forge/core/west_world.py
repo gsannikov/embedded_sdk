@@ -8,7 +8,6 @@ Description:
     Parallel cloning reduces clone times significantly.
 
 """
-
 import os
 import queue
 import re
@@ -25,6 +24,9 @@ from typing import Optional, List
 import git
 import yaml
 from colorama import Fore, Style
+
+# AutoForge imports
+from auto_forge import AutoLogger
 
 AUTO_FORGE_MODULE_NAME = "MiniWest"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' helper library"
@@ -71,6 +73,9 @@ class WestWorld:
         self._ignored_projects_list = {"zephyr"}  # Manifest projects to exclude
         self._automated_mode: bool = automated_mode  # Global to indicate if we're allowed to use colors
         self._projects: List[WestProject] = []  # List of 'WestProject' class instances
+
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
     def _is_top_level_repo(self, clone_dir, all_paths):
         """
@@ -376,12 +381,14 @@ class WestWorld:
         except KeyboardInterrupt:
             sys.stdout.write("\nProcess interrupted by user.\n")
             self._stop_event.set()
+
         except Exception as job_exception:
             self._print_error(f"Exception in worker thread: {str(job_exception)}")
             self._stop_event.set()
             self._exceptions += 1
             self._close(force_terminate=False)
-            return False
+
+        return False
 
     def _build_projects_list(self, west_yaml_path: str, clone_path: Optional[str] = None, retry_count: int = 1,
                              status_line_length: int = 80):

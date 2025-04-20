@@ -7,16 +7,15 @@ Description:
 """
 
 import logging
+import mmap
 import os
 import re
 import struct
+import zlib
 from typing import Match, Optional, Any, Dict, List
 
-import mmap
-import zlib
-
 # Internal AutoForge imports
-from auto_forge import (JSONProcessor, Variables)
+from auto_forge import (JSONProcessor, Variables, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures core service"
@@ -48,9 +47,8 @@ class Signatures:
         self._varLib: Optional[Variables] = Variables()
         self._initialized = False
 
-        # Initialize a logger instance
-        self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-        self._logger.setLevel(level=logging.DEBUG)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
         try:
 
@@ -456,6 +454,8 @@ class Signatures:
                 if field_size > 0:
                     return field_size
 
+        return -1  # $ Error
+
     def _build_format_string_from_dictionary(self, dictionary: Dict[str, Any]) -> Optional[str]:
         """
         Constructs a format string for struct packing/unpacking based on a given schema.
@@ -531,7 +531,8 @@ class Signature:
             file_handler (SignatureFileHandler): Parent class instance
         """
 
-        self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
         self.unpacked_data: tuple = unpacked_data
         self.data: bytes = data
@@ -1022,9 +1023,9 @@ class SignatureFileHandler:
                         # Recursively process nested struct
                         _process_fields(field["fields"])
                     else:
-                        field_size = self.signatures_lib.type_to_size(field_type)
+                        field_size = self.signatures_lib.type_to_size(str(field_type))
                         # Regular field
-                        _append_field(schema_field_name=field_name, schema_field_type=field_type,
+                        _append_field(schema_field_name=field_name, schema_field_type=str(field_type),
                                       schema_field_size=field_size, schema_field_is_integrity=field_is_integrity,
                                       schema_field_read_only=field_read_only, schema_type_info=type_info)
 

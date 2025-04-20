@@ -15,7 +15,7 @@ Description:
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_COMMANDS_PATH,
                        PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
-from auto_forge.logger import logger, logger_setup, logger_get_filename, logger_close, NullLogger
+from auto_forge.logger import AutoLogger,AutoHandlers
 from auto_forge.common.toolbox import ToolBox
 
 # Interfaces
@@ -63,10 +63,7 @@ __all__ = [
     "PROJECT_NAME",
     "PROJECT_REPO",
     "PROJECT_PACKAGE",
-    "NullLogger",
-    "logger",
-    "logger_setup",
-    "logger_close",
-    "logger_get_filename",
+    "AutoLogger",
+    "AutoHandlers",
     "main"
 ]

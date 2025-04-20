@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional, Union, Any, List
 
 # AutoForge imports
-from auto_forge import (JSONProcessor, ProgressTracker, NullLogger, ToolBox)
+from auto_forge import (JSONProcessor, ProgressTracker, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
 AUTO_FORGE_MODULE_DESCRIPTION = "User Environment Creation API"
@@ -67,11 +67,7 @@ class SetupTools:
 
         # Get AutoForge instance
         self._autoforge: AutoForge = AutoForge.get_instance()
-
-        if automated_mode:
-            self._logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
-        else:
-            self._logger = NullLogger()
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME,log_level=logging.DEBUG)
 
         # The following are defaults used when printing user friendly terminal status
         self._status_title_length: int = 80

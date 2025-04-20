@@ -18,7 +18,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux"
 ]
-requires-python = ">=3.9"  # AutoPilot requires Python 3.9 or later
+requires-python = ">=3.9"  # Requires Python 3.9 or later
 dependencies = [
     "colorama",
     "tabulate",

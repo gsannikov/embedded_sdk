@@ -11,50 +11,49 @@ import logging
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime
+from enum import IntFlag, auto
 from html import unescape
 from typing import Optional
 
-from colorama import Fore, Style, init
+from colorama import Fore, Style
 
-# Initialize Colorama (needed for Windows, optional on other platforms)
-init(autoreset=True)
+AUTO_FORGE_MODULE_NAME = "AutoLogger"
+AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge logging module"
 
 
-class NullLogger:
+class AutoHandlers(IntFlag):
     """
-    A logger that does nothing with log messages.
-
-    This class provides empty implementations for common logging methods,
-    allowing it to be used as a drop-in replacement where logging might be optional.
+    Bitwise-capable enumeration for supported logger handlers.
+    Allows combining multiple handlers using bitwise OR.
     """
-
-    def debug(self, msg):
-        pass
-
-    def info(self, msg):
-        pass
-
-    def warning(self, msg):
-        pass
-
-    def error(self, msg):
-        pass
-
-    def critical(self, msg):
-        pass
+    NO_HANDLERS = 0
+    CONSOLE_HANDLER = auto()
+    FILE_HANDLER = auto()
 
 
-class AutoForgeColorFormatter(logging.Formatter):
+class _ColorFormatter(logging.Formatter):
     """
-    Custom logging formatter class to add color to log levels and maintain
-    fixed-width formatting for log messages.
+    Custom logging formatter that enhances log readability by:
+
+    - Optionally adding ANSI color codes for console output
+    - Displaying level names in fixed-width aligned format
+    - Supporting consistent timestamp and message formatting
     """
 
-    def __init__(self, fmt=None, datefmt=None, style='%', no_colors=False):
-        super().__init__(fmt, datefmt, style, no_colors)
+    def __init__(self, fmt=None, datefmt=None, style='%', handler: AutoHandlers = AutoHandlers.NO_HANDLERS):
+        super().__init__(fmt, datefmt, style)
 
-        self.no_colors = no_colors
+        # Store the associated handler with this class
+        self._handler: Optional[AutoHandlers] = handler
+        self._auto_logger: Optional["AutoLogger"] = AutoLogger()
+
+        # Enable colors only when used with a console handler and the logger allows it
+        self._enable_colors = (
+                AutoHandlers.CONSOLE_HANDLER in self._handler and
+                self._auto_logger.is_console_colors_enabled()
+        )
 
     def formatTime(self, record, date_format=None, base_date_format=None):
         """
@@ -70,11 +69,10 @@ class AutoForgeColorFormatter(logging.Formatter):
         """
         Format the log message for terminal colored mode or as bare text.
         """
-        terminal_width = 1024
+        terminal_width: int = 1024
 
         # Create a dictionary to map log levels to colors using Colorama
         level_colors = {
-            'DEBUG': Fore.CYAN,
             'INFO': Fore.LIGHTBLUE_EX,
             'WARNING': Fore.YELLOW,
             'ERROR': Fore.RED,
@@ -82,14 +80,15 @@ class AutoForgeColorFormatter(logging.Formatter):
         }
 
         try:
+
             # Attempt to get the client terminal width
             try:
-                if not self.no_colors:
+                if self._enable_colors:
                     terminal_width = os.get_terminal_size().columns
             except OSError:
                 pass
 
-            if self.no_colors:
+            if not self._enable_colors:
                 # Bare text mode: remove any ANSI color codes leftovers and maintain clear text
                 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
                 formatted_record = ansi_escape.sub('', super().format(record))
@@ -111,7 +110,7 @@ class AutoForgeColorFormatter(logging.Formatter):
                     record.msg = record.msg[:terminal_width]
 
                 # Apply the JSON formatting function to the message
-                record.msg = self._logger_message_format(record.getMessage())
+                record.msg = self._message_format(record.getMessage())
                 formatted_record = f"\r{Style.RESET_ALL}" + super().format(record)
 
             return formatted_record
@@ -127,7 +126,7 @@ class AutoForgeColorFormatter(logging.Formatter):
             return f"logger exception {str(format_exception)}"
 
     @staticmethod
-    def _logger_message_format(message: str):
+    def _message_format(message: str):
         """
         Detect and pretty-print JSON or HTML content within a log message,
         and convert HTML content into a single-line error string.
@@ -181,105 +180,285 @@ class AutoForgeColorFormatter(logging.Formatter):
         return message
 
 
-def _logger_initialize():
+class AutoLogger:
     """
-    Initializes the logging system by disabling the root logger.
+    Singleton logger class for managing application-wide logging with optional
+    console and file handlers.
 
-    Sets the logging level of the root logger to a value higher than CRITICAL
-    to effectively prevent it from processing any logs. Additionally, it removes all existing
-    handlers from the root logger to ensure that no logs are inadvertently output to any
-    external targets (e.g., console, file).
+    Supports:
+    - Singleton instantiation (only one logger instance per runtime)
+    - Bitmask-based handler control via LoggerHandlers
+    - Optional console color formatting
+    - Exclusive mode to suppress all external loggers
+
+    Example:
+        logger = AutoLogger(logging.INFO, enable_console_colors=True)
+        logger.set_handlers(LoggerHandlers.CONSOLE_HANDLER | LoggerHandlers.FILE_HANDLER)
     """
 
-    # Prevent a git library from accessing our logs
-    git_looger = logging.getLogger('git')
-    if git_looger is not None:
-        git_looger.setLevel(logging.CRITICAL + 10)
-        git_looger.handlers.clear()
+    _instance = None
+    _is_initialized: bool = False
+    _log_level: int = logging.CRITICAL
 
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.CRITICAL + 10)  # Set log level beyond CRITICAL to disable logging
-    root_logger.handlers.clear()  # Remove all attached handlers
+    def __new__(cls, log_level=logging.WARNING):
+        """
+        Enforces singleton behavior. If an instance already exists, it returns it;
+        otherwise, creates a new instance.
 
+        Args:
+            log_level (int): Initial logging level (default to CRITICAL)
 
-def logger_close(logger_instance: logging.Logger):
-    """
-    Close all handlers associated with the provided logger, ensuring that
-    resources like file handles are properly released. This is useful when you
-    need to programmatically release file handles or other resources tied to the
-    logger handlers.
+        Returns:
+            AutoLogger: The singleton logger instance.
+        """
+        if cls._instance is None:
+            cls._instance = super(AutoLogger, cls).__new__(cls)
+            cls._log_level = log_level
 
-    Parameters:
-        logger_instance (logging.Logger): The logger whose handlers will be closed and removed.
-    """
-    handlers = logger_instance.handlers[:]
-    for handler in handlers:
-        handler.close()
-        logger_instance.removeHandler(handler)
+        return cls._instance
 
+    def __init__(self, log_level=logging.WARNING, enable_console_colors: bool = True, erase_exiting_file: bool = True,
+                 exclusive: bool = True):
+        """
+        Initializes the AutoLogger with default logging level and handler configuration.
 
-def logger_get_filename(logger_instance: logging.Logger) -> Optional[str]:
-    """
-    Retrieves the filename of the log file from the specified logger's file handler.
-    Iterates through all handlers of the provided logger instance. If a file handler
-    is found, returns the filename associated with it. Returns None if no file handler is present.
+        Args:
+            log_level (int): Logging level.
+            enable_console_colors (bool): Enables ANSI color formatting for console output.
+            erase_exiting_file (bool): If True, na exiting log file will be erased.
+            exclusive (bool): If True, disables all other non-AutoLogger loggers.
+        """
+        if not AutoLogger._is_initialized:
+            self._logger: Optional[logging.Logger] = None
+            self._name: str = 'AutoForge'
+            self._log_level: int = log_level
+            self._erase_exiting_file: bool = erase_exiting_file
+            self._enabled_handlers: AutoHandlers = AutoHandlers.NO_HANDLERS
+            self._stream_console_handler: Optional[logging.StreamHandler] = None
+            self._stream_file_handler: Optional[logging.FileHandler] = None
+            self._enable_console_colors: bool = enable_console_colors
+            self._exclusive: bool = exclusive
 
-    Parameters:
-        logger_instance (logging.Logger): The logger from which to retrieve the log file name.
-    """
-    for handler in logger_instance.handlers:
-        if isinstance(handler, logging.FileHandler):
-            return handler.baseFilename  # Return the path to the log file
+            self._log_format: str = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
+            self._date_format: str = '%d-%m %H:%M:%S'
 
-    return None
+            timestamp = datetime.now().strftime('%d_%m_%H_%M_%S')
+            temp_dir = tempfile.gettempdir()
+            self._log_file_name = os.path.join(temp_dir, f"{self._name}_{timestamp}.log")
 
+            try:
+                self._logger = logging.getLogger(self._name)
+                self._logger.setLevel(self._log_level)
 
-def logger_setup(name='AutoForge', level=logging.WARNING, log_console: bool= True,
-                 log_file:Optional[str]=None, no_colors:bool=False):
-    """
-    Set up the logger with color formatting using any of file / console handlers.
+                if self._exclusive:
+                    self._set_exclusive()
 
-    Args:
-        name (str): Name of the logger (default: 'Logging').
-        level (int): Logging level (default: WARNING).
-        log_console (bool): Disable or enable console handlers (default: True).
-        log_file (str): If set, a file handler will be enabled automatically
-        no_colors(bool): Whether to disable colored output (default: False).
+                AutoLogger._is_initialized = True
 
-    Returns:
-        logging.Logger: Configured logger instance.
-    """
-    # Define log format with placeholders for custom formatting
-    log_format = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
-    # Define the base date format (without milliseconds)
-    base_date_format = '%d-%m %H:%M:%S'
+            except Exception as ex:
+                raise RuntimeError("failed to initialize AutoLogger") from ex
 
-    _logger_initialize()
+    def _set_exclusive(self):
+        """
+        Make this logger instance exclusive, meaning mute any other loggers that may try
+        to piggyback this instance while it's running.
+        """
 
-    auto_forge_logger = logging.getLogger()
-    auto_forge_logger.setLevel(level) # Default level
+        if self._logger is None or AutoLogger._is_initialized:
+            raise RuntimeError(
+                f"method not allowed without logger instance or '{self.__class__.__name__}' is already initialized")
 
-    # Ensure no duplicate handlers are added
-    if not auto_forge_logger.hasHandlers():
+        # Disable propagation so logs do not bubble up to ancestor loggers (like root)
+        self._logger.propagate = False
 
-        # Create a console handler
-        if log_console:
-            console_handler = logging.StreamHandler(sys.stdout)
-            formatter = AutoForgeColorFormatter(log_format, datefmt=base_date_format, no_colors=no_colors)
-            console_handler.setFormatter(formatter)
-            auto_forge_logger.addHandler(console_handler)
+        # Mute all other loggers
+        for name in list(logging.Logger.manager.loggerDict.keys()):
+            if name != self._name:
+                other_logger = logging.getLogger(name)
+                other_logger.disabled = True
 
-        # Configure log filer handler
-        if log_file is not None:
-            file_formatter = AutoForgeColorFormatter(log_format, datefmt=base_date_format, no_colors=True)
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(file_formatter)
-            auto_forge_logger.addHandler(file_handler)
+    def _enable_handlers(self, handlers: AutoHandlers):
+        """
+        Enable the requested handlers if not already enabled.
+        No-op for already active handlers.
+        """
 
-        auto_forge_logger.propagate = True
-        auto_forge_logger.name = name
-        return auto_forge_logger
+        if not hasattr(self, "_enabled_handlers"):
+            self._enabled_handlers = AutoHandlers.NO_HANDLERS
 
+        self._logger.setLevel(self._log_level)
 
-# Sets the logger with defaults upon startup
-logger = logger_setup()
+        if AutoHandlers.CONSOLE_HANDLER in handlers:
+            if self._stream_console_handler is None:
+                # Create dedicated formatter instance
+                formatter: Optional[_ColorFormatter] = (
+                    _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
+                                    handler=AutoHandlers.CONSOLE_HANDLER))
+
+                self._stream_console_handler = logging.StreamHandler(sys.stdout)
+                self._stream_console_handler.setFormatter(formatter)
+                self._logger.addHandler(self._stream_console_handler)
+                self._enabled_handlers |= AutoHandlers.CONSOLE_HANDLER
+
+        if AutoHandlers.FILE_HANDLER in handlers:
+            if self._stream_file_handler is None:
+                if not self._log_file_name:
+                    raise RuntimeError("log file name is not defined.")
+
+                # Create dedicated formatter instance
+                formatter: Optional[_ColorFormatter] = (
+                    _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
+                                    handler=AutoHandlers.FILE_HANDLER))
+
+                self._stream_file_handler = logging.FileHandler(self._log_file_name)
+                self._stream_file_handler.setFormatter(formatter)
+                self._logger.addHandler(self._stream_file_handler)
+                self._enabled_handlers |= AutoHandlers.FILE_HANDLER
+
+        self._logger.propagate = True
+        self._logger.name = self._name
+
+    def _disable_handlers(self, handlers: AutoHandlers):
+        """
+        Disable the requested handlers if currently enabled.
+        """
+
+        if not hasattr(self, "_enabled_handlers"):
+            self._enabled_handlers = AutoHandlers.NO_HANDLERS
+
+        if AutoHandlers.CONSOLE_HANDLER in handlers and self._stream_console_handler is not None:
+            self._logger.removeHandler(self._stream_console_handler)
+            self._stream_console_handler.close()
+            self._stream_console_handler = None
+            self._enabled_handlers &= ~AutoHandlers.CONSOLE_HANDLER
+
+        if AutoHandlers.FILE_HANDLER in handlers and self._stream_file_handler is not None:
+            self._logger.removeHandler(self._stream_file_handler)
+            self._stream_file_handler.close()
+            self._stream_file_handler = None
+
+    def set_log_file_name(self, file_name: Optional[str] = None):
+        """
+        Sets a new log file name. If a file handler is currently enabled,
+        it will be temporarily disabled and re-enabled with the new file name.
+
+        Args:
+            file_name (Optional[str]): The new file path. If None, keeps the current path.
+        """
+
+        if not AutoLogger._is_initialized or self._logger is None:
+            raise RuntimeError("logger is not properly initialized.")
+
+        # Disable file handler if currently active
+        was_enabled = AutoHandlers.FILE_HANDLER in self._enabled_handlers
+        if was_enabled:
+            self._disable_handlers(AutoHandlers.FILE_HANDLER)
+
+        # Expand and set the file name
+        self._log_file_name = file_name or self._log_file_name
+        expanded_name: str = os.path.expanduser(os.path.expandvars(self._log_file_name))
+        expanded_name = os.path.normpath(expanded_name)
+
+        # Optionally remove exiting log file
+        if self._erase_exiting_file and os.path.exists(expanded_name):
+            os.remove(expanded_name)
+
+        self._log_file_name = expanded_name
+
+        # Re-enable if it was active before
+        if was_enabled:
+            self._enable_handlers(AutoHandlers.FILE_HANDLER)
+
+    def get_log_filename(self) -> Optional[str]:
+        """
+        Returns the current log file name used by the file handler.
+        Returns:
+            Optional[str]: Full path to the active log file, or None if not set.
+
+        """
+        if not AutoLogger._is_initialized or self._logger is None:
+            raise RuntimeError("logger is not properly initialized.")
+
+        return self._log_file_name
+
+    def set_handlers(self, handlers: AutoHandlers):
+        """
+        Set up the logger with optional console and file handlers.
+        Args:
+            handlers (AutoHandlers): A bitmask of handler types to enable.
+                                       For example:
+                                       LoggerHandlers.CONSOLE_HANDLER | LoggerHandlers.FILE_HANDLER
+        """
+
+        if not AutoLogger._is_initialized or self._logger is None:
+            raise RuntimeError("logger is not properly initialized.")
+
+        if not hasattr(self, "_enabled_handlers"):
+            self._enabled_handlers = AutoHandlers.NO_HANDLERS
+
+        to_disable = self._enabled_handlers & ~handlers
+        to_enable = handlers & ~self._enabled_handlers
+
+        if to_disable:
+            self._disable_handlers(to_disable)
+
+        if to_enable:
+            self._enable_handlers(to_enable)
+
+    def get_logger(self, name: Optional[str] = None, log_level: Optional[int] = None) -> logging.Logger:
+        """
+        Returns a logger instance. If a name is provided, returns a named logger
+        sharing the same handlers and config as the AutoLogger.
+
+        Args:
+            name (Optional[str]): Custom display name for the logger (overrides .name).
+            log_level (Optional[int]): Override for logger level.
+
+        Returns:
+            logging.Logger: Configured logger instance.
+        """
+        if not AutoLogger._is_initialized or self._logger is None:
+            raise RuntimeError("logger is not properly initialized.")
+
+        if name is None:
+            # 'name' not provided, return the root logger defined by this class
+            return self._logger
+
+        # Get a separate logger instance with its own name
+        custom_logger = logging.getLogger(name)
+        custom_logger.setLevel(log_level if log_level is not None else self._log_level)
+        custom_logger.propagate = False  # Optional: don't double-log via parent
+
+        # Attach same handlers if not already attached
+        for handler in self._logger.handlers:
+            if handler not in custom_logger.handlers:
+                custom_logger.addHandler(handler)
+
+        return custom_logger
+
+    def is_console_colors_enabled(self) -> Optional[bool]:
+        """
+        Checks whether ANSI console color formatting is enabled.
+
+        Returns:
+            Optional[bool]: True if console colors are enabled, False otherwise.
+        """
+        if not AutoLogger._is_initialized or self._logger is None:
+            raise RuntimeError("Logger is not properly initialized.")
+
+        return self._enable_console_colors
+
+    def close(self):
+        """
+        Close and remove all active logging handlers.
+        """
+        if not AutoLogger._is_initialized or self._logger is None:
+            return  # Already cleaned up or never initialized
+
+        if not hasattr(self, "_enabled_handlers"):
+            self._enabled_handlers = AutoHandlers.NO_HANDLERS
+
+        self._disable_handlers(AutoHandlers.CONSOLE_HANDLER | AutoHandlers.FILE_HANDLER)
+
+        # Optional: reset the enabled mask
+        self._enabled_handlers = AutoHandlers.NO_HANDLERS

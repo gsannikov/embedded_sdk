@@ -20,7 +20,7 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools, CommandsLoader,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, logger_setup)
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, AutoLogger, AutoHandlers)
 
 
 class AutoForge:
@@ -37,28 +37,36 @@ class AutoForge:
 
         return cls._instance
 
-    def __init__(self, workspace_path: str, automated_mode: bool = False):
+    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
         Initializes AutoForge main class
         Args:
-            workspace_path (str): Path to the workspace folder.
+            workspace_path (str, Optional): Path to the workspace folder.
             automated_mode (bool): Set to run in automated mode (CI).
         """
 
         if not self._is_initialized:
 
+            # Initializes the logger
+            self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
+            self._auto_logger.set_log_file_name("auto_forge.log")
+            self._auto_logger.set_handlers(handlers=AutoHandlers.FILE_HANDLER)
+
             if automated_mode:
-                self._logger: Optional[logging.Logger] = logger_setup(
-                    level=logging.DEBUG, log_console=True, log_file="auto_forge.log")
-            else:
-                self._logger: Optional[logging.Logger] = logger_setup(
-                    level=logging.WARNING, log_console=False, log_file="auto_forge.log")
+                self._auto_logger.set_handlers(AutoHandlers.FILE_HANDLER | AutoHandlers.CONSOLE_HANDLER)
+
+            self._logger = self._auto_logger.get_logger()
+            self._logger.debug("Initializing...")
 
             self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
             self._solution_file: Optional[str] = None
             self._solution_name: Optional[str] = None
             self._varLib: Optional[Variables] = None
             self._solutionLib: Optional[SolutionProcessor] = None
+
+            if not workspace_path:
+                raise RuntimeError("'workspace_path' is required when initializing AutoForge")
+
             self._workspace_path = SetupTools.environment_variable_expand(text=workspace_path, to_absolute_path=True)
 
             try:
