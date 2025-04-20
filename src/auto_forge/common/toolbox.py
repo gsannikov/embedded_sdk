@@ -874,5 +874,5 @@ class ToolBox:
                 color = Fore.LIGHTBLUE_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
                 print(f"{color}{line}", end='')
 
-        print()  # Final newline
+        print('\n')  # Final newlines
         return 0

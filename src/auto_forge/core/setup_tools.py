@@ -10,17 +10,22 @@ import json
 import logging
 import os
 import platform
+import pty
 import re
 import select
 import shlex
 import shutil
 import subprocess
+import sys
+import threading
 import time
 import urllib.request
 from contextlib import suppress
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, Any, List
+from typing import Optional, Union, Any, List, Callable
+
+from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (JSONProcessor, ProgressTracker, ToolBox, AutoLogger)
@@ -40,6 +45,11 @@ class ValidationMethod(Enum):
     EXECUTE_PROCESS = 1
     READ_FILE = 2
     SYS_PACKAGE = 3
+
+
+class CommandType(Enum):
+    SHELL_EXECUTABLE = "shell"
+    PYTHON_METHOD = "python"
 
 
 class SetupTools:
@@ -450,11 +460,106 @@ class SetupTools:
 
         return command_response
 
+    def execute_with_spinner(self,
+                             message: str,
+                             command: Union[str, Callable],
+                             arguments: Optional[Any] = None,
+                             command_type: CommandType = CommandType.SHELL_EXECUTABLE,
+                             timeout: Optional[float] = None,
+                             color: Optional[str] = Fore.CYAN,
+                             new_lines: int = 0) -> Optional[int]:
+        """
+        Run a command with a spinning indicator and optional timeout.
+
+        Args:
+            message (str): Message to show before the spinner.
+            command (str | Callable): Command to execute (shell or Python method).
+            arguments (Optional[Any]): Command-line-style arguments or dict for Python calls.
+            command_type (CommandType): Type of the command.
+            timeout (Optional[float]): Timeout in seconds (for shell commands only).
+            color (Optional[str]): Colorama color for the spinner text.
+            new_lines (int): The number of new lines print before the spinner text.
+
+        Returns:
+            Optional[int]: Command result code (0 = success, None = failed).
+        """
+        spinner_running = True
+        result_container = {}
+        message = self._toolbox.normalize_text(text=message)
+
+        if new_lines:
+            print('\n' * new_lines, end='')
+
+        def _show_spinner():
+            symbols = ['|', '/', '-', '\\']
+            idx = 0
+            while spinner_running:
+                spinner = f"{color}{symbols[idx % len(symbols)]}{Style.RESET_ALL}"
+                print(f"\r{message} {spinner}", end='', flush=True)
+                time.sleep(0.1)
+                idx += 1
+            # Clean up line when done
+            print('\r' + ' ' * (len(message) + 4), end='\r', flush=True)
+
+        def _execute_foreign_code():
+            try:
+                if command_type == CommandType.SHELL_EXECUTABLE:
+                    self.execute_shell_command(
+                        command=command,
+                        arguments=arguments,
+                        shell=True,
+                        immediate_echo=True,
+                        auto_expand=False,
+                        timeout=timeout,
+                        expected_return_code=None
+                    )
+                    result_container['code'] = 0
+
+                elif command_type == CommandType.PYTHON_METHOD:
+                    if not callable(command):
+                        raise RuntimeError("Cannot execute non-callable command")
+
+                    if isinstance(arguments, str):
+                        kwargs = json.loads(arguments)
+                        command(**kwargs)
+                    elif isinstance(arguments, dict):
+                        command(**arguments)
+                    elif arguments is not None:
+                        command(arguments)
+                    else:
+                        command()
+                    result_container['code'] = 0
+
+                else:
+                    raise RuntimeError("Unrecognized command type")
+
+            except Exception as exception:
+                result_container['code'] = -1
+                raise exception
+
+        self._toolbox.set_cursor(visible=False)
+        spin_thread = threading.Thread(target=_show_spinner, name="Spinner")
+        exec_thread = threading.Thread(target=_execute_foreign_code, name="ForeignCodeExecutor")
+
+        spin_thread.start()
+        exec_thread.start()
+
+        exec_thread.join()
+        spinner_running = False
+        self._toolbox.set_cursor(visible=True)
+        spin_thread.join()
+
+        print(Style.RESET_ALL, end='')  # Ensure styling is reset
+        return result_container.get('code', 1)
+
     def execute_shell_command(self, command: str, arguments: str = "",
                               timeout: Optional[float] = None,
                               shell: bool = True,
                               sudo: bool = False,
-                              expected_return_code: int = 0,
+                              immediate_echo: bool = False,
+                              auto_expand: bool = True,
+                              use_pty: bool = False,
+                              expected_return_code: Optional[int] = 0,
                               cwd: Optional[str] = None,
                               searched_token: Optional[str] = None) -> Optional[str]:
         """
@@ -465,6 +570,9 @@ class SetupTools:
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
             shell (bool): If True, the command will be executed in a shell environment.
             sudo (bool): If True, the command will be executed with superuser privileges. Defaults to False.
+            immediate_echo (bool): If True, the command response will be immediately echoed to the terminal. Defaults to False.
+            auto_expand (bool): If True, the command will be expanded to resolve any input similar to '$EXAMPLE'.
+            use_pty (bool): If True, the command will be executed in a PTY environment. Defaults to False.
             expected_return_code (int): The expected exit code of the command. A deviation from this
                                         result will be considered an error.
             cwd (Optional[str]): The directory from which the process should be executed.
@@ -474,7 +582,12 @@ class SetupTools:
             str: The executed command output or None if exception is raised.
         """
         full_command = f"{'sudo ' if sudo else ''}{command} {arguments}".strip()  # Create a single string
-        full_command = self.environment_variable_expand(text=full_command)  # Expand as needed
+        polling_interval: float = 0.0001
+        # PTY master descriptor
+        master_fd: int = -1
+
+        if auto_expand:
+            full_command = self.environment_variable_expand(text=full_command)  # Expand as needed
         base_command = os.path.basename(command)
         env = os.environ.copy()
 
@@ -482,13 +595,18 @@ class SetupTools:
         if timeout is None:
             timeout = self._default_execution_time
 
+        args_list = shlex.split(full_command)
         if not shell:
             # When not using shell we have to use list for the arguments rather than string
-            full_command = shlex.split(full_command)
+            full_command = args_list
+
+        if shutil.which(args_list[0]) is None:
+            raise RuntimeError(f"command not found: {args_list[0]}")
 
         # Expand and validate working path if specified
         if cwd is not None:
-            cwd = self.environment_variable_expand(text=cwd, to_absolute_path=True)
+            if auto_expand:
+                cwd = self.environment_variable_expand(text=cwd, to_absolute_path=True)
             if not os.path.exists(cwd):
                 raise RuntimeError(f"specified work path '{cwd}' does not exist")
             else:
@@ -496,18 +614,44 @@ class SetupTools:
                 env = os.environ.copy()
 
         # Execute the external command
-        self._logger.debug(f"Executing: {full_command}")
-        process = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, shell=shell, cwd=cwd, env=env, bufsize=0)
+        if use_pty:
+            self._logger.debug(f"Executing: {full_command} (PTY)")
+            master_fd, slave_fd = pty.openpty()
+            process = subprocess.Popen(full_command, stdin=slave_fd, stdout=slave_fd,
+                                       stderr=slave_fd, shell=shell, cwd=cwd, env=env, bufsize=0)
+
+        else:  # Normal flow
+            self._logger.debug(f"Executing: {full_command}")
+            process = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT, shell=shell, cwd=cwd, env=env, bufsize=0)
         try:
+
+            start_time = time.time()  # Initialize start_time here for timeout management
+            while process.poll() is not None:
+                time.sleep(polling_interval)
+                if timeout > 0 and (time.time() - start_time > timeout):
+                    process.kill()
+                    raise TimeoutError(f"'{command}' process didn't start after {timeout} seconds")
+
             output_line = bytearray()
             command_response = ""
 
             start_time = time.time()  # Initialize start_time here for timeout management
             while True:
-                readable, _, _ = select.select([process.stdout], [], [], 0.01)
+                if use_pty:
+                    readable, _, _ = select.select([master_fd], [], [], polling_interval)
+                else:
+                    readable, _, _ = select.select([process.stdout], [], [], polling_interval)
+
                 if readable:
-                    received_byte = process.stdout.read(1)
+                    if use_pty:
+                        received_byte = os.read(master_fd, 1)
+                    else:
+                        received_byte = process.stdout.read(1)
+
+                    if not received_byte:
+                        break  # EOF: nothing more to read
+
                     if received_byte == b'':
                         break
                     else:
@@ -516,6 +660,11 @@ class SetupTools:
                         output_line.append(received_byte[0])
 
                         if received_byte in (b'\n', b'\r'):
+                            # Immediately echo to the terminal if set
+                            if immediate_echo:
+                                sys.stdout.write(output_line.decode('utf-8'))
+                                sys.stdout.flush()
+
                             complete_line = output_line.decode('utf-8').strip()
                             complete_line = self._toolbox.strip_ansi(complete_line).strip()
                             output_line.clear()
@@ -527,7 +676,12 @@ class SetupTools:
                                 self._logger.debug(f"> {complete_line}")
 
                                 # Log the command output
-                                self._tracker.set_body_in_place(text=complete_line)
+                                if self._tracker is not None:
+                                    self._tracker.set_body_in_place(text=complete_line)
+                else:
+                    # No data ready to read — check if process exited
+                    if process.poll() is not None:
+                        break
 
                 # Handle execution timeout
                 if timeout > 0 and (time.time() - start_time > timeout):
@@ -554,6 +708,10 @@ class SetupTools:
             raise
         except Exception as execution_error:
             raise execution_error
+        finally:
+            # Close PTY descriptor
+            if master_fd != -1:
+                os.close(master_fd)
 
     def validate_prerequisite(self,
                               command: str,

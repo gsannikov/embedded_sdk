@@ -31,7 +31,7 @@ from auto_forge.core.binary_signatures import (Signatures, SignatureFileHandler,
 from auto_forge.core.relocate import Relocator
 from auto_forge.core.solution_processor import SolutionProcessor
 from auto_forge.core.west_world import WestWorld
-from auto_forge.core.setup_tools import SetupTools
+from auto_forge.core.setup_tools import (SetupTools, CommandType)
 from auto_forge.core.prompt_engine import PromptEngine
 
 # AutoForg main
@@ -45,6 +45,7 @@ __all__ = [
     "Variables",
     "SolutionProcessor",
     "SetupTools",
+    "CommandType",
     "Relocator",
     "Signatures",
     "WestWorld",
