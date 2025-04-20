@@ -410,6 +410,8 @@ class SetupTools:
         if not callable(method):
             raise ValueError(f"method '{method_name}' not found in '{self.__class__.__name__}'")
 
+        self._logger.debug(f"Executing Python method: '{method.__name__}'")
+
         # Execute the method with the arguments
         try:
             execution_result = method(**arguments)
@@ -435,6 +437,8 @@ class SetupTools:
         Raises:
             RuntimeError: If the actual return code does not match the expected one.
         """
+
+        self._logger.debug(f"Executing registered command: '{command}'")
         return_code = self._autoforge.commands.execute(command=command, arguments=arguments,
                                                        suppress_output=suppress_output)
         # Get the command output
