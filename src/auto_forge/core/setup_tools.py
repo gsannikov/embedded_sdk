@@ -67,7 +67,7 @@ class SetupTools:
 
         # Get AutoForge instance
         self._autoforge: AutoForge = AutoForge.get_instance()
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME,log_level=logging.DEBUG)
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
 
         # The following are defaults used when printing user friendly terminal status
         self._status_title_length: int = 80
@@ -513,13 +513,17 @@ class SetupTools:
 
                         if received_byte in (b'\n', b'\r'):
                             complete_line = output_line.decode('utf-8').strip()
-                            complete_line = self._toolbox.strip_ansi(complete_line)
+                            complete_line = self._toolbox.strip_ansi(complete_line).strip()
                             output_line.clear()
 
-                            # Aggregate all lines into a complete command response string
-                            command_response += complete_line + '\n'
-                            # Log the command output
-                            self._tracker.set_body_in_place(text=complete_line)
+                            if complete_line:
+                                # Aggregate all lines into a complete command response string
+                                command_response += complete_line + '\n'
+                                # Log it when debug is enabled
+                                self._logger.debug(f"> {complete_line}")
+
+                                # Log the command output
+                                self._tracker.set_body_in_place(text=complete_line)
 
                 # Handle execution timeout
                 if timeout > 0 and (time.time() - start_time > timeout):
@@ -530,8 +534,6 @@ class SetupTools:
 
             # Done executing
             command_response = self._toolbox.normalize_text(text=command_response, allow_empty=True)
-            self._logger.debug(f"Response: {command_response}")
-
             return_code = process.returncode
 
             if searched_token and command_response and searched_token not in command_response:

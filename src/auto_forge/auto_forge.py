@@ -20,7 +20,7 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools, CommandsLoader,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, AutoLogger, AutoHandlers)
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, AutoHandlers)
 
 
 class AutoForge:
@@ -55,7 +55,7 @@ class AutoForge:
             if automated_mode:
                 self._auto_logger.set_handlers(AutoHandlers.FILE_HANDLER | AutoHandlers.CONSOLE_HANDLER)
 
-            self._logger = self._auto_logger.get_logger()
+            self._logger: logging.Logger = self._auto_logger.get_logger()
             self._logger.debug("Initializing...")
 
             self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
@@ -87,6 +87,26 @@ class AutoForge:
             AutoForge: The global AutoForge instance.
         """
         return AutoForge._instance
+
+    @staticmethod
+    def get_logger() -> Optional[logging.Logger]:
+        """
+        Returns the logger instance of the AutoForge class.
+        Returns:
+            Logger: q logger instance.
+        """
+        return AutoForge.get_instance()._logger
+
+    @staticmethod
+    def show_version(exit_code: Optional[int] = None) -> None:
+        """
+        Prints the current AutoForge version.
+        Args:
+            exit_code (Optional[int]): If provided, exits the program with the given code after printing.
+        """
+        print(f"\n{PROJECT_NAME} Version: {PROJECT_VERSION}")
+        if exit_code is not None:
+            sys.exit(exit_code)
 
     def load_solution(self, solution_file: Optional[str] = None, is_demo: bool = False) -> Optional[int]:
         """
@@ -138,6 +158,12 @@ def auto_forge_main() -> Optional[int]:
     result: int = 1  # Default to internal error
 
     try:
+
+        # Check early for the version flag before constructing the parser
+        if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):
+            AutoForge.show_version(exit_code=0)
+
+        # Normal arguments handling
         parser = argparse.ArgumentParser(prog="autoforge", description="AutoForge Package Help")
         parser.add_argument("-w", "--workspace_path", required=True,
                             help="Project workspace path")
@@ -150,16 +176,15 @@ def auto_forge_main() -> Optional[int]:
         parser.add_argument("-am", "--automated_mode", action="store_true", help="Set to enable automation mode")
         parser.add_argument("-sd", "--demo_solution", action="store_true", help="Set to execute a demo solution")
         parser.add_argument("-std", "--demo_steps", action="store_true", help="Set to execute demo steps")
-        parser.add_argument("-v", "--version", action="store_true", help="Show version and exit")
+        parser.add_argument("-v", "--version", action="store_true", help="Show version")
         args = parser.parse_args()
-
-        # Show apackage version and exit
-        if args.version:
-            print(f"Version: {PROJECT_VERSION}")
-            return 0
 
         # Instantiate AutoForge with a given workspace
         auto_forge: AutoForge = AutoForge(workspace_path=args.workspace_path, automated_mode=args.automated_mode)
+
+        # Show apackage version
+        if args.version:
+            auto_forge.show_version()
 
         # Normal flow excepting a solution
         if args.solution_file is not None:
@@ -203,6 +228,12 @@ def auto_forge_main() -> Optional[int]:
         exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
         file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
+
+        # Attempt to log the error
+        logger_instance = AutoForge.get_logger()
+        if logger_instance is not None:
+            logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
+
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
 
     return result
