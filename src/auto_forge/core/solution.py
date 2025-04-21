@@ -75,9 +75,9 @@ class Solution:
         self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
-        self._procLib = Processor()  # Instantiate JSON processing library
-        self._sigLib: Optional[Signatures] = None  # Product binary signatures core class
-        self._varLib: Optional[Variables] = None  # Instantiate variable management library
+        self._processor = Processor()  # Instantiate JSON processing library
+        self._signatures: Optional[Signatures] = None  # Product binary signatures core class
+        self._variables: Optional[Variables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
 
         # Load the solution
@@ -198,7 +198,7 @@ class Solution:
         """
         try:
             # Preprocess the solution to clear non JSON data and load as JSON.
-            self._root_context = self._procLib.preprocess(file_name=solution_file_name)
+            self._root_context = self._processor.preprocess(file_name=solution_file_name)
             self._solution_file_name = solution_file_name
 
             # Store the solution's path since we may have to load other files from that path
@@ -211,7 +211,7 @@ class Solution:
 
             # Initialize the environment core module based on the configuration file we got
             config_file = f"{self._solution_file_path}/{self._includes.get('environment')}"
-            self._varLib = Variables(config_file_name=config_file)
+            self._variables = Variables(config_file_name=config_file)
 
             schema_version = self._includes.get("schema")
             if schema_version is not None:
@@ -226,12 +226,12 @@ class Solution:
 
                     # Instantiate the optional signatures core module based on the configuration file we got
                     if os.path.exists(signature_schema_file):
-                        self._sigLib = Signatures(descriptor_file=signature_schema_file)
+                        self._signatures = Signatures(descriptor_file=signature_schema_file)
 
                     # Initialize the optional schema used for validating the solution structuire
                     # If file is specified, attempt to preprocess and load it
                     if os.path.exists(solution_schema_file):
-                        self._solution_schema = self._procLib.preprocess(file_name=solution_schema_file)
+                        self._solution_schema = self._processor.preprocess(file_name=solution_schema_file)
                 else:
                     self._logger.warning(f"Schemas path '{schema_path} does not exist'")
 
@@ -444,7 +444,7 @@ class Solution:
         """
         if variable_type == PreProcessType.ENVIRONMENT:
             # Should not match when $ is followed by 'ref_' or surrounded by '<' and '>'
-            return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._varLib.expand(m.group(0)), text)
+            return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._variables.expand(m.group(0)), text)
 
         elif variable_type == PreProcessType.REFERENCE:
             def _replace_match(match: re.Match) -> str:

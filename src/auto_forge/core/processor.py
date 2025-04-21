@@ -3,8 +3,8 @@ Script:         processor.py
 Author:         AutoForge Team
 
 Description:
-    Preprocessor is a core module that allows to convincingly read JSONs, which were
-    enhanced with comments.
+    Core module for preprocessing JSON files that may contain comments. It strips comments,
+    validates the content, and returns a standard JSON-compatible dictionary to the caller.
 """
 
 import json
@@ -20,51 +20,39 @@ AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
 
 
 class Processor:
-    """
-    About...
-    """
+    _instance = None
+    _is_initialized = False
 
-    def __init__(self):
-
-        self._service_name: str = self.__class__.__name__
-
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-        
-        self._initialized = True
-
-    def preprocess(self, file_name: str) -> Optional[Dict[str, Any]]:
+    def __new__(cls, parent: Optional[Any] = None) -> None:
         """
-         Preprocess a JSON file to remove embedded comments.
-         Args:
-             file_name (str): Path to the JSON file.
-         Returns:
-             dict or None: Parsed JSON object with placeholders resolved, or None if an error occurs.
-         """
-        clean_json: Optional[str] = None
+        Create a new instance if one doesn't exist, or return the existing instance.
+        Returns:
+            Processor: The singleton instance of this class.
+        """
+        if cls._instance is None:
+            cls._instance = super(Processor, cls).__new__(cls)
 
-        try:
-            # Preform expansion as needed
-            expanded_file = os.path.expanduser(os.path.expandvars(file_name))
-            file_name = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
+        return cls._instance
 
-            # Load the file as text
-            with open(file_name, "r") as text_file:
-                json_with_comments = text_file.read()
+    def __init__(self, parent: Optional[Any] = None):
+        """
+        Initializes the 'Processor' class instance which provide extended functionality around JSON files.
+        Args:
+            parent (Any, optional): Our parent AutoForge class instance.
+        """
+        if not self._is_initialized:
+            try:
+                if parent is None:
+                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                self._autoforge = parent  # Store parent' AutoForge' class instance.
 
-            # Remove comments
-            clean_json = self._strip_comments(json_with_comments)
+                # Create a logger instance
+                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+                self._is_initialized = True
 
-            # Load and return as JSON dictionary
-            data = json.loads(clean_json)
-            return data
-
-        except (FileNotFoundError, json.JSONDecodeError, ValueError) as json_parsing_error:
-            if clean_json is not None:
-                error_line = self._get_line_number_from_error(str(json_parsing_error))
-                if error_line is not None:
-                    self._show_debug_message(file_name, clean_json, error_line, json_parsing_error)
-            raise RuntimeError(json_parsing_error)
+            # Propagate exceptions
+            except Exception:
+                raise
 
     @staticmethod
     def _get_line_number_from_error(error_message: str) -> Optional[int]:
@@ -145,3 +133,45 @@ class Processor:
         # Clean up residual whitespaces and new lines if necessary
         cleaned_str = re.sub(r'\n\s*\n', '\n', cleaned_str)  # Collapse multiple new lines
         return cleaned_str.strip()
+
+    @staticmethod
+    def get_instance() -> "Processor":
+        """
+        Returns the singleton instance of this class.
+        Returns:
+            Processor: The global stored class instance.
+        """
+        return Processor._instance
+
+    def preprocess(self, file_name: str) -> Optional[Dict[str, Any]]:
+        """
+         Preprocess a JSON file to remove embedded comments.
+         Args:
+             file_name (str): Path to the JSON file.
+         Returns:
+             dict or None: Parsed JSON object with placeholders resolved, or None if an error occurs.
+         """
+        clean_json: Optional[str] = None
+
+        try:
+            # Preform expansion as needed
+            expanded_file = os.path.expanduser(os.path.expandvars(file_name))
+            file_name = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
+
+            # Load the file as text
+            with open(file_name, "r") as text_file:
+                json_with_comments = text_file.read()
+
+            # Remove comments
+            clean_json = self._strip_comments(json_with_comments)
+
+            # Load and return as JSON dictionary
+            data = json.loads(clean_json)
+            return data
+
+        except (FileNotFoundError, json.JSONDecodeError, ValueError) as json_parsing_error:
+            if clean_json is not None:
+                error_line = self._get_line_number_from_error(str(json_parsing_error))
+                if error_line is not None:
+                    self._show_debug_message(file_name, clean_json, error_line, json_parsing_error)
+            raise RuntimeError(json_parsing_error)

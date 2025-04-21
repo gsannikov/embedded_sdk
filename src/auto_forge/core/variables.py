@@ -3,7 +3,7 @@ Script:         variables.py
 Author:         AutoForge Team
 
 Description:
-    The variables core module is designed to initialize variables with specific attributes and values,
+    Core module is designed to initialize variables with specific attributes and values,
     prevent duplicates, and allow for quick lookup and modification through methods that leverage binary search.
     It also handles dynamic changes to the variables' configuration by maintaining a sorted state and updating search
     keys accordingly.
@@ -16,11 +16,10 @@ from bisect import bisect_left
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
-import auto_forge
-from auto_forge import (Processor, AutoLogger)
+from auto_forge import (Processor, Environment, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
-AUTO_FORGE_MODULE_DESCRIPTION = "Environment variables core service"
+AUTO_FORGE_MODULE_DESCRIPTION = "Variables Management"
 
 
 class Variable:
@@ -43,35 +42,38 @@ class Variables:
     _is_initialized = False
     _lock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, config_file_name: Optional[str] = None):
+    def __new__(cls, config_file_name: Optional[str] = None, parent: Optional[Any] = None):
         """
         Basic class initialization in a singleton mode
         """
 
         if cls._instance is None:
             cls._instance = super(Variables, cls).__new__(cls)
-            cls._config_file_name: Optional[str] = config_file_name
 
         return cls._instance
 
-    def __init__(self, config_file_name: Optional[str] = None):
+    def __init__(self, config_file_name: Optional[str] = None, parent: Optional[Any] = None):
         """
         Manages a collection of configuration variables derived from a JSON dictionary and provides
         functionality to manipulate these variables efficiently. The class supports operations such
-        as adding, removing, and updating variables, ensuring data integrity and providing thread-safe
-        access.
+        as adding, removing, and updating variables, ensuring data integrity and providing thread-safe access.
+
+        Args:
+            config_file_name (Optional[str], optional): Configuration JSON file name.
+            parent (Any, optional): Our parent AutoForge class instance.
         """
 
         if not self._is_initialized:
-
             try:
-                self._service_name: str = self.__class__.__name__
-                self._auto_forge = auto_forge.auto_forge.AutoForge()
+
+                if parent is None:
+                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
+                self._autoforge = parent  # Store parent' AutoForge' class instance.
 
                 # Get a logger instance
                 self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
-                self._workspace_path = self._auto_forge.get_workspace_path()
+                self._config_file_name: Optional[str] = config_file_name
                 self._base_config_file_name: Optional[str] = None
                 self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
                 self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
@@ -85,15 +87,21 @@ class Variables:
                 # Create an instance of the JSON preprocessing library
                 self._processor: Processor = Processor()
 
+                # Get the workspace from AutoForge
+                self._workspace_path = Environment.get_workspace_path()
+
                 # Build variables list
                 if self._config_file_name is not None:
                     self._load_from_file(config_file_name=config_file_name, rebuild=True)
+                else:
+                    raise ValueError("configuration file was not specified")
 
                 self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
                 self._is_initialized = True
 
-            except Exception as exception:
-                raise RuntimeError(exception) from exception
+            # Propagate exceptions
+            except Exception:
+                raise
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:
@@ -310,6 +318,15 @@ class Variables:
             raise ValueError(f"environment variable ${first_unresolved} could not be expanded.")
 
         return expanded
+
+    @staticmethod
+    def get_instance() -> "Variables":
+        """
+        Returns the singleton instance of this class.
+        Returns:
+            Variables: The global stored class instance.
+        """
+        return Variables._instance
 
     def expand(self, variable_name: str) -> Optional[str]:
         """

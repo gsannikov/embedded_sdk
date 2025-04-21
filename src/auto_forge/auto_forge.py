@@ -19,9 +19,8 @@ from typing import Optional
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (ToolBox, Variables, Solution, Environment, CommandsLoader,
+from auto_forge import (Processor, ToolBox, Variables, Solution, Environment, CommandsLoader,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, AutoHandlers)
-
 
 class AutoForge:
     _instance = None
@@ -39,42 +38,42 @@ class AutoForge:
 
     def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
-        Initializes AutoForge main class
+        Initializes AutoForge main class.
         Args:
             workspace_path (str, Optional): Path to the workspace folder.
             automated_mode (bool): Set to run in automated mode (CI).
         """
 
         if not self._is_initialized:
-
-            # Initializes the logger
-            self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
-            self._auto_logger.set_log_file_name("auto_forge.log")
-            self._auto_logger.set_handlers(handlers=AutoHandlers.FILE_HANDLER)
-
-            if automated_mode:
-                self._auto_logger.set_handlers(AutoHandlers.FILE_HANDLER | AutoHandlers.CONSOLE_HANDLER)
-
-            self._logger: logging.Logger = self._auto_logger.get_logger()
-            self._logger.debug("Initializing...")
-
-            self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
-            self._solution_file: Optional[str] = None
-            self._solution_name: Optional[str] = None
-            self._varLib: Optional[Variables] = None
-            self._solutionLib: Optional[Solution] = None
-
-            if not workspace_path:
-                raise RuntimeError("'workspace_path' is required when initializing AutoForge")
-
-            self._workspace_path = Environment.environment_variable_expand(text=workspace_path, to_absolute_path=True)
-
             try:
-                self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
-                self.tools: Environment = Environment(workspace_path=self._workspace_path,
-                                                      automated_mode=automated_mode)
+                if not workspace_path:
+                    raise RuntimeError("'workspace_path' is required when initializing")
 
-                self.prompt = Prompt(commands_loader=self.commands)
+                self._solution_file: Optional[str] = None
+                self._solution_name: Optional[str] = None
+                self._solution: Optional[Solution] = None
+
+                # Initializes the logger
+                self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
+                self._auto_logger.set_log_file_name("auto_forge.log")
+                self._auto_logger.set_handlers(handlers=AutoHandlers.FILE_HANDLER)
+                if automated_mode:
+                    self._auto_logger.set_handlers(AutoHandlers.FILE_HANDLER | AutoHandlers.CONSOLE_HANDLER)
+
+                self._logger: logging.Logger = self._auto_logger.get_logger()
+                self._logger.debug("Initializing...")
+
+                self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
+                self._processor: Optional[Processor] = Processor(parent=self)
+
+                # Probe for commands and load them
+                self._commands: Optional[CommandsLoader] = CommandsLoader(parent=self)
+                self._environment: Environment = Environment(workspace_path=workspace_path,
+                                                             automated_mode=automated_mode,
+                                                             parent=self)
+
+                self._variables: Optional[Variables] = None
+                self._prompt = Prompt(parent=self)
 
                 self._toolbox.print_logo(clear_screen=True)  # Show logo
                 self._is_initialized = True  # Done initializing
@@ -120,36 +119,28 @@ class AutoForge:
         """
         try:
 
-            if self._solutionLib is not None:
+            if self._solution is not None:
                 raise RuntimeError(f"solution already loaded.")
 
             if is_demo:
                 self._logger.warning("Running is demo mode")
 
-            self._logger.debug(f"Workspace path: {self._workspace_path}")
+            workspace_path = Environment.get_workspace_path()
+            self._logger.debug(f"Workspace path: {workspace_path}")
 
-            self._solutionLib = Solution(solution_config_file_name=solution_file)
-            self._varLib = Variables()  # Get an instanced of the singleton variables class
+            self._solution = Solution(solution_config_file_name=solution_file)
+            self._variables = Variables()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
-            self._solution_name = self._solutionLib.get_primary_solution_name()
+            self._solution_name = self._solution.get_primary_solution_name()
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
             # Enter build system prompt loop
-            return self.prompt.cmdloop()
+            return self._prompt.cmdloop()
 
         # Propagate
         except Exception as solution_exception:
             raise solution_exception
-
-    def get_workspace_path(self) -> Optional[str]:
-        """
-        Returns the full path to the workspace folder.
-        """
-        if self._workspace_path is None:
-            raise RuntimeError("workspace folder not set")
-
-        return self._workspace_path
 
 
 def auto_forge_main() -> Optional[int]:
@@ -186,6 +177,7 @@ def auto_forge_main() -> Optional[int]:
 
         # Instantiate AutoForge with a given workspace
         auto_forge: AutoForge = AutoForge(workspace_path=args.workspace_path, automated_mode=args.automated_mode)
+        environment: Environment = Environment.get_instance()
 
         # Show apackage version
         if args.version:
@@ -194,8 +186,8 @@ def auto_forge_main() -> Optional[int]:
         # Normal flow excepting a solution
         if args.solution_file is not None:
             # Expand as needed
-            args.solution_file = auto_forge.tools.environment_variable_expand(text=args.solution_file,
-                                                                              to_absolute_path=True)
+            args.solution_file = environment.environment_variable_expand(text=args.solution_file,
+                                                                         to_absolute_path=True)
             if os.path.exists(args.solution_file):
                 return auto_forge.load_solution(solution_file=args.solution_file)
             raise RuntimeError(f"could not located provided solution file '{args.solution_file}")
@@ -211,16 +203,16 @@ def auto_forge_main() -> Optional[int]:
         # Execute a steps script
         if args.steps_file is not None:
             # Expand as needed
-            args.steps_file = auto_forge.tools.environment_variable_expand(text=args.steps_file, to_absolute_path=True)
+            args.steps_file = environment.environment_variable_expand(text=args.steps_file, to_absolute_path=True)
             if os.path.exists(args.steps_file):
-                return auto_forge.tools.follow_steps(steps_file=args.steps_file)
+                return environment.follow_steps(steps_file=args.steps_file)
             raise RuntimeError(f"could not located provided steps file '{args.steps_file}")
         else:
             # Executing this packge builtin demo steps script
             if args.demo_steps:
                 demo_steps_file = os.path.join(PROJECT_RESOURCES_PATH.__str__(), "demo_project", "setup.jsonc")
                 if os.path.exists(demo_steps_file):
-                    return auto_forge.tools.follow_steps(steps_file=demo_steps_file)
+                    return environment.follow_steps(steps_file=demo_steps_file)
                 raise RuntimeError(f"could not located demo steps file '{demo_steps_file}")
 
         return 0

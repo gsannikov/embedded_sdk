@@ -3,7 +3,7 @@ Script:         commands_loader.py
 Author:         AutoForge Team
 
 Description:
-    This module defines the CommandsLoader class, responsible for dynamically
+    Core module which defines the 'CommandsLoader' class, responsible for dynamically
     discovering, validating, executing and registering CLI command modules that implement
     supported interface types such as CLICommandInterface.
 """
@@ -45,24 +45,54 @@ class CommandSummary(NamedTuple):
 
 
 class CommandsLoader:
-    def __init__(self):
-        """Initializes the command loader and prepares the command registry."""
+    _instance = None
+    _is_initialized = False
 
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+    def __new__(cls, parent: Optional[Any] = None) -> None:
+        """
+        Create a new instance if one doesn't exist, or return the existing instance.
+        Returns:
+            CommandsLoader: The singleton instance of this class.
+        """
+        if cls._instance is None:
+            cls._instance = super(CommandsLoader, cls).__new__(cls)
 
-        self._loaded_commands: int = 0
-        self._commands_registry: Dict[str, Dict[str, Any]] = {}
-        self._commands_path: Path = PROJECT_COMMANDS_PATH
-        self._command_output: Optional[str] = None
+        return cls._instance
 
-        # Supported base interfaces for command classes
-        self._supported_interfaces = {
-            CLICommandInterface: "CLICommandInterface"
-        }
+    def __init__(self, parent: Optional[Any] = None):
+        """
+        Initializes the command loader and prepares the command registry.
+        Args:
+            parent (Any, optional): Our parent AutoForge class instance.
+        """
 
-        # Search and register
-        self._probe()
+        if not self._is_initialized:
+            try:
+
+                if parent is None:
+                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                self._autoforge = parent  # Store parent' AutoForge' class instance.
+
+                # Get a logger instance
+                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+
+                self._loaded_commands: int = 0
+                self._commands_registry: Dict[str, Dict[str, Any]] = {}
+                self._commands_path: Path = PROJECT_COMMANDS_PATH
+                self._command_output: Optional[str] = None
+
+                # Supported base interfaces for command classes
+                self._supported_interfaces = {
+                    CLICommandInterface: "CLICommandInterface"
+                }
+
+                # Search for commands and register them
+                self._probe()
+                self._is_initialized = True
+
+            # Propagate exceptions
+            except Exception:
+                raise
 
     def _get_command_record_by_name(self, command_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -174,6 +204,15 @@ class CommandsLoader:
             raise RuntimeError("no commands were successfully loaded")
 
         return self._loaded_commands
+
+    @staticmethod
+    def get_instance() -> "CommandsLoader":
+        """
+        Returns the singleton instance of this class.
+        Returns:
+            CommandsLoader: The global stored class instance.
+        """
+        return CommandsLoader._instance
 
     def get_commands(self) -> List[CommandSummary]:
         """

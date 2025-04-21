@@ -3,8 +3,8 @@ Script:         prompt.py
 Author:         AutoForge Team
 
 Description:
-    Defines the PromptEngine class, based on the cmd2 interactive
-    shell for the AutoForge build system.
+    Core module which defines and manages the PromptEngine class, built on the cmd2 interactive
+    shell, to provide SDK build system commands.
 """
 
 import os
@@ -21,7 +21,6 @@ from cmd2 import ansi, CustomCompletionSettings
 from colorama import Fore, Style
 
 # AutoForge imports
-import auto_forge
 from auto_forge import (Environment, CommandType, CommandsLoader, AutoLogger, PROJECT_NAME)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
@@ -35,8 +34,21 @@ class Prompt(cmd2.Cmd):
     Provides dynamic prompt updates, path-aware tab completion,
     and passthrough execution of unknown commands via the system shell.
     """
+    _instance = None
+    _is_initialized = False
 
-    def __init__(self, prompt: Optional[str] = None, commands_loader: Optional[CommandsLoader] = None):
+    def __new__(cls, prompt: Optional[str] = None, parent: Optional[Any] = None) -> None:
+        """
+        Create a new instance if one doesn't exist, or return the existing instance.
+        Returns:
+            Prompt: The singleton instance of this class.
+        """
+        if cls._instance is None:
+            cls._instance = super(Prompt, cls).__new__(cls)
+
+        return cls._instance
+
+    def __init__(self, prompt: Optional[str] = None, parent: Optional[Any] = None) -> None:
         """
         Initialize the PromptEngine and its underlying cmd2 components.
 
@@ -44,71 +56,53 @@ class Prompt(cmd2.Cmd):
             prompt (Optional[str]): Optional custom base prompt string.
                 If not specified, the lowercase project name ('autoforge') will be used
                 as the base prefix for the dynamic prompt.
-            commands_loader (Optional[CommandsLoader]): Optional a commands loader class instance.
+            parent (Any, optional): Our parent AutoForge class instance.e.
         """
 
-        self._auto_forge = auto_forge.auto_forge.AutoForge.get_instance()
-        self._setup_tool: Environment = self._auto_forge.tools
-        self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
-        self._executable_db: Optional[Dict[str, str]] = None
-        self._commands_loader: Optional[CommandsLoader] = commands_loader
-        self._last_execution_return_code: Optional[int] = 0
-
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-
-        # Clear command line buffer
-        sys.argv = [sys.argv[0]]
-        ansi.allow_ansi = True
-
-        self._add_commands()
-
-        if self._setup_tool.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
-                                                 command=self._build_executable_index,
-                                                 command_type=CommandType.PYTHON_METHOD,
-                                                 new_lines=1) != 0:
-            raise RuntimeError("could not finish initializing")
-
-        # Modify readline behaviour to allow for single TAB when auto completing binary name
-        readline.parse_and_bind("set show-all-if-ambiguous on")
-        readline.parse_and_bind("TAB: complete")
-
-        # Initialize cmd2 core
-        super().__init__()
-
-        # Assign path_complete to the complete_cd and complete_ls methods
-        self.complete_cd = self.path_complete
-        self.complete_ls = self.path_complete
-
-        self._add_aliases()
-        self._update_prompt()
-
-    def complete(self, text: str, state: int, custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[
-        str]:
-        """
-        Global tab completion handler. Adds shell-style binary name completion at the beginning of the line.
-        Also completes dynamically loaded commands from the loader.
-        """
-        buffer = readline.get_line_buffer()
-        tokens = buffer.strip().split()
-
-        if len(tokens) <= 1 and buffer.strip().startswith(text):
-            # From your system executable db
-            matches = [cmd for cmd in self._executable_db if cmd.startswith(text)]
-
-            # Add dynamically registered commands
-            dynamic_commands = [cmd.name for cmd in self._commands_loader.get_commands()]
-            matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
-
-            # Deduplicate and sort
-            matches = sorted(set(matches))
+        if not self._is_initialized:
             try:
-                return matches[state]
-            except IndexError:
-                return None
+                if parent is None:
+                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                self._autoforge = parent  # Store parent' AutoForge' class instance.
 
-        # Delegate to cmd2's default behavior for args, flags, etc.
-        return super().complete(text, state)
+                self._environment: Environment = Environment.get_instance()
+                self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
+                self._executable_db: Optional[Dict[str, str]] = None
+                self._commands_loader: Optional[CommandsLoader] = CommandsLoader.get_instance()
+                self._last_execution_return_code: Optional[int] = 0
+
+                # Get a logger instance
+                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+
+                # Clear command line buffer
+                sys.argv = [sys.argv[0]]
+                ansi.allow_ansi = True
+
+                self._add_commands()
+
+                if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
+                                                          command=self._build_executable_index,
+                                                          command_type=CommandType.PYTHON_METHOD,
+                                                          new_lines=1) != 0:
+                    raise RuntimeError("could not finish initializing")
+
+                # Modify readline behaviour to allow for single TAB when auto completing binary name
+                readline.parse_and_bind("set show-all-if-ambiguous on")
+                readline.parse_and_bind("TAB: complete")
+
+                # Initialize cmd2 core
+                super().__init__()
+
+                # Assign path_complete to the complete_cd and complete_ls methods
+                self.complete_cd = self.path_complete
+                self.complete_ls = self.path_complete
+
+                self._add_aliases()
+                self._update_prompt()
+
+            # Propagate exceptions
+            except Exception:
+                raise
 
     def _add_commands(self):
         """
@@ -242,7 +236,43 @@ class Prompt(cmd2.Cmd):
         self.aliases['ll'] = 'ls -la'
         self.aliases['..'] = 'cd ..'
 
-    def do_cd(self, path:str):
+    @staticmethod
+    def get_instance() -> "Prompt":
+        """
+        Returns the singleton instance of this class.
+        Returns:
+            Prompt: The global stored class instance.
+        """
+        return Prompt._instance
+
+    def complete(self, text: str, state: int,
+                 custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[str]:
+        """
+        Global tab completion handler. Adds shell-style binary name completion at the beginning of the line.
+        Also completes dynamically loaded commands from the loader.
+        """
+        buffer = readline.get_line_buffer()
+        tokens = buffer.strip().split()
+
+        if len(tokens) <= 1 and buffer.strip().startswith(text):
+            # From your system executable db
+            matches = [cmd for cmd in self._executable_db if cmd.startswith(text)]
+
+            # Add dynamically registered commands
+            dynamic_commands = [cmd.name for cmd in self._commands_loader.get_commands()]
+            matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
+
+            # Deduplicate and sort
+            matches = sorted(set(matches))
+            try:
+                return matches[state]
+            except IndexError:
+                return None
+
+        # Delegate to cmd2's default behavior for args, flags, etc.
+        return super().complete(text, state)
+
+    def do_cd(self, path: str):
         """
         Change the current working directory and update the CLI prompt accordingly.
         This method mimics the behavior of the shell `cd` command:
@@ -271,7 +301,7 @@ class Prompt(cmd2.Cmd):
             args (str): Any additional arguments to pass to `ls`, such as `-l`, paths, or wildcards.
         """
         try:
-            self._setup_tool.execute_shell_command(
+            self._environment.execute_shell_command(
                 command=f"ls {args} --color=auto -F",
                 shell=True,
                 immediate_echo=True,
@@ -299,7 +329,7 @@ class Prompt(cmd2.Cmd):
 
         cmd, args = parts
         try:
-            self._setup_tool.execute_shell_command(
+            self._environment.execute_shell_command(
                 command=cmd,
                 arguments=args,
                 shell=True,

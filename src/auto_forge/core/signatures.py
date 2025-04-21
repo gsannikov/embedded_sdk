@@ -3,7 +3,12 @@ Script:         signatures.py
 Author:         AutoForge Team
 
 Description:
-    Signatures is a core module that simplifies the user os binary signatures
+    Core module that simplifies handling binary signatures, which are used to tag binaries—
+    typically compiled firmware—with a user-defined structure marked by specific identifiers.
+
+    This API allows you to verify, enumerate, insert, and check the integrity of signatures,
+    as well as attach extended information (e.g., Git metadata). The signature structure is
+    defined using a concise and human-readable schema.
 """
 
 import logging
@@ -38,13 +43,13 @@ class Signatures:
             descriptor_file (str): The path to the JSON file containing the signature descriptors.
             signature_id (int): The ID of the signature to be loaded and processed.
         """
-        self._service_name: str = self.__class__.__name__
+
         self._json_descriptor_file: Optional[str] = None
         self._signature_id: Optional[int] = None
         self._raw_dictionary: Optional[Dict[str, Any]] = {}
         self._schemas: List[SignatureSchema] = []
-        self._procLib: Processor = Processor()
-        self._varLib: Optional[Variables] = Variables()
+        self._processor: Processor = Processor()
+        self._variables: Optional[Variables] = Variables()
         self._initialized = False
 
         # Get a logger instance
@@ -56,7 +61,7 @@ class Signatures:
             expanded_file = os.path.expanduser(os.path.expandvars(descriptor_file))
             self._json_descriptor_file = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
 
-            signatures = self._procLib.preprocess(file_name=descriptor_file).get("signatures", None)
+            signatures = self._processor.preprocess(file_name=descriptor_file).get("signatures", None)
             if signatures is None or not isinstance(signatures, (list, dict)):
                 raise RuntimeError(f"no signatures found in '{descriptor_file}'")
 

@@ -22,15 +22,15 @@ from auto_forge.common.toolbox import ToolBox
 from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface, CLICommandInfo)
 
 # Core / common modules
-from auto_forge.core.commands_loader import (CommandsLoader, CommandSummary)
-from auto_forge.common.progress_tracker import ProgressTracker
+from auto_forge.common.progress_tracker import (ProgressTracker)
 from auto_forge.core.processor import Processor
+from auto_forge.core.environment import (Environment, CommandType)
 from auto_forge.core.variables import Variables
+from auto_forge.core.commands_loader import (CommandsLoader, CommandSummary)
 from auto_forge.core.signatures import (Signatures, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
 from auto_forge.core.solution import Solution
 from auto_forge.core.west_world import WestWorld
-from auto_forge.core.environment import (Environment, CommandType)
 from auto_forge.core.prompt import Prompt
 
 # AutoForg main

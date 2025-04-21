@@ -3,8 +3,8 @@ Script:         cli_command_interface.py
 Author:         AutoForge Team
 
 Description:
-    This module defines the `CLICommand` abstract base class, which provides a standardized
-    interface for implementing modular, pluggable command-line commands within the AutoForge framework.
+    core abstract base class which provides a standardized interface for implementing modular,
+    pluggable command-line commands within the AutoForge framework.
 
     Each command subclass is responsible for:
         - Declaring its name and description.

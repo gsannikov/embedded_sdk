@@ -3,8 +3,11 @@ Script:         toolbox,py
 Author:         AutoForge Team
 
 Description:
-    A collection of general-purpose functions required by the AutoForge system.
+    Auxiliary module defining the 'ToolBox' class, which provides utility functions
+    used throughout the AutoForge library. It contains a collection of general-purpose
+    methods for common tasks.
 """
+
 import base64
 import importlib.metadata
 import importlib.util
@@ -40,7 +43,6 @@ class ToolBox:
         Create a new instance if one doesn't exist, or return the existing instance.
         Args:
             parent (Any, optional): The parent context or object for this queue.
-
         Returns:
             ToolBox: The singleton instance of this class.
         """
@@ -53,21 +55,22 @@ class ToolBox:
         """
         Initialize the class; actual initialization logic is handled in __new__.
         Args:
-            parent (Any, optional): The parent context or object for this queue.
+            parent (Any, optional): Our parent class instance.
         """
         if not self._is_initialized:
+            try:
+                if parent is None:
+                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                self._parent = parent  # Store parent' AutoForge' class instance.
 
-            # Initialize the instance variables only once
-            if parent is None:
-                raise RuntimeError("toolbox can't be initialized without a parent instance")
+                # Create a logger instance
+                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+                self._storage = {}  # Local static dictionary for managed session variables
+                self._is_initialized = True
 
-            self._parent = parent
-
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-
-            self._storage = {}  # Local static dictionary for managed session variables
-            self._is_initialized = True
+            # Propagate exception
+            except Exception:
+                raise
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):

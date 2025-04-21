@@ -3,7 +3,7 @@ Script:         progress_tracker.py
 Author:         AutoForge Team
 
 Description:
-    This module defines the ProgressTracker class, a utility designed for terminal-based status
+    Auxiliary module which defines the ProgressTracker class, a utility designed for terminal-based status
     and progress reporting. It facilitates real-time updates of task statuses with dynamic text
     formatting, colorization, and cursor manipulations to enhance readability and user interaction
     during long-running operations.
@@ -54,7 +54,7 @@ class TrackerState(Enum):
     BODY = 2
 
 
-class ANSIGuru:
+class _ANSIGuru:
     """
     A utility class for managing terminal output through ANSI escape codes. The class provides methods to
     manipulate the cursor's visibility and position, allowing for dynamic updates to the terminal content
@@ -145,7 +145,7 @@ class ProgressTracker:
         self._add_time_prefix = add_time_prefix
         self._title_length = title_length
         self._terminal_width = shutil.get_terminal_size().columns
-        self._ansi_term = ANSIGuru()
+        self._ansi_term = _ANSIGuru()
         self._pre_text: Optional[str] = None
         self._min_update_interval_ms = min_update_interval_ms
         self._last_update_time = 0  # Epoch time of the last update

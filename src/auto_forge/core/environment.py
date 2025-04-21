@@ -3,9 +3,13 @@ Script:         environment.py
 Author:         AutoForge Team
 
 Description:
-    SDK environment installation toolbox.
-
+    Core module providing a comprehensive API for simplifying various environment-related operations, including:
+    - Execution of shell commands and Python methods.
+    - Common Git-related operations.
+    - Management of Python virtual environments and PIP packages.
+    - Probing the user environment to ensure prerequisites are met.
 """
+
 import json
 import logging
 import os
@@ -30,8 +34,8 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (Processor, ProgressTracker, ToolBox, AutoLogger)
 
-AUTO_FORGE_MODULE_NAME = "SetupTools"
-AUTO_FORGE_MODULE_DESCRIPTION = "User Environment Creation API"
+AUTO_FORGE_MODULE_NAME = "Environment"
+AUTO_FORGE_MODULE_DESCRIPTION = "Environment Operations"
 
 
 class ValidationMethod(Enum):
@@ -60,50 +64,75 @@ class CommandType(Enum):
 
 
 class Environment:
+    _instance = None
+    _is_initialized = False
 
-    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False) -> None:
+    def __new__(cls, workspace_path: Optional[str] = None, parent: Optional[Any] = None,
+                automated_mode: Optional[bool] = False) -> None:
+        """
+        Create a new instance if one doesn't exist, or return the existing instance.
+        Returns:
+            Environment: The singleton instance of this class.
+        """
+        if cls._instance is None:
+            cls._instance = super(Environment, cls).__new__(cls)
+
+        return cls._instance
+
+    def __init__(self, workspace_path: Optional[str] = None, parent: Optional[Any] = None,
+                 automated_mode: Optional[bool] = False) -> None:
         """
         Initialize the environment class.
         Collect few basic system properties and prepare for execution a step file.
         Args:
             workspace_path(Optional[str]): The workspace path.
+            parent (Any, optional): Our parent AutoForge class instance.
             automated_mode(bool): Specify if we're running in automation mode
         """
-        # Local import to avoid circular dependency on AutoForge
-        from auto_forge.auto_forge import AutoForge
 
-        self._py_venv_path: Optional[str] = None
-        self._package_manager: Optional[str] = None
-        self._workspace_path: Optional[str] = workspace_path
-        self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-        self._procLib = Processor()  # Instantiate JSON processing library
-        self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
-        self._automated_mode: bool = automated_mode  # Default execution mode
-        self._tracker: Optional[ProgressTracker] = None
-        self._toolbox: Optional[ToolBox] = ToolBox()
+        if not self._is_initialized:
 
-        # Get AutoForge instance
-        self._autoforge: AutoForge = AutoForge.get_instance()
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
+            if parent is None:
+                raise RuntimeError("AutoForge 'parent' instance must be specified")
+            self._autoforge = parent  # Store parent' AutoForge' class instance.
 
-        # The following are defaults used when printing user friendly terminal status
-        self._status_title_length: int = 80
-        self._status_add_time_prefix: bool = True
-        self._status_new_line: bool = False
+            # Create a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
 
-        # Determine which package manager is available on the system.
-        if shutil.which("apt"):
-            self._package_manager = "apt"
-        elif shutil.which("dnf"):
-            self._package_manager = "dnf"
+            self._package_manager: Optional[str] = None
+            self._workspace_path: Optional[str] = workspace_path
+            self._default_execution_time: float = 60.0  # Time allowed for executed shell command
+            self._processor = Processor()  # Instantiate JSON processing library
+            self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
+            self._automated_mode: bool = automated_mode  # Default execution mode
+            self._tracker: Optional[ProgressTracker] = None
+            self._toolbox: Optional[ToolBox] = ToolBox()
 
-        # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
-        self._system_type = platform.system().lower()
-        self._is_wsl = True if "wsl" in platform.release().lower() else False
+            # The following are defaults used when printing user friendly terminal status
+            self._status_title_length: int = 80
+            self._status_add_time_prefix: bool = True
+            self._status_new_line: bool = False
 
-        # Get extended distro info when we're running under Linux
-        if self._system_type == "linux":
-            self._linux_distro, self._linux_version = self._get_linux_distro()
+            # Determine which package manager is available on the system.
+            if shutil.which("apt"):
+                self._package_manager = "apt"
+            elif shutil.which("dnf"):
+                self._package_manager = "dnf"
+
+            # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
+            self._system_type = platform.system().lower()
+            self._is_wsl = True if "wsl" in platform.release().lower() else False
+
+            # Get extended distro info when we're running under Linux
+            if self._system_type == "linux":
+                self._linux_distro, self._linux_version = self._get_linux_distro()
+
+            # Normalize workspace path
+            if self._workspace_path:
+                self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
+                                                                        to_absolute_path=True)
+            # Class initialized
+            self._is_initialized = True
 
     def _print(self, text: str):
         """
@@ -250,11 +279,30 @@ class Environment:
         except Exception:
             raise
 
-    def set_workspace(self, delete_existing: bool = False, must_be_empty: bool = False, create_as_needed: bool = False,
-                      change_dir: bool = False) -> \
-            Optional[str]:
+    @staticmethod
+    def get_instance() -> "Environment":
         """
-        Initialize the workspace path.
+        Returns the singleton instance of this class.
+        Returns:
+            Environment: The global stored class instance.
+        """
+        return Environment._instance
+
+    @staticmethod
+    def get_workspace_path() -> Optional[str]:
+        """
+        Returns the workspace path which was used to initialize this..
+        Returns:
+            str: The workspace path, expanded and normalized.
+        """
+        local_instance = Environment.get_instance()
+        return local_instance._workspace_path
+
+    def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
+                             create_as_needed: bool = False,
+                             change_dir: bool = False) -> Optional[str]:
+        """
+        Initializes the workspace path.
         Args:
             delete_existing (bool): If true, the workspace path will be erased.
             must_be_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
@@ -267,7 +315,7 @@ class Environment:
         try:
 
             if self._workspace_path is None:
-                raise RuntimeError(f"workspace path cannot be None")
+                raise RuntimeError(f"stored 'workspace path' cannot be None")
 
             # Expand environment variables and user home shortcuts in the path
             self._workspace_path = self.environment_variable_expand(text=self._workspace_path, to_absolute_path=True)
@@ -934,7 +982,6 @@ class Environment:
             command_arguments = f"-m venv {full_py_venv_path}"
             self.execute_shell_command(command=python_command, arguments=command_arguments,
                                        cwd=expanded_python_binary_path)
-            self._py_venv_path = full_py_venv_path
 
         except Exception as py_venv_error:
             raise Exception(f"could not create virtual environment in '{venv_path}' {str(py_venv_error)}")
@@ -1284,7 +1331,7 @@ class Environment:
             self.detect_zephyr_sdk()
 
             # Process as JSON
-            steps_schema = self._procLib.preprocess(steps_file)
+            steps_schema = self._processor.preprocess(steps_file)
             self._steps_data = steps_schema.get("steps")
 
             # Attempt to get status view defaults
