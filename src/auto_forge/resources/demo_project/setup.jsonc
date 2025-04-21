@@ -26,8 +26,8 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
-	"status_pre_message": "\nHello, welcome to the demo project setup\n",
-	"status_post_message": "\n\nSetup is done.\n\n",
+	"status_pre_message": "\nHello, welcome to the demo project setup..",
+	"status_post_message": "\n\nSetup is completed.\n",
 	// Steps:
 	"steps": [
 		{
@@ -126,7 +126,9 @@
 				"paths": [
 					"build",
 					"externs",
-					"build/logs"
+					"build/logs",
+					"userspace/fw",
+					"userspace/scripts"
 				]
 			}
 		},
@@ -170,11 +172,20 @@
 			}
 		},
 		{
+			"description": "Cloning 'userspace'",
+			"method": "git_clone_repo",
+			"arguments": {
+				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
+				"dest_repo_path": "userspace/fw",
+				"timeout": 360
+			}
+		},
+		{
 			"description": "Locating Zephyr SDK Path",
 			"method": "execute_cli_command",
 			"arguments": {
 				"command": "zephyr_sdk",
-				"arguments": "--get-path",
+				"arguments": "--get_zephyr_path",
 				"suppress_output": true
 			},
 			"response_store_key": "zephyr_sdk_path"
@@ -184,7 +195,7 @@
 			"method": "execute_cli_command",
 			"arguments": {
 				"command": "zephyr_sdk",
-				"arguments": "--get-version",
+				"arguments": "--get_zephyr_version",
 				"suppress_output": true
 			},
 			"response_store_key": "zephyr_sdk_version"

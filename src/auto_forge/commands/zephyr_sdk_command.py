@@ -1,19 +1,19 @@
 """
-Script:         zephyr_sdk.py
+Script:         zephyr_sdk_command.py
 Author:         AutoForge Team
 
 Description:
-    Support tool for querying Zephyr SDK installation details using the CMake user package registry.
+    ThAutoForge command which attempts to locate a Zephyr SDK installation by scanning
+    the CMake user package registry and provides access to the SDK path and version if found
 """
 
 import argparse
-import logging
 import sys
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, cast
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CLICommandInfo, AutoLogger)
+from auto_forge import (CLICommandInterface, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "zephyr_sdk"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr SDK utilities"
@@ -24,17 +24,10 @@ CMAKE_PACKAGE_PATH: Path = Path.home() / ".cmake/packages/Zephyr-sdk"
 
 
 class ZephyrSDKCommand(CLICommandInterface):
-    """
-    CLI command for interacting with the Zephyr SDK.
-
-    This tool attempts to locate a Zephyr SDK installation by scanning
-    the CMake user package registry and provides access to the SDK path
-    and version if found.
-    """
 
     def __init__(self, **kwargs: Any):
         """
-        Constructor for ZephyrSDKCommand.
+        Initializes the ZephyrSDKCommand class.
 
         Initializes internal state and allows for optional overrides such as custom CMake
         package registry path and error handling behavior.
@@ -49,13 +42,16 @@ class ZephyrSDKCommand(CLICommandInterface):
 
         # Get logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
+        self._cmake_pkg_dir: Optional[Path] = Path(kwargs.get('cmake_pkg_dir', CMAKE_PACKAGE_PATH))
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
-        self._cmake_pkg_dir: Path = Path(kwargs.get('cmake_pkg_dir', CMAKE_PACKAGE_PATH))
 
         # Base class initialization
-        super().__init__(raise_exceptions=raise_exceptions)
+        super().__init__(name=AUTO_FORGE_COMMAND_NAME,
+                         description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                         version=AUTO_FORGE_COMMAND_VERSION,
+                         raise_exceptions=raise_exceptions)
 
     def initialize(self, **kwargs: Any) -> bool:
         """
@@ -68,10 +64,13 @@ class ZephyrSDKCommand(CLICommandInterface):
             bool: True if initialization succeeded, False otherwise.
         """
 
-        if not self._cmake_pkg_dir.is_dir():
-            return False
+        if not self._cmake_pkg_dir or not self._cmake_pkg_dir.is_dir():
+            raise RuntimeError(f"CMake package registry path '{self._cmake_pkg_dir}' does not exist")
 
-        for pkg_file in self._cmake_pkg_dir.iterdir():
+        # Workaround PyCharm's static analyzer quirks
+        cmake_pkg_dir = cast(Path, self._cmake_pkg_dir)
+
+        for pkg_file in cmake_pkg_dir.iterdir():
             if not pkg_file.is_file():
                 continue
 
@@ -104,31 +103,17 @@ class ZephyrSDKCommand(CLICommandInterface):
 
         return False
 
-    def get_info(self) -> CLICommandInfo:
-        """
-        Returns:
-            CLICommandInfo: a named tuple containing the implemented command id
-        """
-        # Populate and return the command info type
-        if self._command_info is None:
-            self._command_info = CLICommandInfo(name=AUTO_FORGE_COMMAND_NAME,
-                                                description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                                                version=AUTO_FORGE_COMMAND_VERSION,
-                                                class_name=self.__class__.__name__,
-                                                class_instance=self)
-        return self._command_info
-
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds the command-line arguments supported by this command.
         Args:
             parser (argparse.ArgumentParser): The parser to extend.
         """
-        parser.add_argument('-p', '--get-path', action='store_true',
-                            help='Prints the detected SDK installation path.')
-        parser.add_argument('-v', '--get-version', action='store_true',
-                            help='Prints the detected SDK version.')
-        parser.add_argument("-ver", "--version", action="store_true", help="Show this command version and exit.")
+        parser.add_argument('-p', '--get_zephyr_path', action='store_true',
+                            help='Prints the detected Zephyrs SDK installation path.')
+        parser.add_argument('-z', '--get_zephyr_version', action='store_true',
+                            help='Prints the detected Zephyrs SDK version.')
+        parser.add_argument("-v", "--version", action="store_true", help="Show this command version and exit.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -147,12 +132,12 @@ class ZephyrSDKCommand(CLICommandInterface):
             return 1
 
         # Handle arguments
-        if args.get_path:
-            print(self._path)
-        elif args.get_version:
-            print(self._version)
         elif args.version:
             print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
+        elif args.get_zephyr_path:
+            print(self._path)
+        elif args.get_zephyr_version:
+            print(self._version)
         else:
             # No arguments provided, show command usage
             sys.stdout.write("No arguments provided.\n")

@@ -1,5 +1,5 @@
 """
-Script:         pre_processor.py
+Script:         processor.py
 Author:         AutoForge Team
 
 Description:
@@ -19,7 +19,7 @@ AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
 
 
-class JSONProcessor:
+class Processor:
     """
     About...
     """

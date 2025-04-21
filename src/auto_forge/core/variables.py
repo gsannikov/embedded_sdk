@@ -17,7 +17,7 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
 import auto_forge
-from auto_forge import (JSONProcessor, AutoLogger)
+from auto_forge import (Processor, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment variables core service"
@@ -83,7 +83,7 @@ class Variables:
                     List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
                 # Create an instance of the JSON preprocessing library
-                self._processor: JSONProcessor = JSONProcessor()
+                self._processor: Processor = Processor()
 
                 # Build variables list
                 if self._config_file_name is not None:

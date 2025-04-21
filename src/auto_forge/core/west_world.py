@@ -26,7 +26,7 @@ import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import AutoLogger
+from auto_forge import (AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "MiniWest"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' helper library"

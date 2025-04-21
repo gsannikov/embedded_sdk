@@ -19,8 +19,8 @@ from typing import Optional
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (ToolBox, Variables, SolutionProcessor, SetupTools, CommandsLoader,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, PromptEngine, AutoHandlers)
+from auto_forge import (ToolBox, Variables, Solution, Environment, CommandsLoader,
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, AutoHandlers)
 
 
 class AutoForge:
@@ -62,17 +62,18 @@ class AutoForge:
             self._solution_file: Optional[str] = None
             self._solution_name: Optional[str] = None
             self._varLib: Optional[Variables] = None
-            self._solutionLib: Optional[SolutionProcessor] = None
+            self._solutionLib: Optional[Solution] = None
 
             if not workspace_path:
                 raise RuntimeError("'workspace_path' is required when initializing AutoForge")
 
-            self._workspace_path = SetupTools.environment_variable_expand(text=workspace_path, to_absolute_path=True)
+            self._workspace_path = Environment.environment_variable_expand(text=workspace_path, to_absolute_path=True)
 
             try:
                 self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
-                self.tools: SetupTools = SetupTools(workspace_path=self._workspace_path, automated_mode=automated_mode)
-                self.prompt =  PromptEngine()
+                self.tools: Environment = Environment(workspace_path=self._workspace_path,
+                                                      automated_mode=automated_mode)
+                self.prompt = Prompt()
 
                 self._toolbox.print_logo(clear_screen=True)  # Show logo
                 self._is_initialized = True  # Done initializing
@@ -126,7 +127,7 @@ class AutoForge:
 
             self._logger.debug(f"Workspace path: {self._workspace_path}")
 
-            self._solutionLib = SolutionProcessor(solution_config_file_name=solution_file)
+            self._solutionLib = Solution(solution_config_file_name=solution_file)
             self._varLib = Variables()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name

@@ -1,5 +1,5 @@
 """
-Script:         solution_processor.py
+Script:         solution.py
 Author:         AutoForge Team
 
 Description:
@@ -41,13 +41,13 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (JSONProcessor, Variables, Signatures, PROJECT_SCHEMAS_PATH, AutoLogger)
+from auto_forge import (Processor, Variables, Signatures, PROJECT_SCHEMAS_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
 
 
-class SolutionProcessor:
+class Solution:
     """
     A class dedicated to preparing and processing solution files for execution. This includes
     resolving references within the solution's JSON data, validating configurations against
@@ -75,7 +75,7 @@ class SolutionProcessor:
         self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
-        self._procLib = JSONProcessor()  # Instantiate JSON processing library
+        self._procLib = Processor()  # Instantiate JSON processing library
         self._sigLib: Optional[Signatures] = None  # Product binary signatures core class
         self._varLib: Optional[Variables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with

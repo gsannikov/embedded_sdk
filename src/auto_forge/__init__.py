@@ -24,15 +24,14 @@ from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterfac
 # Core / common modules
 from auto_forge.core.commands_loader import CommandsLoader
 from auto_forge.common.progress_tracker import ProgressTracker
-from auto_forge.core.json_processor import JSONProcessor
+from auto_forge.core.processor import Processor
 from auto_forge.core.variables import Variables
-from auto_forge.core.binary_signatures import (Signatures, SignatureFileHandler, Signature,
+from auto_forge.core.signatures import (Signatures, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
-from auto_forge.core.relocate import Relocator
-from auto_forge.core.solution_processor import SolutionProcessor
+from auto_forge.core.solution import Solution
 from auto_forge.core.west_world import WestWorld
-from auto_forge.core.setup_tools import (SetupTools, CommandType)
-from auto_forge.core.prompt_engine import PromptEngine
+from auto_forge.core.environment import (Environment, CommandType)
+from auto_forge.core.prompt import Prompt
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
@@ -41,12 +40,11 @@ from auto_forge.auto_forge import auto_forge_main as main
 __all__ = [
     "ToolBox",
     "ProgressTracker",
-    "JSONProcessor",
+    "Processor",
     "Variables",
-    "SolutionProcessor",
-    "SetupTools",
+    "Solution",
+    "Environment",
     "CommandType",
-    "Relocator",
     "Signatures",
     "WestWorld",
     "SignatureFileHandler",
@@ -56,7 +54,7 @@ __all__ = [
     "CommandsLoader",
     "CLICommandInterface",
     "CLICommandInfo",
-    "PromptEngine",
+    "Prompt",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH",

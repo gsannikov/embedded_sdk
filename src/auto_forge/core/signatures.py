@@ -15,7 +15,7 @@ import zlib
 from typing import Match, Optional, Any, Dict, List
 
 # Internal AutoForge imports
-from auto_forge import (JSONProcessor, Variables, AutoLogger)
+from auto_forge import (Processor, Variables, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures core service"
@@ -43,7 +43,7 @@ class Signatures:
         self._signature_id: Optional[int] = None
         self._raw_dictionary: Optional[Dict[str, Any]] = {}
         self._schemas: List[SignatureSchema] = []
-        self._procLib: JSONProcessor = JSONProcessor()
+        self._procLib: Processor = Processor()
         self._varLib: Optional[Variables] = Variables()
         self._initialized = False
 

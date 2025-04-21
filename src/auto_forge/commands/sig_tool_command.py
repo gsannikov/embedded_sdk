@@ -1,9 +1,9 @@
 """
-Script:         imcv2_sig_tool.py
+Script:         sig_tool_command.py
 Author:         AutoForge Team
 
 Description:
-    Utility for binary signing operations, leveraging the internal `Signatures` class for implementation.
+    AutoForge command for binary signing operations, leveraging the internal `Signatures` class for implementation.
 """
 
 import argparse
@@ -15,7 +15,7 @@ from typing import Optional, Any
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CLICommandInfo, Signatures, ToolBox, AutoLogger)
+from auto_forge import (CLICommandInterface, Signatures, ToolBox, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "sig_tool"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Binary file signing tool"
@@ -26,7 +26,10 @@ class SigToolCommand(CLICommandInterface):
 
     def __init__(self, **kwargs: Any):
         """
-        Constructor for SigToolCommand.
+        Initializes the SigToolCommand class.
+        Args:
+            **kwargs (Any): Optional keyword arguments:
+                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
         self._toolbox = ToolBox()  # AutoForge swissknife handy class
@@ -46,11 +49,14 @@ class SigToolCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(raise_exceptions=raise_exceptions)
+        super().__init__(name=AUTO_FORGE_COMMAND_NAME,
+                         description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                         version=AUTO_FORGE_COMMAND_VERSION,
+                         raise_exceptions=raise_exceptions)
 
     def _create_sig_tool(self, **kwargs: Any) -> bool:
         """
-        Validate reqwired arguments and initialize the signature tool
+        Validate reqwired arguments and create an instance of the Signatures class.
         """
 
         # Already created?
@@ -58,7 +64,6 @@ class SigToolCommand(CLICommandInterface):
             return True
 
         try:
-
             self._descriptor_file = kwargs.get("descriptor_file")
             self._git_repo_path = kwargs.get("git_repo_path")
             self._signature_id = kwargs.get("signature_id", self._signature_id)
@@ -155,7 +160,7 @@ class SigToolCommand(CLICommandInterface):
             if validate_only:
                 if not signature.verified:
                     raise RuntimeError(f"CRC verification for '{source_binary_file_base_name}' failed")
-                return 1 # Error
+                return 1  # Error
             else:
                 # Update the git hash and image size in the signature
                 git_field = signature.find_first_field('git_commit')
@@ -228,21 +233,6 @@ class SigToolCommand(CLICommandInterface):
                 f"can't resize '{os.path.basename(source_binary_file)}' "
                 f"to {required_size} bytes: {exception}")
 
-    def get_info(self) -> CLICommandInfo:
-        """
-        Returns:
-            CLICommandInfo: a named tuple containing the implemented command id
-        """
-        # Populate and return the command info type
-        if self._command_info is None:
-            self._command_info = CLICommandInfo(name=AUTO_FORGE_COMMAND_NAME,
-                                                description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                                                version=AUTO_FORGE_COMMAND_VERSION,
-                                                class_name=self.__class__.__name__,
-                                                class_instance=self)
-
-        return self._command_info
-
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds the command-line arguments supported by this command.
@@ -287,10 +277,10 @@ class SigToolCommand(CLICommandInterface):
             self._create_sig_tool(descriptor_file=args.descriptor_file,
                                   signature_id=args.signature_id, git_repo_path=args.git_path)
         # Handle arguments
-        if args.update_crc:
-            return_value = self._update_crc(source_binary_file=args.path, validate_only=False, pad_to_size=args.grow)
-        elif args.version:
+        if args.version:
             print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
+        elif args.update_crc:
+            return_value = self._update_crc(source_binary_file=args.path, validate_only=False, pad_to_size=args.grow)
         else:
             # No arguments provided, show command usage
             sys.stdout.write("No arguments provided.\n")

@@ -83,25 +83,28 @@ class CLICommandInterface(ABC):
     Each derived class must define its name, description, argument parser, and run logic.
     """
 
-    def __init__(self, raise_exceptions: bool = False):
+    def __init__(self, name: str, description: str, version: str, raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
         Args:
+            name (str): The command name.
+            description (str): The command description.
+            version (str): Version of the command.
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
-        self._command_info: Optional[CLICommandInfo] = None
         self._parser: Optional[_CLICapturingArgumentParser] = None
         self._last_error: Optional[str] = None
         self._raise_exceptions = raise_exceptions
 
-        # Get and store the command info
-        self.get_info()
+        # Stores the command information in the class session
+        self._command_info: CLICommandInfo = CLICommandInfo(name=name, description=description, version=version,
+                                                            class_name=self.__class__.__name__, class_instance=self)
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
-            raise RuntimeError(f"failed to initialize '{self._command_info.name}' CLI command.")
+            raise RuntimeError(f"failed to initialize '{self._command_info.name}' command.")
 
         super().__init__()
 
@@ -129,6 +132,18 @@ class CLICommandInterface(ABC):
             Optional[str]: The error message string, or None if no error was recorded.
         """
         return self._last_error
+
+    def get_info(self) -> CLICommandInfo:
+        """
+        Retrievers information about the implemented command line tool.
+        Note: Implementation class must call _set_info().
+        Returns:
+            CLICommandInfo: a named tuple containing the implemented command id
+        """
+        if self._command_info is None:
+            raise RuntimeError('command info not initialized, make sure call set_info() first')
+
+        return self._command_info
 
     def execute(self, flat_args: Optional[str] = None, **kwargs: Any) -> Optional[int]:
         """
@@ -192,15 +207,6 @@ class CLICommandInterface(ABC):
             bool: True if initialization succeeded, False otherwise.
         """
         return True
-
-    @abstractmethod
-    def get_info(self) -> CLICommandInfo:
-        """
-        Retrievers information about the implemented command line tool.
-        Returns:
-            CLICommandInfo: a named tuple containing the implemented command id
-        """
-        raise NotImplementedError("must implement 'get_info'")
 
     @abstractmethod
     def create_parser(self, parser: argparse.ArgumentParser) -> None:

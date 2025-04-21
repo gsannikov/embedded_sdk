@@ -1,5 +1,5 @@
 """
-Script:         setup_tools.py
+Script:         environment.py
 Author:         AutoForge Team
 
 Description:
@@ -28,7 +28,7 @@ from typing import Optional, Union, Any, List, Callable
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (JSONProcessor, ProgressTracker, ToolBox, AutoLogger)
+from auto_forge import (Processor, ProgressTracker, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "SetupTools"
 AUTO_FORGE_MODULE_DESCRIPTION = "User Environment Creation API"
@@ -48,15 +48,22 @@ class ValidationMethod(Enum):
 
 
 class CommandType(Enum):
+    """
+    Enumeration of supported command types for execution.
+
+    Attributes:
+        SHELL_EXECUTABLE: Represents a shell command to be executed as a subprocess.
+        PYTHON_METHOD: Represents a Python callable to be executed directly.
+    """
     SHELL_EXECUTABLE = "shell"
     PYTHON_METHOD = "python"
 
 
-class SetupTools:
+class Environment:
 
     def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False) -> None:
         """
-        Initialize the environment setup toolbox class.
+        Initialize the environment class.
         Collect few basic system properties and prepare for execution a step file.
         Args:
             workspace_path(Optional[str]): The workspace path.
@@ -69,7 +76,7 @@ class SetupTools:
         self._package_manager: Optional[str] = None
         self._workspace_path: Optional[str] = workspace_path
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-        self._procLib = JSONProcessor()  # Instantiate JSON processing library
+        self._procLib = Processor()  # Instantiate JSON processing library
         self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._tracker: Optional[ProgressTracker] = None
@@ -1270,7 +1277,7 @@ class SetupTools:
 
         try:
             # Expand, convert to absolute path and verify
-            steps_file = SetupTools.environment_variable_expand(text=steps_file, to_absolute_path=True)
+            steps_file = Environment.environment_variable_expand(text=steps_file, to_absolute_path=True)
             if not os.path.exists(steps_file):
                 raise RuntimeError(f"steps file '{steps_file}' does not exist")
 

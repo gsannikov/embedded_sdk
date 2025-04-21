@@ -1,5 +1,5 @@
 """
-Script:         prompt_engine.py
+Script:         prompt.py
 Author:         AutoForge Team
 
 Description:
@@ -21,14 +21,13 @@ from colorama import Fore, Style
 
 # AutoForge imports
 import auto_forge
-from auto_forge import (SetupTools, AutoLogger, PROJECT_NAME)
-from auto_forge.core.setup_tools import CommandType
+from auto_forge import (Environment, CommandType, AutoLogger, PROJECT_NAME)
 
-AUTO_FORGE_MODULE_NAME = "PromptEngine"
-AUTO_FORGE_MODULE_DESCRIPTION = "Terminal Prompt Manager"
+AUTO_FORGE_MODULE_NAME = "Prompt"
+AUTO_FORGE_MODULE_DESCRIPTION = "SDK Prompt Manager"
 
 
-class PromptEngine(cmd2.Cmd):
+class Prompt(cmd2.Cmd):
     """
     Interactive CLI shell for AutoForge with shell-like behavior.
 
@@ -47,7 +46,7 @@ class PromptEngine(cmd2.Cmd):
         """
 
         self._auto_forge = auto_forge.auto_forge.AutoForge.get_instance()
-        self._setup_tool: SetupTools = self._auto_forge.tools
+        self._setup_tool: Environment = self._auto_forge.tools
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
         self._executable_db: Optional[Dict[str, str]] = None
 
