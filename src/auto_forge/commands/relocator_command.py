@@ -124,7 +124,7 @@ class RelocatorCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._json_processor: Processor = Processor()  # Class instance
+        self._json_processor: Processor = Processor.get_instance()  # Class instance
         self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
         self._relocate_defaults: Optional[_RelocateDefaults] = None
         self._relocate_folders_data: Optional[List[str, Any]] = None

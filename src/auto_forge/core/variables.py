@@ -44,14 +44,14 @@ class Variables:
     as adding, removing, and updating variables, ensuring data integrity and providing thread-safe access.
 
     Args:
-        variables_config_file_name (Optional[str], optional): Configuration JSON file name.
-        parent (Any, optional): Our parent AutoForge class instance.
+        variables_config_file_name (str): Configuration JSON file name.
+        parent (Any): Our parent AutoForge class instance.
     """
     _instance = None
     _is_initialized = False
     _lock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, variables_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+    def __new__(cls, variables_config_file_name: str, parent: Any):
         """
         Basic class initialization in a singleton mode
         """
@@ -61,7 +61,7 @@ class Variables:
 
         return cls._instance
 
-    def __init__(self, variables_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+    def __init__(self, variables_config_file_name: str, parent: Any):
         """
         Initialize the 'Variables' class using a configuration JSON file.
         """
@@ -88,7 +88,7 @@ class Variables:
                     List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
                 # Create an instance of the JSON preprocessing library
-                self._processor: Processor = Processor()
+                self._processor: Processor = Processor.get_instance()
 
                 # Get the workspace from AutoForge
                 self._workspace_path = Environment.get_workspace_path()
@@ -102,9 +102,9 @@ class Variables:
                 self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
                 self._is_initialized = True
 
-            # Propagate exceptions
-            except Exception:
-                raise
+            except Exception as exception:
+                self._logger.error(exception)
+                raise RuntimeError("variables core module not initialized")
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:

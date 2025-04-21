@@ -23,13 +23,13 @@ class Processor:
     """
     JSON pre-processing dedicated class.
     Args:
-        parent (Any, optional): Our parent AutoForge class instance.
+        parent (Any): Our parent AutoForge class instance.
     """
 
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, parent: Optional[Any] = None) -> None:
+    def __new__(cls, parent: Any):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -40,7 +40,7 @@ class Processor:
 
         return cls._instance
 
-    def __init__(self, parent: Optional[Any] = None):
+    def __init__(self, parent: Any):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
         """
@@ -55,9 +55,9 @@ class Processor:
                 self._toolbox = ToolBox.get_instance()
                 self._is_initialized = True
 
-            # Propagate exceptions
-            except Exception:
-                raise
+            except Exception as exception:
+                self._logger.error(exception)
+                raise RuntimeError("processor core module not initialized")
 
     @staticmethod
     def _get_line_number_from_error(error_message: str) -> Optional[int]:

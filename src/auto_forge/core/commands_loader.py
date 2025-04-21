@@ -74,12 +74,12 @@ class CommandsLoader:
     """
     The command loader class provides support for dynamically searching and loading commands.
     Args:
-        parent (Any, optional): Our parent AutoForge class instance.
+        parent (Any): Our parent AutoForge class instance.
     """
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, parent: Optional[Any] = None):
+    def __new__(cls, parent: Any):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -90,7 +90,7 @@ class CommandsLoader:
 
         return cls._instance
 
-    def __init__(self, parent: Optional[Any] = None) -> None:
+    def __init__(self, parent: Any) -> None:
         """
         Initializes the 'CommandsLoader' class and prepares the command registry.
         """
@@ -119,9 +119,9 @@ class CommandsLoader:
                 self._probe()
                 self._is_initialized = True
 
-            # Propagate exceptions
-            except Exception:
-                raise
+            except Exception as exception:
+                self._logger.error(exception)
+                raise RuntimeError("commands loader core module not initialized")
 
     def _get_command_record_by_name(self, command_name: str) -> Optional[Dict[str, Any]]:
         """

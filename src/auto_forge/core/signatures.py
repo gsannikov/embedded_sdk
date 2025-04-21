@@ -39,7 +39,7 @@ class Signatures:
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, signatures_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+    def __new__(cls, signatures_config_file_name: str, parent: Any):
         """
         Basic class initialization in a singleton mode
         """
@@ -49,7 +49,7 @@ class Signatures:
 
         return cls._instance
 
-    def __init__(self, signatures_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+    def __init__(self, signatures_config_file_name: str, parent: Any) -> None:
         """
         Initializes the SignaturesLib class by loading a signature schema from a JSON descriptor file.
         This initialization searches for the specific signature with the given ID and constructs
@@ -159,9 +159,9 @@ class Signatures:
 
             self._is_initialized = True
 
-        # Propagate exceptions
-        except Exception:
-            raise
+        except Exception as exception:
+            self._logger.error(exception)
+            raise RuntimeError("signatures core module not initialized")
 
     @staticmethod
     def get_instance() -> "Signatures":

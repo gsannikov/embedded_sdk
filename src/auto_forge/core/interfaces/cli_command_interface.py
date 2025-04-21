@@ -104,7 +104,7 @@ class CLICommandInterface(ABC):
         # self._parser: Optional[_CLICapturingArgumentParser] = None
         self._last_error: Optional[str] = None
         self._raise_exceptions = raise_exceptions
-        self._toolbox: ToolBox = ToolBox()
+        self._toolbox: ToolBox = ToolBox.get_instance()
 
         # Stores the command information in the class session
         self._command_info: CLICommandInfo = CLICommandInfo(name=name, description=description, version=version,

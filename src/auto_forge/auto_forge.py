@@ -33,7 +33,7 @@ class AutoForge:
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, workspace_path: Optional[str] = None, automated_mode: bool = False):
+    def __new__(cls, workspace_path: str = None, automated_mode: bool = False):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -45,7 +45,7 @@ class AutoForge:
 
         return cls._instance
 
-    def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
+    def __init__(self, workspace_path: str = None, automated_mode: bool = False):
         """
         # Initializes core modules and prepares the workspace, either by creating a new one or using an existing setup.
         """

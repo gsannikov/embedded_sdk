@@ -35,15 +35,15 @@ class Prompt(cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
 
     Args:
-    prompt (Optional[str]): Optional custom base prompt string.
-        If not specified, the lowercase project name ('autoforge') will be used
-        as the base prefix for the dynamic prompt.
-    parent (Any, optional): Our parent AutoForge class instance.e.
+        parent (Any): Our parent AutoForge class instance.e.
+        prompt (Optional[str]): Optional custom base prompt string.
+            If not specified, the lowercase project name ('autoforge') will be used
+            as the base prefix for the dynamic prompt.
     """
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, prompt: Optional[str] = None, parent: Optional[Any] = None):
+    def __new__(cls, parent: Any, prompt: Optional[str] = None):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -54,7 +54,7 @@ class Prompt(cmd2.Cmd):
 
         return cls._instance
 
-    def __init__(self, prompt: Optional[str] = None, parent: Optional[Any] = None) -> None:
+    def __init__(self, parent: Any, prompt: Optional[str] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         """
@@ -100,9 +100,9 @@ class Prompt(cmd2.Cmd):
                 self._add_aliases()
                 self._update_prompt()
 
-            # Propagate exceptions
-            except Exception:
-                raise
+            except Exception as exception:
+                self._logger.error(exception)
+                raise RuntimeError("prompt core module not initialized")
 
     def _add_commands(self):
         """

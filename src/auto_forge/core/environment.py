@@ -67,15 +67,15 @@ class Environment:
     """
     a class that serves as an environment related operation swissknife.
     Args:
-        workspace_path(Optional[str]): The workspace path.
-        parent (Any, optional): Our parent AutoForge class instance.
-        automated_mode(bool): Specify if we're running in automation mode
+        workspace_path(str): The workspace path.
+        parent (Any): Our parent AutoForge class instance.
+        automated_mode(boo, Optional): Specify if we're running in automation mode
     """
 
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, workspace_path: Optional[str] = None, parent: Optional[Any] = None,
+    def __new__(cls, workspace_path: str, parent: Any,
                 automated_mode: Optional[bool] = False):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
@@ -87,7 +87,7 @@ class Environment:
 
         return cls._instance
 
-    def __init__(self, workspace_path: Optional[str] = None, parent: Optional[Any] = None,
+    def __init__(self, workspace_path: str, parent: Any,
                  automated_mode: Optional[bool] = False) -> None:
         """
         Initialize the 'Environment' class, collect few basic system properties
@@ -95,48 +95,52 @@ class Environment:
         """
 
         if not self._is_initialized:
+            try:
+                if parent is None:
+                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
+                self._autoforge = parent  # Store parent' AutoForge' class instance.
 
-            if parent is None:
-                raise RuntimeError("AutoForge instance must be specified when initializing core module")
-            self._autoforge = parent  # Store parent' AutoForge' class instance.
+                # Create a logger instance
+                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
 
-            # Create a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
+                self._package_manager: Optional[str] = None
+                self._workspace_path: Optional[str] = workspace_path
+                self._default_execution_time: float = 60.0  # Time allowed for executed shell command
+                self._processor = Processor.get_instance()  # Instantiate JSON processing library
+                self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
+                self._automated_mode: bool = automated_mode  # Default execution mode
+                self._tracker: Optional[ProgressTracker] = None
+                self._toolbox: ToolBox = ToolBox.get_instance()
 
-            self._package_manager: Optional[str] = None
-            self._workspace_path: Optional[str] = workspace_path
-            self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-            self._processor = Processor()  # Instantiate JSON processing library
-            self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
-            self._automated_mode: bool = automated_mode  # Default execution mode
-            self._tracker: Optional[ProgressTracker] = None
-            self._toolbox: ToolBox = ToolBox.get_instance()
+                # The following are defaults used when printing user friendly terminal status
+                self._status_title_length: int = 80
+                self._status_add_time_prefix: bool = True
+                self._status_new_line: bool = False
 
-            # The following are defaults used when printing user friendly terminal status
-            self._status_title_length: int = 80
-            self._status_add_time_prefix: bool = True
-            self._status_new_line: bool = False
+                # Determine which package manager is available on the system.
+                if shutil.which("apt"):
+                    self._package_manager = "apt"
+                elif shutil.which("dnf"):
+                    self._package_manager = "dnf"
 
-            # Determine which package manager is available on the system.
-            if shutil.which("apt"):
-                self._package_manager = "apt"
-            elif shutil.which("dnf"):
-                self._package_manager = "dnf"
+                # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
+                self._system_type = platform.system().lower()
+                self._is_wsl = True if "wsl" in platform.release().lower() else False
 
-            # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
-            self._system_type = platform.system().lower()
-            self._is_wsl = True if "wsl" in platform.release().lower() else False
+                # Get extended distro info when we're running under Linux
+                if self._system_type == "linux":
+                    self._linux_distro, self._linux_version = self._get_linux_distro()
 
-            # Get extended distro info when we're running under Linux
-            if self._system_type == "linux":
-                self._linux_distro, self._linux_version = self._get_linux_distro()
+                # Normalize workspace path
+                if self._workspace_path:
+                    self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
+                                                                            to_absolute_path=True)
+                # Class initialized
+                self._is_initialized = True
 
-            # Normalize workspace path
-            if self._workspace_path:
-                self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
-                                                                        to_absolute_path=True)
-            # Class initialized
-            self._is_initialized = True
+            except Exception as exception:
+                self._logger.error(exception)
+                raise RuntimeError("environment core module not initialized")
 
     def _print(self, text: str):
         """

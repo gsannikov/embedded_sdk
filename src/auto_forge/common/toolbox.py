@@ -38,13 +38,13 @@ class ToolBox:
     """
     General purpose toolbox class.
     Args:
-        parent (Any, optional): Our parent class instance.
+        parent (Any): Our parent class instance.
     """
 
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, parent: Optional[Any] = None):
+    def __new__(cls, parent: Any):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -55,7 +55,7 @@ class ToolBox:
 
         return cls._instance
 
-    def __init__(self, parent: Optional[Any] = None) -> None:
+    def __init__(self, parent: Any) -> None:
         """
         Initialize the 'ToolBox' class.
         """
@@ -70,9 +70,9 @@ class ToolBox:
                 self._storage = {}  # Local static dictionary for managed session variables
                 self._is_initialized = True
 
-            # Propagate exception
-            except Exception:
-                raise
+            except Exception as exception:
+                self._logger.error(exception)
+                raise RuntimeError("toolbox common module not initialized")
 
     @staticmethod
     def get_instance() -> "ToolBox":
