@@ -71,6 +71,22 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         """
         return self.error_output.getvalue().strip()
 
+    def print_help(self, file=None):
+        """
+        Overrides default help output with a custom version.
+        """
+
+        help_text = self.format_help()
+        # Remove the 'usage: ...' line(s) at the top
+        trimmed_help = "\n".join(line for line in help_text.splitlines() if not line.startswith("usage:"))
+        print(trimmed_help + '\n')
+
+    def print_usage(self, file=None):
+        """
+        Overrides usage banner output.
+        """
+        self.print_help()
+
 
 class CLICommandInfo(NamedTuple):
     """ Define a named tuple type for the information data cluster """
@@ -139,8 +155,9 @@ class CLICommandInterface(ABC):
         if module:
             description = self._toolbox.get_module_description(module=module)
             if isinstance(description, str):
-                description = f"{description}\n\nArgs:\n    Run '{self._command_info.name} --help' to see all available arguments."
-                self._command_info = self._command_info._replace(description=description.strip())
+                description = (f"{description}\n\nArgs:\n    "
+                               f"Run '{self._command_info.name} --help' to see all available arguments.")
+                self._command_info = self._command_info._replace(description=description)
 
         return self._command_info
 
@@ -167,7 +184,7 @@ class CLICommandInterface(ABC):
         self.create_parser(parser)
 
         # Make sure we always support version
-        parser.add_argument("-ver", "--version", action="store_true", help="Only show binary version")
+        parser.add_argument("-ver", "--version", action="store_true", help="Show version and exit")
 
         if flat_args is not None:
             args_list = shlex.split(flat_args.strip())
@@ -191,7 +208,6 @@ class CLICommandInterface(ABC):
 
             # Auto print help when no arguments provided
             if return_value == self.COMMAND_ERROR_NO_ARGUMENTS:
-                sys.stdout.write("\nNo arguments provided, ")
                 parser.print_help()
 
         except SystemExit:

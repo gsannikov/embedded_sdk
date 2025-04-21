@@ -1,13 +1,14 @@
 """
-Script:         west_world.py
+Script:         mini_west_command.py
 Author:         AutoForge Team
 
 Description:
-    This module processes a typical west.yml file and clones projects in parallel,
-    unlike Zephyr's 'west' which clones projects sequentially.
-    Parallel cloning reduces clone times significantly.
+    AutoForge command for processing a typical west.yml file and cloning the specified projects in parallel.
+    Unlike Zephyr's 'west', which performs sequential cloning, this command significantly reduces overall clone time
+    by leveraging concurrent operations.
 
 """
+import argparse
 import os
 import queue
 import re
@@ -19,25 +20,28 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 
 import git
 import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoLogger)
+from auto_forge import (CLICommandInterface, AutoLogger)
 
-AUTO_FORGE_MODULE_NAME = "MiniWest"
-AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' helper library"
+AUTO_FORGE_COMMAND_NAME = "mini_west"
+AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
+AUTO_FORGE_COMMAND_VERSION = "1.0"
 
 
-class WestProject:
+class _WestProject:
     """
     Auxiliary class for managing repository related information
     """
 
     def __init__(self):
+        """Reset all members"""
+        self._is_initialized = False
         self.name: Optional[str] = None  # west.yml mandatory property
         self.description: Optional[str] = None  # west.yml mandatory property
         self.url: Optional[str] = None  # west.yml mandatory property
@@ -59,23 +63,38 @@ class WestProject:
         self.formated_message: Optional[str] = None
 
 
-class WestWorld:
+class MiniWestCommand(CLICommandInterface):
 
-    def __init__(self, automated_mode: bool = False):
+    def __init__(self, **kwargs: Any):
         """
-        Initializes 'WestWorld' main class.
+        Initializes the MiniWestCommand class.
+        Args:
+            **kwargs (Any): Optional keyword arguments:
+                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
+        self._is_initialized = False
         self._exceptions: int = 0  # Errors counter
-        self._threads_lock = threading.Lock()  # Global lock for synchronized output
-        self._stop_event = threading.Event()  # Global event to signal threads to stop on failure
+        self._threads_lock = threading.Lock()  # Lock object for synchronized output
+        self._stop_event = threading.Event()  # Event to signal threads to stop on failure
         self._projects_queue = queue.Queue()  # Message queue for printing status message safely.
-        self._ignored_projects_list = {"zephyr"}  # Manifest projects to exclude
-        self._automated_mode: bool = automated_mode  # Global to indicate if we're allowed to use colors
-        self._projects: List[WestProject] = []  # List of 'WestProject' class instances
+        self._ignored_projects_list = set()  # Manifest projects to exclude
+        self._automated_mode: Optional[bool] = False  # Indicate if we're allowed to use colors
+        self._projects: List[_WestProject] = []  # List of 'WestProject' class instances
 
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        # Get logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
+
+        # Extract optional parameters
+        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
+
+        # Base class initialization
+        super().__init__(name=AUTO_FORGE_COMMAND_NAME,
+                         description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                         version=AUTO_FORGE_COMMAND_VERSION,
+                         raise_exceptions=raise_exceptions)
+
+        self._is_initialized = True
 
     def _is_top_level_repo(self, clone_dir, all_paths):
         """
@@ -234,11 +253,11 @@ class WestWorld:
             for item in filtered_queue:
                 self._projects_queue.put(item)
 
-    def _update_status_message(self, project: WestProject, clone_state: bool = True):
+    def _update_status_message(self, project: _WestProject, clone_state: bool = True):
         """
         Update the global status message with the current repository cloning action.
         Args:
-            project (WestProject): Project info datatype
+            project (_WestProject): Project info datatype
             clone_state (bool): Whether the cloning is starting or ending.
         """
         with self._threads_lock:
@@ -266,12 +285,12 @@ class WestWorld:
                 project.start_time = datetime.now()
                 self._projects_queue.put(project)
 
-    def _format_terminal_message(self, project: WestProject, line_length: int):
+    def _format_terminal_message(self, project: _WestProject, line_length: int):
         """
         Format a text line to be printed while the branch is being cloned.
 
         Args:
-            project (WestProject): Project info datatype
+            project (_WestProject): Project info datatype
             line_length (int): Desired length of the printed line.
         """
         # Format the message anb add it the message to the Q
@@ -304,7 +323,7 @@ class WestWorld:
             if error_details:
                 sys.stdout.write(f'{Fore.RED}Details: {Style.RESET_ALL}{error_details}\n')
 
-    def clone_and_checkout(self, project: WestProject) -> int:
+    def clone_and_checkout(self, project: _WestProject) -> int:
         operation_status: int = 0
         try:
             # Clone the repository
@@ -327,11 +346,11 @@ class WestWorld:
 
         return operation_status
 
-    def _clone_repository_job(self, project: WestProject):
+    def _clone_repository_job(self, project: _WestProject):
         """
         Clone a single repository based on project specifications.
         Args:
-            project (WestProject): Project details including name, URL, revision, etc.
+            project (_WestProject): Project details including name, URL, revision, etc.
         Returns:
             bool: True if the operation was successful, False otherwise.
         """
@@ -390,6 +409,49 @@ class WestWorld:
 
         return False
 
+    def _close(self, force_terminate: bool = False) -> int:
+        """
+        Close the application and terminate all related subprocesses, specifically targeting 'git' processes.
+        Args:
+            force_terminate (bool): If True, forcibly terminate the application after killing subprocesses.
+                                    If False, perform regular shutdown and return any exceptions.
+        Returns:
+            int: Returns 1 if forcibly terminated, otherwise returns the count of exceptions encountered.
+        """
+
+        # Nothing to close when class in not initialized
+        if not self._is_initialized:
+            return 0
+
+        # Kill all 'git' processes to clean up before closing
+        subprocess.run(['pkill', '-f', 'git'])
+        # Optional: Use an event to signal other parts of the application to stop
+        # self.stop_event.set()
+        time.sleep(0.1)  # Brief pause to allow signal processing
+
+        if force_terminate:
+            # Redirect stderr to null to suppress any error messages during forced termination
+            sys.stderr = open(os.devnull, 'w')
+            # Forcibly terminate the current process
+            os.kill(os.getpid(), signal.SIGTERM)
+            # Since os.kill will terminate the process, the following return is more for documentation
+            return_value = 1
+        else:
+            return_value = self._exceptions
+
+        # State cleanup
+        self._exceptions = 0
+        self._threads_lock = None
+        self._stop_event = None
+        self._projects_queue = None
+        self._ignored_projects_list = set()
+        self._automated_mode = None
+        self._projects = []
+        self._is_initialized = False
+
+        # Return the number of exceptions encountered during regular operation, if not forcibly terminated
+        return return_value
+
     def _build_projects_list(self, west_yaml_path: str, clone_path: Optional[str] = None, retry_count: int = 1,
                              status_line_length: int = 80):
         """
@@ -421,7 +483,7 @@ class WestWorld:
 
                 for project in projects:
                     if self._ignored_projects_list is None or project['name'] not in self._ignored_projects_list:
-                        new_project = WestProject()
+                        new_project = _WestProject()
                         new_project.name = project.get('name', None)
                         new_project.description = project.get('description', None)
                         new_project.url = project.get('url', None)
@@ -452,15 +514,24 @@ class WestWorld:
         except Exception as parse_exception:
             raise Exception(f"Failed to read and process {west_yaml_path}: {str(parse_exception)}")
 
-    def process_yml(self, west_yml_path: str, clone_path: Optional[str], status_line_length: int = 80,
-                    max_workers=20, retry_count=1,
-                    delay_between=2):
+    def add_ignored_project(self, project_name: str) -> None:
+        """
+        Adds a project to the ignored projects list.
+        """
+        self._ignored_projects_list.add(project_name)
+
+    def process_yml(self, west_yml_path: str,
+                    destination_path: str,
+                    status_line_length: int = 80,
+                    max_workers: int = 20,
+                    retry_count: int = 1,
+                    delay_between: int = 2):
         """
         Process the `west.yml` file and clone all specified repositories concurrently.
 
         Args:
             west_yml_path (str): Path to the `west.yml` file.
-            clone_path (str): Base directory where repositories should be cloned.
+            destination_path (str): Base directory where repositories should be cloned.
             status_line_length (int): Desired length of the printed line.
             max_workers (int): Maximum number of concurrent threads.
             retry_count  (int): Total attempt to retry cloning on failure.
@@ -471,8 +542,8 @@ class WestWorld:
         """
         try:
             # Use the current path if we did net get a destination path to work on
-            if clone_path is None:
-                clone_path = os.getcwd()
+            if destination_path is None:
+                destination_path = os.getcwd()
 
             # Limit concurrent clones
             if max_workers >= 20:
@@ -482,7 +553,8 @@ class WestWorld:
             retry_count = max(retry_count, 1)
 
             # Build the list of projects
-            self._build_projects_list(west_yaml_path=west_yml_path, clone_path=clone_path, retry_count=retry_count,
+            self._build_projects_list(west_yaml_path=west_yml_path, clone_path=destination_path,
+                                      retry_count=retry_count,
                                       status_line_length=status_line_length)
 
             self._projects = self._update_top_levels()
@@ -519,28 +591,50 @@ class WestWorld:
             sys.stdout.flush()
             return 1
 
-    def _close(self, force_terminate: bool = False):
+    def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
-        Close the application and terminate all related subprocesses, specifically targeting 'git' processes.
+        Adds the command-line arguments supported by this command.
         Args:
-            force_terminate (bool): If True, forcibly terminate the application after killing subprocesses.
-                                    If False, perform regular shutdown and return any exceptions.
-        Returns:
-            int: Returns 1 if forcibly terminated, otherwise returns the count of exceptions encountered.
+            parser (argparse.ArgumentParser): The parser to extend.
         """
-        # Kill all 'git' processes to clean up before closing
-        subprocess.run(['pkill', '-f', 'git'])
-        # Optional: Use an event to signal other parts of the application to stop
-        # self.stop_event.set()
-        time.sleep(0.1)  # Brief pause to allow signal processing
+        parser.add_argument('-w', '--west_yml', type=str, help='Imported .yml file name')
+        parser.add_argument('-d', '--dest_path', type=str, help='Destination path for cloned projects')
+        parser.add_argument('-o', '--override', type=str, help='west.yaml overrides')
+        parser.add_argument('-r', '--retry_count', type=int, default=3, help='Git clone attempts')
+        parser.add_argument('-i', '--workers', type=int, default=10, help="Concurrent Git instances")
+        parser.add_argument('-l', '--text_len', type=int, default=54, help='Status line length')
 
-        if force_terminate:
-            # Redirect stderr to null to suppress any error messages during forced termination
-            sys.stderr = open(os.devnull, 'w')
-            # Forcibly terminate the current process
-            os.kill(os.getpid(), signal.SIGTERM)
-            # Since os.kill will terminate the process, the following return is more for documentation
-            return 1
+    def run(self, args: argparse.Namespace) -> int:
+        """
+        Executes the command based on parsed arguments.
+        Args:
+            args (argparse.Namespace): The parsed CLI arguments.
+        Returns:
+            int: Exit status (0 for success, non-zero for failure).
+        """
 
-        # Return the number of exceptions encountered during regular operation, if not forcibly terminated
-        return self._exceptions
+        if args.west_yml:
+
+            destination_path = os.getcwd() if not args.dest_path else args.dest_path
+            destination_path = self._toolbox.get_expanded_path(destination_path)
+            west_yml_path = self._toolbox.get_expanded_path(args.west_yml) if args.west_yml else None
+
+            # Validate that the destination path is empty (Git will fail if its not)
+            if os.path.exists(destination_path):
+                self._toolbox.is_directory_empty(path=destination_path, raise_exception=True)
+
+            # Validate that the specified 'west.yml' exists
+            if not os.path.exists(west_yml_path):
+                raise RuntimeError(f"could not find '{west_yml_path}'")
+
+            self.add_ignored_project("zephyr")
+
+            # Process
+            return_value = self.process_yml(west_yml_path=west_yml_path,
+                                            destination_path=destination_path,
+                                            max_workers=args.workers, retry_count=args.retry_count)
+        else:
+            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+
+        self._close(force_terminate=False)
+        return return_value

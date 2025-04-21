@@ -19,6 +19,10 @@ from typing import Any, Optional, Dict
 import cmd2
 from cmd2 import ansi, CustomCompletionSettings
 from colorama import Fore, Style
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 # AutoForge imports
 from auto_forge import (Environment, CommandType, CommandsLoader, AutoLogger, PROJECT_NAME)
@@ -78,7 +82,7 @@ class Prompt(cmd2.Cmd):
                 sys.argv = [sys.argv[0]]
                 ansi.allow_ansi = True
 
-                self._add_commands()
+                self._add_auto_commands()
 
                 if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
                                                           command=self._build_executable_index,
@@ -93,20 +97,46 @@ class Prompt(cmd2.Cmd):
                 # Initialize cmd2 core
                 super().__init__()
 
+                # Remove unnecessary built-in commands
+                for cmd in ['macro', 'run_script', 'alias', 'edit', 'run_script']:
+                    self._remove_command(cmd)
+
                 # Assign path_complete to the complete_cd and complete_ls methods
                 self.complete_cd = self.path_complete
                 self.complete_ls = self.path_complete
 
-                self._add_aliases()
+                # Add several basic aliases
+                self.alias(alias_name='ll', alias_definition='ls -la')
+                self.alias(alias_name='..', alias_definition='cd ..')
+                self.alias(alias_name='exit', alias_definition='quit')
+
                 self._update_prompt()
 
             except Exception as exception:
                 self._logger.error(exception)
                 raise RuntimeError("prompt core module not initialized")
 
-    def _add_commands(self):
+    def _remove_command(self, command_name: str):
         """
-        Dynamically adds command methods to the Prompt instance based on
+        Hide and disable a built-in cmd2 command by overriding its method.
+        """
+        # Step 1: Hide from help
+        if command_name not in self.hidden_commands:
+            self.hidden_commands.append(command_name)
+
+        # Step 2: Disable functionality
+        def disabled_command(_self, _):
+            _self.perror(f"The '{command_name}' command is disabled in this shell.")
+
+        setattr(self, f'do_{command_name}', disabled_command)
+
+        # Optionally disable help and completer too
+        setattr(self, f'help_{command_name}', lambda _self: None)
+        setattr(self, f'complete_{command_name}', lambda *_: [])
+
+    def _add_auto_commands(self):
+        """
+        Dynamically adds AutoForge command methods to the Prompt instance based on
         the registered commands from the loader. Each command is dispatched
         via the loader's `execute()` method using its registered name.
         """
@@ -231,11 +261,6 @@ class Prompt(cmd2.Cmd):
             f"{git_branch} {Fore.YELLOW}{arrow}{Style.RESET_ALL} "
         )
 
-    def _add_aliases(self):
-        """Define shell-style command aliases."""
-        self.aliases['ll'] = 'ls -la'
-        self.aliases['..'] = 'cd ..'
-
     @staticmethod
     def get_instance() -> "Prompt":
         """
@@ -244,6 +269,18 @@ class Prompt(cmd2.Cmd):
             Prompt: The global stored class instance.
         """
         return Prompt._instance
+
+    def alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
+        """
+        Add or delete an alias.
+        Args:
+            alias_name (str): The alias name.
+            alias_definition (Optional[str]): The alias definition; if None, the alias will be deleted.
+        """
+        if alias_definition is None:
+            self.aliases.pop(alias_name, None)  # delete safely if exists
+        else:
+            self.aliases[alias_name] = alias_definition
 
     def complete(self, text: str, state: int,
                  custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[str]:
@@ -309,8 +346,38 @@ class Prompt(cmd2.Cmd):
                 use_pty=True,
                 expected_return_code=None
             )
-        except Exception as e:
-            self.perror(f"ls: {e}")
+        except Exception as exception:
+            self.perror(f"ls: {exception}")
+
+    def do_help(self, arg) -> None:
+        """
+        Fancy custom help using rich — replaces cmd2's default help screen.
+        """
+        if arg:
+            # noinspection PyArgumentList
+            return super().do_help(arg)
+
+        console = Console()
+
+        # Build a table of commands
+        table = Table(box=box.ROUNDED, highlight=True, expand=False)
+        table.add_column("Command", style="bold green", no_wrap=True)
+        table.add_column("Description", style="dim", overflow="fold")
+
+        commands = sorted(self.get_all_commands())
+        for cmd in commands:
+            if cmd in self.hidden_commands:
+                continue
+            method = getattr(self, f'do_{cmd}', None)
+            doc = method.__doc__.strip().splitlines()[0] if method and method.__doc__ else ""
+            table.add_row(cmd, doc)
+
+        # Wrap in a nice panel
+        panel = Panel.fit(table, title="🛠  Available Commands", border_style="cyan")
+
+        # Show everything
+        console.print("\n", panel, "\n")  # Adds newlines before and after
+        return None
 
     def default(self, statement: Any) -> None:
         """

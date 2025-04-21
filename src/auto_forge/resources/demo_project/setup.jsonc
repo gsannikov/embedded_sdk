@@ -111,7 +111,7 @@
 		},
 		{
 			"description": "Initializing workspace path",
-			"method": "set_workspace",
+			"method": "initialize_workspace",
 			"arguments": {
 				"delete_existing": false,
 				"must_be_empty": true,

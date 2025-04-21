@@ -34,11 +34,6 @@ class _RelocateDefaults:
 
         Args:
             defaults_config (Dict[str, Any]): A dictionary containing configuration settings.
-        Raises:
-            TypeError: If the input is not a dictionary.
-            ValueError: If essential paths are not defined or file_types is not a list.
-            FileNotFoundError: If the base source path does not exist.
-            RuntimeError: For other initialization errors.
         """
 
         if not isinstance(defaults_config, dict):
@@ -88,8 +83,6 @@ class _RelocatedFolder:
             defaults (_RelocateDefaults): An instance of RelocateDefaults providing default settings.
             folder_config (Dict[str, Any]): A dictionary containing the configuration for a specific folder,
                                             which may override the defaults.
-        Raises:
-            KeyError: If essential keys like 'source' or 'destination' are missing from the combined configuration.
         """
         # Use defaults if keys are not specified in folder_config
         self.description: Optional[str] = folder_config.get('description', None)

@@ -19,7 +19,9 @@ classifiers = [
 ]
 requires-python = ">=3.9"  # Requires Python 3.9 or later
 dependencies = [
+    "wheel",
     "colorama",
+    "rich",
     "tabulate",
     "psutil",
     "toml",

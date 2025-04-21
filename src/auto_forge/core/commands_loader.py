@@ -276,6 +276,7 @@ class CommandsLoader:
         """
 
         self._command_output = None  # Invalidate last command output
+        self._logger.debug(f"Executing AutoForge command: '{command}'")
 
         command_record = self._get_command_record_by_name(command.strip())
         if command_record is None:

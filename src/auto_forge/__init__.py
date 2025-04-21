@@ -30,7 +30,6 @@ from auto_forge.core.commands_loader import (CommandsLoader, CommandSummary)
 from auto_forge.core.signatures import (Signatures, SignatureFileHandler, Signature,
                                                SignatureField, SignatureSchema)
 from auto_forge.core.solution import Solution
-from auto_forge.core.west_world import WestWorld
 from auto_forge.core.prompt import Prompt
 
 # AutoForg main
