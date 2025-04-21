@@ -64,11 +64,19 @@ class CommandType(Enum):
 
 
 class Environment:
+    """
+    a class that serves as an environment related operation swissknife.
+    Args:
+        workspace_path(Optional[str]): The workspace path.
+        parent (Any, optional): Our parent AutoForge class instance.
+        automated_mode(bool): Specify if we're running in automation mode
+    """
+
     _instance = None
     _is_initialized = False
 
     def __new__(cls, workspace_path: Optional[str] = None, parent: Optional[Any] = None,
-                automated_mode: Optional[bool] = False) -> None:
+                automated_mode: Optional[bool] = False):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -82,18 +90,14 @@ class Environment:
     def __init__(self, workspace_path: Optional[str] = None, parent: Optional[Any] = None,
                  automated_mode: Optional[bool] = False) -> None:
         """
-        Initialize the environment class.
-        Collect few basic system properties and prepare for execution a step file.
-        Args:
-            workspace_path(Optional[str]): The workspace path.
-            parent (Any, optional): Our parent AutoForge class instance.
-            automated_mode(bool): Specify if we're running in automation mode
+        Initialize the 'Environment' class, collect few basic system properties
+        and prepare for execution a 'steps' file.
         """
 
         if not self._is_initialized:
 
             if parent is None:
-                raise RuntimeError("AutoForge 'parent' instance must be specified")
+                raise RuntimeError("AutoForge instance must be specified when initializing core module")
             self._autoforge = parent  # Store parent' AutoForge' class instance.
 
             # Create a logger instance
@@ -106,7 +110,7 @@ class Environment:
             self._steps_data: Optional[List[str, Any]] = None  # Stores the steps parsed JSON dictionary
             self._automated_mode: bool = automated_mode  # Default execution mode
             self._tracker: Optional[ProgressTracker] = None
-            self._toolbox: Optional[ToolBox] = ToolBox()
+            self._toolbox: ToolBox = ToolBox.get_instance()
 
             # The following are defaults used when printing user friendly terminal status
             self._status_title_length: int = 80

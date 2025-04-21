@@ -13,13 +13,19 @@ import re
 from typing import Optional, Any, Dict
 
 # AutoForge local imports
-from auto_forge import AutoLogger
+from auto_forge import (AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
 
 
 class Processor:
+    """
+    JSON pre-processing dedicated class.
+    Args:
+        parent (Any, optional): Our parent AutoForge class instance.
+    """
+
     _instance = None
     _is_initialized = False
 
@@ -37,17 +43,16 @@ class Processor:
     def __init__(self, parent: Optional[Any] = None):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
-        Args:
-            parent (Any, optional): Our parent AutoForge class instance.
         """
         if not self._is_initialized:
             try:
                 if parent is None:
-                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
                 self._autoforge = parent  # Store parent' AutoForge' class instance.
 
                 # Create a logger instance
                 self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+                self._toolbox = ToolBox.get_instance()
                 self._is_initialized = True
 
             # Propagate exceptions
@@ -154,15 +159,17 @@ class Processor:
         clean_json: Optional[str] = None
 
         try:
-            # Preform expansion as needed
-            expanded_file = os.path.expanduser(os.path.expandvars(file_name))
-            file_name = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
+
+            # Expand and normalize
+            config_file = self._toolbox.get_expanded_path(path=file_name)
+            if not os.path.exists(config_file):
+                raise FileNotFoundError(f"JSONC file '{config_file}' does not exist.")
 
             # Load the file as text
-            with open(file_name, "r") as text_file:
+            with open(config_file, "r") as text_file:
                 json_with_comments = text_file.read()
 
-            # Remove comments
+            # Perform comments cleanup
             clean_json = self._strip_comments(json_with_comments)
 
             # Load and return as JSON dictionary

@@ -35,14 +35,18 @@ AUTO_FORGE_MODULE_DESCRIPTION = "General Purpose Support Routines"
 
 
 class ToolBox:
+    """
+    General purpose toolbox class.
+    Args:
+        parent (Any, optional): Our parent class instance.
+    """
+
     _instance = None
     _is_initialized = False
 
     def __new__(cls, parent: Optional[Any] = None):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
-        Args:
-            parent (Any, optional): The parent context or object for this queue.
         Returns:
             ToolBox: The singleton instance of this class.
         """
@@ -51,11 +55,9 @@ class ToolBox:
 
         return cls._instance
 
-    def __init__(self, parent: Optional[Any] = None):
+    def __init__(self, parent: Optional[Any] = None) -> None:
         """
-        Initialize the class; actual initialization logic is handled in __new__.
-        Args:
-            parent (Any, optional): Our parent class instance.
+        Initialize the 'ToolBox' class.
         """
         if not self._is_initialized:
             try:
@@ -71,6 +73,15 @@ class ToolBox:
             # Propagate exception
             except Exception:
                 raise
+
+    @staticmethod
+    def get_instance() -> "ToolBox":
+        """
+        Returns the singleton instance of this class.
+        Returns:
+            ToolBox: The global stored class instance.
+        """
+        return ToolBox._instance
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):

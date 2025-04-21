@@ -25,30 +25,61 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
 
 
 class _TeeStream:
+    """
+    A simple output stream duplicator that writes data to multiple target streams.
+    """
+
     def __init__(self, *targets: TextIO):
+        """
+        Initialize the _TeeStream with one or more target streams.
+        Args:
+            *targets (TextIO): Output streams to write to (e.g., sys.stdout, StringIO).
+        """
         self._targets = targets
 
     def write(self, data: str) -> int:
+        """
+        Write data to all registered target streams.
+        Args:
+            data (str): The string data to write.
+        Returns:
+            int: The number of characters written (equal to len(data)).
+        """
         for target in self._targets:
             target.write(data)
         return len(data)
 
     def flush(self) -> None:
+        """
+        Flush all target streams that support flushing.
+        """
         for target in self._targets:
             if hasattr(target, "flush"):
                 target.flush()
 
 
 class CommandSummary(NamedTuple):
+    """
+    Represents a minimal summary of a registered command.
+
+    Attributes:
+        name (str): The name of the command.
+        description (str): A brief description of what the command does.
+    """
     name: str
     description: str
 
 
 class CommandsLoader:
+    """
+    The command loader class provides support for dynamically searching and loading commands.
+    Args:
+        parent (Any, optional): Our parent AutoForge class instance.
+    """
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, parent: Optional[Any] = None) -> None:
+    def __new__(cls, parent: Optional[Any] = None):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -59,18 +90,16 @@ class CommandsLoader:
 
         return cls._instance
 
-    def __init__(self, parent: Optional[Any] = None):
+    def __init__(self, parent: Optional[Any] = None) -> None:
         """
-        Initializes the command loader and prepares the command registry.
-        Args:
-            parent (Any, optional): Our parent AutoForge class instance.
+        Initializes the 'CommandsLoader' class and prepares the command registry.
         """
 
         if not self._is_initialized:
             try:
 
                 if parent is None:
-                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
                 self._autoforge = parent  # Store parent' AutoForge' class instance.
 
                 # Get a logger instance

@@ -25,7 +25,7 @@ from types import ModuleType
 from typing import Any, Optional
 from typing import NamedTuple
 
-from auto_forge import ToolBox
+from auto_forge import (ToolBox)
 
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):

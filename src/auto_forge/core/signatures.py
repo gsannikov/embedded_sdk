@@ -30,59 +30,82 @@ class Signatures:
     """
     Signatures is the root class which ties all the Auxilery classes to provide a functional
     interface around signatures.
+
+    Args:
+        signatures_config_file_name (str): The path to the JSON file containing the signature descriptors.
+        parent (Any, optional): Our parent AutoForge class instance.
     """
 
-    def __init__(self, descriptor_file: str, signature_id: int = 42):
+    _instance = None
+    _is_initialized = False
+
+    def __new__(cls, signatures_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+        """
+        Basic class initialization in a singleton mode
+        """
+
+        if cls._instance is None:
+            cls._instance = super(Signatures, cls).__new__(cls)
+
+        return cls._instance
+
+    def __init__(self, signatures_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
         """
         Initializes the SignaturesLib class by loading a signature schema from a JSON descriptor file.
         This initialization searches for the specific signature with the given ID and constructs
         a Python format string based on the signature's schema. This format string is crucial
         for creating, reading, and modifying signatures in binary files.
-
-        Args:
-            descriptor_file (str): The path to the JSON file containing the signature descriptors.
-            signature_id (int): The ID of the signature to be loaded and processed.
         """
 
-        self._json_descriptor_file: Optional[str] = None
-        self._signature_id: Optional[int] = None
-        self._raw_dictionary: Optional[Dict[str, Any]] = {}
-        self._schemas: List[SignatureSchema] = []
-        self._processor: Processor = Processor()
-        self._variables: Optional[Variables] = Variables()
-        self._initialized = False
-
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        if self._is_initialized:
+            return  # Module already initialized
 
         try:
+            self._config_file_name: Optional[str] = None
+            self._signature_id: Optional[int] = 42
+            self._raw_dictionary: Optional[Dict[str, Any]] = {}
+            self._schemas: List[SignatureSchema] = []
+            self._processor: Processor = Processor.get_instance()
+            self._variables: Optional[Variables] = Variables.get_instance()
+            self._initialized = False
+
+            # Get a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+
+            if parent is None:
+                raise RuntimeError("AutoForge instance must be specified when initializing core module")
+            self._autoforge = parent  # Store parent' AutoForge' class instance.
+
+            if not signatures_config_file_name:
+                raise RuntimeError("signatures configuration file not specified")
 
             # Preform expansion as needed
-            expanded_file = os.path.expanduser(os.path.expandvars(descriptor_file))
-            self._json_descriptor_file = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
+            expanded_file = os.path.expanduser(os.path.expandvars(signatures_config_file_name))
+            self._config_file_name = os.path.abspath(
+                expanded_file)  # Resolve relative paths to absolute paths
 
-            signatures = self._processor.preprocess(file_name=descriptor_file).get("signatures", None)
+            signatures = self._processor.preprocess(file_name=signatures_config_file_name).get("signatures", None)
             if signatures is None or not isinstance(signatures, (list, dict)):
-                raise RuntimeError(f"no signatures found in '{descriptor_file}'")
+                raise RuntimeError(f"no signatures found in '{signatures_config_file_name}'")
 
             # Locate the signature matching the id
             for signature in signatures:
-                if signature.get("id", None) == signature_id:
+                if signature.get("id", None) == self._signature_id:
                     # Populate the class members once we've located the correct signature dictionary
                     self._raw_dictionary = signature
-                    self._signature_id = self._to_decimal(signature_id)
-                    self._json_descriptor = descriptor_file
+                    self._signature_id = self._to_decimal(self._signature_id)
+                    self._json_descriptor = signatures_config_file_name
                     break
 
             if self._raw_dictionary is None:
-                raise RuntimeError(f"no signatures with id {signature_id} found in {descriptor_file}")
+                raise RuntimeError(f"no signatures with id {self._signature_id} found in {signatures_config_file_name}")
 
             # Load all schemas and create
             schemas = self._raw_dictionary.get("schemas")
             if schemas is None:
-                raise RuntimeError(f"schemas not found in {descriptor_file}")
+                raise RuntimeError(f"schemas not found in {signatures_config_file_name}")
 
-            self._logger.debug(f"Initialized using '{os.path.basename(self._json_descriptor_file)}'")
+            self._logger.debug(f"Initialized using '{os.path.basename(self._config_file_name)}'")
             for raw_schema in schemas:
                 schema: SignatureSchema = SignatureSchema()  # Create new instance
                 schema.dictionary = raw_schema
@@ -102,7 +125,7 @@ class Signatures:
                 if any(value in (None, 0) for value in
                        {schema.name, schema.header, schema.footer, schema.size, header_field_size, footer_field_size}):
                     raise RuntimeError(f"essential schema fields (header, footer, size) are missing or "
-                                       f"incorrectly set from {descriptor_file}")
+                                       f"incorrectly set from {signatures_config_file_name}")
 
                 # Convert the header,and footer and header to their binary format and create binary regex patterns
                 # First get the expected bytes count between the known markers
@@ -134,10 +157,20 @@ class Signatures:
 
                 self._schemas.append(schema)
 
-            self._initialized = True
+            self._is_initialized = True
 
-        except Exception as exception:
-            raise RuntimeError(exception) from exception
+        # Propagate exceptions
+        except Exception:
+            raise
+
+    @staticmethod
+    def get_instance() -> "Signatures":
+        """
+        Returns the singleton instance of this class.
+        Returns:
+            Signatures: The global stored class instance.
+        """
+        return Signatures._instance
 
     def deserialize(self, file_name: str) -> Optional["SignatureFileHandler"]:
         """

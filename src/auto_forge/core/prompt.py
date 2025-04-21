@@ -33,11 +33,17 @@ class Prompt(cmd2.Cmd):
 
     Provides dynamic prompt updates, path-aware tab completion,
     and passthrough execution of unknown commands via the system shell.
+
+    Args:
+    prompt (Optional[str]): Optional custom base prompt string.
+        If not specified, the lowercase project name ('autoforge') will be used
+        as the base prefix for the dynamic prompt.
+    parent (Any, optional): Our parent AutoForge class instance.e.
     """
     _instance = None
     _is_initialized = False
 
-    def __new__(cls, prompt: Optional[str] = None, parent: Optional[Any] = None) -> None:
+    def __new__(cls, prompt: Optional[str] = None, parent: Optional[Any] = None):
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -50,19 +56,13 @@ class Prompt(cmd2.Cmd):
 
     def __init__(self, prompt: Optional[str] = None, parent: Optional[Any] = None) -> None:
         """
-        Initialize the PromptEngine and its underlying cmd2 components.
-
-        Args:
-            prompt (Optional[str]): Optional custom base prompt string.
-                If not specified, the lowercase project name ('autoforge') will be used
-                as the base prefix for the dynamic prompt.
-            parent (Any, optional): Our parent AutoForge class instance.e.
+        Initialize the 'Prompt' class and its underlying cmd2 components.
         """
 
         if not self._is_initialized:
             try:
                 if parent is None:
-                    raise RuntimeError("AutoForge 'parent' instance must be specified")
+                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
                 self._autoforge = parent  # Store parent' AutoForge' class instance.
 
                 self._environment: Environment = Environment.get_instance()

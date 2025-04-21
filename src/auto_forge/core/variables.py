@@ -38,11 +38,20 @@ class Variable:
 
 
 class Variables:
+    """
+    Manages a collection of variables derived from a JSON dictionary and provides
+    functionality to manipulate these variables efficiently. The class supports operations such
+    as adding, removing, and updating variables, ensuring data integrity and providing thread-safe access.
+
+    Args:
+        variables_config_file_name (Optional[str], optional): Configuration JSON file name.
+        parent (Any, optional): Our parent AutoForge class instance.
+    """
     _instance = None
     _is_initialized = False
     _lock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+    def __new__(cls, variables_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
         """
         Basic class initialization in a singleton mode
         """
@@ -52,15 +61,9 @@ class Variables:
 
         return cls._instance
 
-    def __init__(self, config_file_name: Optional[str] = None, parent: Optional[Any] = None):
+    def __init__(self, variables_config_file_name: Optional[str] = None, parent: Optional[Any] = None):
         """
-        Manages a collection of configuration variables derived from a JSON dictionary and provides
-        functionality to manipulate these variables efficiently. The class supports operations such
-        as adding, removing, and updating variables, ensuring data integrity and providing thread-safe access.
-
-        Args:
-            config_file_name (Optional[str], optional): Configuration JSON file name.
-            parent (Any, optional): Our parent AutoForge class instance.
+        Initialize the 'Variables' class using a configuration JSON file.
         """
 
         if not self._is_initialized:
@@ -73,7 +76,7 @@ class Variables:
                 # Get a logger instance
                 self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
-                self._config_file_name: Optional[str] = config_file_name
+                self._config_file_name: Optional[str] = variables_config_file_name
                 self._base_config_file_name: Optional[str] = None
                 self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
                 self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
@@ -92,9 +95,9 @@ class Variables:
 
                 # Build variables list
                 if self._config_file_name is not None:
-                    self._load_from_file(config_file_name=config_file_name, rebuild=True)
+                    self._load_from_file(config_file_name=variables_config_file_name, rebuild=True)
                 else:
-                    raise ValueError("configuration file was not specified")
+                    raise RuntimeError("variables configuration file not specified")
 
                 self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
                 self._is_initialized = True

@@ -33,7 +33,7 @@ class SigToolCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._toolbox = ToolBox()  # AutoForge swissknife handy class
+        self._toolbox = ToolBox.get_instance()  # AutoForge swissknife handy class
 
         self._sig_tool: Optional[Signatures] = None
         self._descriptor_file: Optional[str] = None
@@ -89,7 +89,7 @@ class SigToolCommand(CLICommandInterface):
             self._git_commit_hash = self._git_commit.hexsha
 
             # Create Signatures instance using the provided schema and the signature id.
-            self._sig_tool = Signatures(descriptor_file=self._descriptor_file,
+            self._sig_tool = Signatures(signatures_config_file_name=self._descriptor_file,
                                         signature_id=self._signature_id)
 
             return True

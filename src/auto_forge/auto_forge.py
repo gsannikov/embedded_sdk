@@ -22,13 +22,22 @@ from colorama import Fore, Style
 from auto_forge import (Processor, ToolBox, Variables, Solution, Environment, CommandsLoader,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, AutoHandlers)
 
+
 class AutoForge:
+    """
+    The AutoForge class serves as the core of the AutoForge system.
+    Args:
+        workspace_path (str, Optional): Path to the workspace folder.
+        automated_mode (bool): Set to run in automated mode (CI).
+    """
     _instance = None
     _is_initialized = False
 
     def __new__(cls, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
-        Basic class initialization in a singleton mode
+        Create a new instance if one doesn't exist, or return the existing instance.
+        Returns:
+            Environment: The singleton instance of this class.
         """
 
         if cls._instance is None:
@@ -38,10 +47,7 @@ class AutoForge:
 
     def __init__(self, workspace_path: Optional[str] = None, automated_mode: bool = False):
         """
-        Initializes AutoForge main class.
-        Args:
-            workspace_path (str, Optional): Path to the workspace folder.
-            automated_mode (bool): Set to run in automated mode (CI).
+        # Initializes core modules and prepares the workspace, either by creating a new one or using an existing setup.
         """
 
         if not self._is_initialized:
@@ -52,6 +58,7 @@ class AutoForge:
                 self._solution_file: Optional[str] = None
                 self._solution_name: Optional[str] = None
                 self._solution: Optional[Solution] = None
+                self._variables: Optional[Variables] = None
 
                 # Initializes the logger
                 self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
@@ -63,23 +70,22 @@ class AutoForge:
                 self._logger: logging.Logger = self._auto_logger.get_logger()
                 self._logger.debug("Initializing...")
 
+                # Initialize core modules
                 self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
                 self._processor: Optional[Processor] = Processor(parent=self)
-
-                # Probe for commands and load them
                 self._commands: Optional[CommandsLoader] = CommandsLoader(parent=self)
-                self._environment: Environment = Environment(workspace_path=workspace_path,
-                                                             automated_mode=automated_mode,
-                                                             parent=self)
-
-                self._variables: Optional[Variables] = None
+                self._environment: Environment = Environment(parent=self,
+                                                             workspace_path=workspace_path,
+                                                             automated_mode=automated_mode)
                 self._prompt = Prompt(parent=self)
 
+                # Essential core modules instantiated, other modules will loaded aas needed.
                 self._toolbox.print_logo(clear_screen=True)  # Show logo
                 self._is_initialized = True  # Done initializing
 
+            # Propagate exceptions
             except Exception:
-                raise  # Propagate
+                raise
 
     @staticmethod
     def get_instance() -> "AutoForge":
@@ -95,7 +101,7 @@ class AutoForge:
         """
         Returns the logger instance of the AutoForge class.
         Returns:
-            Logger: q logger instance.
+            Logger: the AutoForge dedicated logger instance.
         """
         return AutoForge.get_instance()._logger
 
@@ -128,8 +134,8 @@ class AutoForge:
             workspace_path = Environment.get_workspace_path()
             self._logger.debug(f"Workspace path: {workspace_path}")
 
-            self._solution = Solution(solution_config_file_name=solution_file)
-            self._variables = Variables()  # Get an instanced of the singleton variables class
+            self._solution = Solution(solution_config_file_name=solution_file, parent=self)
+            self._variables = Variables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
             self._solution_name = self._solution.get_primary_solution_name()
