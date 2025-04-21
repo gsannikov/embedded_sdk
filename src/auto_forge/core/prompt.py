@@ -98,7 +98,7 @@ class Prompt(cmd2.Cmd):
                 super().__init__()
 
                 # Remove unnecessary built-in commands
-                for cmd in ['macro', 'run_script', 'alias', 'edit', 'run_script']:
+                for cmd in ['macro', 'edit', 'run_script']:
                     self._remove_command(cmd)
 
                 # Assign path_complete to the complete_cd and complete_ls methods
@@ -106,9 +106,13 @@ class Prompt(cmd2.Cmd):
                 self.complete_ls = self.path_complete
 
                 # Add several basic aliases
-                self.alias(alias_name='ll', alias_definition='ls -la')
-                self.alias(alias_name='..', alias_definition='cd ..')
-                self.alias(alias_name='exit', alias_definition='quit')
+                self.set_alias('ll', 'ls -la')
+                self.set_alias('..', 'cd ..')
+                self.set_alias('exit', 'quit')
+                self.set_alias('gs', 'git status')
+                self.set_alias('ga', 'git add .')
+                self.set_alias('gc', 'git commit -m')
+                self.set_alias('gp', 'git push')
 
                 self._update_prompt()
 
@@ -270,7 +274,7 @@ class Prompt(cmd2.Cmd):
         """
         return Prompt._instance
 
-    def alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
+    def set_alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
         """
         Add or delete an alias.
         Args:
@@ -388,13 +392,15 @@ class Prompt(cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
 
         """
-        command = statement.raw if hasattr(statement, 'raw') else statement
+
+        command = statement.command + " " + statement.args if hasattr(statement, 'args') else str(statement)
         parts = self._split_command_line(command.strip())
 
         if not parts:
             return  # Nothing to execute
 
         cmd, args = parts
+
         try:
             self._environment.execute_shell_command(
                 command=cmd,
