@@ -15,6 +15,7 @@ import os
 import sys
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
+from typing import List, NamedTuple
 from typing import Optional, Any, Dict, TextIO, cast
 
 from auto_forge import (PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo, AutoLogger)
@@ -23,9 +24,8 @@ AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
 
 
-class TeeStream(io.StringIO):  # Yes, inherit from StringIO directly
+class _TeeStream:
     def __init__(self, *targets: TextIO):
-        super().__init__()
         self._targets = targets
 
     def write(self, data: str) -> int:
@@ -37,6 +37,11 @@ class TeeStream(io.StringIO):  # Yes, inherit from StringIO directly
         for target in self._targets:
             if hasattr(target, "flush"):
                 target.flush()
+
+
+class CommandSummary(NamedTuple):
+    name: str
+    description: str
 
 
 class CommandsLoader:
@@ -62,7 +67,6 @@ class CommandsLoader:
     def _get_command_record_by_name(self, command_name: str) -> Optional[Dict[str, Any]]:
         """
         Retrieves a command record from the registry by its registered name.
-
         Args:
             command_name (str): The exact name of the command.
 
@@ -78,7 +82,6 @@ class CommandsLoader:
     def _find_command_record(self, value: str, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Searches the command registry for a record matching the given value.
-
         Args:
             value (str): The value to search for.
             key (Optional[str]): Specific key to search within each command record.
@@ -140,7 +143,7 @@ class CommandsLoader:
                     continue
 
                 command_instance = command_class()
-                command_info: CLICommandInfo = command_instance.get_info()
+                command_info: CLICommandInfo = command_instance.get_info(module=module)
 
                 if not command_info:
                     raise RuntimeError(f"module '{module_name}' did not return valid command info")
@@ -160,6 +163,7 @@ class CommandsLoader:
                     "class_alias": str(command_info.class_name).lower()
                 }
 
+                sys.modules[spec.name] = module
                 self._loaded_commands += 1
                 self._logger.debug(f"Command '{command_info.name}' v{command_info.version} loaded")
 
@@ -171,7 +175,21 @@ class CommandsLoader:
 
         return self._loaded_commands
 
+    def get_commands(self) -> List[CommandSummary]:
+        """
+        Returns a list of command summaries (name and description only),
+        omitting all other internal or non-serializable details.
+        """
+        return [
+            CommandSummary(name, meta.get("command_description", ""))
+            for name, meta in self._commands_registry.items()
+        ]
+
     def get_last_output(self) -> Optional[str]:
+        """
+        Returns the last executed command output.
+        Handy when a command is being executed silenced where later we need to observe its output.
+        """
         return self._command_output
 
     def execute(self, command: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[int]:
@@ -201,8 +219,7 @@ class CommandsLoader:
             raise RuntimeError(f"command '{command}' does not implement the expected 'CLICommandInterface'")
 
         buffer = io.StringIO()
-        # Set the stream based on the suppress flag
-        output_stream = buffer if suppress_output else TeeStream(sys.stdout, buffer)
+        output_stream = buffer if suppress_output else _TeeStream(sys.stdout, buffer)
 
         with redirect_stdout(output_stream), redirect_stderr(output_stream):
             result = command_instance.execute(flat_args=arguments)

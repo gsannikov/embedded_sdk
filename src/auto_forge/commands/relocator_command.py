@@ -13,7 +13,6 @@ import argparse
 import logging
 import os
 import shutil
-import sys
 from typing import Optional, Any, Dict, List
 
 # AutoForge imports
@@ -283,31 +282,22 @@ class RelocatorCommand(CLICommandInterface):
         Args:
             parser (argparse.ArgumentParser): The parser to extend.
         """
-        parser.add_argument("-r", "--recipe", type=str, required=True, help="Path to a relocator JSON recipe file.")
-        parser.add_argument("-v", "--version", action="store_true", help="Show this command version and exit.")
+        parser.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
         Executes the command based on parsed arguments.
         Args:
             args (argparse.Namespace): The parsed CLI arguments.
-
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
         return_value: int = 0
 
         # Handle arguments
-        if args.version:
-            print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
-
-        elif args.recipe:
+        if args.recipe:
             self._relocate(recipe_file=args.recipe)
-
         else:
-            # No arguments provided, show command usage
-            sys.stdout.write("No arguments provided.\n")
-            self._parser.print_usage()
-            return_value = 1
+            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

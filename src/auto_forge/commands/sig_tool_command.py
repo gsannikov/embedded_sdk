@@ -4,11 +4,12 @@ Author:         AutoForge Team
 
 Description:
     AutoForge command for binary signing operations, leveraging the internal `Signatures` class for implementation.
+    Supports signing, padding (expansion), CRC insertion, Git property embedding, and additional related features.
+
 """
 
 import argparse
 import os
-import sys
 from pathlib import Path
 from typing import Optional, Any
 
@@ -257,34 +258,24 @@ class SigToolCommand(CLICommandInterface):
                             help="Signature Id to use")
         parser.add_argument('-d', '--descriptor_file', required=True,
                             help="The path to the signature descriptor file")
-        parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
-        parser.add_argument("-ver", "--version", action="store_true", help="Only show binary version")
 
     def run(self, args: argparse.Namespace) -> int:
         """
         Executes the command based on parsed arguments.
         Args:
             args (argparse.Namespace): The parsed CLI arguments.
-
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
-
-        return_value: int = 0
 
         # Create a signature tool instance if we don't have it
         if self._sig_tool is None:
             self._create_sig_tool(descriptor_file=args.descriptor_file,
                                   signature_id=args.signature_id, git_repo_path=args.git_path)
-        # Handle arguments
-        if args.version:
-            print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
-        elif args.update_crc:
+
+        if args.update_crc:
             return_value = self._update_crc(source_binary_file=args.path, validate_only=False, pad_to_size=args.grow)
         else:
-            # No arguments provided, show command usage
-            sys.stdout.write("No arguments provided.\n")
-            self._parser.print_usage()
-            return_value = 1
+            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

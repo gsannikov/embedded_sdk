@@ -22,7 +22,7 @@ from auto_forge.common.toolbox import ToolBox
 from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface, CLICommandInfo)
 
 # Core / common modules
-from auto_forge.core.commands_loader import CommandsLoader
+from auto_forge.core.commands_loader import (CommandsLoader, CommandSummary)
 from auto_forge.common.progress_tracker import ProgressTracker
 from auto_forge.core.processor import Processor
 from auto_forge.core.variables import Variables

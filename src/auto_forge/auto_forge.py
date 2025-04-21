@@ -73,7 +73,8 @@ class AutoForge:
                 self.commands: Optional[CommandsLoader] = CommandsLoader()  # Probe for commands and load them
                 self.tools: Environment = Environment(workspace_path=self._workspace_path,
                                                       automated_mode=automated_mode)
-                self.prompt = Prompt()
+
+                self.prompt = Prompt(commands_loader=self.commands)
 
                 self._toolbox.print_logo(clear_screen=True)  # Show logo
                 self._is_initialized = True  # Done initializing
@@ -135,8 +136,7 @@ class AutoForge:
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
             # Enter build system prompt loop
-            self.prompt.cmdloop()
-            return 0
+            return self.prompt.cmdloop()
 
         # Propagate
         except Exception as solution_exception:

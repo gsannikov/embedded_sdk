@@ -3,12 +3,11 @@ Script:         zephyr_sdk_command.py
 Author:         AutoForge Team
 
 Description:
-    ThAutoForge command which attempts to locate a Zephyr SDK installation by scanning
-    the CMake user package registry and provides access to the SDK path and version if found
+    AutoForge command which attempts to locate a Zephyr SDK installation by scanning
+    the CMake user package registry and provides access to the SDK path and version if found.
 """
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Optional, Any, cast
 
@@ -113,14 +112,12 @@ class ZephyrSDKCommand(CLICommandInterface):
                             help='Prints the detected Zephyrs SDK installation path.')
         parser.add_argument('-z', '--get_zephyr_version', action='store_true',
                             help='Prints the detected Zephyrs SDK version.')
-        parser.add_argument("-v", "--version", action="store_true", help="Show this command version and exit.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
         Executes the command based on parsed arguments.
         Args:
             args (argparse.Namespace): The parsed CLI arguments.
-
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
@@ -132,16 +129,11 @@ class ZephyrSDKCommand(CLICommandInterface):
             return 1
 
         # Handle arguments
-        elif args.version:
-            print(f"{AUTO_FORGE_COMMAND_NAME} version {AUTO_FORGE_COMMAND_VERSION}")
-        elif args.get_zephyr_path:
+        if args.get_zephyr_path:
             print(self._path)
         elif args.get_zephyr_version:
             print(self._version)
         else:
-            # No arguments provided, show command usage
-            sys.stdout.write("No arguments provided.\n")
-            self._parser.print_usage()
-            return_value = 1
+            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

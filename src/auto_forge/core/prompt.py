@@ -13,6 +13,7 @@ import shlex
 import subprocess
 import sys
 from contextlib import suppress
+from types import MethodType
 from typing import Any, Optional, Dict
 
 import cmd2
@@ -21,7 +22,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 import auto_forge
-from auto_forge import (Environment, CommandType, AutoLogger, PROJECT_NAME)
+from auto_forge import (Environment, CommandType, CommandsLoader, AutoLogger, PROJECT_NAME)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "SDK Prompt Manager"
@@ -35,7 +36,7 @@ class Prompt(cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def __init__(self, prompt: Optional[str] = None):
+    def __init__(self, prompt: Optional[str] = None, commands_loader: Optional[CommandsLoader] = None):
         """
         Initialize the PromptEngine and its underlying cmd2 components.
 
@@ -43,12 +44,15 @@ class Prompt(cmd2.Cmd):
             prompt (Optional[str]): Optional custom base prompt string.
                 If not specified, the lowercase project name ('autoforge') will be used
                 as the base prefix for the dynamic prompt.
+            commands_loader (Optional[CommandsLoader]): Optional a commands loader class instance.
         """
 
         self._auto_forge = auto_forge.auto_forge.AutoForge.get_instance()
         self._setup_tool: Environment = self._auto_forge.tools
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
         self._executable_db: Optional[Dict[str, str]] = None
+        self._commands_loader: Optional[CommandsLoader] = commands_loader
+        self._last_execution_return_code: Optional[int] = 0
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -56,6 +60,8 @@ class Prompt(cmd2.Cmd):
         # Clear command line buffer
         sys.argv = [sys.argv[0]]
         ansi.allow_ansi = True
+
+        self._add_commands()
 
         if self._setup_tool.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
                                                  command=self._build_executable_index,
@@ -81,22 +87,60 @@ class Prompt(cmd2.Cmd):
         str]:
         """
         Global tab completion handler. Adds shell-style binary name completion at the beginning of the line.
-        Complete unknown commands using preloaded system executable index.
+        Also completes dynamically loaded commands from the loader.
         """
-
         buffer = readline.get_line_buffer()
         tokens = buffer.strip().split()
 
-        # Only complete command name at the beginning of a line
         if len(tokens) <= 1 and buffer.strip().startswith(text):
+            # From your system executable db
             matches = [cmd for cmd in self._executable_db if cmd.startswith(text)]
-            matches.sort()
+
+            # Add dynamically registered commands
+            dynamic_commands = [cmd.name for cmd in self._commands_loader.get_commands()]
+            matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
+
+            # Deduplicate and sort
+            matches = sorted(set(matches))
             try:
                 return matches[state]
             except IndexError:
                 return None
 
+        # Delegate to cmd2's default behavior for args, flags, etc.
         return super().complete(text, state)
+
+    def _add_commands(self):
+        """
+        Dynamically adds command methods to the Prompt instance based on
+        the registered commands from the loader. Each command is dispatched
+        via the loader's `execute()` method using its registered name.
+        """
+        command_summaries = self._commands_loader.get_commands()
+
+        for cmd_summary in command_summaries:
+            cmd_name = cmd_summary.name
+            description = cmd_summary.description
+
+            # Define the function and attach a docstring BEFORE binding
+            def make_cmd(name, doc):
+                # noinspection PyShadowingNames
+                def dynamic_cmd(self, arg):
+                    try:
+                        result = self._commands_loader.execute(name, arg)
+                        self._last_execution_return_code = result
+                        return 0
+                    except Exception as e:
+                        self.perror(f"{e}")
+                        return 0
+
+                dynamic_cmd.__doc__ = doc
+                return dynamic_cmd
+
+            unbound_func = make_cmd(cmd_name, description)
+            method_name = f"do_{cmd_name}"
+            bound_method = MethodType(unbound_func, self)
+            setattr(self, method_name, bound_method)
 
     def _build_executable_index(self) -> None:
         """
@@ -198,15 +242,15 @@ class Prompt(cmd2.Cmd):
         self.aliases['ll'] = 'ls -la'
         self.aliases['..'] = 'cd ..'
 
-    def do_cd(self, args):
+    def do_cd(self, path:str):
         """
         Change the current working directory and update the CLI prompt accordingly.
         This method mimics the behavior of the shell `cd` command:
 
         Args:
-            args (str): The target directory path, relative or absolute. Shell-like expansions are supported.
+            path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
-        path = os.path.expanduser(args)
+        path = os.path.expanduser(path)
 
         try:
             if not os.path.exists(path):

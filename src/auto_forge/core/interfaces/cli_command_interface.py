@@ -18,10 +18,14 @@ Description:
 import argparse
 import io
 import shlex
+import sys
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from types import ModuleType
+from typing import Any, Optional
 from typing import NamedTuple
+
+from auto_forge import ToolBox
 
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
@@ -83,6 +87,9 @@ class CLICommandInterface(ABC):
     Each derived class must define its name, description, argument parser, and run logic.
     """
 
+    # Error constants
+    COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
+
     def __init__(self, name: str, description: str, version: str, raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
@@ -94,9 +101,10 @@ class CLICommandInterface(ABC):
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
-        self._parser: Optional[_CLICapturingArgumentParser] = None
+        # self._parser: Optional[_CLICapturingArgumentParser] = None
         self._last_error: Optional[str] = None
         self._raise_exceptions = raise_exceptions
+        self._toolbox: ToolBox = ToolBox()
 
         # Stores the command information in the class session
         self._command_info: CLICommandInfo = CLICommandInfo(name=name, description=description, version=version,
@@ -108,23 +116,6 @@ class CLICommandInterface(ABC):
 
         super().__init__()
 
-    def _extract_short_arg_map(self) -> Dict[str, str]:
-        """
-        Dynamically builds a mapping of short option flags (e.g. '-v') to their
-        corresponding argument destination names (e.g. 'verbose').
-
-        Returns:
-            Dict[str, str]: Mapping from single-letter short options to argparse dest names.
-        """
-        short_map = {}
-        for action in self._parser._actions:
-            if action.option_strings and len(action.option_strings) >= 2:
-                for opt in action.option_strings:
-                    if opt.startswith('-') and not opt.startswith('--'):
-                        short_flag = opt.lstrip('-')
-                        short_map[short_flag] = action.dest
-        return short_map
-
     def get_last_error(self) -> Optional[str]:
         """
         Returns the last recorded error message, if an error occurred during the previous execution.
@@ -133,15 +124,23 @@ class CLICommandInterface(ABC):
         """
         return self._last_error
 
-    def get_info(self) -> CLICommandInfo:
+    def get_info(self, module: Optional[ModuleType] = None) -> CLICommandInfo:
         """
         Retrievers information about the implemented command line tool.
         Note: Implementation class must call _set_info().
+        Args:
+            module (Optional[ModuleType]): This dynamically loaded implementation module
         Returns:
             CLICommandInfo: a named tuple containing the implemented command id
         """
         if self._command_info is None:
             raise RuntimeError('command info not initialized, make sure call set_info() first')
+
+        if module:
+            description = self._toolbox.get_module_description(module=module)
+            if isinstance(description, str):
+                description = f"{description}\n\nArgs:\n    Run '{self._command_info.name} --help' to see all available arguments."
+                self._command_info = self._command_info._replace(description=description.strip())
 
         return self._command_info
 
@@ -161,12 +160,14 @@ class CLICommandInterface(ABC):
         return_value: int = 1
 
         # Call the mandatory implementation create_parser() to create parser instance if it's not created
-        if self._parser is None:
-            self._parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
-                prog=self._command_info.name,
-                description=self._command_info.description
-            )
-            self.create_parser(self._parser)
+        parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
+            prog=self._command_info.name,
+            description=self._command_info.description
+        )
+        self.create_parser(parser)
+
+        # Make sure we always support version
+        parser.add_argument("-ver", "--version", action="store_true", help="Only show binary version")
 
         if flat_args is not None:
             args_list = shlex.split(flat_args.strip())
@@ -179,13 +180,23 @@ class CLICommandInterface(ABC):
                         args_list.append(cli_key)
                 else:
                     args_list.extend([cli_key, str(value)])
-
         try:
-            args = self._parser.parse_args(args_list)
-            return_value = self.run(args)
+            # Handle arguments special care for version output
+            if "-v" in args_list or "--version" in args_list:
+                print(f"AutoForge '{self._command_info.name}' version {self._command_info.version}")
+                return_value = 0
+            else:
+                args = parser.parse_args(args_list)
+                return_value = self.run(args)
+
+            # Auto print help when no arguments provided
+            if return_value == self.COMMAND_ERROR_NO_ARGUMENTS:
+                sys.stdout.write("\nNo arguments provided, ")
+                parser.print_help()
+
         except SystemExit:
             # Trap argparse attempt to exiot and return non-zero
-            self._last_error = self._parser.get_error_message()
+            self._last_error = parser.get_error_message()
         except Exception as execution_exception:  # Propagate any other error
             self._last_error = str(execution_exception).strip()
         finally:
@@ -196,6 +207,7 @@ class CLICommandInterface(ABC):
                 else:
                     print(self._last_error)
 
+            sys.stdout.flush()
             return return_value
 
     def initialize(self, **kwargs: Any) -> bool:
@@ -212,7 +224,6 @@ class CLICommandInterface(ABC):
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds command-specific arguments to the provided parser.
-
         Args:
             parser (argparse.ArgumentParser): Parser to populate with arguments.
         """
@@ -222,10 +233,8 @@ class CLICommandInterface(ABC):
     def run(self, args: argparse.Namespace) -> int:
         """
         Executes the actual logic of the command after parsing.
-
         Args:
             args (argparse.Namespace): Parsed arguments.
-
         Returns:
             int: 0 on success, non-zero on failure.
         """

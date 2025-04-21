@@ -13,8 +13,10 @@ import os
 import re
 import sys
 import tempfile
+import textwrap
 from contextlib import suppress
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Dict, Tuple, Type, Union, SupportsInt
 from typing import Optional
 from urllib.parse import urlparse, unquote
@@ -876,3 +878,52 @@ class ToolBox:
 
         print('\n')  # Final newlines
         return 0
+
+    @staticmethod
+    def get_module_description(module: Optional[ModuleType] = None) -> Optional[str]:
+        """
+        Returns the 'Description:' section of a module docstring, if present.
+        If no 'Description:' section exists, returns the full module docstring.
+        If no docstring exists, returns None.
+        Args:
+            module (Optional[ModuleType]): The module to extract the docstring from.
+                                           Defaults to the calling module.
+        Returns:
+            Optional[str]: The extracted description or full docstring.
+        """
+        if module is None:
+            module = sys.modules[__name__]
+
+        doc = module.__doc__
+        if not doc:
+            return None
+
+        # Normalize indentation
+        doc = textwrap.dedent(doc).strip()
+        # Match the Description section (including indented lines until next heading or EOF)
+        match = re.search(
+            r'^Description:\s*\n((?:\s{2,}.*\n?)+)',
+            doc,
+            re.IGNORECASE | re.MULTILINE
+        )
+
+        if match:
+            # Convert to a single clean line
+            description = match.group(1).strip()
+            # Replace all newline characters with a space
+            description = description.replace('\n', ' ').replace('\r', ' ')
+            # Collapse multiple spaces/tabs into a single space
+            description = re.sub(r'[ \t]+', ' ', description).strip()
+            # Add line break after each sentence-ending period
+            description = (re.sub(r'\. (?=[A-Z])', '.\n', description)).strip()
+
+            # Ensure it ends with a period
+            if not description.endswith('.'):
+                description += '.'
+
+            # Smart wrapping
+            description = textwrap.fill(description, width=80)
+
+            return description
+
+        return doc
