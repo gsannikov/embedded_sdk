@@ -37,23 +37,28 @@ class AutoForge:
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
-            Environment: The singleton instance of this class.
+            AutoForge: The singleton instance of this class.
         """
-
         if cls._instance is None:
             cls._instance = super(AutoForge, cls).__new__(cls)
 
         return cls._instance
 
-    def __init__(self, workspace_path: str = None, automated_mode: bool = False):
+    def __init__(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
         """
-        # Initializes core modules and prepares the workspace, either by creating a new one or using an existing setup.
+        Initialize the AutoForge core system and prepare the workspace environment.
+        Depending on the context, this may involve creating a new workspace or reusing
+        an existing one. Also configures the system for automated (CI) mode if enabled.
+
+        Args:
+            workspace_path (str): Absolute path to the workspace directory.
+            automated_mode (bool, optional): If True, enables CI-safe, non-interactive behavior.
         """
 
         if not self._is_initialized:
             try:
-                if not workspace_path:
-                    raise RuntimeError("'workspace_path' is required when initializing")
+                if not isinstance(workspace_path, str):
+                    raise RuntimeError("argument 'workspace' must be a string")
 
                 self._solution_file: Optional[str] = None
                 self._solution_name: Optional[str] = None
@@ -64,8 +69,8 @@ class AutoForge:
                 self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
                 self._auto_logger.set_log_file_name("auto_forge.log")
                 self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-                self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=True)
-                self._logger.debug("Initializing...")
+                self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=automated_mode)
+                self._logger.debug("AutoForge starting...")
 
                 # Initialize core modules
                 self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
