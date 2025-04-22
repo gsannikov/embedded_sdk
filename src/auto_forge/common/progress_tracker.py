@@ -29,6 +29,8 @@ from typing import Tuple
 
 from colorama import Fore, Style
 
+AUTO_FORGE_MODULE_NAME = "ProgressTracker"
+AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
 
 class TrackerState(Enum):
     """

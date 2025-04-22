@@ -25,7 +25,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (Environment, CommandType, CommandsLoader, AutoLogger, PROJECT_NAME)
+from auto_forge import (PROJECT_NAME, Environment, ExecutionMode, CommandsLoader, AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "SDK Prompt Manager"
@@ -44,10 +44,10 @@ class Prompt(cmd2.Cmd):
             If not specified, the lowercase project name ('autoforge') will be used
             as the base prefix for the dynamic prompt.
     """
-    _instance = None
-    _is_initialized = False
+    _instance: "Prompt" = None
+    _is_initialized: bool = False
 
-    def __new__(cls, parent: Any, prompt: Optional[str] = None):
+    def __new__(cls, parent: Any, prompt: Optional[str] = None) -> "Prompt":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -69,6 +69,7 @@ class Prompt(cmd2.Cmd):
                     raise RuntimeError("AutoForge instance must be specified when initializing core module")
                 self._autoforge = parent  # Store parent' AutoForge' class instance.
 
+                self._toolbox = ToolBox.get_instance()
                 self._environment: Environment = Environment.get_instance()
                 self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
                 self._executable_db: Optional[Dict[str, str]] = None
@@ -82,11 +83,13 @@ class Prompt(cmd2.Cmd):
                 sys.argv = [sys.argv[0]]
                 ansi.allow_ansi = True
 
+                # Add dynamically lodaed AutoForge style commands
                 self._add_auto_commands()
 
+                # Build executables dictionary for implementation shell style fast auto completion
                 if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
                                                           command=self._build_executable_index,
-                                                          command_type=CommandType.PYTHON_METHOD,
+                                                          command_type=ExecutionMode.PYTHON,
                                                           new_lines=1) != 0:
                     raise RuntimeError("could not finish initializing")
 
@@ -98,16 +101,20 @@ class Prompt(cmd2.Cmd):
                 super().__init__()
 
                 # Remove unnecessary built-in commands
-                for cmd in ['macro', 'edit', 'run_script']:
+                for cmd in ['macro', 'edit', 'run_pyscript']:
                     self._remove_command(cmd)
 
                 # Assign path_complete to the complete_cd and complete_ls methods
                 self.complete_cd = self.path_complete
-                self.complete_ls = self.path_complete
+                self.complete_lss = self.path_complete
 
                 # Add several basic aliases
-                self.set_alias('ll', 'ls -la')
                 self.set_alias('..', 'cd ..')
+                self.set_alias('~', 'cd $HOME')
+                self.set_alias('gw', f'cd {Environment.get_instance().get_workspace_path()}')
+                self.set_alias('ls', 'lsd -g')
+                self.set_alias('ll', 'lss -la')
+                self.set_alias('l', 'ls')
                 self.set_alias('exit', 'quit')
                 self.set_alias('gs', 'git status')
                 self.set_alias('ga', 'git add .')
@@ -321,7 +328,8 @@ class Prompt(cmd2.Cmd):
         Args:
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
-        path = os.path.expanduser(path)
+        # Expand
+        path = self._toolbox.get_expanded_path(path)
 
         try:
             if not os.path.exists(path):
@@ -333,13 +341,13 @@ class Prompt(cmd2.Cmd):
         except Exception as change_path_errors:
             print(f"cd: {change_path_errors}")
 
-    def do_ls(self, args):
+    def do_lss(self, args):
         """
-        List directory contents with enhanced shell behavior.
-        This command mimics the traditional Unix `ls` command by:
-
+        Display a directory listing using the system '/bin/ls' command.
         Args:
-            args (str): Any additional arguments to pass to `ls`, such as `-l`, paths, or wildcards.
+            args (str): Arguments passed directly to the 'ls' command (e.g., '-la', '--color=auto').
+        Returns:
+            str: The output of the 'ls' command as a string.
         """
         try:
             self._environment.execute_shell_command(
@@ -355,7 +363,7 @@ class Prompt(cmd2.Cmd):
 
     def do_help(self, arg) -> None:
         """
-        Fancy custom help using rich — replaces cmd2's default help screen.
+        AutoForge CLI Help. command.
         """
         if arg:
             # noinspection PyArgumentList
@@ -390,7 +398,6 @@ class Prompt(cmd2.Cmd):
 
         Args:
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
-
         """
 
         command = statement.command + " " + statement.args if hasattr(statement, 'args') else str(statement)

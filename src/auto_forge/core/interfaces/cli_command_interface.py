@@ -23,9 +23,8 @@ import time
 from abc import ABC, abstractmethod
 from types import ModuleType
 from typing import Any, Optional
-from typing import NamedTuple
 
-from auto_forge import (ToolBox)
+from auto_forge import (ToolBox, CLICommandInfo)
 
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
@@ -86,15 +85,6 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         Overrides usage banner output.
         """
         self.print_help()
-
-
-class CLICommandInfo(NamedTuple):
-    """ Define a named tuple type for the information data cluster """
-    name: str
-    description: str
-    version: str
-    class_name: str
-    class_instance: Any
 
 
 class CLICommandInterface(ABC):

@@ -59,10 +59,10 @@ class Solution:
 
     """
 
-    _instance = None
-    _is_initialized = False
+    _instance: "Solution" = None
+    _is_initialized: bool = False
 
-    def __new__(cls, solution_config_file_name: str, parent: Any):
+    def __new__(cls, solution_config_file_name: str, parent: Any) -> "Solution":
         """
         Basic class initialization in a singleton mode
         """
@@ -94,7 +94,7 @@ class Solution:
                 self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
                 self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
                 self._includes: Optional[Dict[str, Any]] = None  # Additional included JSONS
-                self._scope = ScopeState()  # Initialize scope state to track processing state and context
+                self._scope = _ScopeState()  # Initialize scope state to track processing state and context
                 self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
                 self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
                 self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
@@ -916,7 +916,7 @@ class ScopeInfo:
             self.name_value = None  # Invalidate inner name
 
 
-class ScopeState:
+class _ScopeState:
     """
     Manages the hierarchical state while traversing a JSON structure.
     This class keeps track of the currently active solution, project, and configuration

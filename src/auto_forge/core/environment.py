@@ -25,42 +25,16 @@ import threading
 import time
 import urllib.request
 from contextlib import suppress
-from enum import Enum
 from pathlib import Path
 from typing import Optional, Union, Any, List, Callable
 
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (Processor, ProgressTracker, ToolBox, AutoLogger)
+from auto_forge import (Processor, ProgressTracker, ExecutionMode, ValidationMethod, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment Operations"
-
-
-class ValidationMethod(Enum):
-    """
-    Enumeration for system validation methods.
-
-    Attributes:
-        EXECUTE_PROCESS (int): Run a shell command and validate based on its return code and/or output.
-        READ_FILE (int): Read specific lines from a file and validate expected content.
-    """
-    EXECUTE_PROCESS = 1
-    READ_FILE = 2
-    SYS_PACKAGE = 3
-
-
-class CommandType(Enum):
-    """
-    Enumeration of supported command types for execution.
-
-    Attributes:
-        SHELL_EXECUTABLE: Represents a shell command to be executed as a subprocess.
-        PYTHON_METHOD: Represents a Python callable to be executed directly.
-    """
-    SHELL_EXECUTABLE = "shell"
-    PYTHON_METHOD = "python"
 
 
 class Environment:
@@ -72,11 +46,11 @@ class Environment:
         automated_mode(boo, Optional): Specify if we're running in automation mode
     """
 
-    _instance = None
-    _is_initialized = False
+    _instance: "Environment" = None
+    _is_initialized: bool = False
 
     def __new__(cls, workspace_path: str, parent: Any,
-                automated_mode: Optional[bool] = False):
+                automated_mode: Optional[bool] = False) -> "Environment":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -527,7 +501,7 @@ class Environment:
                              message: str,
                              command: Union[str, Callable],
                              arguments: Optional[Any] = None,
-                             command_type: CommandType = CommandType.SHELL_EXECUTABLE,
+                             command_type: ExecutionMode = ExecutionMode.SHELL,
                              timeout: Optional[float] = None,
                              color: Optional[str] = Fore.CYAN,
                              new_lines: int = 0) -> Optional[int]:
@@ -538,7 +512,7 @@ class Environment:
             message (str): Message to show before the spinner.
             command (str | Callable): Command to execute (shell or Python method).
             arguments (Optional[Any]): Command-line-style arguments or dict for Python calls.
-            command_type (CommandType): Type of the command.
+            command_type (ExecutionMode): Execution mode type.
             timeout (Optional[float]): Timeout in seconds (for shell commands only).
             color (Optional[str]): Colorama color for the spinner text.
             new_lines (int): The number of new lines print before the spinner text.
@@ -566,7 +540,7 @@ class Environment:
 
         def _execute_foreign_code():
             try:
-                if command_type == CommandType.SHELL_EXECUTABLE:
+                if command_type == ExecutionMode.SHELL:
                     self.execute_shell_command(
                         command=command,
                         arguments=arguments,
@@ -578,7 +552,7 @@ class Environment:
                     )
                     result_container['code'] = 0
 
-                elif command_type == CommandType.PYTHON_METHOD:
+                elif command_type == ExecutionMode.PYTHON:
                     if not callable(command):
                         raise RuntimeError("Cannot execute non-callable command")
 

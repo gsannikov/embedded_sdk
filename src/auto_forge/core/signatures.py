@@ -20,7 +20,7 @@ import zlib
 from typing import Match, Optional, Any, Dict, List
 
 # Internal AutoForge imports
-from auto_forge import (Processor, Variables, AutoLogger)
+from auto_forge import (Processor, Variables, SignatureField, SignatureSchema, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures core service"
@@ -36,10 +36,10 @@ class Signatures:
         parent (Any, optional): Our parent AutoForge class instance.
     """
 
-    _instance = None
-    _is_initialized = False
+    _instance: "Signatures" = None
+    _is_initialized: bool = False
 
-    def __new__(cls, signatures_config_file_name: str, parent: Any):
+    def __new__(cls, signatures_config_file_name: str, parent: Any) -> "Signatures":
         """
         Basic class initialization in a singleton mode
         """
@@ -520,36 +520,6 @@ class Signatures:
             raise RuntimeError(f"could not construct format string missing {key_error}") from key_error
         except Exception as exception:
             raise RuntimeError(f"could not construct format string {exception}")
-
-
-class SignatureSchema:
-    def __init__(self):
-        """
-        Initializes an auxiliary class to facilitate handling a signature schema data.
-        """
-        self.name: Optional[str] = None
-        self.description: Optional[str] = None
-        self.dictionary: Optional[Dict[str, Any]] = {}
-        self.size: Optional[int] = None
-        self.search_pattern: Optional[re.Pattern] = None
-        self.format_string: Optional[str] = None
-        self.is_default: bool = False
-
-
-class SignatureField:
-    def __init__(self):
-        """
-        Initializes an auxiliary class to facilitate reading and writing specific fields from
-        signature binary data.
-        """
-        self.name: Optional[str] = None
-        self.type: Optional[str] = None
-        self.size: Optional[int] = None
-        self.data: Optional[Any] = None
-        self.read_only: Optional[bool] = False  # When true, modifying the field will raise an error
-        self.is_integrity: Optional[bool] = None  # Marks the field that has the CRC value for integrity check
-        self.offset: Optional[int] = None  # Offset relative to the signature start address
-        self.type_info: Optional[Dict[dict]] = None  # To store field type info definitions when specified
 
 
 class Signature:

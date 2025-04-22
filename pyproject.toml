@@ -32,6 +32,7 @@ dependencies = [
     "pyaml",
     "ruamel.yaml",
     "GitPython",
+    "prompt_toolkit",
     "cmd2"
 ]
 

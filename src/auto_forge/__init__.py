@@ -16,19 +16,26 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
                        PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
 from auto_forge.logger import AutoLogger,AutoHandlers
-from auto_forge.common.toolbox import ToolBox
+
+# Common types
+from auto_forge.common.local_types import (CLICommandInfo, CLICommandSummary,
+                                           ValidationMethod, ExecutionMode,
+                                           SignatureSchema, SignatureField, VariableField,
+                                           TerminalTeeStream, TerminalAnsiCodes,
+                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP)
+
+from auto_forge.common.toolbox import (ToolBox)
 
 # Interfaces
-from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface, CLICommandInfo)
+from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface)
 
 # Core / common modules
 from auto_forge.common.progress_tracker import (ProgressTracker)
 from auto_forge.core.processor import Processor
-from auto_forge.core.environment import (Environment, CommandType)
+from auto_forge.core.environment import (Environment)
 from auto_forge.core.variables import Variables
-from auto_forge.core.commands_loader import (CommandsLoader, CommandSummary)
-from auto_forge.core.signatures import (Signatures, SignatureFileHandler, Signature,
-                                               SignatureField, SignatureSchema)
+from auto_forge.core.commands_loader import (CommandsLoader)
+from auto_forge.core.signatures import (Signatures, SignatureFileHandler, Signature)
 from auto_forge.core.solution import Solution
 from auto_forge.core.prompt import Prompt
 
@@ -43,16 +50,22 @@ __all__ = [
     "Variables",
     "Solution",
     "Environment",
-    "CommandType",
     "Signatures",
-    "WestWorld",
-    "SignatureFileHandler",
-    "Signature",
+    "TerminalAnsiCodes",
+    "TerminalTeeStream",
+    "TerminalFileIconInfo",
+    "TERMINAL_ICONS_MAP",
+    "CLICommandInfo",
+    "CLICommandSummary",
+    "ValidationMethod",
+    "ExecutionMode",
     "SignatureField",
     "SignatureSchema",
+    "VariableField",
+    "SignatureFileHandler",
+    "Signature",
     "CommandsLoader",
     "CLICommandInterface",
-    "CLICommandInfo",
     "Prompt",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",

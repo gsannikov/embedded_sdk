@@ -13,28 +13,14 @@ import os
 import re
 import threading
 from bisect import bisect_left
+from multiprocessing.synchronize import RLock
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
-from auto_forge import (Processor, Environment, AutoLogger)
+from auto_forge import (Processor, Environment, VariableField, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables Management"
-
-
-class Variable:
-    """
-    Auxilery class to manage a single variable
-    """
-
-    def __init__(self):
-        self.name: Optional[str] = None
-        self.base_name: Optional[Any] = None  # Without the suffix
-        self.description: Optional[str] = None
-        self.value: Optional[Any] = None
-        self.path_must_exist: Optional[bool] = None
-        self.create_path_if_not_exist: Optional[bool] = None
-        self.kwargs: Optional[Dict[str, Any]] = None  # Store unrecognized JSON properties
 
 
 class Variables:
@@ -47,11 +33,11 @@ class Variables:
         variables_config_file_name (str): Configuration JSON file name.
         parent (Any): Our parent AutoForge class instance.
     """
-    _instance = None
-    _is_initialized = False
-    _lock = threading.RLock()  # Initialize the re-entrant lock
+    _instance: "Variables" = None
+    _is_initialized: bool = False
+    _lock: RLock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, variables_config_file_name: str, parent: Any):
+    def __new__(cls, variables_config_file_name: str, parent: Any) -> "Variables":
         """
         Basic class initialization in a singleton mode
         """
@@ -83,7 +69,8 @@ class Variables:
                 self._variable_capitalize_description: bool = True  # Description field formatting
                 self._variables_defaults: Optional[dict] = None  # Optional default variables properties
                 self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
-                self._variables: Optional[list[Variable]] = None  # Inner variables stored as a sorted listy of objects
+                self._variables: Optional[
+                    list[VariableField]] = None  # Inner variables stored as a sorted listy of objects
                 self._search_keys: Optional[
                     List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
@@ -399,7 +386,7 @@ class Variables:
         if variable_name is None or value is None:
             raise RuntimeError(f"bad variable name or value")
 
-        new_var = Variable()
+        new_var = VariableField()
 
         # Construct name
         new_var.base_name = (variable_name.upper() if self._variable_force_upper_case_names else variable_name).strip()

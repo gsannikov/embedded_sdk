@@ -89,8 +89,7 @@ class SigToolCommand(CLICommandInterface):
             self._git_commit_hash = self._git_commit.hexsha
 
             # Create Signatures instance using the provided schema and the signature id.
-            self._sig_tool = Signatures(signatures_config_file_name=self._descriptor_file,
-                                        signature_id=self._signature_id)
+            self._sig_tool = Signatures.get_instance()
 
             return True
 

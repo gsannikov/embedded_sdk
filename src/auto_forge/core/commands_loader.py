@@ -15,59 +15,15 @@ import os
 import sys
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
-from typing import List, NamedTuple
-from typing import Optional, Any, Dict, TextIO, cast
+from typing import List
+from typing import Optional, Any, Dict, cast
 
-from auto_forge import (PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo, AutoLogger)
+# AutoGorge local imports
+from auto_forge import (PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo,
+                        CLICommandSummary, TerminalTeeStream, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
-
-
-class _TeeStream:
-    """
-    A simple output stream duplicator that writes data to multiple target streams.
-    """
-
-    def __init__(self, *targets: TextIO):
-        """
-        Initialize the _TeeStream with one or more target streams.
-        Args:
-            *targets (TextIO): Output streams to write to (e.g., sys.stdout, StringIO).
-        """
-        self._targets = targets
-
-    def write(self, data: str) -> int:
-        """
-        Write data to all registered target streams.
-        Args:
-            data (str): The string data to write.
-        Returns:
-            int: The number of characters written (equal to len(data)).
-        """
-        for target in self._targets:
-            target.write(data)
-        return len(data)
-
-    def flush(self) -> None:
-        """
-        Flush all target streams that support flushing.
-        """
-        for target in self._targets:
-            if hasattr(target, "flush"):
-                target.flush()
-
-
-class CommandSummary(NamedTuple):
-    """
-    Represents a minimal summary of a registered command.
-
-    Attributes:
-        name (str): The name of the command.
-        description (str): A brief description of what the command does.
-    """
-    name: str
-    description: str
 
 
 class CommandsLoader:
@@ -243,13 +199,13 @@ class CommandsLoader:
         """
         return CommandsLoader._instance
 
-    def get_commands(self) -> List[CommandSummary]:
+    def get_commands(self) -> List[CLICommandSummary]:
         """
         Returns a list of command summaries (name and description only),
         omitting all other internal or non-serializable details.
         """
         return [
-            CommandSummary(name, meta.get("command_description", ""))
+            CLICommandSummary(name, meta.get("command_description", ""))
             for name, meta in self._commands_registry.items()
         ]
 
@@ -288,7 +244,7 @@ class CommandsLoader:
             raise RuntimeError(f"command '{command}' does not implement the expected 'CLICommandInterface'")
 
         buffer = io.StringIO()
-        output_stream = buffer if suppress_output else _TeeStream(sys.stdout, buffer)
+        output_stream = buffer if suppress_output else TerminalTeeStream(sys.stdout, buffer)
 
         with redirect_stdout(output_stream), redirect_stderr(output_stream):
             result = command_instance.execute(flat_args=arguments)
