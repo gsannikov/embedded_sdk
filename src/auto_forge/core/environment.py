@@ -49,8 +49,7 @@ class Environment:
     _instance: "Environment" = None
     _is_initialized: bool = False
 
-    def __new__(cls, workspace_path: str, parent: Any,
-                automated_mode: Optional[bool] = False) -> "Environment":
+    def __new__(cls, *args, **kwargs) -> "Environment":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:

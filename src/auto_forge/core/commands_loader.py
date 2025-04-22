@@ -32,10 +32,10 @@ class CommandsLoader:
     Args:
         parent (Any): Our parent AutoForge class instance.
     """
-    _instance = None
-    _is_initialized = False
+    _instance: "CommandsLoader" = None
+    _is_initialized: bool = False
 
-    def __new__(cls, parent: Any):
+    def __new__(cls, *args, **kwargs) -> "CommandsLoader":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:

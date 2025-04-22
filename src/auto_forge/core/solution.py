@@ -62,7 +62,7 @@ class Solution:
     _instance: "Solution" = None
     _is_initialized: bool = False
 
-    def __new__(cls, solution_config_file_name: str, parent: Any) -> "Solution":
+    def __new__(cls, *args, **kwargs) -> "Solution":
         """
         Basic class initialization in a singleton mode
         """
@@ -255,7 +255,7 @@ class Solution:
                 schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
                 if os.path.exists(schema_path):
 
-                    self._logger.debug(f"Using schemas version '{schema_version}' from '{schema_path}'")
+                    self._logger.debug(f"Using schemas version '{schema_version}'")
 
                     # Try to locate and load expected schema files
                     signature_schema_file = os.path.join(schema_path.__str__(), "signature.jsonc")
@@ -265,13 +265,18 @@ class Solution:
                     if os.path.exists(signature_schema_file):
                         self._signatures = Signatures(signatures_config_file_name=signature_schema_file,
                                                       parent=self._autoforge)
+                    else:
+                        self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
 
                     # Initialize the optional schema used for validating the solution structuire
                     # If file is specified, attempt to preprocess and load it
                     if os.path.exists(solution_schema_file):
                         self._solution_schema = self._processor.preprocess(file_name=solution_schema_file)
+                    else:
+                        self._logger.warning(f"Solution schema file '{solution_schema_file}' does not exist")
+
                 else:
-                    self._logger.warning(f"Schemas path '{schema_path} does not exist'")
+                    self._logger.warning(f"No schema loaded: schemas path '{schema_path}' does not exist")
 
             # Having the solution structure validated we can build the tree
             self._solution_data = self._root_context

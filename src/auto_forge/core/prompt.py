@@ -47,7 +47,7 @@ class Prompt(cmd2.Cmd):
     _instance: "Prompt" = None
     _is_initialized: bool = False
 
-    def __new__(cls, parent: Any, prompt: Optional[str] = None) -> "Prompt":
+    def __new__(cls, *args, **kwargs) -> "Prompt":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:

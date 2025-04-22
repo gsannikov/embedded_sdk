@@ -41,10 +41,10 @@ class ToolBox:
         parent (Any): Our parent class instance.
     """
 
-    _instance = None
-    _is_initialized = False
+    _instance: "ToolBox" = None
+    _is_initialized: bool = False
 
-    def __new__(cls, parent: Any):
+    def __new__(cls, *args, **kwargs) -> "ToolBox":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:

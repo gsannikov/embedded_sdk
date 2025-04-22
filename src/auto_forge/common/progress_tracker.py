@@ -18,19 +18,21 @@ Note:
     color handling and cursor control capabilities.
 """
 
-import re
 import shutil
 import sys
 import time
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from typing import Tuple
 
 from colorama import Fore, Style
 
+# AutoForge imports
+from auto_forge import (TerminalAnsiGuru)
+
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
+
 
 class TrackerState(Enum):
     """
@@ -56,82 +58,6 @@ class TrackerState(Enum):
     BODY = 2
 
 
-class _ANSIGuru:
-    """
-    A utility class for managing terminal output through ANSI escape codes. The class provides methods to
-    manipulate the cursor's visibility and position, allowing for dynamic updates to the terminal content
-    without disrupting the user's view. This class is particularly useful for applications that require
-    fine control over the terminal interface, such as text-based user interfaces, progress bars, and
-    interactive command-line tools.
-    """
-
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def set_cursor_visibility(visible: bool):
-        """Shows or hides the cursor based on the 'visible' parameter."""
-        sys.stdout.write('\033[?25h' if visible else '\033[?25l')
-        sys.stdout.flush()
-
-    @staticmethod
-    def save_cursor_position():
-        """Saves the current cursor position."""
-        sys.stdout.write("\033[s")
-        sys.stdout.flush()
-
-    @staticmethod
-    def restore_cursor_position():
-        """Restores the cursor to the last saved position."""
-        sys.stdout.write("\033[u")
-        sys.stdout.flush()
-
-    @staticmethod
-    def restore_cursor_position_and_erase_line_to_end():
-        """
-        Restores the cursor to the last saved position,
-        erases from the cursor to the end of the line,
-        and restores the cursor back to the same position again.
-        """
-        sys.stdout.write("\033[u")
-        sys.stdout.write("\033[K")
-        sys.stdout.write("\033[u")
-        sys.stdout.flush()
-
-    def move_cursor(self, row: Optional[int] = None, col: Optional[int] = None):
-        """
-        Moves the cursor to the specified (row, col). Handles partial parameters by moving
-        to the specific row or column while keeping the other coordinate unchanged.
-        """
-        # Attempt to get the current cursor position
-        current_pos = self.get_cursor_position()
-        if current_pos is None:
-            return  # If the position is unknown, exit early
-
-        row = row or current_pos[0]  # Use current row if not specified
-        col = col or current_pos[1]  # Use current column if not specified
-        sys.stdout.write(f"\033[{row + 1};{col + 1}H")
-        sys.stdout.flush()
-
-    @staticmethod
-    def erase_line_to_end():
-        """Erases from the current cursor position to the end of the line."""
-        sys.stdout.write("\033[K")
-        sys.stdout.flush()
-
-    @staticmethod
-    def get_cursor_position() -> Optional[Tuple[int, int]]:
-        """
-        Attempts to query the terminal for the current cursor position. Requires terminal support.
-        Returns the cursor position as zero-based indices or None if undetermined.
-        """
-        sys.stdout.write("\033[6n")
-        sys.stdout.flush()
-        response = sys.stdin.read(20)  # Read enough characters for typical response
-        match = re.search(r"\033\[(\d+);(\d+)R", response)
-        return (int(match.group(1)) - 1, int(match.group(2)) - 1) if match else None
-
-
 class ProgressTracker:
     def __init__(self, title_length: int = 80, add_time_prefix: bool = False,
                  min_update_interval_ms: int = 250, hide_cursor: bool = True):
@@ -147,7 +73,7 @@ class ProgressTracker:
         self._add_time_prefix = add_time_prefix
         self._title_length = title_length
         self._terminal_width = shutil.get_terminal_size().columns
-        self._ansi_term = _ANSIGuru()
+        self._ansi_term = TerminalAnsiGuru()
         self._pre_text: Optional[str] = None
         self._min_update_interval_ms = min_update_interval_ms
         self._last_update_time = 0  # Epoch time of the last update

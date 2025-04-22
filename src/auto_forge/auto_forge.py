@@ -20,7 +20,7 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (Processor, ToolBox, Variables, Solution, Environment, CommandsLoader,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, AutoHandlers)
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, LogHandlersTypes)
 
 
 class AutoForge:
@@ -30,10 +30,10 @@ class AutoForge:
         workspace_path (str, Optional): Path to the workspace folder.
         automated_mode (bool): Set to run in automated mode (CI).
     """
-    _instance = None
-    _is_initialized = False
+    _instance: "AutoForge" = None
+    _is_initialized: bool = False
 
-    def __new__(cls, workspace_path: str = None, automated_mode: bool = False):
+    def __new__(cls, *args, **kwargs) -> "AutoForge":
         """
         Create a new instance if one doesn't exist, or return the existing instance.
         Returns:
@@ -63,11 +63,8 @@ class AutoForge:
                 # Initializes the logger
                 self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
                 self._auto_logger.set_log_file_name("auto_forge.log")
-                self._auto_logger.set_handlers(handlers=AutoHandlers.FILE_HANDLER)
-                if automated_mode:
-                    self._auto_logger.set_handlers(AutoHandlers.FILE_HANDLER | AutoHandlers.CONSOLE_HANDLER)
-
-                self._logger: logging.Logger = self._auto_logger.get_logger()
+                self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
+                self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=True)
                 self._logger.debug("Initializing...")
 
                 # Initialize core modules
@@ -95,15 +92,6 @@ class AutoForge:
             AutoForge: The global AutoForge instance.
         """
         return AutoForge._instance
-
-    @staticmethod
-    def get_logger() -> Optional[logging.Logger]:
-        """
-        Returns the logger instance of the AutoForge class.
-        Returns:
-            Logger: the AutoForge dedicated logger instance.
-        """
-        return AutoForge.get_instance()._logger
 
     @staticmethod
     def show_version(exit_code: Optional[int] = None) -> None:
@@ -233,7 +221,7 @@ def auto_forge_main() -> Optional[int]:
         line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
 
         # Attempt to log the error
-        logger_instance = AutoForge.get_logger()
+        logger_instance = AutoLogger.get_base_logger()
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
 

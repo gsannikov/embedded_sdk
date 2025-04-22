@@ -3,13 +3,16 @@ Script:         local_types,py
 Author:         AutoForge Team
 
 Description:
-    Auxiliary module defining many common types, enums, data classes which aare
-    shared across many modules in this project.
+    Auxiliary module defining common types, enumerations, and data classes
+    shared across multiple components of the project. Includes reusable structures
+    such as icon mappings, CLI data wrappers, and standardized formatting helpers.
 """
+
 import re
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import NamedTuple, TextIO, Any, Optional, Dict
+from typing import NamedTuple, TextIO, Any, Optional, Dict, Tuple
 
 from colorama import Fore
 
@@ -281,3 +284,79 @@ TERMINAL_ICONS_MAP: Dict[str, TerminalFileIconInfo] = {
     "default_dir": TerminalFileIconInfo("", "Directory", Fore.BLUE),
     "default_file": TerminalFileIconInfo("", "Generic file", Fore.WHITE),
 }
+
+
+class TerminalAnsiGuru:
+    """
+    A utility class for managing terminal output through ANSI escape codes. The class provides methods to
+    manipulate the cursor's visibility and position, allowing for dynamic updates to the terminal content
+    without disrupting the user's view. This class is particularly useful for applications that require
+    fine control over the terminal interface, such as text-based user interfaces, progress bars, and
+    interactive command-line tools.
+    """
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def set_cursor_visibility(visible: bool):
+        """Shows or hides the cursor based on the 'visible' parameter."""
+        sys.stdout.write('\033[?25h' if visible else '\033[?25l')
+        sys.stdout.flush()
+
+    @staticmethod
+    def save_cursor_position():
+        """Saves the current cursor position."""
+        sys.stdout.write("\033[s")
+        sys.stdout.flush()
+
+    @staticmethod
+    def restore_cursor_position():
+        """Restores the cursor to the last saved position."""
+        sys.stdout.write("\033[u")
+        sys.stdout.flush()
+
+    @staticmethod
+    def restore_cursor_position_and_erase_line_to_end():
+        """
+        Restores the cursor to the last saved position,
+        erases from the cursor to the end of the line,
+        and restores the cursor back to the same position again.
+        """
+        sys.stdout.write("\033[u")
+        sys.stdout.write("\033[K")
+        sys.stdout.write("\033[u")
+        sys.stdout.flush()
+
+    def move_cursor(self, row: Optional[int] = None, col: Optional[int] = None):
+        """
+        Moves the cursor to the specified (row, col). Handles partial parameters by moving
+        to the specific row or column while keeping the other coordinate unchanged.
+        """
+        # Attempt to get the current cursor position
+        current_pos = self.get_cursor_position()
+        if current_pos is None:
+            return  # If the position is unknown, exit early
+
+        row = row or current_pos[0]  # Use current row if not specified
+        col = col or current_pos[1]  # Use current column if not specified
+        sys.stdout.write(f"\033[{row + 1};{col + 1}H")
+        sys.stdout.flush()
+
+    @staticmethod
+    def erase_line_to_end():
+        """Erases from the current cursor position to the end of the line."""
+        sys.stdout.write("\033[K")
+        sys.stdout.flush()
+
+    @staticmethod
+    def get_cursor_position() -> Optional[Tuple[int, int]]:
+        """
+        Attempts to query the terminal for the current cursor position. Requires terminal support.
+        Returns the cursor position as zero-based indices or None if undetermined.
+        """
+        sys.stdout.write("\033[6n")
+        sys.stdout.flush()
+        response = sys.stdin.read(20)  # Read enough characters for typical response
+        match = re.search(r"\033\[(\d+);(\d+)R", response)
+        return (int(match.group(1)) - 1, int(match.group(2)) - 1) if match else None

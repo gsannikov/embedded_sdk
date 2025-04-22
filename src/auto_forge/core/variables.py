@@ -37,7 +37,7 @@ class Variables:
     _is_initialized: bool = False
     _lock: RLock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, variables_config_file_name: str, parent: Any) -> "Variables":
+    def __new__(cls, *args, **kwargs) -> "Variables":
         """
         Basic class initialization in a singleton mode
         """

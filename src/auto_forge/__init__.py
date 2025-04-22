@@ -15,14 +15,14 @@ Description:
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_COMMANDS_PATH,
                        PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
-from auto_forge.logger import AutoLogger,AutoHandlers
+from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Common types
 from auto_forge.common.local_types import (CLICommandInfo, CLICommandSummary,
                                            ValidationMethod, ExecutionMode,
                                            SignatureSchema, SignatureField, VariableField,
                                            TerminalTeeStream, TerminalAnsiCodes,
-                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP)
+                                           TerminalAnsiGuru, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 
 from auto_forge.common.toolbox import (ToolBox)
 
@@ -53,6 +53,7 @@ __all__ = [
     "Signatures",
     "TerminalAnsiCodes",
     "TerminalTeeStream",
+    "TerminalAnsiGuru",
     "TerminalFileIconInfo",
     "TERMINAL_ICONS_MAP",
     "CLICommandInfo",
@@ -77,6 +78,6 @@ __all__ = [
     "PROJECT_REPO",
     "PROJECT_PACKAGE",
     "AutoLogger",
-    "AutoHandlers",
+    "LogHandlersTypes",
     "main"
 ]

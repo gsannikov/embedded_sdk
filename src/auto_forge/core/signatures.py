@@ -39,7 +39,7 @@ class Signatures:
     _instance: "Signatures" = None
     _is_initialized: bool = False
 
-    def __new__(cls, signatures_config_file_name: str, parent: Any) -> "Signatures":
+    def __new__(cls, *args, **kwargs) -> "Signatures":
         """
         Basic class initialization in a singleton mode
         """
