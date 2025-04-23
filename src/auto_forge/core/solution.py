@@ -848,7 +848,6 @@ class ScopeInfo:
     def __init__(self, type_name: Optional[str] = None):
         """
         Initializes a ScopeInfo instance, determining its type based on `type_name`.
-
         Args:
             type_name (Optional[str]): The type of the scope, which should be one of:
                                        'solutions', 'projects', or 'configurations'.
@@ -872,7 +871,6 @@ class ScopeInfo:
         """
         Updates the scope with a new node dictionary, setting its name value if present.
         If no node data is provided, the scope is invalidated.
-
         Args:
             node_data (Optional[Dict[str, Any]]): The dictionary containing the scope's data.
         """
@@ -915,7 +913,6 @@ class _ScopeState:
         Updates the state based on the current JSON node being processed.
         Depending on the scope type, the method updates the corresponding
         scope and adjusts `current_context` accordingly.
-
         Args:
             scope_type_name (str): The type of scope being updated (`"solutions"`, `"projects"`, or `"configurations"`).
             full_node (Dict[str, Any]): The dictionary representation of the current scope node.

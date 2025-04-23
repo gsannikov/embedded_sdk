@@ -39,6 +39,8 @@ from abc import ABCMeta
 from typing import Optional, cast, TypeVar, Type, TYPE_CHECKING, Dict, Any, Tuple
 
 # Import AutoForge only during static type checking to avoid circular import issues at runtime
+from auto_forge import ExceptionGuru
+
 if TYPE_CHECKING:
     from auto_forge.auto_forge import AutoForge
 
@@ -46,7 +48,9 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound="CoreModuleInterface")
 
 # Global singleton reference to the root AutoForge instance
-_ENGINE_ROOT: Optional["AutoForge"] = None
+_CORE_AUTO_FORGE_ROOT: Optional["AutoForge"] = None
+# Helps to guard against nested exceptions
+_CORE_EXCEPTIONS_COUNT: Optional[int] = 0
 
 
 class _SingletonABCMeta(ABCMeta):
@@ -69,12 +73,8 @@ class _SingletonABCMeta(ABCMeta):
         if cls not in cls._instances:
             cls._init_args[cls] = (args, kwargs)
 
-            try:
-                # Instantiate, potentially execute implementation '__init__' if exists.
-                instance = super().__call__(*args, **kwargs)
-            # Propagate exception
-            except Exception:
-                raise
+            # Instantiate, potentially execute implementation '__init__' if exists.
+            instance = super().__call__(*args, **kwargs)
 
             cls._instances[cls] = instance
         return cls._instances[cls]
@@ -98,23 +98,30 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         if getattr(self, "_is_initialized", False):
             return
 
-        global _ENGINE_ROOT
+        global _CORE_AUTO_FORGE_ROOT, _CORE_EXCEPTIONS_COUNT
 
         # Register AutoForge root once during its own construction
         core_module_name: str = type(self).__name__
-
         try:
             if core_module_name == "AutoForge":
-                _ENGINE_ROOT = cast("AutoForge", self)
+                _CORE_AUTO_FORGE_ROOT = cast("AutoForge", self)
             else:
-                if _ENGINE_ROOT is None:
+                if _CORE_AUTO_FORGE_ROOT is None:
                     raise RuntimeError("AutoForge must be instantiated before any core module.")
 
             # Preform core specific initialization
             self._initialize(*args, **kwargs)
+            _PRV_MODULE = core_module_name
 
         except Exception as core_exception:
-            raise RuntimeError(f"Core module '{core_module_name}': {core_exception}")
+            if _CORE_EXCEPTIONS_COUNT < 1:
+                _CORE_EXCEPTIONS_COUNT = _CORE_EXCEPTIONS_COUNT + 1
+
+                # Store the exception context in the exception guru utility class.
+                ExceptionGuru()
+                raise RuntimeError(f"Core module '{core_module_name}': {str(core_exception)}")
+            else:
+                raise
 
         self._is_initialized = True
 
@@ -130,8 +137,8 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         """
         Provides access to the globally registered AutoForge engine.
         """
-        global _ENGINE_ROOT
-        return _ENGINE_ROOT
+        global _CORE_AUTO_FORGE_ROOT
+        return _CORE_AUTO_FORGE_ROOT
 
     @classmethod
     def get_instance(cls: Type[T]) -> Optional[T]:

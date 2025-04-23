@@ -46,7 +46,7 @@ class ToolBox(CoreModuleInterface):
 
         # Create a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-        self._storage = {}  # Local static dictionary for managed session variables
+        self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -152,12 +152,12 @@ class ToolBox(CoreModuleInterface):
         normalized_key = key.lower()
 
         # Check if we have something to do
-        if normalized_key in self._storage and self._storage[normalized_key] == value:
+        if normalized_key in self._dynamic_vars_storage and self._dynamic_vars_storage[normalized_key] == value:
             self._logger.warning(f"Key '{normalized_key}' is already stored and has the same value '{value}'")
             return True
 
         # Store the value
-        self._storage[normalized_key] = value
+        self._dynamic_vars_storage[normalized_key] = value
         return True
 
     def load_value(self, key: Any, default_value: Any = None) -> Any:
@@ -187,12 +187,12 @@ class ToolBox(CoreModuleInterface):
                 # Normalize the actual key to ensure case-insensitivity
                 key = actual_key.lower()
                 # Return the value if the key exists, otherwise return an empty string
-                value = self._storage.get(key, default_value)
+                value = self._dynamic_vars_storage.get(key, default_value)
             else:
                 # Normalize the key to ensure case-insensitivity
                 key = key.lower()
                 # Return the value if the key exists, otherwise return an empty string
-                value = self._storage.get(key, default_value)
+                value = self._dynamic_vars_storage.get(key, default_value)
 
         if value is None:
             value = key  # Probably JSON value was passed, return it

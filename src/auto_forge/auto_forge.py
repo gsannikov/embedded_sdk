@@ -21,7 +21,7 @@ from colorama import Fore, Style
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables,
                         CoreSolution, CoreEnvironment, CoreCommands, CorePrompt,
-                        Registry, AutoLogger, LogHandlersTypes,
+                        Registry, AutoLogger, LogHandlersTypes, ExceptionGuru,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME)
 
 
@@ -120,7 +120,7 @@ class AutoForge(CoreModuleInterface):
             raise
 
 
-def auto_forge_main() -> Optional[int]:
+def auto_forge_main(guro=None) -> Optional[int]:
     """
     Console entry point for the AutoForge build suite.
     This function handles user arguments and launches AutoForge to execute the required test.
@@ -198,12 +198,11 @@ def auto_forge_main() -> Optional[int]:
         print(f"\n{Fore.YELLOW}Interrupted by user, shutting down.{Style.RESET_ALL}\n")
 
     except Exception as runtime_error:
-        # Should produce 'friendlier' error message than the typical Python backtrace.
-        exc_type, exc_obj, exc_tb = sys.exc_info()  # Get exception info
-        file_name = os.path.basename(exc_tb.tb_frame.f_code.co_filename)  # Get the file where the exception occurred
-        line_number = exc_tb.tb_lineno  # Get the line number where the exception occurred
 
-        # Attempt to log the error
+        # Retrieve information about the original exception that triggered this handler.
+        file_name, line_number = ExceptionGuru().get_context()
+
+        # If we can get a logger, use it to log the error.
         logger_instance = AutoLogger.get_base_logger()
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")

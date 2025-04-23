@@ -19,6 +19,7 @@ from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
 from auto_forge.common.local_types import (AutoForgeModuleType, AutoForgeModuleInfo, AutoForgeModuleSummary,
+                                           ExceptionGuru,
                                            ValidationMethod, ExecutionMode,
                                            SignatureSchema, SignatureField, VariableField,
                                            TerminalTeeStream, TerminalAnsiCodes,
@@ -55,6 +56,7 @@ __all__ = [
     "CoreSolution",
     "CoreEnvironment",
     "CoreSignatures",
+    "ExceptionGuru",
     "TerminalAnsiCodes",
     "TerminalTeeStream",
     "TerminalAnsiGuru",

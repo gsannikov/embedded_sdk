@@ -3,11 +3,12 @@ Script:         local_types,py
 Author:         AutoForge Team
 
 Description:
-    Auxiliary module defining common types, enumerations, and data classes
+    Auxiliary module defining common types, enumerations, and simple classes
     shared across multiple components of the project. Includes reusable structures
     such as icon mappings, CLI data wrappers, and standardized formatting helpers.
 """
 
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -378,3 +379,62 @@ class TerminalAnsiGuru:
         response = sys.stdin.read(20)  # Read enough characters for typical response
         match = re.search(r"\033\[(\d+);(\d+)R", response)
         return (int(match.group(1)) - 1, int(match.group(2)) - 1) if match else None
+
+
+class ExceptionGuru:
+    """
+    A singleton utility class for capturing and exposing the origin (filename and line number)
+    of the innermost frame where the most recent exception occurred bty ensuring the exception context
+    is captured only once.
+    """
+
+    _instance: Optional["ExceptionGuru"] = None
+    _context_stored: bool = False
+
+    def __new__(cls) -> "ExceptionGuru":
+        """
+        Overrides object instantiation to implement the singleton pattern.
+        Returns:
+            ExceptionGuru: The singleton instance of the class.
+        """
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self) -> None:
+        """
+        Initializes the exception context (filename and line number).
+        The context is captured only once during the lifetime of the singleton instance.
+        """
+        if not self.__class__._context_stored:
+            self._file_name: Optional[str] = "<unknown>"
+            self._line_number: Optional[int] = -1
+            self._store_context()
+            self.__class__._context_stored = True
+
+    def get_context(self) -> Tuple[str, int]:
+        """
+        Retrieves the exception origin information.
+        Returns:
+            Tuple[str, int]: A tuple containing the base filename and the line number
+                             where the exception originally occurred.
+        """
+        return self._file_name, self._line_number
+
+    def _store_context(self) -> None:
+        """
+        Captures the filename and line number of the innermost frame where the most recent
+        exception occurred. If no exception context is found, defaults to '<unknown>' and -1.
+        """
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+
+        if exc_tb is None:
+            return
+
+        # Traverse to the innermost (deepest) frame
+        tb = exc_tb
+        while tb.tb_next:
+            tb = tb.tb_next
+
+        self._file_name = os.path.basename(tb.tb_frame.f_code.co_filename)
+        self._line_number = tb.tb_lineno
