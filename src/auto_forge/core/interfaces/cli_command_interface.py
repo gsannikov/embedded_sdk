@@ -22,11 +22,12 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from types import ModuleType
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional
 
 # AutoForge imports
 from auto_forge import (ModuleType, ModuleInfo)
 from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
+
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
     """
