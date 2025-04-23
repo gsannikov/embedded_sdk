@@ -27,17 +27,16 @@ from auto_forge.common.local_types import (CLICommandInfo, CLICommandSummary,
 from auto_forge.core.interfaces.core_module_interface import (CoreModuleInterface)
 from auto_forge.common.toolbox import (ToolBox)
 from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface)
-
+from auto_forge.common.progress_tracker import (ProgressTracker)
 
 # Core / common modules
-from auto_forge.common.progress_tracker import (ProgressTracker)
-from auto_forge.core.processor import Processor
-from auto_forge.core.environment import (Environment)
-from auto_forge.core.variables import Variables
-from auto_forge.core.commands_loader import (CommandsLoader)
-from auto_forge.core.signatures import (Signatures, SignatureFileHandler, Signature)
-from auto_forge.core.solution import Solution
-from auto_forge.core.prompt import Prompt
+from auto_forge.core.processor import CoreProcessor
+from auto_forge.core.environment import (CoreEnvironment)
+from auto_forge.core.variables import CoreVariables
+from auto_forge.core.commands import (CoreCommands)
+from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
+from auto_forge.core.solution import CoreSolution
+from auto_forge.core.prompt import CorePrompt
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
@@ -46,11 +45,11 @@ from auto_forge.auto_forge import auto_forge_main as main
 __all__ = [
     "ToolBox",
     "ProgressTracker",
-    "Processor",
-    "Variables",
-    "Solution",
-    "Environment",
-    "Signatures",
+    "CoreProcessor",
+    "CoreVariables",
+    "CoreSolution",
+    "CoreEnvironment",
+    "CoreSignatures",
     "TerminalAnsiCodes",
     "TerminalTeeStream",
     "TerminalAnsiGuru",
@@ -67,8 +66,8 @@ __all__ = [
     "CoreModuleInterface",
     "SignatureFileHandler",
     "Signature",
-    "CommandsLoader",
-    "Prompt",
+    "CoreCommands",
+    "CorePrompt",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH",

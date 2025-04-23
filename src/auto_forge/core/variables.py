@@ -16,13 +16,13 @@ from bisect import bisect_left
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
-from auto_forge import (CoreModuleInterface, Processor, Environment, VariableField, AutoLogger)
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment, VariableField, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables Management"
 
 
-class Variables(CoreModuleInterface):
+class CoreVariables(CoreModuleInterface):
     """
     Manages a collection of variables derived from a JSON dictionary and provides
     functionality to manipulate these variables efficiently. The class supports operations such
@@ -61,10 +61,10 @@ class Variables(CoreModuleInterface):
                 List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
             # Create an instance of the JSON preprocessing library
-            self._processor: Processor = Processor.get_instance()
+            self._processor: CoreProcessor = CoreProcessor.get_instance()
 
             # Get the workspace from AutoForge
-            self._workspace_path = Environment.get_workspace_path()
+            self._workspace_path = CoreEnvironment.get_workspace_path()
 
             # Build variables list
             if self._config_file_name is not None:

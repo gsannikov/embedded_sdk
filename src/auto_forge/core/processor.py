@@ -19,7 +19,7 @@ AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
 
 
-class Processor(CoreModuleInterface):
+class CoreProcessor(CoreModuleInterface):
     """
     JSON pre-processing dedicated class.
     """

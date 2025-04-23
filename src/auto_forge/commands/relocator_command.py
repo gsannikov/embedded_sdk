@@ -16,7 +16,7 @@ import shutil
 from typing import Optional, Any, Dict, List
 
 # AutoForge imports
-from auto_forge import (Processor, CLICommandInterface, AutoLogger)
+from auto_forge import (CoreProcessor, CLICommandInterface, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "relocator"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Code restructure assistant"
@@ -117,7 +117,7 @@ class RelocatorCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._json_processor: Processor = Processor.get_instance()  # Class instance
+        self._json_processor: CoreProcessor = CoreProcessor.get_instance()  # Class instance
         self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
         self._relocate_defaults: Optional[_RelocateDefaults] = None
         self._relocate_folders_data: Optional[List[str, Any]] = None

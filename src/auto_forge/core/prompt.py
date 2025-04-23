@@ -25,14 +25,14 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, PROJECT_NAME, Environment, ExecutionMode, CommandsLoader,
+from auto_forge import (CoreModuleInterface, PROJECT_NAME, CoreEnvironment, ExecutionMode, CoreCommands,
                         AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "SDK Prompt Manager"
 
 
-class Prompt(CoreModuleInterface, cmd2.Cmd):
+class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     """
     Interactive CLI shell for AutoForge with shell-like behavior.
     Provides dynamic prompt updates, path-aware tab completion,
@@ -50,10 +50,10 @@ class Prompt(CoreModuleInterface, cmd2.Cmd):
 
         try:
             self._toolbox = ToolBox.get_instance()
-            self._environment: Environment = Environment.get_instance()
+            self._environment: CoreEnvironment = CoreEnvironment.get_instance()
             self._prompt_base: Optional[str] = None
             self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
-            self._commands_loader: Optional[CommandsLoader] = CommandsLoader.get_instance()
+            self._commands_loader: Optional[CoreCommands] = CoreCommands.get_instance()
             self._executable_db: Optional[Dict[str, str]] = None
             self._last_execution_return_code: Optional[int] = 0
 
@@ -92,7 +92,7 @@ class Prompt(CoreModuleInterface, cmd2.Cmd):
             # Add several basic aliases
             self.set_alias('..', 'cd ..')
             self.set_alias('~', 'cd $HOME')
-            self.set_alias('gw', f'cd {Environment.get_instance().get_workspace_path()}')
+            self.set_alias('gw', f'cd {CoreEnvironment.get_instance().get_workspace_path()}')
             self.set_alias('ls', 'lsd -g')
             self.set_alias('ll', 'lss -la')
             self.set_alias('l', 'ls')

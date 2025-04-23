@@ -19,8 +19,8 @@ from typing import Optional
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, Processor, ToolBox, Variables, Solution, Environment, CommandsLoader,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, LogHandlersTypes)
+from auto_forge import (CoreModuleInterface, CoreProcessor, ToolBox, CoreVariables, CoreSolution, CoreEnvironment, CoreCommands,
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, CorePrompt, LogHandlersTypes)
 
 
 class AutoForge(CoreModuleInterface):
@@ -30,10 +30,10 @@ class AutoForge(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
         See 'CoreModuleInterface' usage.
         """
-        self._solution: Optional[Solution] = None
+        self._solution: Optional[CoreSolution] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
-        self._variables: Optional[Variables] = None
+        self._variables: Optional[CoreVariables] = None
         super().__init__(*args, **kwargs)
 
     def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
@@ -59,10 +59,10 @@ class AutoForge(CoreModuleInterface):
 
             # Initialize core modules
             self._toolbox: Optional[ToolBox] = ToolBox()
-            self._processor: Optional[Processor] = Processor()
-            self._commands: Optional[CommandsLoader] = CommandsLoader()
-            self._environment: Environment = Environment(workspace_path=workspace_path, automated_mode=automated_mode)
-            self._prompt = Prompt()
+            self._processor: Optional[CoreProcessor] = CoreProcessor()
+            self._commands: Optional[CoreCommands] = CoreCommands()
+            self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path, automated_mode=automated_mode)
+            self._prompt = CorePrompt()
 
             # Essential core modules instantiated, other modules will loaded aas needed.
             self._toolbox.print_logo(clear_screen=True)  # Show logo
@@ -97,11 +97,11 @@ class AutoForge(CoreModuleInterface):
             if is_demo:
                 self._logger.warning("Running is demo mode")
 
-            workspace_path = Environment.get_workspace_path()
+            workspace_path = CoreEnvironment.get_workspace_path()
             self._logger.debug(f"Workspace path: {workspace_path}")
 
-            self._solution = Solution(solution_config_file_name=solution_file)
-            self._variables = Variables.get_instance()  # Get an instanced of the singleton variables class
+            self._solution = CoreSolution(solution_config_file_name=solution_file)
+            self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
             self._solution_name = self._solution.get_primary_solution_name()
@@ -149,7 +149,7 @@ def auto_forge_main() -> Optional[int]:
 
         # Instantiate AutoForge with a given workspace
         auto_forge: AutoForge = AutoForge(workspace_path=args.workspace_path, automated_mode=args.automated_mode)
-        environment: Environment = Environment.get_instance()
+        environment: CoreEnvironment = CoreEnvironment.get_instance()
 
         # Show apackage version
         if args.version:

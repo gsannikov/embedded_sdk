@@ -26,7 +26,7 @@ AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
 
 
-class CommandsLoader(CoreModuleInterface):
+class CoreCommands(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """

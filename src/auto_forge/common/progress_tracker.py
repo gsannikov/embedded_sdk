@@ -34,7 +34,7 @@ AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
 
 
-class TrackerState(Enum):
+class _TrackerState(Enum):
     """
     Enum to specify the types of text display for status messages within the ProgressTracker.
 
@@ -69,7 +69,7 @@ class ProgressTracker:
             add_time_prefix (bool): Whether to prefix messages with the current time.
             min_update_interval_ms (int): Minimum interval in milliseconds between updates to prevent flickering.
         """
-        self._state = TrackerState.UN_INITIALIZES
+        self._state = _TrackerState.UN_INITIALIZES
         self._add_time_prefix = add_time_prefix
         self._title_length = title_length
         self._terminal_width = shutil.get_terminal_size().columns
@@ -77,7 +77,7 @@ class ProgressTracker:
         self._pre_text: Optional[str] = None
         self._min_update_interval_ms = min_update_interval_ms
         self._last_update_time = 0  # Epoch time of the last update
-        self._state = TrackerState.PRE
+        self._state = _TrackerState.PRE
 
         # Hide the cursor
         if hide_cursor:
@@ -140,7 +140,7 @@ class ProgressTracker:
             new_line (bool): Whether or star the message in a new line.
         """
 
-        if self._state != TrackerState.PRE:
+        if self._state != _TrackerState.PRE:
             return False
 
         text = self._normalize_text(text, allow_empty=True)
@@ -153,7 +153,7 @@ class ProgressTracker:
 
         self._ansi_term.save_cursor_position()
         self._pre_text = text
-        self._state = TrackerState.BODY
+        self._state = _TrackerState.BODY
         return True
 
     def set_body_in_place(self, text: str, pre_text: Optional[str] = None, update_clock: bool = True) -> bool:
@@ -166,7 +166,7 @@ class ProgressTracker:
             pre_text (str, optional): Adjust the preliminary status message to display.
             update_clock (bool): Whether to update the message clock.
         """
-        if self._state != TrackerState.BODY:
+        if self._state != _TrackerState.BODY:
             return False
 
         current_time = time.time() * 1000  # Get current time in milliseconds
@@ -208,7 +208,7 @@ class ProgressTracker:
             text (str): The result message to display.
             status_code (Optional[int]): The status code to determine message color.
         """
-        if self._state != TrackerState.BODY:
+        if self._state != _TrackerState.BODY:
             return False
 
         self._ansi_term.restore_cursor_position()
@@ -218,7 +218,7 @@ class ProgressTracker:
         sys.stdout.write(text)
         self._ansi_term.erase_line_to_end()
         self._pre_text = None
-        self._state = TrackerState.PRE
+        self._state = _TrackerState.PRE
         return True
 
     def set_complete(self, pre_text: str, result_text: str, status_code: Optional[int] = None) -> bool:
@@ -243,4 +243,4 @@ class ProgressTracker:
         """
         sys.stdout.write('\n')
         self._ansi_term.set_cursor_visibility(True)
-        self._state = TrackerState.UN_INITIALIZES
+        self._state = _TrackerState.UN_INITIALIZES

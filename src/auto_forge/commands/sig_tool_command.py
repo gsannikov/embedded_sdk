@@ -16,7 +16,7 @@ from typing import Optional, Any
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, Signatures, ToolBox, AutoLogger)
+from auto_forge import (CLICommandInterface, CoreSignatures, ToolBox, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "sig_tool"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Binary file signing tool"
@@ -35,7 +35,7 @@ class SigToolCommand(CLICommandInterface):
 
         self._toolbox = ToolBox.get_instance()  # AutoForge swissknife handy class
 
-        self._sig_tool: Optional[Signatures] = None
+        self._sig_tool: Optional[CoreSignatures] = None
         self._descriptor_file: Optional[str] = None
         self._signature_id: int = -1
         self._git_repo_path: Optional[str] = None
@@ -89,7 +89,7 @@ class SigToolCommand(CLICommandInterface):
             self._git_commit_hash = self._git_commit.hexsha
 
             # Create Signatures instance using the provided schema and the signature id.
-            self._sig_tool = Signatures.get_instance()
+            self._sig_tool = CoreSignatures.get_instance()
 
             return True
 

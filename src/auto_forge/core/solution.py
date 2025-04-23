@@ -41,13 +41,14 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, Processor, Variables, Signatures, PROJECT_SCHEMAS_PATH, AutoLogger)
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables,
+                        CoreSignatures, PROJECT_SCHEMAS_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
 
 
-class Solution(CoreModuleInterface):
+class CoreSolution(CoreModuleInterface):
     """
     A Core class dedicated to preparing and processing solution files for execution.
     This includes resolving references within the solution's JSON data, validating configurations against
@@ -79,10 +80,10 @@ class Solution(CoreModuleInterface):
             self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
             self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
             self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
-            self._signatures: Optional[Signatures] = None  # Product binary signatures core class
-            self._variables: Optional[Variables] = None  # Instantiate variable management library
+            self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
+            self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
             self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
-            self._processor = Processor.get_instance()  # Get the JSON preprocessing class instance.
+            self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
 
             # Load the solution
             self._preprocess(solution_config_file_name)
@@ -218,7 +219,7 @@ class Solution(CoreModuleInterface):
 
             # Initialize the variables core module based on the configuration file we got
             config_file = f"{self._config_file_path}/{self._includes.get('environment')}"
-            self._variables = Variables(variables_config_file_name=config_file)
+            self._variables = CoreVariables(variables_config_file_name=config_file)
 
             schema_version = self._includes.get("schema")
             if schema_version is not None:
@@ -233,7 +234,7 @@ class Solution(CoreModuleInterface):
 
                     # Instantiate the optional signatures core module based on the configuration file we got
                     if os.path.exists(signature_schema_file):
-                        self._signatures = Signatures(signatures_config_file_name=signature_schema_file)
+                        self._signatures = CoreSignatures(signatures_config_file_name=signature_schema_file)
                     else:
                         self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
 

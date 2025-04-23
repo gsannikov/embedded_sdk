@@ -31,14 +31,15 @@ from typing import Optional, Union, Any, List, Callable
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, Processor, ProgressTracker, ExecutionMode, ValidationMethod, ToolBox,
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreCommands, ProgressTracker, ExecutionMode,
+                        ValidationMethod, ToolBox,
                         AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment Operations"
 
 
-class Environment(CoreModuleInterface):
+class CoreEnvironment(CoreModuleInterface):
     """
     a Core class that serves as an environment related operation swissknife.
     """
@@ -73,9 +74,10 @@ class Environment(CoreModuleInterface):
             self._package_manager: Optional[str] = None
             self._workspace_path: Optional[str] = workspace_path
             self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-            self._processor = Processor.get_instance()  # Instantiate JSON processing library
+            self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
             self._automated_mode: bool = automated_mode  # Default execution mode
             self._toolbox: ToolBox = ToolBox.get_instance()
+            self._commands: CoreCommands = CoreCommands.get_instance()
 
             # Determine which package manager is available on the system.
             if shutil.which("apt"):
@@ -251,7 +253,7 @@ class Environment(CoreModuleInterface):
         Returns:
             str: The workspace path, expanded and normalized.
         """
-        local_instance = Environment.get_instance()
+        local_instance = CoreEnvironment.get_instance()
         return local_instance._workspace_path
 
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
@@ -460,11 +462,10 @@ class Environment(CoreModuleInterface):
         """
 
         self._logger.debug(f"Executing registered command: '{command}'")
-
-        return_code = self.auto_forge.commands.execute(command=command, arguments=arguments,
-                                                       suppress_output=suppress_output)
+        return_code = self._commands.execute(command=command, arguments=arguments,
+                                             suppress_output=suppress_output)
         # Get the command output
-        command_response = self.auto_forge.commands.get_last_output().strip()
+        command_response = self._commands.get_last_output().strip()
 
         if return_code != expected_return_code:
             raise RuntimeError(
@@ -1281,7 +1282,7 @@ class Environment(CoreModuleInterface):
 
         try:
             # Expand, convert to absolute path and verify
-            steps_file = Environment.environment_variable_expand(text=steps_file, to_absolute_path=True)
+            steps_file = CoreEnvironment.environment_variable_expand(text=steps_file, to_absolute_path=True)
             if not os.path.exists(steps_file):
                 raise RuntimeError(f"steps file '{steps_file}' does not exist")
 

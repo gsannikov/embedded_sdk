@@ -20,13 +20,13 @@ import zlib
 from typing import Match, Optional, Any, Dict, List
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, Processor, Variables, SignatureField, SignatureSchema, AutoLogger)
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables, SignatureField, SignatureSchema, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures core service"
 
 
-class Signatures(CoreModuleInterface):
+class CoreSignatures(CoreModuleInterface):
     """
     Signatures is the root class which ties all the Auxilery classes to provide a functional
     interface around signatures.
@@ -48,8 +48,8 @@ class Signatures(CoreModuleInterface):
             self._signature_id: Optional[int] = 42
             self._raw_dictionary: Optional[Dict[str, Any]] = {}
             self._schemas: List[SignatureSchema] = []
-            self._processor: Processor = Processor.get_instance()
-            self._variables: Optional[Variables] = Variables.get_instance()
+            self._processor: CoreProcessor = CoreProcessor.get_instance()
+            self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
             self._initialized = False
 
             # Get a logger instance
@@ -827,13 +827,13 @@ class SignatureFileHandler:
     parses their fields based on a predefined schema, and stores them in nested lists.
     """
 
-    def __init__(self, file_name: str, signatures_lib: Signatures, schema_name: Optional[str] = None):
+    def __init__(self, file_name: str, signatures_lib: CoreSignatures, schema_name: Optional[str] = None):
         """
         Initialize the FileHandler class with the file name.
 
         Args:
             file_name (str): The name of the file to handle.
-            signatures_lib (Signatures): The instance of the parent 'SignaturesLib' class that created this object.
+            signatures_lib (CoreSignatures): The instance of the parent 'SignaturesLib' class that created this object.
             schema_name (str, optional): The name of the schema to handle, use default if not set.
         """
         # Preform expansion
@@ -850,7 +850,7 @@ class SignatureFileHandler:
         self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
         self.schema_name: Optional[str] = schema_name
         self.signatures: List[Signature] = []  # Empty list to store found signatures
-        self.signatures_lib: Optional[Signatures] = signatures_lib
+        self.signatures_lib: Optional[CoreSignatures] = signatures_lib
 
         # Load the binary file and scan for signatures
         if self._build_signatures_list() == 0:
