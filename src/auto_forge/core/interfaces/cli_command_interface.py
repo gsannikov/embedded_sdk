@@ -25,7 +25,7 @@ from types import ModuleType
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (ModuleType, ModuleInfo)
+from auto_forge import (AutoForgeModuleType, AutoForgeModuleInfo)
 from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
 
 
@@ -113,9 +113,11 @@ class CLICommandInterface(ABC):
         self._raise_exceptions = raise_exceptions
 
         # Stores the command information in the class session
-        self._module_info: ModuleInfo = ModuleInfo(name=name, description=description, version=version,
-                                                   class_name=self.__class__.__name__, class_instance=self,
-                                                   type=ModuleType.CLI_COMMAND)
+        self._module_info: AutoForgeModuleInfo = AutoForgeModuleInfo(name=name, description=description,
+                                                                     version=version,
+                                                                     class_name=self.__class__.__name__,
+                                                                     class_instance=self,
+                                                                     type=AutoForgeModuleType.CLI_COMMAND)
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
@@ -131,20 +133,20 @@ class CLICommandInterface(ABC):
         """
         return self._last_error
 
-    def get_info(self, module: Optional[ModuleType] = None) -> ModuleInfo:
+    def get_info(self, python_module_type: Optional[ModuleType] = None) -> AutoForgeModuleInfo:
         """
         Retrievers information about the implemented command line tool.
         Note: Implementation class must call _set_info().
         Args:
-            module (Optional[ModuleType]): This dynamically loaded implementation module
+            python_module_type (Optional[ModuleType]): This dynamically loaded implementation module
         Returns:
-            ModuleInfo: a named tuple containing the implemented command id
+            AutoForgeModuleInfo: a named tuple containing the implemented command id
         """
         if self._module_info is None:
             raise RuntimeError('command info not initialized, make sure call set_info() first')
 
-        if module:
-            description = ToolBox.get_module_description(module=module)
+        if python_module_type:
+            description = ToolBox.get_module_description(python_module_type=python_module_type)
             if isinstance(description, str):
                 description = (f"{description}\n\nArgs:\n    "
                                f"Run '{self._module_info.name} --help' to see all available arguments.")

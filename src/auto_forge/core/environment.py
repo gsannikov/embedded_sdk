@@ -32,8 +32,8 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreCommands,
-                        ModuleType, ModuleInfo, ProgressTracker, ExecutionMode, ValidationMethod,
-                        ToolBox, AutoLogger)
+                        AutoForgeModuleType, ProgressTracker, ExecutionMode, ValidationMethod,
+                        Registry, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -96,11 +96,13 @@ class CoreEnvironment(CoreModuleInterface):
             if self._workspace_path:
                 self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
                                                                         to_absolute_path=True)
-            # Stores the module information in the class session
-            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
-                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                       class_name=self.__class__.__name__, class_instance=self,
-                                                       type=ModuleType.CORE)
+
+            # Persist this module instance in the global registry for centralized access
+            registry = Registry.get_instance()
+            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                     auto_forge_module_type=AutoForgeModuleType.CORE)
+
         except Exception as exception:
             self._logger.error(exception)
             raise RuntimeError("environment core module not initialized")

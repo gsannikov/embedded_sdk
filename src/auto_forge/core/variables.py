@@ -17,8 +17,8 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
-                        ModuleType, ModuleInfo, VariableField,
-                        AutoLogger)
+                        AutoForgeModuleType, VariableField,
+                        Registry, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
@@ -76,11 +76,11 @@ class CoreVariables(CoreModuleInterface):
 
             self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
 
-            # Stores this module information in the class session
-            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
-                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                       class_name=self.__class__.__name__, class_instance=self,
-                                                       type=ModuleType.CORE)
+            # Persist this module instance in the global registry for centralized access
+            registry = Registry.get_instance()
+            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                     auto_forge_module_type=AutoForgeModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)

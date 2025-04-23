@@ -20,11 +20,16 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables,
-                        CoreSolution, CoreEnvironment, CoreCommands,CorePrompt,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger,LogHandlersTypes)
+                        CoreSolution, CoreEnvironment, CoreCommands, CorePrompt,
+                        Registry, AutoLogger, LogHandlersTypes,
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME)
 
 
 class AutoForge(CoreModuleInterface):
+    """
+    This module serves as the core of the AutoForge system, initialized ising the basd 'CoreModuleInterface' which
+    ensures a singleton pattern.
+    """
 
     def __init__(self, *args, **kwargs):
         """
@@ -48,6 +53,9 @@ class AutoForge(CoreModuleInterface):
             automated_mode (bool, optional): If True, enables CI-safe, non-interactive behavior.
         """
         try:
+
+            self._registry: Registry = Registry()
+
             if not isinstance(workspace_path, str):
                 raise RuntimeError("argument 'workspace' must be a string")
 
@@ -62,7 +70,8 @@ class AutoForge(CoreModuleInterface):
             self._toolbox: Optional[ToolBox] = ToolBox()
             self._processor: Optional[CoreProcessor] = CoreProcessor()
             self._commands: Optional[CoreCommands] = CoreCommands()
-            self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path, automated_mode=automated_mode)
+            self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
+                                                                 automated_mode=automated_mode)
             self._prompt = CorePrompt()
 
             # Essential core modules instantiated, other modules will loaded aas needed.

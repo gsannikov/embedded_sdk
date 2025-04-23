@@ -29,9 +29,9 @@ from colorama import Fore
 
 # Retrieve our package base path from settings
 from auto_forge import (CoreModuleInterface,
-                        ModuleType, ModuleInfo,
-                        PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH,
-                        AutoLogger)
+                        AutoForgeModuleType, AutoLogger,
+                        PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
+from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -48,13 +48,11 @@ class ToolBox(CoreModuleInterface):
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
             self._storage = {}  # Local static dictionary for managed session variables
 
-            # Stores this module information in the class session
-            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
-                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                       class_name=self.__class__.__name__, class_instance=self,
-                                                       type=ModuleType.CORE)
-
-
+            # Persist this module instance in the global registry for centralized access
+            registry = Registry.get_instance()
+            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                     auto_forge_module_type=AutoForgeModuleType.CORE)
         except Exception as exception:
             self._logger.error(exception)
             raise RuntimeError("toolbox common module not initialized")
@@ -870,21 +868,21 @@ class ToolBox(CoreModuleInterface):
         return 0
 
     @staticmethod
-    def get_module_description(module: Optional[ModuleType] = None) -> Optional[str]:
+    def get_module_description(python_module_type: Optional[ModuleType] = None) -> Optional[str]:
         """
         Returns the 'Description:' section of a module docstring, if present.
         If no 'Description:' section exists, returns the full module docstring.
         If no docstring exists, returns None.
         Args:
-            module (Optional[ModuleType]): The module to extract the docstring from.
+            python_module_type (Optional[ModuleType]): The module to extract the docstring from.
                                            Defaults to the calling module.
         Returns:
             Optional[str]: The extracted description or full docstring.
         """
-        if module is None:
-            module = sys.modules[__name__]
+        if python_module_type is None:
+            python_module_type = sys.modules[__name__]
 
-        doc = module.__doc__
+        doc = python_module_type.__doc__
         if not doc:
             return None
 

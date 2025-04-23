@@ -34,7 +34,8 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP, AutoLogger)
+from auto_forge import (CLICommandInterface, ToolBox,
+                        TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "lsd"
 AUTO_FORGE_COMMAND_DESCRIPTION = "ls - reimagined"
@@ -54,6 +55,7 @@ class LSDCommand(CLICommandInterface):
         self._is_initialized = False
         # Get logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
+        self._toolbox = ToolBox.get_instance()
 
         # Helps to get the date formatted to the specific system local settings
         locale.setlocale(locale.LC_TIME, '')

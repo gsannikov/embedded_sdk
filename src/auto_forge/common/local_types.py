@@ -20,7 +20,7 @@ AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
 
 
-class ModuleType(Enum):
+class AutoForgeModuleType(Enum):
     """
     Enumeration of known AutoForge module types.
 
@@ -30,28 +30,32 @@ class ModuleType(Enum):
     """
     UNKNOWN = 0
     CORE = 1
-    CLI_COMMAND = 2
+    COMMON = 2
+    CLI_COMMAND = 3
 
 
-class ModuleInfo(NamedTuple):
+class AutoForgeModuleInfo(NamedTuple):
     """
     Define a named tuple type for a Python module information retrieve.
     """
     name: str
     description: str
-    class_name: str
-    class_instance: Any
-    type: ModuleType = ModuleType.UNKNOWN
+    class_name: Optional[str] = None
+    class_instance: Optional[Any] = None
+    class_interface: Optional[Any] = None
+    auto_forge_module_type: AutoForgeModuleType = AutoForgeModuleType.UNKNOWN
+    python_module_type:Optional[Any] = None
+    file_name: Optional[str] = None
     version: Optional[str] = None
 
 
-class ModuleSummary(NamedTuple):
+class AutoForgeModuleSummary(NamedTuple):
     """
     Represents a minimal summary subset of 'ModuleInfo'.
     """
     name: str
     description: str
-    type: ModuleType = ModuleType.UNKNOWN
+    type: AutoForgeModuleType = AutoForgeModuleType.UNKNOWN
 
 
 class ValidationMethod(Enum):

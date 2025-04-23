@@ -42,8 +42,7 @@ from jsonschema.validators import validate
 
 # Internal AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables, CoreSignatures,
-                        ModuleType, ModuleInfo,
-                        PROJECT_SCHEMAS_PATH, AutoLogger)
+                        Registry, AutoForgeModuleType, PROJECT_SCHEMAS_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
@@ -89,11 +88,11 @@ class CoreSolution(CoreModuleInterface):
             # Load the solution
             self._preprocess(solution_config_file_name)
 
-            # Stores this module information in the class session
-            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
-                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                       class_name=self.__class__.__name__, class_instance=self,
-                                                       type=ModuleType.CORE)
+            # Persist this module instance in the global registry for centralized access
+            registry = Registry.get_instance()
+            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                     auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Propagate exceptions
         except Exception:

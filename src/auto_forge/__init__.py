@@ -18,7 +18,7 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
-from auto_forge.common.local_types import (ModuleType, ModuleInfo, ModuleSummary,
+from auto_forge.common.local_types import (AutoForgeModuleType, AutoForgeModuleInfo, AutoForgeModuleSummary,
                                            ValidationMethod, ExecutionMode,
                                            SignatureSchema, SignatureField, VariableField,
                                            TerminalTeeStream, TerminalAnsiCodes,
@@ -28,6 +28,7 @@ from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
 
 # Common modules
+from auto_forge.common.registry import Registry
 from auto_forge.common.toolbox import ToolBox
 from auto_forge.common.progress_tracker import (ProgressTracker)
 
@@ -46,6 +47,7 @@ from auto_forge.auto_forge import auto_forge_main as main
 
 # Exported symbols
 __all__ = [
+    "Registry",
     "ToolBox",
     "ProgressTracker",
     "CoreProcessor",
@@ -58,9 +60,9 @@ __all__ = [
     "TerminalAnsiGuru",
     "TerminalFileIconInfo",
     "TERMINAL_ICONS_MAP",
-    "ModuleType",
-    "ModuleInfo",
-    "ModuleSummary",
+    "AutoForgeModuleType",
+    "AutoForgeModuleInfo",
+    "AutoForgeModuleSummary",
     "ValidationMethod",
     "ExecutionMode",
     "SignatureField",

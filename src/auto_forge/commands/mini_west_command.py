@@ -27,7 +27,7 @@ import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, AutoLogger)
+from auto_forge import (CLICommandInterface, ToolBox, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "mini_west"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
@@ -84,6 +84,7 @@ class MiniWestCommand(CLICommandInterface):
 
         # Get logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
+        self._toolbox = ToolBox.get_instance()
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)

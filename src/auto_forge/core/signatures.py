@@ -20,8 +20,8 @@ import zlib
 from typing import Match, Optional, Any, Dict, List
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables, ModuleType, ModuleInfo,
-                        SignatureField, SignatureSchema, AutoLogger)
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables,
+                        Registry, AutoForgeModuleType, SignatureField, SignatureSchema, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
@@ -136,11 +136,11 @@ class CoreSignatures(CoreModuleInterface):
 
                 self._schemas.append(schema)
 
-            # Stores this module information in the class session
-            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
-                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                       class_name=self.__class__.__name__, class_instance=self,
-                                                       type=ModuleType.CORE)
+            # Persist this module instance in the global registry for centralized access
+            registry = Registry.get_instance()
+            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                     auto_forge_module_type=AutoForgeModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)

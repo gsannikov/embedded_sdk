@@ -20,9 +20,9 @@ from typing import Optional, Any, Dict, cast
 
 # AutoGorge local imports
 from auto_forge import (CoreModuleInterface, CLICommandInterface,
-                        ModuleType, ModuleInfo, ModuleSummary, TerminalTeeStream,
+                        AutoForgeModuleType, AutoForgeModuleInfo, AutoForgeModuleSummary, TerminalTeeStream,
                         PROJECT_COMMANDS_PATH,
-                        AutoLogger)
+                        Registry, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
@@ -59,11 +59,11 @@ class CoreCommands(CoreModuleInterface):
             # Search for commands and register them
             self._probe()
 
-            # Stores this module information in the class session
-            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
-                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                       class_name=self.__class__.__name__, class_instance=self,
-                                                       type=ModuleType.CORE)
+            # Persist this module instance in the global registry for centralized access
+            registry = Registry.get_instance()
+            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                     auto_forge_module_type=AutoForgeModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)
@@ -84,32 +84,10 @@ class CoreCommands(CoreModuleInterface):
 
         return self._commands_registry.get(command_name) or None
 
-    def _find_command_record(self, value: str, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """
-        Searches the command registry for a record matching the given value.
-        Args:
-            value (str): The value to search for.
-            key (Optional[str]): Specific key to search within each command record.
-                                 If not provided, all keys are scanned.
-
-        Returns:
-            Optional[Dict[str, Any]]: The first matching command record, or None.
-        """
-        for record in self._commands_registry.values():
-            if key:
-                if key in record and record[key] == value:
-                    return record
-            else:
-                for _, v in record.items():
-                    if v == value or (isinstance(v, list) and value in v):
-                        return record
-        return None
-
     def _probe(self) -> int:
         """
         Scans the project commands path for Python modules, validates command classes,
         and registers them into the internal command registry.
-
         Returns:
             int: Number of successfully loaded commands.
         """
@@ -118,7 +96,6 @@ class CoreCommands(CoreModuleInterface):
 
         for file in glob.glob(str(self._commands_path / "*.py")):
             module_name = os.path.splitext(os.path.basename(file))[0]
-
             try:
                 # Dynamically import the module
                 spec = importlib.util.spec_from_file_location(module_name, file)
@@ -148,29 +125,29 @@ class CoreCommands(CoreModuleInterface):
                     continue
 
                 command_instance = command_class()
-                command_info: ModuleInfo = command_instance.get_info(module=module)
+                module_info: AutoForgeModuleInfo = command_instance.get_info(python_module_type=module)
 
-                if not command_info:
+                if not module_info:
                     raise RuntimeError(f"module '{module_name}' did not return valid command info")
 
-                if self._get_command_record_by_name(command_info.name):
-                    raise RuntimeError(f"duplicate command registration: '{command_info.name}'")
+                if self._get_command_record_by_name(module_info.name):
+                    raise RuntimeError(f"duplicate command registration: '{module_info.name}'")
 
-                self._commands_registry[command_info.name] = {
-                    "command_version": command_info.version,
-                    "command_description": command_info.description,
-                    "command_aliases": [command_info.name],
+                self._commands_registry[module_info.name] = {
+                    "command_version": module_info.version,
+                    "command_description": module_info.description,
                     "interface": interface_type,
                     "instance": command_instance,
                     "module_name": module_name,
                     "file_name": file,
-                    "class_name": command_info.class_name,
-                    "class_alias": str(command_info.class_name).lower()
+                    "class_name": module_info.class_name,
+                    "class_alias": str(module_info.class_name).lower(),
+                    "type": module_info.auto_forge_module_type,
                 }
 
                 sys.modules[spec.name] = module
                 self._loaded_commands += 1
-                self._logger.debug(f"Command '{command_info.name}' v{command_info.version} loaded")
+                self._logger.debug(f"Command '{module_info.name}' v{module_info.version} loaded")
 
             except Exception as err:
                 raise RuntimeError(f"failed to load command from '{module_name}': {err}")
@@ -180,13 +157,13 @@ class CoreCommands(CoreModuleInterface):
 
         return self._loaded_commands
 
-    def get_commands(self) -> List[ModuleSummary]:
+    def get_commands(self) -> List[AutoForgeModuleSummary]:
         """
         Returns a list of command summaries (name and description only),
         omitting all other internal or non-serializable details.
         """
         return [
-            ModuleSummary(name, meta.get("command_description", ""))
+            AutoForgeModuleSummary(name, meta.get("command_description", ""))
             for name, meta in self._commands_registry.items()
         ]
 
