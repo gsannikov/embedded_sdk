@@ -39,12 +39,12 @@ class AutoForgeModuleInfo(NamedTuple):
     Define a named tuple type for a Python module information retrieve.
     """
     name: str
-    description: str
+    description: Optional[str] = None
     class_name: Optional[str] = None
     class_instance: Optional[Any] = None
     class_interface: Optional[Any] = None
     auto_forge_module_type: AutoForgeModuleType = AutoForgeModuleType.UNKNOWN
-    python_module_type:Optional[Any] = None
+    python_module_type: Optional[Any] = None
     file_name: Optional[str] = None
     version: Optional[str] = None
 
@@ -55,7 +55,6 @@ class AutoForgeModuleSummary(NamedTuple):
     """
     name: str
     description: str
-    type: AutoForgeModuleType = AutoForgeModuleType.UNKNOWN
 
 
 class ValidationMethod(Enum):

@@ -61,13 +61,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             # Get a logger instance
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            self._registry: Registry = Registry.get_instance()
 
             # Clear command line buffer
             sys.argv = [sys.argv[0]]
             ansi.allow_ansi = True
 
-            # Add dynamically lodaed AutoForge style commands
-            self._add_auto_commands()
+            # Get a lis for the dynamically lodaed AutoForge commands and inject them to cmd2
+            self._dynamic_cli_commands_list = (
+                self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
+            if len(self._dynamic_cli_commands_list) > 0:
+                self._add_dynamic_cli_commands()
+            else:
+                self._logger.warning("No dynamic commands loaded")
 
             # Build executables dictionary for implementation shell style fast auto completion
             if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
@@ -107,10 +113,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._update_prompt()
 
             # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
+            self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                           description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                           auto_forge_module_type=AutoForgeModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)
@@ -134,15 +139,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         setattr(self, f'help_{command_name}', lambda _self: None)
         setattr(self, f'complete_{command_name}', lambda *_: [])
 
-    def _add_auto_commands(self):
-        """
-        Dynamically adds AutoForge command methods to the Prompt instance based on
-        the registered commands from the loader. Each command is dispatched
-        via the loader's `execute()` method using its registered name.
-        """
-        command_summaries = self._commands_loader.get_commands()
+    def _add_dynamic_cli_commands(self) ->int:
 
-        for cmd_summary in command_summaries:
+        """
+        Dynamically adds AutoForge dynamically loaded command to the Prompt.
+        Each command is dispatched via the loader's `execute()` method using its registered name.
+        Returns:
+            int: The number of commands added.
+        """
+        added_commands:int = 0
+
+        for cmd_summary in self._dynamic_cli_commands_list:
             cmd_name = cmd_summary.name
             description = cmd_summary.description
 
@@ -165,6 +172,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             method_name = f"do_{cmd_name}"
             bound_method = MethodType(unbound_func, self)
             setattr(self, method_name, bound_method)
+            self._logger.debug(f"Command '{cmd_name}' was added to the prompt")
+            added_commands = added_commands +1
+
+        return added_commands
 
     def _build_executable_index(self) -> None:
         """
@@ -287,7 +298,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             matches = [cmd for cmd in self._executable_db if cmd.startswith(text)]
 
             # Add dynamically registered commands
-            dynamic_commands = [cmd.name for cmd in self._commands_loader.get_commands()]
+            dynamic_commands = [cmd.name for cmd in self._dynamic_cli_commands_list]
             matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
 
             # Deduplicate and sort

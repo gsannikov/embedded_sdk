@@ -25,7 +25,7 @@ from types import ModuleType
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoForgeModuleInfo)
+from auto_forge import (AutoForgeModuleInfo)
 from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
 
 
@@ -98,14 +98,11 @@ class CLICommandInterface(ABC):
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
-    def __init__(self, name: str, description: str, version: str, raise_exceptions: bool = False):
+    def __init__(self,module_info:AutoForgeModuleInfo, raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
-        Args:
-            name (str): The command name.
-            description (str): The command description.
-            version (str): Version of the command.
+        Args:.
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
@@ -113,11 +110,7 @@ class CLICommandInterface(ABC):
         self._raise_exceptions = raise_exceptions
 
         # Stores the command information in the class session
-        self._module_info: AutoForgeModuleInfo = AutoForgeModuleInfo(name=name, description=description,
-                                                                     version=version,
-                                                                     class_name=self.__class__.__name__,
-                                                                     class_instance=self,
-                                                                     type=AutoForgeModuleType.CLI_COMMAND)
+        self._module_info = module_info
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
@@ -138,14 +131,20 @@ class CLICommandInterface(ABC):
         Retrievers information about the implemented command line tool.
         Note: Implementation class must call _set_info().
         Args:
-            python_module_type (Optional[ModuleType]): This dynamically loaded implementation module
+            python_module_type (Optional[ModuleType]): The type of this dynamically loaded module.
+                Must be provided externally, as it cannot be inferred during dynamic loading.
         Returns:
             AutoForgeModuleInfo: a named tuple containing the implemented command id
         """
         if self._module_info is None:
             raise RuntimeError('command info not initialized, make sure call set_info() first')
 
-        if python_module_type:
+        # Update the registry with the Python module type and inviolate the description field
+        if python_module_type and not self._module_info.python_module_type:
+            self._module_info = self._module_info._replace(python_module_type=python_module_type)
+
+            # Update the description using the module's docstring, which typically provides
+            # more detailed information than the default description.
             description = ToolBox.get_module_description(python_module_type=python_module_type)
             if isinstance(description, str):
                 description = (f"{description}\n\nArgs:\n    "

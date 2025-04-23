@@ -34,8 +34,9 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, ToolBox,
-                        TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP, AutoLogger)
+from auto_forge import (CLICommandInterface, Registry, ToolBox,
+                        AutoForgeModuleType, TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP, AutoLogger)
+from auto_forge.common.local_types import AutoForgeModuleInfo
 
 AUTO_FORGE_COMMAND_NAME = "lsd"
 AUTO_FORGE_COMMAND_DESCRIPTION = "ls - reimagined"
@@ -52,8 +53,7 @@ class LSDCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._is_initialized = False
-        # Get logger instance
+        # Create a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
         self._toolbox = ToolBox.get_instance()
 
@@ -67,13 +67,14 @@ class LSDCommand(CLICommandInterface):
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
-        # Base class initialization
-        super().__init__(name=AUTO_FORGE_COMMAND_NAME,
-                         description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         version=AUTO_FORGE_COMMAND_VERSION,
-                         raise_exceptions=raise_exceptions)
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        module_info:AutoForgeModuleInfo = registry.register_module(name=AUTO_FORGE_COMMAND_NAME,
+                                 description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND)
 
-        self._is_initialized = True
+        # Base class initialization
+        super().__init__(module_info=module_info,raise_exceptions=raise_exceptions)
 
     @staticmethod
     def _get_icon_info(ext_or_name: Path) -> TerminalFileIconInfo:

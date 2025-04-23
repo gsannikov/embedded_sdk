@@ -27,7 +27,8 @@ import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, ToolBox, AutoLogger)
+from auto_forge import (CLICommandInterface, Registry, ToolBox, AutoLogger,
+                        AutoForgeModuleType, AutoForgeModuleInfo)
 
 AUTO_FORGE_COMMAND_NAME = "mini_west"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
@@ -89,11 +90,14 @@ class MiniWestCommand(CLICommandInterface):
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        module_info: AutoForgeModuleInfo = registry.register_module(name=AUTO_FORGE_COMMAND_NAME,
+                                                                    description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                                                                    auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND)
+
         # Base class initialization
-        super().__init__(name=AUTO_FORGE_COMMAND_NAME,
-                         description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         version=AUTO_FORGE_COMMAND_VERSION,
-                         raise_exceptions=raise_exceptions)
+        super().__init__(module_info=module_info, raise_exceptions=raise_exceptions)
 
         self._is_initialized = True
 
