@@ -62,41 +62,35 @@ class CoreSolution(CoreModuleInterface):
             solution_config_file_name (str): The path to the JSON configuration file.
         """
 
-        try:
+        if not solution_config_file_name:
+            raise RuntimeError("solution configuration file not specified")
 
-            if not solution_config_file_name:
-                raise RuntimeError("solution configuration file not specified")
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._config_file_name: Optional[str] = None  # Loaded solution file name
+        self._config_file_path: Optional[str] = None  # Loaded solution file path
+        self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
+        self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
+        self._includes: Optional[Dict[str, Any]] = None  # Additional included JSONS
+        self._scope = _ScopeState()  # Initialize scope state to track processing state and context
+        self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
+        self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
+        self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
+        self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
+        self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
+        self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
+        self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
+        self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
 
-            self._config_file_name: Optional[str] = None  # Loaded solution file name
-            self._config_file_path: Optional[str] = None  # Loaded solution file path
-            self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
-            self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
-            self._includes: Optional[Dict[str, Any]] = None  # Additional included JSONS
-            self._scope = _ScopeState()  # Initialize scope state to track processing state and context
-            self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
-            self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
-            self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
-            self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
-            self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
-            self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
-            self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
-            self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
+        # Load the solution
+        self._preprocess(solution_config_file_name)
 
-            # Load the solution
-            self._preprocess(solution_config_file_name)
-
-            # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
-
-        # Propagate exceptions
-        except Exception:
-            raise
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[List, Dict]]:
         """

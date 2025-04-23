@@ -44,30 +44,25 @@ class CoreCommands(CoreModuleInterface):
         """
         Initializes the 'CommandsLoader' class and prepares the command registry.
         """
-        try:
 
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._registry = Registry.get_instance()
-            self._loaded_commands: int = 0
-            self._commands_path: Path = PROJECT_COMMANDS_PATH
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._registry = Registry.get_instance()
+        self._loaded_commands: int = 0
+        self._commands_path: Path = PROJECT_COMMANDS_PATH
 
-            # Supported base interfaces for command classes
-            self._supported_interfaces = {
-                CLICommandInterface: "CLICommandInterface"
-            }
+        # Supported base interfaces for command classes
+        self._supported_interfaces = {
+            CLICommandInterface: "CLICommandInterface"
+        }
 
-            # Search for commands and register them
-            self._probe()
+        # Search for commands and register them
+        self._probe()
 
-            # Persist this module instance in the global registry for centralized access
-            self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                           description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                           auto_forge_module_type=AutoForgeModuleType.CORE)
-
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("commands loader core module not initialized")
+        # Persist this module instance in the global registry for centralized access
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _probe(self) -> int:
         """

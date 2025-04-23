@@ -43,19 +43,16 @@ class ToolBox(CoreModuleInterface):
         """
         Initialize the 'ToolBox' class.
         """
-        try:
-            # Create a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._storage = {}  # Local static dictionary for managed session variables
 
-            # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("toolbox common module not initialized")
+        # Create a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._storage = {}  # Local static dictionary for managed session variables
+
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):

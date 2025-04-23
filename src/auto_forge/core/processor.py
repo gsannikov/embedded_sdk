@@ -13,8 +13,7 @@ import re
 from typing import Optional, Any, Dict
 
 # AutoForge local imports
-from auto_forge import (CoreModuleInterface, AutoForgeModuleType, AutoForgeModuleInfo,
-                        Registry,AutoLogger, ToolBox)
+from auto_forge import (CoreModuleInterface, AutoForgeModuleType, Registry, AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor"
@@ -29,20 +28,16 @@ class CoreProcessor(CoreModuleInterface):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
         """
-        try:
-            # Create a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._toolbox = ToolBox.get_instance()
 
-            # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
+        # Create a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._toolbox = ToolBox.get_instance()
 
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("processor core module not initialized")
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
     def _get_line_number_from_error(error_message: str) -> Optional[int]:

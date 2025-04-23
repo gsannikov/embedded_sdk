@@ -44,107 +44,102 @@ class CoreSignatures(CoreModuleInterface):
             signatures_config_file_name (str): The path to the JSON file containing the signature descriptors.
         """
 
-        try:
-            self._config_file_name: Optional[str] = None
-            self._signature_id: Optional[int] = 42
-            self._raw_dictionary: Optional[Dict[str, Any]] = {}
-            self._schemas: List[SignatureSchema] = []
-            self._processor: CoreProcessor = CoreProcessor.get_instance()
-            self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
+        self._config_file_name: Optional[str] = None
+        self._signature_id: Optional[int] = 42
+        self._raw_dictionary: Optional[Dict[str, Any]] = {}
+        self._schemas: List[SignatureSchema] = []
+        self._processor: CoreProcessor = CoreProcessor.get_instance()
+        self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
 
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
-            if not signatures_config_file_name:
-                raise RuntimeError("signatures configuration file not specified")
+        if not signatures_config_file_name:
+            raise RuntimeError("signatures configuration file not specified")
 
-            # Preform expansion as needed
-            expanded_file = os.path.expanduser(os.path.expandvars(signatures_config_file_name))
-            self._config_file_name = os.path.abspath(
-                expanded_file)  # Resolve relative paths to absolute paths
+        # Preform expansion as needed
+        expanded_file = os.path.expanduser(os.path.expandvars(signatures_config_file_name))
+        self._config_file_name = os.path.abspath(
+            expanded_file)  # Resolve relative paths to absolute paths
 
-            signatures = self._processor.preprocess(file_name=signatures_config_file_name).get("signatures", None)
-            if signatures is None or not isinstance(signatures, (list, dict)):
-                raise RuntimeError(f"no signatures found in '{signatures_config_file_name}'")
+        signatures = self._processor.preprocess(file_name=signatures_config_file_name).get("signatures", None)
+        if signatures is None or not isinstance(signatures, (list, dict)):
+            raise RuntimeError(f"no signatures found in '{signatures_config_file_name}'")
 
-            # Locate the signature matching the id
-            for signature in signatures:
-                if signature.get("id", None) == self._signature_id:
-                    # Populate the class members once we've located the correct signature dictionary
-                    self._raw_dictionary = signature
-                    self._signature_id = self._to_decimal(self._signature_id)
-                    self._json_descriptor = signatures_config_file_name
-                    break
+        # Locate the signature matching the id
+        for signature in signatures:
+            if signature.get("id", None) == self._signature_id:
+                # Populate the class members once we've located the correct signature dictionary
+                self._raw_dictionary = signature
+                self._signature_id = self._to_decimal(self._signature_id)
+                self._json_descriptor = signatures_config_file_name
+                break
 
-            if self._raw_dictionary is None:
-                raise RuntimeError(f"no signatures with id {self._signature_id} found in {signatures_config_file_name}")
+        if self._raw_dictionary is None:
+            raise RuntimeError(f"no signatures with id {self._signature_id} found in {signatures_config_file_name}")
 
-            # Load all schemas and create
-            schemas = self._raw_dictionary.get("schemas")
-            if schemas is None:
-                raise RuntimeError(f"schemas not found in {signatures_config_file_name}")
+        # Load all schemas and create
+        schemas = self._raw_dictionary.get("schemas")
+        if schemas is None:
+            raise RuntimeError(f"schemas not found in {signatures_config_file_name}")
 
-            self._logger.debug(f"Initialized using '{os.path.basename(self._config_file_name)}'")
-            for raw_schema in schemas:
-                schema: SignatureSchema = SignatureSchema()  # Create new instance
-                schema.dictionary = raw_schema
-                schema.name = raw_schema.get('name', 'anonymous')
-                schema.description = raw_schema.get('description', 'no description')
-                schema.header = self._to_decimal(raw_schema.get('header'))
-                schema.footer = self._to_decimal(raw_schema.get('footer'))
-                schema.size = self._to_decimal(raw_schema.get('size'))
-                schema.is_default = raw_schema.get('default', False)
+        self._logger.debug(f"Initialized using '{os.path.basename(self._config_file_name)}'")
+        for raw_schema in schemas:
+            schema: SignatureSchema = SignatureSchema()  # Create new instance
+            schema.dictionary = raw_schema
+            schema.name = raw_schema.get('name', 'anonymous')
+            schema.description = raw_schema.get('description', 'no description')
+            schema.header = self._to_decimal(raw_schema.get('header'))
+            schema.footer = self._to_decimal(raw_schema.get('footer'))
+            schema.size = self._to_decimal(raw_schema.get('size'))
+            schema.is_default = raw_schema.get('default', False)
 
-                # Peek into the schema dictionary and fetch those three essential field sizes
-                header_field_size: int = self._get_field_size_from_dictionary(dictionary=schema.dictionary,
-                                                                              field_name='header')
-                footer_field_size: int = self._get_field_size_from_dictionary(dictionary=schema.dictionary,
-                                                                              field_name='footer')
-                # Make sure we got meaningful values
-                if any(value in (None, 0) for value in
-                       {schema.name, schema.header, schema.footer, schema.size, header_field_size, footer_field_size}):
-                    raise RuntimeError(f"essential schema fields (header, footer, size) are missing or "
-                                       f"incorrectly set from {signatures_config_file_name}")
+            # Peek into the schema dictionary and fetch those three essential field sizes
+            header_field_size: int = self._get_field_size_from_dictionary(dictionary=schema.dictionary,
+                                                                          field_name='header')
+            footer_field_size: int = self._get_field_size_from_dictionary(dictionary=schema.dictionary,
+                                                                          field_name='footer')
+            # Make sure we got meaningful values
+            if any(value in (None, 0) for value in
+                   {schema.name, schema.header, schema.footer, schema.size, header_field_size, footer_field_size}):
+                raise RuntimeError(f"essential schema fields (header, footer, size) are missing or "
+                                   f"incorrectly set from {signatures_config_file_name}")
 
-                # Convert the header,and footer and header to their binary format and create binary regex patterns
-                # First get the expected bytes count between the known markers
-                arbitrary_data_length = schema.size - (header_field_size + footer_field_size)
-                start_pattern = (struct.pack("<I", schema.header))
-                end_pattern = struct.pack("<I", schema.footer)
+            # Convert the header,and footer and header to their binary format and create binary regex patterns
+            # First get the expected bytes count between the known markers
+            arbitrary_data_length = schema.size - (header_field_size + footer_field_size)
+            start_pattern = (struct.pack("<I", schema.header))
+            end_pattern = struct.pack("<I", schema.footer)
 
-                # Construct and compile regex string
-                regex_pattern = rb"%s.{%d}%s" % (start_pattern, arbitrary_data_length, end_pattern)
-                schema.search_pattern = re.compile(regex_pattern, re.DOTALL)
+            # Construct and compile regex string
+            regex_pattern = rb"%s.{%d}%s" % (start_pattern, arbitrary_data_length, end_pattern)
+            schema.search_pattern = re.compile(regex_pattern, re.DOTALL)
 
-                # Validates that each field name is unique within the same structural level of the schema.
-                # This approach mirrors the scoping rules of C structs, facilitating the direct conversion of this schema
-                # into C header files without naming conflicts.
-                self._validate_schema_structure_members(schema.dictionary)
+            # Validates that each field name is unique within the same structural level of the schema.
+            # This approach mirrors the scoping rules of C structs, facilitating the direct conversion of this schema
+            # into C header files without naming conflicts.
+            self._validate_schema_structure_members(schema.dictionary)
 
-                # Construct a Python format string based on the schema, which can be used to
-                # serialize and deserialize signature data to and from binary format.
-                schema.format_string = self._build_format_string_from_dictionary(schema.dictionary)
+            # Construct a Python format string based on the schema, which can be used to
+            # serialize and deserialize signature data to and from binary format.
+            schema.format_string = self._build_format_string_from_dictionary(schema.dictionary)
 
-                calculated_schema_size = struct.calcsize(schema.format_string)
-                if calculated_schema_size is None or calculated_schema_size == 0:
-                    raise RuntimeError(f"could not calculate schema expected size")
+            calculated_schema_size = struct.calcsize(schema.format_string)
+            if calculated_schema_size is None or calculated_schema_size == 0:
+                raise RuntimeError(f"could not calculate schema expected size")
 
-                # Verify that the size calculated matches the 'size' attribute specified in the schema.
-                if calculated_schema_size != schema.size:
-                    raise RuntimeError(
-                        f"calculated schema size {calculated_schema_size}, but schema reported size is {schema.size}")
+            # Verify that the size calculated matches the 'size' attribute specified in the schema.
+            if calculated_schema_size != schema.size:
+                raise RuntimeError(
+                    f"calculated schema size {calculated_schema_size}, but schema reported size is {schema.size}")
 
-                self._schemas.append(schema)
+            self._schemas.append(schema)
 
-            # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
-
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("signatures core module not initialized")
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def deserialize(self, file_name: str) -> Optional["SignatureFileHandler"]:
         """

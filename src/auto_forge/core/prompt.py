@@ -50,76 +50,72 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 as the base prefix for the dynamic prompt.
         """
 
-        try:
-            self._toolbox = ToolBox.get_instance()
-            self._environment: CoreEnvironment = CoreEnvironment.get_instance()
-            self._prompt_base: Optional[str] = None
-            self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
-            self._commands_loader: Optional[CoreCommands] = CoreCommands.get_instance()
-            self._executable_db: Optional[Dict[str, str]] = None
-            self._last_execution_return_code: Optional[int] = 0
+        self._toolbox = ToolBox.get_instance()
+        self._environment: CoreEnvironment = CoreEnvironment.get_instance()
+        self._prompt_base: Optional[str] = None
+        self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
+        self._commands_loader: Optional[CoreCommands] = CoreCommands.get_instance()
+        self._executable_db: Optional[Dict[str, str]] = None
+        self._loaded_commands: int = 0
+        self._last_execution_return_code: Optional[int] = 0
 
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._registry: Registry = Registry.get_instance()
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._registry: Registry = Registry.get_instance()
 
-            # Clear command line buffer
-            sys.argv = [sys.argv[0]]
-            ansi.allow_ansi = True
+        # Clear command line buffer
+        sys.argv = [sys.argv[0]]
+        ansi.allow_ansi = True
 
-            # Get a lis for the dynamically lodaed AutoForge commands and inject them to cmd2
-            self._dynamic_cli_commands_list = (
-                self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
-            if len(self._dynamic_cli_commands_list) > 0:
-                self._add_dynamic_cli_commands()
-            else:
-                self._logger.warning("No dynamic commands loaded")
+        # Get a lis for the dynamically lodaed AutoForge commands and inject them to cmd2
+        self._dynamic_cli_commands_list = (
+            self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
+        if len(self._dynamic_cli_commands_list) > 0:
+            self._loaded_commands = self._add_dynamic_cli_commands()
+        else:
+            self._logger.warning("No dynamic commands loaded")
 
-            # Build executables dictionary for implementation shell style fast auto completion
-            if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
-                                                      command=self._build_executable_index,
-                                                      command_type=ExecutionMode.PYTHON,
-                                                      new_lines=1) != 0:
-                raise RuntimeError("could not finish initializing")
+        # Build executables dictionary for implementation shell style fast auto completion
+        if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
+                                                  command=self._build_executable_index,
+                                                  command_type=ExecutionMode.PYTHON,
+                                                  new_lines=1) != 0:
+            raise RuntimeError("could not finish initializing")
 
-            # Modify readline behaviour to allow for single TAB when auto completing binary name
-            readline.parse_and_bind("set show-all-if-ambiguous on")
-            readline.parse_and_bind("TAB: complete")
+        # Modify readline behaviour to allow for single TAB when auto completing binary name
+        readline.parse_and_bind("set show-all-if-ambiguous on")
+        readline.parse_and_bind("TAB: complete")
 
-            # Initialize cmd2 bas class
-            cmd2.Cmd.__init__(self)
+        # Initialize cmd2 bas class
+        cmd2.Cmd.__init__(self)
 
-            # Remove unnecessary built-in commands
-            for cmd in ['macro', 'edit', 'run_pyscript']:
-                self._remove_command(cmd)
+        # Remove unnecessary built-in commands
+        for cmd in ['macro', 'edit', 'run_pyscript']:
+            self._remove_command(cmd)
 
-            # Assign path_complete to the complete_cd and complete_ls methods
-            self.complete_cd = self.path_complete
-            self.complete_lss = self.path_complete
+        # Assign path_complete to the complete_cd and complete_ls methods
+        self.complete_cd = self.path_complete
+        self.complete_lss = self.path_complete
 
-            # Add several basic aliases
-            self.set_alias('..', 'cd ..')
-            self.set_alias('~', 'cd $HOME')
-            self.set_alias('gw', f'cd {CoreEnvironment.get_instance().get_workspace_path()}')
-            self.set_alias('ls', 'lsd -g')
-            self.set_alias('ll', 'lss -la')
-            self.set_alias('l', 'ls')
-            self.set_alias('exit', 'quit')
-            self.set_alias('gs', 'git status')
-            self.set_alias('ga', 'git add .')
-            self.set_alias('gc', 'git commit -m')
-            self.set_alias('gp', 'git push')
+        # Add several basic aliases
+        self.set_alias('..', 'cd ..')
+        self.set_alias('~', 'cd $HOME')
+        self.set_alias('gw', f'cd {CoreEnvironment.get_instance().get_workspace_path()}')
+        self.set_alias('ls', 'lsd -g')
+        self.set_alias('ll', 'lss -la')
+        self.set_alias('l', 'ls')
+        self.set_alias('exit', 'quit')
+        self.set_alias('gs', 'git status')
+        self.set_alias('ga', 'git add .')
+        self.set_alias('gc', 'git commit -m')
+        self.set_alias('gp', 'git push')
 
-            self._update_prompt()
+        self._update_prompt()
 
-            # Persist this module instance in the global registry for centralized access
-            self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                           description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                           auto_forge_module_type=AutoForgeModuleType.CORE)
-
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("prompt core module not initialized")
+        # Persist this module instance in the global registry for centralized access
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _remove_command(self, command_name: str):
         """
@@ -139,7 +135,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         setattr(self, f'help_{command_name}', lambda _self: None)
         setattr(self, f'complete_{command_name}', lambda *_: [])
 
-    def _add_dynamic_cli_commands(self) ->int:
+    def _add_dynamic_cli_commands(self) -> int:
 
         """
         Dynamically adds AutoForge dynamically loaded command to the Prompt.
@@ -147,7 +143,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Returns:
             int: The number of commands added.
         """
-        added_commands:int = 0
+        added_commands: int = 0
 
         for cmd_summary in self._dynamic_cli_commands_list:
             cmd_name = cmd_summary.name
@@ -173,7 +169,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             bound_method = MethodType(unbound_func, self)
             setattr(self, method_name, bound_method)
             self._logger.debug(f"Command '{cmd_name}' was added to the prompt")
-            added_commands = added_commands +1
+            added_commands = added_commands + 1
 
         return added_commands
 
@@ -298,8 +294,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             matches = [cmd for cmd in self._executable_db if cmd.startswith(text)]
 
             # Add dynamically registered commands
-            dynamic_commands = [cmd.name for cmd in self._dynamic_cli_commands_list]
-            matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
+            if self._loaded_commands:
+                dynamic_commands = [cmd.name for cmd in self._dynamic_cli_commands_list]
+                matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
 
             # Deduplicate and sort
             matches = sorted(set(matches))

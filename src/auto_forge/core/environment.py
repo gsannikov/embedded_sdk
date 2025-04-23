@@ -66,46 +66,41 @@ class CoreEnvironment(CoreModuleInterface):
             workspace_path(str): The workspace path.
             automated_mode(boo, Optional): Specify if we're running in automation mode
         """
-        try:
 
-            # Create a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
-            self._package_manager: Optional[str] = None
-            self._workspace_path: Optional[str] = workspace_path
-            self._default_execution_time: float = 60.0  # Time allowed for executed shell command
-            self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
-            self._automated_mode: bool = automated_mode  # Default execution mode
-            self._toolbox: ToolBox = ToolBox.get_instance()
-            self._commands: CoreCommands = CoreCommands.get_instance()
+        # Create a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
+        self._package_manager: Optional[str] = None
+        self._workspace_path: Optional[str] = workspace_path
+        self._default_execution_time: float = 60.0  # Time allowed for executed shell command
+        self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
+        self._automated_mode: bool = automated_mode  # Default execution mode
+        self._toolbox: ToolBox = ToolBox.get_instance()
+        self._commands: CoreCommands = CoreCommands.get_instance()
 
-            # Determine which package manager is available on the system.
-            if shutil.which("apt"):
-                self._package_manager = "apt"
-            elif shutil.which("dnf"):
-                self._package_manager = "dnf"
+        # Determine which package manager is available on the system.
+        if shutil.which("apt"):
+            self._package_manager = "apt"
+        elif shutil.which("dnf"):
+            self._package_manager = "dnf"
 
-            # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
-            self._system_type = platform.system().lower()
-            self._is_wsl = True if "wsl" in platform.release().lower() else False
+        # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
+        self._system_type = platform.system().lower()
+        self._is_wsl = True if "wsl" in platform.release().lower() else False
 
-            # Get extended distro info when we're running under Linux
-            if self._system_type == "linux":
-                self._linux_distro, self._linux_version = self._get_linux_distro()
+        # Get extended distro info when we're running under Linux
+        if self._system_type == "linux":
+            self._linux_distro, self._linux_version = self._get_linux_distro()
 
-            # Normalize workspace path
-            if self._workspace_path:
-                self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
-                                                                        to_absolute_path=True)
+        # Normalize workspace path
+        if self._workspace_path:
+            self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
+                                                                    to_absolute_path=True)
 
-            # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
-
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("environment core module not initialized")
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _print(self, text: str):
         """

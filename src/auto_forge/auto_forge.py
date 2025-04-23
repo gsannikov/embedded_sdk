@@ -121,8 +121,8 @@ class AutoForge(CoreModuleInterface):
             return self._prompt.cmdloop()
 
         # Propagate
-        except Exception as solution_exception:
-            raise solution_exception
+        except Exception:
+            raise
 
 
 def auto_forge_main() -> Optional[int]:

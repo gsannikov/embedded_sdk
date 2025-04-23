@@ -47,44 +47,39 @@ class CoreVariables(CoreModuleInterface):
         Args:
             variables_config_file_name (str): Configuration JSON file name.
         """
-        try:
 
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
-            self._config_file_name: Optional[str] = variables_config_file_name
-            self._base_config_file_name: Optional[str] = None
-            self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
-            self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
-            self._variable_capitalize_description: bool = True  # Description field formatting
-            self._variables_defaults: Optional[dict] = None  # Optional default variables properties
-            self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
-            self._search_keys: Optional[
-                List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
+        # Get a logger instance
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
+        self._config_file_name: Optional[str] = variables_config_file_name
+        self._base_config_file_name: Optional[str] = None
+        self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
+        self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
+        self._variable_capitalize_description: bool = True  # Description field formatting
+        self._variables_defaults: Optional[dict] = None  # Optional default variables properties
+        self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
+        self._search_keys: Optional[
+            List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
-            # Create an instance of the JSON preprocessing library
-            self._processor: CoreProcessor = CoreProcessor.get_instance()
+        # Create an instance of the JSON preprocessing library
+        self._processor: CoreProcessor = CoreProcessor.get_instance()
 
-            # Get the workspace from AutoForge
-            self._workspace_path = CoreEnvironment.get_workspace_path()
+        # Get the workspace from AutoForge
+        self._workspace_path = CoreEnvironment.get_workspace_path()
 
-            # Build variables list
-            if self._config_file_name is not None:
-                self._load_from_file(config_file_name=variables_config_file_name, rebuild=True)
-            else:
-                raise RuntimeError("variables configuration file not specified")
+        # Build variables list
+        if self._config_file_name is not None:
+            self._load_from_file(config_file_name=variables_config_file_name, rebuild=True)
+        else:
+            raise RuntimeError("variables configuration file not specified")
 
-            self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
+        self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
 
-            # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
-
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("variables core module not initialized")
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:

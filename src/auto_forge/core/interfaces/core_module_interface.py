@@ -94,13 +94,21 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         global _ENGINE_ROOT
 
         # Register AutoForge root once during its own construction
-        if type(self).__name__ == "AutoForge":
-            _ENGINE_ROOT = cast("AutoForge", self)
-        else:
-            if _ENGINE_ROOT is None:
-                raise RuntimeError("AutoForge must be instantiated before any core module.")
+        core_module_name:str = type(self).__name__
 
-        self._initialize(*args, **kwargs)
+        try:
+            if core_module_name== "AutoForge":
+                _ENGINE_ROOT = cast("AutoForge", self)
+            else:
+                if _ENGINE_ROOT is None:
+                    raise RuntimeError("AutoForge must be instantiated before any core module.")
+
+            # Preform core specific initialization
+            self._initialize(*args, **kwargs)
+
+        except Exception as core_exception:
+            raise RuntimeError(f'Core module {core_module_name} exception: {core_exception}')
+
         self._is_initialized = True
 
     def _initialize(self, *args, **kwargs) -> None:
