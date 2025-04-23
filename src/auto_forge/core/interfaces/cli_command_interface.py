@@ -26,8 +26,9 @@ from typing import Any, Optional
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleInfo, AutoForgeModuleType)
-from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
+from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
+
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
     """
@@ -99,6 +100,7 @@ class CLICommandInterface(ABC):
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
     def __init__(self, command_name: str, command_description: Optional[str] = None,
+                 command_version: Optional[str] = None,
                  raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
@@ -106,6 +108,7 @@ class CLICommandInterface(ABC):
         Args:.
             command_name (str): The name of the CLI command.
             command_description (str): Optional description of the CLI command.
+            command_version (str): Optional version of the CLI command.
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
@@ -117,6 +120,7 @@ class CLICommandInterface(ABC):
         self._module_info: AutoForgeModuleInfo = (
             registry.register_module(name=command_name,
                                      description=command_description if command_description else "Description not provided",
+                                     version=command_version if command_version else "0.0.0",
                                      auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
 
         # Optional tool initialization logic
@@ -183,7 +187,7 @@ class CLICommandInterface(ABC):
         self.create_parser(parser)
 
         # Make sure we always support version
-        parser.add_argument("-ver", "--version", action="store_true", help="Show version and exit")
+        parser.add_argument("-v", "--version", action="store_true", help="Show version and exit")
 
         if flat_args is not None:
             args_list = shlex.split(flat_args.strip())

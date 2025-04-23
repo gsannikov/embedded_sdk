@@ -69,6 +69,7 @@ class LSDCommand(CLICommandInterface):
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
                          command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                         command_version=AUTO_FORGE_COMMAND_VERSION,
                          raise_exceptions=raise_exceptions)
 
     @staticmethod
