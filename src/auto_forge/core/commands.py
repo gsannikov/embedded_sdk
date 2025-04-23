@@ -143,6 +143,10 @@ class CoreCommands(CoreModuleInterface):
                 if not command_record:
                     raise RuntimeError(f"Command '{module_info.name}' could not be found in the registry.")
 
+                self._registry.update_module_record(name=module_info.name,
+                                                    class_instance=command_instance, class_interface=interface_type,
+                                                    python_module_type=python_module_type, file_name=file)
+
                 # Ensure the dynamically loaded module is accessible via sys.modules,
                 # allowing standard import mechanisms and references to resolve it by name.
                 sys.modules[python_module_spec.name] = python_module_type

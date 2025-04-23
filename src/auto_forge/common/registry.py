@@ -31,9 +31,10 @@ class Registry(CoreModuleInterface):
         self._modules_registry: Dict[str, Dict[str, Any]] = {}
 
         # Register self
-        self._module_info: AutoForgeModuleInfo = self.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                                                      description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                                      auto_forge_module_type=AutoForgeModuleType.COMMON)
+        self._module_info: AutoForgeModuleInfo = (
+            self.register_module(name=AUTO_FORGE_MODULE_NAME,
+                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.COMMON))
 
     def _find_record(self, value: str, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
@@ -73,7 +74,27 @@ class Registry(CoreModuleInterface):
             if meta.get("auto_forge_module_type") == auto_forge_module_type
         ]
 
-    def get_module_record_by_name(self, module_name: str, case_insensitive: bool = False) -> Optional[Dict[str, Any]]:
+    def update_module_record(self, name: str, **updates: Any) -> bool:
+        """
+        Updates one or more fields of a module record in the registry.
+        Args:
+            name (str): The name of the module to update.
+            **updates: Arbitrary key-value pairs to update in the module record.
+        Returns:
+            bool: True if the record was updated, False if the module was not found.
+        """
+        record = self._modules_registry.get(name)
+
+        if not record:
+            raise RuntimeError(f"module '{name}' not found in registry")
+
+        for key, value in updates.items():
+            record[key] = value
+
+        return True
+
+    def get_module_record_by_name(self, module_name: str,
+                                  case_insensitive: bool = False) -> Optional[Dict[str, Any]]:
         """
         Retrieves a module record from the registry by its registered name.
         Args:
@@ -85,7 +106,7 @@ class Registry(CoreModuleInterface):
         """
         module_name = module_name.strip()
         if not module_name:
-            raise ValueError("Module name cannot be empty or whitespace")
+            raise ValueError("module name cannot be empty or whitespace")
 
         if case_insensitive:
             # Normalize keys and compare case-insensitively
@@ -104,7 +125,8 @@ class Registry(CoreModuleInterface):
                         auto_forge_module_type: Optional[AutoForgeModuleType] = AutoForgeModuleType.UNKNOWN,
                         python_module_type: Optional[ModuleType] = None,
                         version: Optional[str] = None,
-                        file_name: Optional[str] = None) -> Optional[AutoForgeModuleInfo]:
+                        file_name: Optional[str] = None,
+                        auto_inspection: Optional[bool] = True) -> Optional[AutoForgeModuleInfo]:
         """
         Registers a module with the AutoForge system using explicit metadata arguments.
         Args:
@@ -117,11 +139,13 @@ class Registry(CoreModuleInterface):
             python_module_type (Optional[ModuleType], optional): The Python type of the module.
             version (Optional[str], optional): The version of the module.
             file_name (Optional[str]): The file name of the module.
+            auto_inspection (Optional[bool]): If True, performs auto inspection to get the r requited info.
         Returns:
             AutoForgeModuleInfo: if the module was successfully registered, exception otherwise.
         """
 
         # Inspect the caller's frame and extract runtime context
+
         caller_frame = inspect.currentframe().f_back
         caller_class_name = None
         caller_class_instance = None
@@ -129,7 +153,7 @@ class Registry(CoreModuleInterface):
         caller_module_file_name = None
         caller_python_module_type = None
 
-        if caller_frame is not None:
+        if auto_inspection and caller_frame is not None:
             caller_locals = caller_frame.f_locals
             caller_self = caller_locals.get("self")
 
@@ -172,8 +196,12 @@ class Registry(CoreModuleInterface):
             bool: True if registration succeeds or RuntimeError: If a module with the
             same name is already registered (case-insensitive).
         """
+
+        if not auto_forge_module_info.name:
+            raise RuntimeError(f"failed to register '{auto_forge_module_info.name}' module, mising module nam")
+
         if self.get_module_record_by_name(module_name=auto_forge_module_info.name, case_insensitive=True):
-            raise RuntimeError(f"Module '{auto_forge_module_info.name}' is already registered")
+            raise RuntimeError(f"module '{auto_forge_module_info.name}' is already registered")
 
         self._modules_registry[auto_forge_module_info.name] = {
             "name_lower": auto_forge_module_info.name.lower(),

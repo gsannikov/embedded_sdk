@@ -16,8 +16,7 @@ import shutil
 from typing import Optional, Any, Dict, List
 
 # AutoForge imports
-from auto_forge import (CoreProcessor, CLICommandInterface, Registry, AutoLogger,
-                        AutoForgeModuleType, AutoForgeModuleInfo)
+from auto_forge import (CoreProcessor, CLICommandInterface, AutoLogger)
 
 AUTO_FORGE_COMMAND_NAME = "relocator"
 AUTO_FORGE_COMMAND_DESCRIPTION = "Code restructure assistant"
@@ -130,14 +129,10 @@ class RelocatorCommand(CLICommandInterface):
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
-        # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
-        module_info: AutoForgeModuleInfo = registry.register_module(name=AUTO_FORGE_COMMAND_NAME,
-                                                                    description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                                                                    auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND)
-
         # Base class initialization
-        super().__init__(module_info=module_info, raise_exceptions=raise_exceptions)
+        super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
+                         command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
+                         raise_exceptions=raise_exceptions)
 
     def _load_recipe(self, recipe_file: str):
         """

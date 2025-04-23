@@ -25,9 +25,9 @@ from types import ModuleType
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleInfo)
+from auto_forge import (AutoForgeModuleInfo, AutoForgeModuleType)
 from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
-
+from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
     """
@@ -98,19 +98,26 @@ class CLICommandInterface(ABC):
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
-    def __init__(self,module_info:AutoForgeModuleInfo, raise_exceptions: bool = False):
+    def __init__(self, command_name: str, command_description: Optional[str] = None,
+                 raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
         Args:.
+            command_name (str): The name of the CLI command.
+            command_description (str): Optional description of the CLI command.
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
         self._last_error: Optional[str] = None
         self._raise_exceptions = raise_exceptions
 
-        # Stores the command information in the class session
-        self._module_info = module_info
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        self._module_info: AutoForgeModuleInfo = (
+            registry.register_module(name=command_name,
+                                     description=command_description if command_description else "Description not provided",
+                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
