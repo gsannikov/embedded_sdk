@@ -20,45 +20,28 @@ import zlib
 from typing import Match, Optional, Any, Dict, List
 
 # Internal AutoForge imports
-from auto_forge import (Processor, Variables, SignatureField, SignatureSchema, AutoLogger)
+from auto_forge import (CoreModuleInterface, Processor, Variables, SignatureField, SignatureSchema, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures core service"
 
 
-class Signatures:
+class Signatures(CoreModuleInterface):
     """
     Signatures is the root class which ties all the Auxilery classes to provide a functional
     interface around signatures.
-
-    Args:
-        signatures_config_file_name (str): The path to the JSON file containing the signature descriptors.
-        parent (Any, optional): Our parent AutoForge class instance.
     """
 
-    _instance: "Signatures" = None
-    _is_initialized: bool = False
-
-    def __new__(cls, *args, **kwargs) -> "Signatures":
-        """
-        Basic class initialization in a singleton mode
-        """
-
-        if cls._instance is None:
-            cls._instance = super(Signatures, cls).__new__(cls)
-
-        return cls._instance
-
-    def __init__(self, signatures_config_file_name: str, parent: Any) -> None:
+    def _initialize(self, signatures_config_file_name: str) -> None:
         """
         Initializes the SignaturesLib class by loading a signature schema from a JSON descriptor file.
         This initialization searches for the specific signature with the given ID and constructs
         a Python format string based on the signature's schema. This format string is crucial
         for creating, reading, and modifying signatures in binary files.
-        """
 
-        if self._is_initialized:
-            return  # Module already initialized
+        Args:
+            signatures_config_file_name (str): The path to the JSON file containing the signature descriptors.
+        """
 
         try:
             self._config_file_name: Optional[str] = None
@@ -71,10 +54,6 @@ class Signatures:
 
             # Get a logger instance
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-
-            if parent is None:
-                raise RuntimeError("AutoForge instance must be specified when initializing core module")
-            self._autoforge = parent  # Store parent' AutoForge' class instance.
 
             if not signatures_config_file_name:
                 raise RuntimeError("signatures configuration file not specified")
@@ -162,15 +141,6 @@ class Signatures:
         except Exception as exception:
             self._logger.error(exception)
             raise RuntimeError("signatures core module not initialized")
-
-    @staticmethod
-    def get_instance() -> "Signatures":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            Signatures: The global stored class instance.
-        """
-        return Signatures._instance
 
     def deserialize(self, file_name: str) -> Optional["SignatureFileHandler"]:
         """

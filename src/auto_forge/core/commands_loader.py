@@ -19,65 +19,48 @@ from typing import List
 from typing import Optional, Any, Dict, cast
 
 # AutoGorge local imports
-from auto_forge import (PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo,
+from auto_forge import (CoreModuleInterface, PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo,
                         CLICommandSummary, TerminalTeeStream, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
 
 
-class CommandsLoader:
-    """
-    The command loader class provides support for dynamically searching and loading commands.
-    Args:
-        parent (Any): Our parent AutoForge class instance.
-    """
-    _instance: "CommandsLoader" = None
-    _is_initialized: bool = False
+class CommandsLoader(CoreModuleInterface):
 
-    def __new__(cls, *args, **kwargs) -> "CommandsLoader":
+    def __init__(self, *args, **kwargs):
         """
-        Create a new instance if one doesn't exist, or return the existing instance.
-        Returns:
-            CommandsLoader: The singleton instance of this class.
+        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
+        See 'CoreModuleInterface' usage.
         """
-        if cls._instance is None:
-            cls._instance = super(CommandsLoader, cls).__new__(cls)
+        self._command_output: Optional[str] = None
 
-        return cls._instance
+        super().__init__(*args, **kwargs)
 
-    def __init__(self, parent: Any) -> None:
+    def _initialize(self) -> None:
         """
         Initializes the 'CommandsLoader' class and prepares the command registry.
         """
+        try:
 
-        if not self._is_initialized:
-            try:
+            # Get a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            self._loaded_commands: int = 0
+            self._commands_registry: Dict[str, Dict[str, Any]] = {}
+            self._commands_path: Path = PROJECT_COMMANDS_PATH
 
-                if parent is None:
-                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
-                self._autoforge = parent  # Store parent' AutoForge' class instance.
+            # Supported base interfaces for command classes
+            self._supported_interfaces = {
+                CLICommandInterface: "CLICommandInterface"
+            }
 
-                # Get a logger instance
-                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            # Search for commands and register them
+            self._probe()
+            self._is_initialized = True
 
-                self._loaded_commands: int = 0
-                self._commands_registry: Dict[str, Dict[str, Any]] = {}
-                self._commands_path: Path = PROJECT_COMMANDS_PATH
-                self._command_output: Optional[str] = None
-
-                # Supported base interfaces for command classes
-                self._supported_interfaces = {
-                    CLICommandInterface: "CLICommandInterface"
-                }
-
-                # Search for commands and register them
-                self._probe()
-                self._is_initialized = True
-
-            except Exception as exception:
-                self._logger.error(exception)
-                raise RuntimeError("commands loader core module not initialized")
+        except Exception as exception:
+            self._logger.error(exception)
+            raise RuntimeError("commands loader core module not initialized")
 
     def _get_command_record_by_name(self, command_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -189,15 +172,6 @@ class CommandsLoader:
             raise RuntimeError("no commands were successfully loaded")
 
         return self._loaded_commands
-
-    @staticmethod
-    def get_instance() -> "CommandsLoader":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            CommandsLoader: The global stored class instance.
-        """
-        return CommandsLoader._instance
 
     def get_commands(self) -> List[CLICommandSummary]:
         """

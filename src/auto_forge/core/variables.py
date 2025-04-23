@@ -13,85 +13,71 @@ import os
 import re
 import threading
 from bisect import bisect_left
-from multiprocessing.synchronize import RLock
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
-from auto_forge import (Processor, Environment, VariableField, AutoLogger)
+from auto_forge import (CoreModuleInterface, Processor, Environment, VariableField, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables Management"
 
 
-class Variables:
+class Variables(CoreModuleInterface):
     """
     Manages a collection of variables derived from a JSON dictionary and provides
     functionality to manipulate these variables efficiently. The class supports operations such
     as adding, removing, and updating variables, ensuring data integrity and providing thread-safe access.
-
-    Args:
-        variables_config_file_name (str): Configuration JSON file name.
-        parent (Any): Our parent AutoForge class instance.
     """
-    _instance: "Variables" = None
-    _is_initialized: bool = False
-    _lock: RLock = threading.RLock()  # Initialize the re-entrant lock
 
-    def __new__(cls, *args, **kwargs) -> "Variables":
+    def __init__(self, *args, **kwargs):
         """
-        Basic class initialization in a singleton mode
+        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
+        See 'CoreModuleInterface' usage.
         """
+        self._variables: Optional[
+            list[VariableField]] = None  # Inner variables stored as a sorted listy of objects
 
-        if cls._instance is None:
-            cls._instance = super(Variables, cls).__new__(cls)
+        super().__init__(*args, **kwargs)
 
-        return cls._instance
-
-    def __init__(self, variables_config_file_name: str, parent: Any):
+    def _initialize(self, variables_config_file_name) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
+        Args:
+            variables_config_file_name (str): Configuration JSON file name.
         """
+        try:
 
-        if not self._is_initialized:
-            try:
+            # Get a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
+            self._config_file_name: Optional[str] = variables_config_file_name
+            self._base_config_file_name: Optional[str] = None
+            self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
+            self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
+            self._variable_capitalize_description: bool = True  # Description field formatting
+            self._variables_defaults: Optional[dict] = None  # Optional default variables properties
+            self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
+            self._search_keys: Optional[
+                List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
-                if parent is None:
-                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
-                self._autoforge = parent  # Store parent' AutoForge' class instance.
+            # Create an instance of the JSON preprocessing library
+            self._processor: Processor = Processor.get_instance()
 
-                # Get a logger instance
-                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            # Get the workspace from AutoForge
+            self._workspace_path = Environment.get_workspace_path()
 
-                self._config_file_name: Optional[str] = variables_config_file_name
-                self._base_config_file_name: Optional[str] = None
-                self._variable_auto_prefix: bool = False  # Enable auto variables prefixing with the project name
-                self._variable_prefix: Optional[str] = None  # Prefix auto added to all variables
-                self._variable_capitalize_description: bool = True  # Description field formatting
-                self._variables_defaults: Optional[dict] = None  # Optional default variables properties
-                self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
-                self._variables: Optional[
-                    list[VariableField]] = None  # Inner variables stored as a sorted listy of objects
-                self._search_keys: Optional[
-                    List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
+            # Build variables list
+            if self._config_file_name is not None:
+                self._load_from_file(config_file_name=variables_config_file_name, rebuild=True)
+            else:
+                raise RuntimeError("variables configuration file not specified")
 
-                # Create an instance of the JSON preprocessing library
-                self._processor: Processor = Processor.get_instance()
+            self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
+            self._is_initialized = True
 
-                # Get the workspace from AutoForge
-                self._workspace_path = Environment.get_workspace_path()
-
-                # Build variables list
-                if self._config_file_name is not None:
-                    self._load_from_file(config_file_name=variables_config_file_name, rebuild=True)
-                else:
-                    raise RuntimeError("variables configuration file not specified")
-
-                self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
-                self._is_initialized = True
-
-            except Exception as exception:
-                self._logger.error(exception)
-                raise RuntimeError("variables core module not initialized")
+        except Exception as exception:
+            self._logger.error(exception)
+            raise RuntimeError("variables core module not initialized")
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:
@@ -308,15 +294,6 @@ class Variables:
             raise ValueError(f"environment variable ${first_unresolved} could not be expanded.")
 
         return expanded
-
-    @staticmethod
-    def get_instance() -> "Variables":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            Variables: The global stored class instance.
-        """
-        return Variables._instance
 
     def expand(self, variable_name: str) -> Optional[str]:
         """

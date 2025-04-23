@@ -41,85 +41,55 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (Processor, Variables, Signatures, PROJECT_SCHEMAS_PATH, AutoLogger)
+from auto_forge import (CoreModuleInterface, Processor, Variables, Signatures, PROJECT_SCHEMAS_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
 
 
-class Solution:
+class Solution(CoreModuleInterface):
     """
-    A class dedicated to preparing and processing solution files for execution. This includes
-    resolving references within the solution's JSON data, validating configurations against
+    A Core class dedicated to preparing and processing solution files for execution.
+    This includes resolving references within the solution's JSON data, validating configurations against
     predefined schemas, and expanding variables to their actual values.
-
-    Args:
-        solution_config_file_name (str): The path to the JSON configuration file.
-        parent (Any): Our parent AutoForge class instance.
-
     """
 
-    _instance: "Solution" = None
-    _is_initialized: bool = False
-
-    def __new__(cls, *args, **kwargs) -> "Solution":
+    def _initialize(self, solution_config_file_name) -> None:
         """
-        Basic class initialization in a singleton mode
-        """
-
-        if cls._instance is None:
-            cls._instance = super(Solution, cls).__new__(cls)
-
-        return cls._instance
-
-    def __init__(self, solution_config_file_name: str, parent: Any) -> None:
-        """
-        Initialize the 'Solution' class using a configuration JSON file.
+        Initializes the 'Solution' class using a configuration JSON file.
+        Args:
+            solution_config_file_name (str): The path to the JSON configuration file.
         """
 
-        if not self._is_initialized:
-            try:
-                if parent is None:
-                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
-                self._autoforge = parent  # Store parent' AutoForge' class instance.
+        try:
 
-                if not solution_config_file_name:
-                    raise RuntimeError("solution configuration file not specified")
+            if not solution_config_file_name:
+                raise RuntimeError("solution configuration file not specified")
 
-                # Get a logger instance
-                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            # Get a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
-                self._config_file_name: Optional[str] = None  # Loaded solution file name
-                self._config_file_path: Optional[str] = None  # Loaded solution file path
-                self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
-                self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
-                self._includes: Optional[Dict[str, Any]] = None  # Additional included JSONS
-                self._scope = _ScopeState()  # Initialize scope state to track processing state and context
-                self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
-                self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
-                self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
-                self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
-                self._signatures: Optional[Signatures] = None  # Product binary signatures core class
-                self._variables: Optional[Variables] = None  # Instantiate variable management library
-                self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
-                self._processor = Processor.get_instance()  # Get the JSON preprocessing class instance.
+            self._config_file_name: Optional[str] = None  # Loaded solution file name
+            self._config_file_path: Optional[str] = None  # Loaded solution file path
+            self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
+            self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
+            self._includes: Optional[Dict[str, Any]] = None  # Additional included JSONS
+            self._scope = _ScopeState()  # Initialize scope state to track processing state and context
+            self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
+            self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
+            self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
+            self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
+            self._signatures: Optional[Signatures] = None  # Product binary signatures core class
+            self._variables: Optional[Variables] = None  # Instantiate variable management library
+            self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
+            self._processor = Processor.get_instance()  # Get the JSON preprocessing class instance.
 
-                # Load the solution
-                self._preprocess(solution_config_file_name)
-                self._is_initialized = True
+            # Load the solution
+            self._preprocess(solution_config_file_name)
 
-            # Propagate exceptions
-            except Exception:
-                raise
-
-    @staticmethod
-    def get_instance() -> "Solution":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            Solution: The global stored class instance.
-        """
-        return Solution._instance
+        # Propagate exceptions
+        except Exception:
+            raise
 
     def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[List, Dict]]:
         """
@@ -248,7 +218,7 @@ class Solution:
 
             # Initialize the variables core module based on the configuration file we got
             config_file = f"{self._config_file_path}/{self._includes.get('environment')}"
-            self._variables = Variables(variables_config_file_name=config_file, parent=self._autoforge)
+            self._variables = Variables(variables_config_file_name=config_file)
 
             schema_version = self._includes.get("schema")
             if schema_version is not None:
@@ -263,8 +233,7 @@ class Solution:
 
                     # Instantiate the optional signatures core module based on the configuration file we got
                     if os.path.exists(signature_schema_file):
-                        self._signatures = Signatures(signatures_config_file_name=signature_schema_file,
-                                                      parent=self._autoforge)
+                        self._signatures = Signatures(signatures_config_file_name=signature_schema_file)
                     else:
                         self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
 

@@ -13,51 +13,30 @@ import re
 from typing import Optional, Any, Dict
 
 # AutoForge local imports
-from auto_forge import (AutoLogger, ToolBox)
+from auto_forge import (CoreModuleInterface, AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
 
 
-class Processor:
+class Processor(CoreModuleInterface):
     """
     JSON pre-processing dedicated class.
-    Args:
-        parent (Any): Our parent AutoForge class instance.
     """
 
-    _instance: "Processor" = None
-    _is_initialized: bool = False
-
-    def __new__(cls, *args, **kwargs) -> "Processor":
-        """
-        Create a new instance if one doesn't exist, or return the existing instance.
-        Returns:
-            Processor: The singleton instance of this class.
-        """
-        if cls._instance is None:
-            cls._instance = super(Processor, cls).__new__(cls)
-
-        return cls._instance
-
-    def __init__(self, parent: Any):
+    def _initialize(self):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
         """
-        if not self._is_initialized:
-            try:
-                if parent is None:
-                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
-                self._autoforge = parent  # Store parent' AutoForge' class instance.
 
-                # Create a logger instance
-                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-                self._toolbox = ToolBox.get_instance()
-                self._is_initialized = True
+        try:
+            # Create a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            self._toolbox = ToolBox.get_instance()
 
-            except Exception as exception:
-                self._logger.error(exception)
-                raise RuntimeError("processor core module not initialized")
+        except Exception as exception:
+            self._logger.error(exception)
+            raise RuntimeError("processor core module not initialized")
 
     @staticmethod
     def _get_line_number_from_error(error_message: str) -> Optional[int]:
@@ -138,15 +117,6 @@ class Processor:
         # Clean up residual whitespaces and new lines if necessary
         cleaned_str = re.sub(r'\n\s*\n', '\n', cleaned_str)  # Collapse multiple new lines
         return cleaned_str.strip()
-
-    @staticmethod
-    def get_instance() -> "Processor":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            Processor: The global stored class instance.
-        """
-        return Processor._instance
 
     def preprocess(self, file_name: str) -> Optional[Dict[str, Any]]:
         """

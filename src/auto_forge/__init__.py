@@ -17,17 +17,17 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
 
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
-# Common types
+# Common types and interfaces
 from auto_forge.common.local_types import (CLICommandInfo, CLICommandSummary,
                                            ValidationMethod, ExecutionMode,
                                            SignatureSchema, SignatureField, VariableField,
                                            TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalAnsiGuru, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 
+from auto_forge.core.interfaces.core_module_interface import (CoreModuleInterface)
 from auto_forge.common.toolbox import (ToolBox)
-
-# Interfaces
 from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface)
+
 
 # Core / common modules
 from auto_forge.common.progress_tracker import (ProgressTracker)
@@ -63,10 +63,11 @@ __all__ = [
     "SignatureField",
     "SignatureSchema",
     "VariableField",
+    "CLICommandInterface",
+    "CoreModuleInterface",
     "SignatureFileHandler",
     "Signature",
     "CommandsLoader",
-    "CLICommandInterface",
     "Prompt",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",

@@ -28,60 +28,27 @@ import psutil
 from colorama import Fore
 
 # Retrieve our package base path from settings
-from auto_forge import (PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH, AutoLogger)
+from auto_forge import (CoreModuleInterface, PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General Purpose Support Routines"
 
 
-class ToolBox:
-    """
-    General purpose toolbox class.
-    Args:
-        parent (Any): Our parent class instance.
-    """
+class ToolBox(CoreModuleInterface):
 
-    _instance: "ToolBox" = None
-    _is_initialized: bool = False
-
-    def __new__(cls, *args, **kwargs) -> "ToolBox":
-        """
-        Create a new instance if one doesn't exist, or return the existing instance.
-        Returns:
-            ToolBox: The singleton instance of this class.
-        """
-        if cls._instance is None:
-            cls._instance = super(ToolBox, cls).__new__(cls)
-
-        return cls._instance
-
-    def __init__(self, parent: Any) -> None:
+    def _initialize(self, *args, **kwargs) -> None:
         """
         Initialize the 'ToolBox' class.
         """
-        if not self._is_initialized:
-            try:
-                if parent is None:
-                    raise RuntimeError("AutoForge 'parent' instance must be specified")
-                self._parent = parent  # Store parent' AutoForge' class instance.
+        try:
+            # Create a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            self._storage = {}  # Local static dictionary for managed session variables
 
-                # Create a logger instance
-                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-                self._storage = {}  # Local static dictionary for managed session variables
-                self._is_initialized = True
+        except Exception as exception:
+            self._logger.error(exception)
+            raise RuntimeError("toolbox common module not initialized")
 
-            except Exception as exception:
-                self._logger.error(exception)
-                raise RuntimeError("toolbox common module not initialized")
-
-    @staticmethod
-    def get_instance() -> "ToolBox":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            ToolBox: The global stored class instance.
-        """
-        return ToolBox._instance
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):

@@ -25,107 +25,88 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (PROJECT_NAME, Environment, ExecutionMode, CommandsLoader, AutoLogger, ToolBox)
+from auto_forge import (CoreModuleInterface, PROJECT_NAME, Environment, ExecutionMode, CommandsLoader,
+                        AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "SDK Prompt Manager"
 
 
-class Prompt(cmd2.Cmd):
+class Prompt(CoreModuleInterface, cmd2.Cmd):
     """
     Interactive CLI shell for AutoForge with shell-like behavior.
-
     Provides dynamic prompt updates, path-aware tab completion,
     and passthrough execution of unknown commands via the system shell.
-
-    Args:
-        parent (Any): Our parent AutoForge class instance.e.
-        prompt (Optional[str]): Optional custom base prompt string.
-            If not specified, the lowercase project name ('autoforge') will be used
-            as the base prefix for the dynamic prompt.
     """
-    _instance: "Prompt" = None
-    _is_initialized: bool = False
 
-    def __new__(cls, *args, **kwargs) -> "Prompt":
-        """
-        Create a new instance if one doesn't exist, or return the existing instance.
-        Returns:
-            Prompt: The singleton instance of this class.
-        """
-        if cls._instance is None:
-            cls._instance = super(Prompt, cls).__new__(cls)
-
-        return cls._instance
-
-    def __init__(self, parent: Any, prompt: Optional[str] = None) -> None:
+    def _initialize(self, prompt: Optional[str] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
+        Args:
+            prompt (Optional[str]): Optional custom base prompt string.
+                If not specified, the lowercase project name ('autoforge') will be used
+                as the base prefix for the dynamic prompt.
         """
 
-        if not self._is_initialized:
-            try:
-                if parent is None:
-                    raise RuntimeError("AutoForge instance must be specified when initializing core module")
-                self._autoforge = parent  # Store parent' AutoForge' class instance.
+        try:
+            self._toolbox = ToolBox.get_instance()
+            self._environment: Environment = Environment.get_instance()
+            self._prompt_base: Optional[str] = None
+            self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
+            self._commands_loader: Optional[CommandsLoader] = CommandsLoader.get_instance()
+            self._executable_db: Optional[Dict[str, str]] = None
+            self._last_execution_return_code: Optional[int] = 0
 
-                self._toolbox = ToolBox.get_instance()
-                self._environment: Environment = Environment.get_instance()
-                self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
-                self._executable_db: Optional[Dict[str, str]] = None
-                self._commands_loader: Optional[CommandsLoader] = CommandsLoader.get_instance()
-                self._last_execution_return_code: Optional[int] = 0
+            # Get a logger instance
+            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
-                # Get a logger instance
-                self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+            # Clear command line buffer
+            sys.argv = [sys.argv[0]]
+            ansi.allow_ansi = True
 
-                # Clear command line buffer
-                sys.argv = [sys.argv[0]]
-                ansi.allow_ansi = True
+            # Add dynamically lodaed AutoForge style commands
+            self._add_auto_commands()
 
-                # Add dynamically lodaed AutoForge style commands
-                self._add_auto_commands()
+            # Build executables dictionary for implementation shell style fast auto completion
+            if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
+                                                      command=self._build_executable_index,
+                                                      command_type=ExecutionMode.PYTHON,
+                                                      new_lines=1) != 0:
+                raise RuntimeError("could not finish initializing")
 
-                # Build executables dictionary for implementation shell style fast auto completion
-                if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
-                                                          command=self._build_executable_index,
-                                                          command_type=ExecutionMode.PYTHON,
-                                                          new_lines=1) != 0:
-                    raise RuntimeError("could not finish initializing")
+            # Modify readline behaviour to allow for single TAB when auto completing binary name
+            readline.parse_and_bind("set show-all-if-ambiguous on")
+            readline.parse_and_bind("TAB: complete")
 
-                # Modify readline behaviour to allow for single TAB when auto completing binary name
-                readline.parse_and_bind("set show-all-if-ambiguous on")
-                readline.parse_and_bind("TAB: complete")
+            # Initialize cmd2 bas class
+            cmd2.Cmd.__init__(self)
 
-                # Initialize cmd2 core
-                super().__init__()
+            # Remove unnecessary built-in commands
+            for cmd in ['macro', 'edit', 'run_pyscript']:
+                self._remove_command(cmd)
 
-                # Remove unnecessary built-in commands
-                for cmd in ['macro', 'edit', 'run_pyscript']:
-                    self._remove_command(cmd)
+            # Assign path_complete to the complete_cd and complete_ls methods
+            self.complete_cd = self.path_complete
+            self.complete_lss = self.path_complete
 
-                # Assign path_complete to the complete_cd and complete_ls methods
-                self.complete_cd = self.path_complete
-                self.complete_lss = self.path_complete
+            # Add several basic aliases
+            self.set_alias('..', 'cd ..')
+            self.set_alias('~', 'cd $HOME')
+            self.set_alias('gw', f'cd {Environment.get_instance().get_workspace_path()}')
+            self.set_alias('ls', 'lsd -g')
+            self.set_alias('ll', 'lss -la')
+            self.set_alias('l', 'ls')
+            self.set_alias('exit', 'quit')
+            self.set_alias('gs', 'git status')
+            self.set_alias('ga', 'git add .')
+            self.set_alias('gc', 'git commit -m')
+            self.set_alias('gp', 'git push')
 
-                # Add several basic aliases
-                self.set_alias('..', 'cd ..')
-                self.set_alias('~', 'cd $HOME')
-                self.set_alias('gw', f'cd {Environment.get_instance().get_workspace_path()}')
-                self.set_alias('ls', 'lsd -g')
-                self.set_alias('ll', 'lss -la')
-                self.set_alias('l', 'ls')
-                self.set_alias('exit', 'quit')
-                self.set_alias('gs', 'git status')
-                self.set_alias('ga', 'git add .')
-                self.set_alias('gc', 'git commit -m')
-                self.set_alias('gp', 'git push')
+            self._update_prompt()
 
-                self._update_prompt()
-
-            except Exception as exception:
-                self._logger.error(exception)
-                raise RuntimeError("prompt core module not initialized")
+        except Exception as exception:
+            self._logger.error(exception)
+            raise RuntimeError("prompt core module not initialized")
 
     def _remove_command(self, command_name: str):
         """
@@ -271,15 +252,6 @@ class Prompt(cmd2.Cmd):
             f"{Fore.BLUE}{cwd_display}{Style.RESET_ALL}"
             f"{git_branch} {Fore.YELLOW}{arrow}{Style.RESET_ALL} "
         )
-
-    @staticmethod
-    def get_instance() -> "Prompt":
-        """
-        Returns the singleton instance of this class.
-        Returns:
-            Prompt: The global stored class instance.
-        """
-        return Prompt._instance
 
     def set_alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
         """

@@ -19,32 +19,24 @@ from typing import Optional
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (Processor, ToolBox, Variables, Solution, Environment, CommandsLoader,
+from auto_forge import (CoreModuleInterface, Processor, ToolBox, Variables, Solution, Environment, CommandsLoader,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, Prompt, LogHandlersTypes)
 
 
-class AutoForge:
-    """
-    The AutoForge class serves as the core of the AutoForge system.
-    Args:
-        workspace_path (str, Optional): Path to the workspace folder.
-        automated_mode (bool): Set to run in automated mode (CI).
-    """
-    _instance: "AutoForge" = None
-    _is_initialized: bool = False
+class AutoForge(CoreModuleInterface):
 
-    def __new__(cls, *args, **kwargs) -> "AutoForge":
+    def __init__(self, *args, **kwargs):
         """
-        Create a new instance if one doesn't exist, or return the existing instance.
-        Returns:
-            AutoForge: The singleton instance of this class.
+        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
+        See 'CoreModuleInterface' usage.
         """
-        if cls._instance is None:
-            cls._instance = super(AutoForge, cls).__new__(cls)
+        self._solution: Optional[Solution] = None
+        self._solution_file: Optional[str] = None
+        self._solution_name: Optional[str] = None
+        self._variables: Optional[Variables] = None
+        super().__init__(*args, **kwargs)
 
-        return cls._instance
-
-    def __init__(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
+    def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
         """
         Initialize the AutoForge core system and prepare the workspace environment.
         Depending on the context, this may involve creating a new workspace or reusing
@@ -54,49 +46,30 @@ class AutoForge:
             workspace_path (str): Absolute path to the workspace directory.
             automated_mode (bool, optional): If True, enables CI-safe, non-interactive behavior.
         """
+        try:
+            if not isinstance(workspace_path, str):
+                raise RuntimeError("argument 'workspace' must be a string")
 
-        if not self._is_initialized:
-            try:
-                if not isinstance(workspace_path, str):
-                    raise RuntimeError("argument 'workspace' must be a string")
+            # Initializes the logger
+            self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
+            self._auto_logger.set_log_file_name("auto_forge.log")
+            self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
+            self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=automated_mode)
+            self._logger.debug("AutoForge starting...")
 
-                self._solution_file: Optional[str] = None
-                self._solution_name: Optional[str] = None
-                self._solution: Optional[Solution] = None
-                self._variables: Optional[Variables] = None
+            # Initialize core modules
+            self._toolbox: Optional[ToolBox] = ToolBox()
+            self._processor: Optional[Processor] = Processor()
+            self._commands: Optional[CommandsLoader] = CommandsLoader()
+            self._environment: Environment = Environment(workspace_path=workspace_path, automated_mode=automated_mode)
+            self._prompt = Prompt()
 
-                # Initializes the logger
-                self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
-                self._auto_logger.set_log_file_name("auto_forge.log")
-                self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-                self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=automated_mode)
-                self._logger.debug("AutoForge starting...")
+            # Essential core modules instantiated, other modules will loaded aas needed.
+            self._toolbox.print_logo(clear_screen=True)  # Show logo
 
-                # Initialize core modules
-                self._toolbox: Optional[ToolBox] = ToolBox(parent=self)
-                self._processor: Optional[Processor] = Processor(parent=self)
-                self._commands: Optional[CommandsLoader] = CommandsLoader(parent=self)
-                self._environment: Environment = Environment(parent=self,
-                                                             workspace_path=workspace_path,
-                                                             automated_mode=automated_mode)
-                self._prompt = Prompt(parent=self)
-
-                # Essential core modules instantiated, other modules will loaded aas needed.
-                self._toolbox.print_logo(clear_screen=True)  # Show logo
-                self._is_initialized = True  # Done initializing
-
-            # Propagate exceptions
-            except Exception:
-                raise
-
-    @staticmethod
-    def get_instance() -> "AutoForge":
-        """
-        Returns the singleton instance of the AutoForge class.
-        Returns:
-            AutoForge: The global AutoForge instance.
-        """
-        return AutoForge._instance
+        # Propagate exceptions
+        except Exception:
+            raise
 
     @staticmethod
     def show_version(exit_code: Optional[int] = None) -> None:
@@ -127,7 +100,7 @@ class AutoForge:
             workspace_path = Environment.get_workspace_path()
             self._logger.debug(f"Workspace path: {workspace_path}")
 
-            self._solution = Solution(solution_config_file_name=solution_file, parent=self)
+            self._solution = Solution(solution_config_file_name=solution_file)
             self._variables = Variables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
