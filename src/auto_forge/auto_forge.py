@@ -120,7 +120,7 @@ class AutoForge(CoreModuleInterface):
             raise
 
 
-def auto_forge_main(guro=None) -> Optional[int]:
+def auto_forge_main() -> Optional[int]:
     """
     Console entry point for the AutoForge build suite.
     This function handles user arguments and launches AutoForge to execute the required test.
