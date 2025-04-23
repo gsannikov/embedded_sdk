@@ -16,10 +16,12 @@ from bisect import bisect_left
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment, VariableField, AutoLogger)
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
+                        ModuleType, ModuleInfo, VariableField,
+                        AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
-AUTO_FORGE_MODULE_DESCRIPTION = "Variables Management"
+AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
 
 
 class CoreVariables(CoreModuleInterface):
@@ -73,7 +75,12 @@ class CoreVariables(CoreModuleInterface):
                 raise RuntimeError("variables configuration file not specified")
 
             self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
-            self._is_initialized = True
+
+            # Stores this module information in the class session
+            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
+                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                       class_name=self.__class__.__name__, class_instance=self,
+                                                       type=ModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)

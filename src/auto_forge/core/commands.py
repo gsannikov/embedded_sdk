@@ -19,8 +19,10 @@ from typing import List
 from typing import Optional, Any, Dict, cast
 
 # AutoGorge local imports
-from auto_forge import (CoreModuleInterface, PROJECT_COMMANDS_PATH, CLICommandInterface, CLICommandInfo,
-                        CLICommandSummary, TerminalTeeStream, AutoLogger)
+from auto_forge import (CoreModuleInterface, CLICommandInterface,
+                        ModuleType, ModuleInfo, ModuleSummary, TerminalTeeStream,
+                        PROJECT_COMMANDS_PATH,
+                        AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
@@ -56,7 +58,12 @@ class CoreCommands(CoreModuleInterface):
 
             # Search for commands and register them
             self._probe()
-            self._is_initialized = True
+
+            # Stores this module information in the class session
+            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
+                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                       class_name=self.__class__.__name__, class_instance=self,
+                                                       type=ModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)
@@ -141,7 +148,7 @@ class CoreCommands(CoreModuleInterface):
                     continue
 
                 command_instance = command_class()
-                command_info: CLICommandInfo = command_instance.get_info(module=module)
+                command_info: ModuleInfo = command_instance.get_info(module=module)
 
                 if not command_info:
                     raise RuntimeError(f"module '{module_name}' did not return valid command info")
@@ -173,13 +180,13 @@ class CoreCommands(CoreModuleInterface):
 
         return self._loaded_commands
 
-    def get_commands(self) -> List[CLICommandSummary]:
+    def get_commands(self) -> List[ModuleSummary]:
         """
         Returns a list of command summaries (name and description only),
         omitting all other internal or non-serializable details.
         """
         return [
-            CLICommandSummary(name, meta.get("command_description", ""))
+            ModuleSummary(name, meta.get("command_description", ""))
             for name, meta in self._commands_registry.items()
         ]
 

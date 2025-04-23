@@ -31,12 +31,12 @@ from typing import Optional, Union, Any, List, Callable
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreCommands, ProgressTracker, ExecutionMode,
-                        ValidationMethod, ToolBox,
-                        AutoLogger)
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreCommands,
+                        ModuleType, ModuleInfo, ProgressTracker, ExecutionMode, ValidationMethod,
+                        ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
-AUTO_FORGE_MODULE_DESCRIPTION = "Environment Operations"
+AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
 
 
 class CoreEnvironment(CoreModuleInterface):
@@ -66,7 +66,6 @@ class CoreEnvironment(CoreModuleInterface):
             workspace_path(str): The workspace path.
             automated_mode(boo, Optional): Specify if we're running in automation mode
         """
-
         try:
 
             # Create a logger instance
@@ -97,6 +96,11 @@ class CoreEnvironment(CoreModuleInterface):
             if self._workspace_path:
                 self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
                                                                         to_absolute_path=True)
+            # Stores the module information in the class session
+            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
+                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                       class_name=self.__class__.__name__, class_instance=self,
+                                                       type=ModuleType.CORE)
         except Exception as exception:
             self._logger.error(exception)
             raise RuntimeError("environment core module not initialized")

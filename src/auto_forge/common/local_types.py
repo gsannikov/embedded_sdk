@@ -20,23 +20,38 @@ AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
 
 
-class CLICommandInfo(NamedTuple):
+class ModuleType(Enum):
     """
-    Define a named tuple type for a CLI command related information.
+    Enumeration of known AutoForge module types.
+
+    Members:
+        CORE (int): Built-in core module, part of the AutoForge runtime.
+        CLI_COMMAND (int): Dynamically loaded command module, provided either by AutoForge or external extensions.
+    """
+    UNKNOWN = 0
+    CORE = 1
+    CLI_COMMAND = 2
+
+
+class ModuleInfo(NamedTuple):
+    """
+    Define a named tuple type for a Python module information retrieve.
     """
     name: str
     description: str
-    version: str
     class_name: str
     class_instance: Any
+    type: ModuleType = ModuleType.UNKNOWN
+    version: Optional[str] = None
 
 
-class CLICommandSummary(NamedTuple):
+class ModuleSummary(NamedTuple):
     """
-    Represents a minimal summary subset of 'CLICommandInfo'.
+    Represents a minimal summary subset of 'ModuleInfo'.
     """
     name: str
     description: str
+    type: ModuleType = ModuleType.UNKNOWN
 
 
 class ValidationMethod(Enum):

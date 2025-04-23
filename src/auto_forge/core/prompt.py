@@ -25,11 +25,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, PROJECT_NAME, CoreEnvironment, ExecutionMode, CoreCommands,
-                        AutoLogger, ToolBox)
+from auto_forge import (CoreModuleInterface, CoreCommands, CoreEnvironment,
+                        ModuleType, ModuleInfo, ExecutionMode,
+                        PROJECT_NAME, AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
-AUTO_FORGE_MODULE_DESCRIPTION = "SDK Prompt Manager"
+AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
 
 
 class CorePrompt(CoreModuleInterface, cmd2.Cmd):
@@ -103,6 +104,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self.set_alias('gp', 'git push')
 
             self._update_prompt()
+
+            # Stores this module information in the class session
+            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
+                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                       class_name=self.__class__.__name__, class_instance=self,
+                                                       type=ModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)

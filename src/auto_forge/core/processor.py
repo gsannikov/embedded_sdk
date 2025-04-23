@@ -13,10 +13,10 @@ import re
 from typing import Optional, Any, Dict
 
 # AutoForge local imports
-from auto_forge import (CoreModuleInterface, AutoLogger, ToolBox)
+from auto_forge import (CoreModuleInterface, ModuleType, ModuleInfo, AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
-AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor core service"
+AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor"
 
 
 class CoreProcessor(CoreModuleInterface):
@@ -28,11 +28,16 @@ class CoreProcessor(CoreModuleInterface):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
         """
-
         try:
             # Create a logger instance
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
             self._toolbox = ToolBox.get_instance()
+
+            # Stores this module information in the class session
+            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
+                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                       class_name=self.__class__.__name__, class_instance=self,
+                                                       type=ModuleType.CORE)
 
         except Exception as exception:
             self._logger.error(exception)

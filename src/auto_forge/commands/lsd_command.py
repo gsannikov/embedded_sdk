@@ -220,7 +220,7 @@ class LSDCommand(CLICommandInterface):
 
             if not path.exists():
                 output_lines.append(
-                    f"{Fore.RED}{self._command_info.name}: {dest}: no such file or directory{Style.RESET_ALL}")
+                    f"{Fore.RED}{self._module_info.name}: {dest}: no such file or directory{Style.RESET_ALL}")
                 continue
 
             if path.is_dir():

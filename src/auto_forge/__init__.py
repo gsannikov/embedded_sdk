@@ -17,26 +17,29 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
 
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
-# Common types and interfaces
-from auto_forge.common.local_types import (CLICommandInfo, CLICommandSummary,
+# Basic types
+from auto_forge.common.local_types import (ModuleType, ModuleInfo, ModuleSummary,
                                            ValidationMethod, ExecutionMode,
                                            SignatureSchema, SignatureField, VariableField,
                                            TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalAnsiGuru, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
+# Interfaces
+from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
+from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
 
-from auto_forge.core.interfaces.core_module_interface import (CoreModuleInterface)
-from auto_forge.common.toolbox import (ToolBox)
-from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface)
+# Common modules
+from auto_forge.common.toolbox import ToolBox
 from auto_forge.common.progress_tracker import (ProgressTracker)
 
 # Core / common modules
 from auto_forge.core.processor import CoreProcessor
-from auto_forge.core.environment import (CoreEnvironment)
+from auto_forge.core.commands import CoreCommands
+from auto_forge.core.environment import CoreEnvironment
 from auto_forge.core.variables import CoreVariables
-from auto_forge.core.commands import (CoreCommands)
 from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
 from auto_forge.core.solution import CoreSolution
 from auto_forge.core.prompt import CorePrompt
+
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
@@ -55,8 +58,9 @@ __all__ = [
     "TerminalAnsiGuru",
     "TerminalFileIconInfo",
     "TERMINAL_ICONS_MAP",
-    "CLICommandInfo",
-    "CLICommandSummary",
+    "ModuleType",
+    "ModuleInfo",
+    "ModuleSummary",
     "ValidationMethod",
     "ExecutionMode",
     "SignatureField",

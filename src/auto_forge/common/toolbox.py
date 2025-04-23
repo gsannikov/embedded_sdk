@@ -28,10 +28,13 @@ import psutil
 from colorama import Fore
 
 # Retrieve our package base path from settings
-from auto_forge import (CoreModuleInterface, PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH, AutoLogger)
+from auto_forge import (CoreModuleInterface,
+                        ModuleType, ModuleInfo,
+                        PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH,
+                        AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
-AUTO_FORGE_MODULE_DESCRIPTION = "General Purpose Support Routines"
+AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
 
 
 class ToolBox(CoreModuleInterface):
@@ -45,10 +48,16 @@ class ToolBox(CoreModuleInterface):
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
             self._storage = {}  # Local static dictionary for managed session variables
 
+            # Stores this module information in the class session
+            self._module_info: ModuleInfo = ModuleInfo(name=AUTO_FORGE_MODULE_NAME,
+                                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                       class_name=self.__class__.__name__, class_instance=self,
+                                                       type=ModuleType.CORE)
+
+
         except Exception as exception:
             self._logger.error(exception)
             raise RuntimeError("toolbox common module not initialized")
-
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):

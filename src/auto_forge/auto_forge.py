@@ -19,8 +19,9 @@ from typing import Optional
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, ToolBox, CoreVariables, CoreSolution, CoreEnvironment, CoreCommands,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger, CorePrompt, LogHandlersTypes)
+from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables,
+                        CoreSolution, CoreEnvironment, CoreCommands,CorePrompt,
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, AutoLogger,LogHandlersTypes)
 
 
 class AutoForge(CoreModuleInterface):

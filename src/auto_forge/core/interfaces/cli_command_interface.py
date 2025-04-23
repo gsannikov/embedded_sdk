@@ -22,10 +22,11 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from types import ModuleType
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
-from auto_forge import (ToolBox, CLICommandInfo)
-
+# AutoForge imports
+from auto_forge import (ModuleType, ModuleInfo)
+from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
     """
@@ -107,18 +108,17 @@ class CLICommandInterface(ABC):
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
-        # self._parser: Optional[_CLICapturingArgumentParser] = None
         self._last_error: Optional[str] = None
         self._raise_exceptions = raise_exceptions
-        self._toolbox: ToolBox = ToolBox.get_instance()
 
         # Stores the command information in the class session
-        self._command_info: CLICommandInfo = CLICommandInfo(name=name, description=description, version=version,
-                                                            class_name=self.__class__.__name__, class_instance=self)
+        self._module_info: ModuleInfo = ModuleInfo(name=name, description=description, version=version,
+                                                   class_name=self.__class__.__name__, class_instance=self,
+                                                   type=ModuleType.CLI_COMMAND)
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
-            raise RuntimeError(f"failed to initialize '{self._command_info.name}' command.")
+            raise RuntimeError(f"failed to initialize '{self._module_info.name}' command.")
 
         super().__init__()
 
@@ -130,26 +130,26 @@ class CLICommandInterface(ABC):
         """
         return self._last_error
 
-    def get_info(self, module: Optional[ModuleType] = None) -> CLICommandInfo:
+    def get_info(self, module: Optional[ModuleType] = None) -> ModuleInfo:
         """
         Retrievers information about the implemented command line tool.
         Note: Implementation class must call _set_info().
         Args:
             module (Optional[ModuleType]): This dynamically loaded implementation module
         Returns:
-            CLICommandInfo: a named tuple containing the implemented command id
+            ModuleInfo: a named tuple containing the implemented command id
         """
-        if self._command_info is None:
+        if self._module_info is None:
             raise RuntimeError('command info not initialized, make sure call set_info() first')
 
         if module:
-            description = self._toolbox.get_module_description(module=module)
+            description = ToolBox.get_module_description(module=module)
             if isinstance(description, str):
                 description = (f"{description}\n\nArgs:\n    "
-                               f"Run '{self._command_info.name} --help' to see all available arguments.")
-                self._command_info = self._command_info._replace(description=description)
+                               f"Run '{self._module_info.name} --help' to see all available arguments.")
+                self._module_info = self._module_info._replace(description=description)
 
-        return self._command_info
+        return self._module_info
 
     def execute(self, flat_args: Optional[str] = None, **kwargs: Any) -> Optional[int]:
         """
@@ -168,8 +168,8 @@ class CLICommandInterface(ABC):
 
         # Call the mandatory implementation create_parser() to create parser instance if it's not created
         parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
-            prog=self._command_info.name,
-            description=self._command_info.description
+            prog=self._module_info.name,
+            description=self._module_info.description
         )
         self.create_parser(parser)
 
@@ -190,7 +190,7 @@ class CLICommandInterface(ABC):
         try:
             # Handle arguments special care for version output
             if "-v" in args_list or "--version" in args_list:
-                print(f"AutoForge '{self._command_info.name}' version {self._command_info.version}")
+                print(f"AutoForge '{self._module_info.name}' version {self._module_info.version}")
                 return_value = 0
             else:
                 args = parser.parse_args(args_list)
