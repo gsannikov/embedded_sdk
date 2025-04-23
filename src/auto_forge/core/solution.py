@@ -204,60 +204,55 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             The processed JSON data as a dictionary.
         """
-        try:
-            # Preprocess the solution to clear non JSON data and load as JSON.
-            self._root_context = self._processor.preprocess(file_name=solution_file_name)
-            self._config_file_name = solution_file_name
 
-            # Store the solution's path since we may have to load other files from that path
-            self._config_file_path = os.path.dirname(self._config_file_name)
+        # Preprocess the solution to clear non JSON data and load as JSON.
+        self._root_context = self._processor.preprocess(file_name=solution_file_name)
+        self._config_file_name = solution_file_name
 
-            # Get a reference to the include JSON list, we will use them to jump start other core modules
-            self._includes = self._root_context.get("includes", {})
-            if self._includes is None or len(self._includes) == 0:
-                raise RuntimeError(f"no includes defined in '{os.path.basename(self._config_file_name)}'")
+        # Store the solution's path since we may have to load other files from that path
+        self._config_file_path = os.path.dirname(self._config_file_name)
 
-            # Initialize the variables core module based on the configuration file we got
-            config_file = f"{self._config_file_path}/{self._includes.get('environment')}"
-            self._variables = CoreVariables(variables_config_file_name=config_file)
+        # Get a reference to the include JSON list, we will use them to jump start other core modules
+        self._includes = self._root_context.get("includes", {})
+        if self._includes is None or len(self._includes) == 0:
+            raise RuntimeError(f"no includes defined in '{os.path.basename(self._config_file_name)}'")
 
-            schema_version = self._includes.get("schema")
-            if schema_version is not None:
-                schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
-                if os.path.exists(schema_path):
+        # Initialize the variables core module based on the configuration file we got
+        config_file = f"{self._config_file_path}/{self._includes.get('environment')}"
+        self._variables = CoreVariables(variables_config_file_name=config_file)
 
-                    self._logger.debug(f"Using schemas version '{schema_version}'")
+        schema_version = self._includes.get("schema")
+        if schema_version is not None:
+            schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
+            if os.path.exists(schema_path):
 
-                    # Try to locate and load expected schema files
-                    signature_schema_file = os.path.join(schema_path.__str__(), "signature.jsonc")
-                    solution_schema_file = os.path.join(schema_path.__str__(), "solution.jsonc")
+                self._logger.debug(f"Using schemas version '{schema_version}'")
 
-                    # Instantiate the optional signatures core module based on the configuration file we got
-                    if os.path.exists(signature_schema_file):
-                        self._signatures = CoreSignatures(signatures_config_file_name=signature_schema_file)
-                    else:
-                        self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
+                # Try to locate and load expected schema files
+                signature_schema_file = os.path.join(schema_path.__str__(), "signature.jsonc")
+                solution_schema_file = os.path.join(schema_path.__str__(), "solution.jsonc")
 
-                    # Initialize the optional schema used for validating the solution structuire
-                    # If file is specified, attempt to preprocess and load it
-                    if os.path.exists(solution_schema_file):
-                        self._solution_schema = self._processor.preprocess(file_name=solution_schema_file)
-                    else:
-                        self._logger.warning(f"Solution schema file '{solution_schema_file}' does not exist")
-
+                # Instantiate the optional signatures core module based on the configuration file we got
+                if os.path.exists(signature_schema_file):
+                    self._signatures = CoreSignatures(signatures_config_file_name=signature_schema_file)
                 else:
-                    self._logger.warning(f"No schema loaded: schemas path '{schema_path}' does not exist")
+                    self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
 
-            # Having the solution structure validated we can build the tree
-            self._solution_data = self._root_context
+                # Initialize the optional schema used for validating the solution structuire
+                # If file is specified, attempt to preprocess and load it
+                if os.path.exists(solution_schema_file):
+                    self._solution_schema = self._processor.preprocess(file_name=solution_schema_file)
+                else:
+                    self._logger.warning(f"Solution schema file '{solution_schema_file}' does not exist")
+            else:
+                self._logger.warning(f"No schema loaded: schemas path '{schema_path}' does not exist")
 
-            # Start the heavy lifting
-            self._build_solution_tree()
-            self._logger.debug(f"Initialized using '{os.path.basename(self._config_file_name)}'")
+        # Having the solution structure validated we can build the tree
+        self._solution_data = self._root_context
 
-        except Exception as exception:
-            self._logger.error(exception)
-            raise RuntimeError("solutions module not initialized")
+        # Start the heavy lifting
+        self._build_solution_tree()
+        self._logger.debug(f"Initialized using '{os.path.basename(self._config_file_name)}'")
 
     def _build_solution_tree(self):
         """

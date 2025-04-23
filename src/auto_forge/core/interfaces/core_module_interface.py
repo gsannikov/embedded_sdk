@@ -68,7 +68,14 @@ class _SingletonABCMeta(ABCMeta):
         """
         if cls not in cls._instances:
             cls._init_args[cls] = (args, kwargs)
-            instance = super().__call__(*args, **kwargs)
+
+            try:
+                # Instantiate, potentially execute implementation '__init__' if exists.
+                instance = super().__call__(*args, **kwargs)
+            # Propagate exception
+            except Exception:
+                raise
+
             cls._instances[cls] = instance
         return cls._instances[cls]
 
@@ -94,10 +101,10 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         global _ENGINE_ROOT
 
         # Register AutoForge root once during its own construction
-        core_module_name:str = type(self).__name__
+        core_module_name: str = type(self).__name__
 
         try:
-            if core_module_name== "AutoForge":
+            if core_module_name == "AutoForge":
                 _ENGINE_ROOT = cast("AutoForge", self)
             else:
                 if _ENGINE_ROOT is None:
@@ -107,7 +114,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
             self._initialize(*args, **kwargs)
 
         except Exception as core_exception:
-            raise RuntimeError(f'Core module {core_module_name} exception: {core_exception}')
+            raise RuntimeError(f"Core module '{core_module_name}': {core_exception}")
 
         self._is_initialized = True
 

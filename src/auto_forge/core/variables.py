@@ -197,7 +197,6 @@ class CoreVariables(CoreModuleInterface):
         """
         with (self._lock):
             try:
-
                 if self._variables is not None and not rebuild:
                     raise RuntimeError(f"variables dictionary exist")
 
@@ -322,6 +321,7 @@ class CoreVariables(CoreModuleInterface):
                         return expanded
                 else:
                     raise RuntimeError(f"Variable '{variable_name}' not found")
+
             return self._to_string(self._variables[index].value)
 
     def set_value(self, variable_name: str, value: Any) -> bool:

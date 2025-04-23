@@ -52,34 +52,29 @@ class AutoForge(CoreModuleInterface):
             workspace_path (str): Absolute path to the workspace directory.
             automated_mode (bool, optional): If True, enables CI-safe, non-interactive behavior.
         """
-        try:
 
-            self._registry: Registry = Registry()
+        self._registry: Registry = Registry()
 
-            if not isinstance(workspace_path, str):
-                raise RuntimeError("argument 'workspace' must be a string")
+        if not isinstance(workspace_path, str):
+            raise RuntimeError("argument 'workspace' must be a string")
 
-            # Initializes the logger
-            self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
-            self._auto_logger.set_log_file_name("auto_forge.log")
-            self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-            self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=automated_mode)
-            self._logger.debug("AutoForge starting...")
+        # Initializes the logger
+        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
+        self._auto_logger.set_log_file_name("auto_forge.log")
+        self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
+        self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=automated_mode)
+        self._logger.debug("AutoForge starting...")
 
-            # Initialize core modules
-            self._toolbox: Optional[ToolBox] = ToolBox()
-            self._processor: Optional[CoreProcessor] = CoreProcessor()
-            self._commands: Optional[CoreCommands] = CoreCommands()
-            self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
-                                                                 automated_mode=automated_mode)
-            self._prompt = CorePrompt()
+        # Initialize core modules
+        self._toolbox: Optional[ToolBox] = ToolBox()
+        self._processor: Optional[CoreProcessor] = CoreProcessor()
+        self._commands: Optional[CoreCommands] = CoreCommands()
+        self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
+                                                             automated_mode=automated_mode)
+        self._prompt = CorePrompt()
 
-            # Essential core modules instantiated, other modules will loaded aas needed.
-            self._toolbox.print_logo(clear_screen=True)  # Show logo
-
-        # Propagate exceptions
-        except Exception:
-            raise
+        # Essential core modules instantiated, other modules will loaded aas needed.
+        self._toolbox.print_logo(clear_screen=True)  # Show logo
 
     @staticmethod
     def show_version(exit_code: Optional[int] = None) -> None:
