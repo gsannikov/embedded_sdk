@@ -11,7 +11,6 @@ Description:
 
 # Main module imports must not be optimized by PyCharm, order  does matter here.
 # noinspection PyUnresolvedReferences
-
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_COMMANDS_PATH,
                        PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
@@ -20,6 +19,7 @@ from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 # Basic types
 from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType,
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
+                                           InputBoxTextType, InputBoxButtonType, InputBoxLineType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
                                            ExceptionGuru, TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalAnsiGuru, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
@@ -47,46 +47,19 @@ from auto_forge.auto_forge import auto_forge_main as main
 
 # Exported symbols
 __all__ = [
-    "Registry",
-    "ToolBox",
-    "ProgressTracker",
-    "CoreProcessor",
-    "CoreVariables",
-    "CoreSolution",
-    "CoreEnvironment",
-    "CoreSignatures",
-    "CoreCommands",
-    "CorePrompt",
-    "CoreGUI",
-    "TerminalAnsiCodes",
-    "TerminalTeeStream",
-    "TerminalAnsiGuru",
-    "TerminalFileIconInfo",
+    "Registry", "ToolBox", "ProgressTracker", "ExceptionGuru",
+    "CoreProcessor", "CoreVariables", "CoreSolution", "CoreEnvironment",
+    "CoreSignatures", "CoreCommands", "CorePrompt", "CoreGUI",
+    "TerminalAnsiCodes", "TerminalTeeStream", "TerminalAnsiGuru", "TerminalFileIconInfo",
+    "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "ValidationMethodType", "ExecutionModeType",
+    "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType",
+    "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
+    "CLICommandInterface", "CoreModuleInterface",
+    "SignatureFileHandler", "Signature",
     "TERMINAL_ICONS_MAP",
-    "AutoForgeModuleType",
-    "ModuleInfoType",
-    "ModuleSummaryType",
-    "ValidationMethodType",
-    "ExecutionModeType",
-    "MessageBoxType",
-    "SignatureFieldType",
-    "SignatureSchemaType",
-    "VariableFieldType",
-    "ExceptionGuru",
-    "CLICommandInterface",
-    "CoreModuleInterface",
-    "SignatureFileHandler",
-    "Signature",
-    "PROJECT_BASE_PATH",
-    "PROJECT_CONFIG_PATH",
-    "PROJECT_COMMANDS_PATH",
-    "PROJECT_RESOURCES_PATH",
-    "PROJECT_SCHEMAS_PATH",
-    "PROJECT_VERSION",
-    "PROJECT_NAME",
-    "PROJECT_REPO",
-    "PROJECT_PACKAGE",
-    "AutoLogger",
-    "LogHandlersTypes",
+    "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
+    "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SCHEMAS_PATH",
+    "PROJECT_VERSION", "PROJECT_NAME", "PROJECT_REPO", "PROJECT_PACKAGE",
+    "AutoLogger", "LogHandlersTypes",
     "main"
 ]

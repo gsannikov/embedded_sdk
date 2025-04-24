@@ -12,7 +12,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, auto
 from types import ModuleType
 from typing import NamedTuple, TextIO, Any, Optional, Dict, Tuple
 
@@ -98,6 +98,24 @@ class MessageBoxType(Enum):
     MB_YESNOCANCEL = 5  # Yes, No, and Cancel buttons
     MB_ERROR = 6  # Error message style
     MB_WARNING = 7  # Warning message style
+
+
+class InputBoxTextType(Enum):
+    INPUT_TEXT = auto()
+    INPUT_PASSWORD = auto()
+
+
+class InputBoxButtonType(Enum):
+    INPUT_MB_OK = auto()
+    INPUT_CANCEL = auto()
+
+
+@dataclass
+class InputBoxLineType:
+    label: str
+    input_text: str = ""
+    text_type: InputBoxTextType = InputBoxTextType.INPUT_TEXT
+    length: int = 0  # 0 = auto width
 
 
 @dataclass
