@@ -21,7 +21,7 @@ from typing import Match, Optional, Any, Dict, List
 
 # Internal AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables,
-                        Registry, AutoForgeModuleType, SignatureField, SignatureSchema, AutoLogger)
+                        AutoForgeModuleType, SignatureFieldType, SignatureSchemaType, Registry, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
@@ -47,7 +47,7 @@ class CoreSignatures(CoreModuleInterface):
         self._config_file_name: Optional[str] = None
         self._signature_id: Optional[int] = 42
         self._raw_dictionary: Optional[Dict[str, Any]] = {}
-        self._schemas: List[SignatureSchema] = []
+        self._schemas: List[SignatureSchemaType] = []
         self._processor: CoreProcessor = CoreProcessor.get_instance()
         self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
 
@@ -85,7 +85,7 @@ class CoreSignatures(CoreModuleInterface):
 
         self._logger.debug(f"Initialized using '{os.path.basename(self._config_file_name)}'")
         for raw_schema in schemas:
-            schema: SignatureSchema = SignatureSchema()  # Create new instance
+            schema: SignatureSchemaType = SignatureSchemaType()  # Create new instance
             schema.dictionary = raw_schema
             schema.name = raw_schema.get('name', 'anonymous')
             schema.description = raw_schema.get('description', 'no description')
@@ -228,7 +228,7 @@ class CoreSignatures(CoreModuleInterface):
             self._logger.error(f"Exception while deserializing {exception}")
             raise RuntimeError(exception) from exception
 
-    def find_schemas(self, schema_name: Optional[str] = None) -> Optional[List["SignatureSchema"]]:
+    def find_schemas(self, schema_name: Optional[str] = None) -> Optional[List["SignatureSchemaType"]]:
         """
         Retrieves a list of schemas based on the specified criteria.
         If a name is provided, it returns all schemas matching that name.
@@ -237,7 +237,7 @@ class CoreSignatures(CoreModuleInterface):
         Args:
             schema_name (Optional[str]): The name of the schema to find, or None for default schemas.
         Returns:
-            Optional[List[SignatureSchema]]: A list of matching schemas, or None if no matches are found or no schemas aew loaded
+            Optional[List[SignatureSchemaType]]: A list of matching schemas, or None if no matches are found or no schemas aew loaded
         """
         if self._schemas is None or len(self._schemas) == 0:
             return None
@@ -537,7 +537,7 @@ class Signature:
         self.family_name: Optional[str] = None
 
         # The List of empty fields belongs this signature
-        self.fields: List[SignatureField] = []
+        self.fields: List[SignatureFieldType] = []
 
     def _read_image(self) -> Optional[bytearray]:
         """
@@ -582,7 +582,7 @@ class Signature:
         Returns:
             Optional[bool]: The operation status
         """
-        integrity_field: Optional[SignatureField] = None
+        integrity_field: Optional[SignatureFieldType] = None
         for field in self.fields:
             if field.is_integrity:
                 integrity_field = field
@@ -725,7 +725,7 @@ class Signature:
             raise RuntimeError(exception) from exception
 
     @staticmethod
-    def get_field_data(field: Optional[SignatureField] = None,
+    def get_field_data(field: Optional[SignatureFieldType] = None,
                        default: Optional[Any] = None) -> Optional[Any]:
         """
         Returns the field content or a default value if none is specified.
@@ -741,8 +741,8 @@ class Signature:
 
         return field.data
 
-    def set_field_data(self, field: Optional[SignatureField],
-                       data: Optional[Any] = None) -> Optional[SignatureField]:
+    def set_field_data(self, field: Optional[SignatureFieldType],
+                       data: Optional[Any] = None) -> Optional[SignatureFieldType]:
         """
         Sets a field with new data, encoding and adjusting it according to the field's type and size.
 
@@ -791,7 +791,7 @@ class Signature:
         except Exception as exception:
             raise RuntimeError(exception) from exception
 
-    def find_fields(self, name: str) -> Optional[List[SignatureField]]:
+    def find_fields(self, name: str) -> Optional[List[SignatureFieldType]]:
         """
         Returns a list of all fields with the given name.
 
@@ -805,7 +805,7 @@ class Signature:
 
         return [field for field in self.fields if field.name == name]
 
-    def find_first_field(self, name: str) -> Optional[SignatureField]:
+    def find_first_field(self, name: str) -> Optional[SignatureFieldType]:
         """
         Returns the first field with the given name, or None if not found.
 
@@ -894,7 +894,7 @@ class SignatureFileHandler:
         return results if results else None
 
     @staticmethod
-    def _matches_criteria(field: SignatureField, criteria: Dict[str, Any]) -> bool:
+    def _matches_criteria(field: SignatureFieldType, criteria: Dict[str, Any]) -> bool:
         """
         Checks if a signature field matches all specified criteria.
         Iterates through each criterion and compares it to the attribute of the field object.
@@ -919,7 +919,7 @@ class SignatureFileHandler:
                 return False
         return True
 
-    def _build_fields_list(self, signature: Signature, schema: SignatureSchema):
+    def _build_fields_list(self, signature: Signature, schema: SignatureSchemaType):
         """
         Maps unpacked_data from a MatchResult to a structured list of SignatureField objects,
         properly handling nested structs and array types like char[N].
@@ -954,7 +954,7 @@ class SignatureFileHandler:
                 field_data = field_data.rstrip(b"\x00").decode("utf-8", errors="ignore")  # Strip nulls & decode
 
             # Create and store the SignatureField instance
-            signature_field = SignatureField()
+            signature_field = SignatureFieldType()
             signature_field.name = schema_field_name
             signature_field.type = schema_field_type
             signature_field.size = schema_field_size
@@ -1086,7 +1086,7 @@ class SignatureFileHandler:
             if self._file_name is None:
                 raise RuntimeError("file is already loaded or not specified.")
 
-            schemas: Optional[list[SignatureSchema]] = self.signatures_lib.find_schemas(self.schema_name)
+            schemas: Optional[list[SignatureSchemaType]] = self.signatures_lib.find_schemas(self.schema_name)
             if schemas is None or len(schemas) != 1:
                 raise RuntimeError(f"no schema or more than one schema found")
 

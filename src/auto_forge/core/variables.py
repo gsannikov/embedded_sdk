@@ -17,7 +17,7 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
-                        AutoForgeModuleType, VariableField,
+                        AutoForgeModuleType, VariableFieldType,
                         Registry, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
@@ -37,7 +37,7 @@ class CoreVariables(CoreModuleInterface):
         See 'CoreModuleInterface' usage.
         """
         self._variables: Optional[
-            list[VariableField]] = None  # Inner variables stored as a sorted listy of objects
+            list[VariableFieldType]] = None  # Inner variables stored as a sorted listy of objects
 
         super().__init__(*args, **kwargs)
 
@@ -365,7 +365,7 @@ class CoreVariables(CoreModuleInterface):
         if variable_name is None or value is None:
             raise RuntimeError(f"bad variable name or value")
 
-        new_var = VariableField()
+        new_var = VariableFieldType()
 
         # Construct name
         new_var.base_name = (variable_name.upper() if self._variable_force_upper_case_names else variable_name).strip()

@@ -26,7 +26,7 @@ from rich.table import Table
 
 # AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreCommands, CoreEnvironment,
-                        AutoForgeModuleType, ExecutionMode,
+                        AutoForgeModuleType, ExecutionModeType,
                         Registry, AutoLogger, ToolBox,
                         PROJECT_NAME)
 
@@ -78,7 +78,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Build executables dictionary for implementation shell style fast auto completion
         if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
                                                   command=self._build_executable_index,
-                                                  command_type=ExecutionMode.PYTHON,
+                                                  command_type=ExecutionModeType.PYTHON,
                                                   new_lines=1) != 0:
             raise RuntimeError("could not finish initializing")
 

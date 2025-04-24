@@ -25,7 +25,7 @@ from types import ModuleType
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleInfo, AutoForgeModuleType)
+from auto_forge import (ModuleInfoType, AutoForgeModuleType)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
 
@@ -117,7 +117,7 @@ class CLICommandInterface(ABC):
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
-        self._module_info: AutoForgeModuleInfo = (
+        self._module_info: ModuleInfoType = (
             registry.register_module(name=command_name,
                                      description=command_description if command_description else "Description not provided",
                                      version=command_version if command_version else "0.0.0",
@@ -137,7 +137,7 @@ class CLICommandInterface(ABC):
         """
         return self._last_error
 
-    def get_info(self, python_module_type: Optional[ModuleType] = None) -> AutoForgeModuleInfo:
+    def get_info(self, python_module_type: Optional[ModuleType] = None) -> ModuleInfoType:
         """
         Retrievers information about the implemented command line tool.
         Note: Implementation class must call _set_info().
@@ -145,7 +145,7 @@ class CLICommandInterface(ABC):
             python_module_type (Optional[ModuleType]): The type of this dynamically loaded module.
                 Must be provided externally, as it cannot be inferred during dynamic loading.
         Returns:
-            AutoForgeModuleInfo: a named tuple containing the implemented command id
+            ModuleInfoType: a named tuple containing the implemented command id
         """
         if self._module_info is None:
             raise RuntimeError('command info not initialized, make sure call set_info() first')

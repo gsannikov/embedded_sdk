@@ -13,6 +13,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
+from types import ModuleType
 from typing import NamedTuple, TextIO, Any, Optional, Dict, Tuple
 
 from colorama import Fore
@@ -35,7 +36,7 @@ class AutoForgeModuleType(Enum):
     CLI_COMMAND = 3
 
 
-class AutoForgeModuleInfo(NamedTuple):
+class ModuleInfoType(NamedTuple):
     """
     Define a named tuple type for a Python module information retrieve.
     """
@@ -45,12 +46,12 @@ class AutoForgeModuleInfo(NamedTuple):
     class_instance: Optional[Any] = None
     class_interface: Optional[Any] = None
     auto_forge_module_type: AutoForgeModuleType = AutoForgeModuleType.UNKNOWN
-    python_module_type: Optional[Any] = None
+    python_module_type: Optional[ModuleType] = None
     file_name: Optional[str] = None
     version: Optional[str] = None
 
 
-class AutoForgeModuleSummary(NamedTuple):
+class ModuleSummaryType(NamedTuple):
     """
     Represents a minimal summary subset of 'ModuleInfo'.
     """
@@ -58,7 +59,7 @@ class AutoForgeModuleSummary(NamedTuple):
     description: str
 
 
-class ValidationMethod(Enum):
+class ValidationMethodType(Enum):
     """
     Enumeration for supported validation methods.
 
@@ -72,7 +73,7 @@ class ValidationMethod(Enum):
     SYS_PACKAGE = 3
 
 
-class ExecutionMode(Enum):
+class ExecutionModeType(Enum):
     """
     Defines how a command should be executed.
 
@@ -84,8 +85,23 @@ class ExecutionMode(Enum):
     PYTHON = "python"
 
 
+class MessageBoxType(Enum):
+    """
+    Enum representing supported message box types.
+    These types define the set of buttons and dialog styles used
+    when displaying a message box to the user.
+    """
+    MB_OK = 1  # OK button only
+    MB_OKCANCEL = 2  # OK and Cancel buttons
+    MB_RETRYCANCEL = 3  # Retry and Cancel buttons
+    MB_YESNO = 4  # Yes and No buttons
+    MB_YESNOCANCEL = 5  # Yes, No, and Cancel buttons
+    MB_ERROR = 6  # Error message style
+    MB_WARNING = 7  # Warning message style
+
+
 @dataclass
-class SignatureSchema:
+class SignatureSchemaType:
     """
     A data class to facilitate handling signature schema data.
     """
@@ -99,7 +115,7 @@ class SignatureSchema:
 
 
 @dataclass
-class SignatureField:
+class SignatureFieldType:
     """
     A data class to facilitate reading and writing specific fields from
     signature binary data.
@@ -115,7 +131,7 @@ class SignatureField:
 
 
 @dataclass
-class VariableField:
+class VariableFieldType:
     """
     A data class to manage a single managed variable.
     """

@@ -18,11 +18,10 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
-from auto_forge.common.local_types import (AutoForgeModuleType, AutoForgeModuleInfo, AutoForgeModuleSummary,
-                                           ExceptionGuru,
-                                           ValidationMethod, ExecutionMode,
-                                           SignatureSchema, SignatureField, VariableField,
-                                           TerminalTeeStream, TerminalAnsiCodes,
+from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType,
+                                           ValidationMethodType, ExecutionModeType, MessageBoxType,
+                                           SignatureSchemaType, SignatureFieldType, VariableFieldType,
+                                           ExceptionGuru, TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalAnsiGuru, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -38,10 +37,10 @@ from auto_forge.core.processor import CoreProcessor
 from auto_forge.core.commands import CoreCommands
 from auto_forge.core.environment import CoreEnvironment
 from auto_forge.core.variables import CoreVariables
+from auto_forge.core.gui import CoreGUI
 from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
 from auto_forge.core.solution import CoreSolution
 from auto_forge.core.prompt import CorePrompt
-
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
@@ -56,26 +55,28 @@ __all__ = [
     "CoreSolution",
     "CoreEnvironment",
     "CoreSignatures",
-    "ExceptionGuru",
+    "CoreCommands",
+    "CorePrompt",
+    "CoreGUI",
     "TerminalAnsiCodes",
     "TerminalTeeStream",
     "TerminalAnsiGuru",
     "TerminalFileIconInfo",
     "TERMINAL_ICONS_MAP",
     "AutoForgeModuleType",
-    "AutoForgeModuleInfo",
-    "AutoForgeModuleSummary",
-    "ValidationMethod",
-    "ExecutionMode",
-    "SignatureField",
-    "SignatureSchema",
-    "VariableField",
+    "ModuleInfoType",
+    "ModuleSummaryType",
+    "ValidationMethodType",
+    "ExecutionModeType",
+    "MessageBoxType",
+    "SignatureFieldType",
+    "SignatureSchemaType",
+    "VariableFieldType",
+    "ExceptionGuru",
     "CLICommandInterface",
     "CoreModuleInterface",
     "SignatureFileHandler",
     "Signature",
-    "CoreCommands",
-    "CorePrompt",
     "PROJECT_BASE_PATH",
     "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH",

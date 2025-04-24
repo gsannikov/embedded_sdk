@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, cast, List
 
 # AutoForge imports
 from auto_forge import (CoreModuleInterface,
-                        AutoForgeModuleType, AutoForgeModuleInfo, AutoForgeModuleSummary)
+                        AutoForgeModuleType, ModuleInfoType, ModuleSummaryType)
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
@@ -31,7 +31,7 @@ class Registry(CoreModuleInterface):
         self._modules_registry: Dict[str, Dict[str, Any]] = {}
 
         # Register self
-        self._module_info: AutoForgeModuleInfo = (
+        self._module_info: ModuleInfoType = (
             self.register_module(name=AUTO_FORGE_MODULE_NAME,
                                  description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.COMMON))
@@ -59,17 +59,17 @@ class Registry(CoreModuleInterface):
     from typing import List
 
     def get_modules_summary_list(self, auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> List[
-        AutoForgeModuleSummary]:
+        ModuleSummaryType]:
         """
         Returns a list of module summaries (name and description only) that match the specified module type.
         Omits all internal or non-serializable details.
         Args:
             auto_forge_module_type (AutoForgeModuleType): The type of modules to filter by.
         Returns:
-            List[AutoForgeModuleSummary]: A list of filtered module summaries.
+            List[ModuleSummaryType]: A list of filtered module summaries.
         """
         return [
-            AutoForgeModuleSummary(name, meta.get("description", "description not provided"))
+            ModuleSummaryType(name, meta.get("description", "description not provided"))
             for name, meta in self._modules_registry.items()
             if meta.get("auto_forge_module_type") == auto_forge_module_type
         ]
@@ -126,7 +126,7 @@ class Registry(CoreModuleInterface):
                         python_module_type: Optional[ModuleType] = None,
                         version: Optional[str] = None,
                         file_name: Optional[str] = None,
-                        auto_inspection: Optional[bool] = True) -> Optional[AutoForgeModuleInfo]:
+                        auto_inspection: Optional[bool] = True) -> Optional[ModuleInfoType]:
         """
         Registers a module with the AutoForge system using explicit metadata arguments.
         Args:
@@ -141,7 +141,7 @@ class Registry(CoreModuleInterface):
             file_name (Optional[str]): The file name of the module.
             auto_inspection (Optional[bool]): If True, performs auto inspection to get the r requited info.
         Returns:
-            AutoForgeModuleInfo: if the module was successfully registered, exception otherwise.
+            ModuleInfoType: if the module was successfully registered, exception otherwise.
         """
 
         # Inspect the caller's frame and extract runtime context
@@ -173,7 +173,7 @@ class Registry(CoreModuleInterface):
             caller_python_module_type = inspect.getmodule(caller_frame)
 
         # Populate dynamic module info
-        auto_forge_module_info: AutoForgeModuleInfo = AutoForgeModuleInfo(
+        auto_forge_module_info: ModuleInfoType = ModuleInfoType(
             name=name,
             description=description,
             class_name=class_name or caller_class_name,
@@ -187,11 +187,11 @@ class Registry(CoreModuleInterface):
 
         return self.register_module_by_info(auto_forge_module_info)
 
-    def register_module_by_info(self, auto_forge_module_info: AutoForgeModuleInfo) -> Optional[AutoForgeModuleInfo]:
+    def register_module_by_info(self, auto_forge_module_info: ModuleInfoType) -> Optional[ModuleInfoType]:
         """
         Registers a module into the registry if it is not already registered.
         Args:
-            auto_forge_module_info (AutoForgeModuleInfo): The module metadata to register.
+            auto_forge_module_info (ModuleInfoType): The module metadata to register.
         Returns:
             bool: True if registration succeeds or RuntimeError: If a module with the
             same name is already registered (case-insensitive).

@@ -32,7 +32,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreCommands,
-                        AutoForgeModuleType, ProgressTracker, ExecutionMode, ValidationMethod,
+                        AutoForgeModuleType, ProgressTracker, ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -478,7 +478,7 @@ class CoreEnvironment(CoreModuleInterface):
                              message: str,
                              command: Union[str, Callable],
                              arguments: Optional[Any] = None,
-                             command_type: ExecutionMode = ExecutionMode.SHELL,
+                             command_type: ExecutionModeType = ExecutionModeType.SHELL,
                              timeout: Optional[float] = None,
                              color: Optional[str] = Fore.CYAN,
                              new_lines: int = 0) -> Optional[int]:
@@ -489,7 +489,7 @@ class CoreEnvironment(CoreModuleInterface):
             message (str): Message to show before the spinner.
             command (str | Callable): Command to execute (shell or Python method).
             arguments (Optional[Any]): Command-line-style arguments or dict for Python calls.
-            command_type (ExecutionMode): Execution mode type.
+            command_type (ExecutionModeType): Execution mode type.
             timeout (Optional[float]): Timeout in seconds (for shell commands only).
             color (Optional[str]): Colorama color for the spinner text.
             new_lines (int): The number of new lines print before the spinner text.
@@ -517,7 +517,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         def _execute_foreign_code():
             try:
-                if command_type == ExecutionMode.SHELL:
+                if command_type == ExecutionModeType.SHELL:
                     self.execute_shell_command(
                         command=command,
                         arguments=arguments,
@@ -529,7 +529,7 @@ class CoreEnvironment(CoreModuleInterface):
                     )
                     result_container['code'] = 0
 
-                elif command_type == ExecutionMode.PYTHON:
+                elif command_type == ExecutionModeType.PYTHON:
                     if not callable(command):
                         raise RuntimeError("Cannot execute non-callable command")
 
@@ -731,7 +731,7 @@ class CoreEnvironment(CoreModuleInterface):
                               command: str,
                               arguments: Optional[str] = None,
                               cwd: Optional[str] = None,
-                              validation_method: ValidationMethod = ValidationMethod.EXECUTE_PROCESS,
+                              validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
                               expected_return_code: int = 0,
                               expected_response: Optional[str] = None,
                               allow_greater_decimal: bool = False) -> Optional[Any]:
@@ -743,7 +743,7 @@ class CoreEnvironment(CoreModuleInterface):
                            For SYS_PACKAGE: the command variable is treated as the system package to be validated.
             arguments (Optional[str]): Arguments to pass to the command (EXECUTE_PROCESS only).
             cwd (Optional[str]): The directory from which the process should be executed.
-            validation_method (ValidationMethod): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
+            validation_method (ValidationMethodType): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
             expected_return_code (int): The expected exit code from the command.
             expected_response (Optional[str]): Expected content in output (for EXECUTE_PROCESS)
                 or file content (for READ_FILE).
@@ -757,7 +757,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         try:
             # Execute a process and check its response
-            if validation_method == ValidationMethod.EXECUTE_PROCESS:
+            if validation_method == ValidationMethodType.EXECUTE_PROCESS:
                 command_response = self.execute_shell_command(
                     command=command,
                     arguments=arguments,
@@ -781,7 +781,7 @@ class CoreEnvironment(CoreModuleInterface):
                             raise Exception(f"expected response '{expected_response}' not found in output")
 
             # Read a text line from a file and compare its content
-            elif validation_method == ValidationMethod.READ_FILE:
+            elif validation_method == ValidationMethodType.READ_FILE:
                 parts = command.split(':')
                 if len(parts) < 2:
                     raise ValueError(
@@ -804,7 +804,7 @@ class CoreEnvironment(CoreModuleInterface):
                                         f"not found in {file_path}:{line_number}")
 
             # Check if a system package is installed
-            elif validation_method == ValidationMethod.SYS_PACKAGE:
+            elif validation_method == ValidationMethodType.SYS_PACKAGE:
                 self._validate_sys_package(package_name=command)
 
             else:

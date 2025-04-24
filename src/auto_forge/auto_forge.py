@@ -13,15 +13,17 @@ import argparse
 import logging
 import os
 import sys
+import threading
+import time
 from typing import Optional
 
 # Colorama
 from colorama import Fore, Style
 
 # Internal AutoForge imports
-from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables,
+from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
                         CoreSolution, CoreEnvironment, CoreCommands, CorePrompt,
-                        Registry, AutoLogger, LogHandlersTypes, ExceptionGuru,
+                        Registry, AutoLogger, LogHandlersTypes, ExceptionGuru, MessageBoxType,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME)
 
 
@@ -40,6 +42,9 @@ class AutoForge(CoreModuleInterface):
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
         self._variables: Optional[CoreVariables] = None
+        self._gui: Optional[CoreGUI] = None
+        self._prompt: Optional[CorePrompt] = None
+
         super().__init__(*args, **kwargs)
 
     def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
@@ -71,10 +76,35 @@ class AutoForge(CoreModuleInterface):
         self._commands: Optional[CoreCommands] = CoreCommands()
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
                                                              automated_mode=automated_mode)
-        self._prompt = CorePrompt()
 
-        # Essential core modules instantiated, other modules will loaded aas needed.
-        self._toolbox.print_logo(clear_screen=True)  # Show logo
+        # Due to quirks in Python's Tkinter implementation, CoreGUI must run in the main thread.
+        # The following creates the CoreGUI singleton and starts the rest of the engine logic
+        # in a separate thread, allowing the GUI loop to remain in the main thread.
+        self._gui: CoreGUI = CoreGUI(entry_point=self._events_sync)
+
+    def _events_sync(self, start_acknowledge: threading.Event):
+        """
+        Entry point for the AutoForge engine.
+
+        This method listens for events arriving from loaded CoreModules and orchestrates
+        those components to enable an efficient and responsive workflow.
+        Args:
+            start_acknowledge (threading.Event): Event used to signal that the thread has successfully started.
+        """
+        start_acknowledge.set()  # Signal that this thread has officially started
+
+        # Wait for CoreGUI to become ready. Note: CoreGUI must be executed from the main thread,
+        # so it may take a moment to fully initialize.
+        if not CoreGUI.wait_until_ready(timeout=5):
+            raise TimeoutError("CoreGUI did not become ready in time")
+
+        # Show startup branding
+        self._toolbox.print_logo(clear_screen=True)
+
+        # Main event loop (placeholder)
+        while True:
+            self._gui.message_box("Continue?", "Question", MessageBoxType.MB_OKCANCEL)
+            time.sleep(5)
 
     @staticmethod
     def show_version(exit_code: Optional[int] = None) -> None:
@@ -95,7 +125,6 @@ class AutoForge(CoreModuleInterface):
             is_demo (bool): Is this a demo solution?
         """
         try:
-
             if self._solution is not None:
                 raise RuntimeError(f"solution already loaded.")
 
@@ -113,6 +142,7 @@ class AutoForge(CoreModuleInterface):
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
             # Enter build system prompt loop
+            self._prompt = CorePrompt()
             return self._prompt.cmdloop()
 
         # Propagate

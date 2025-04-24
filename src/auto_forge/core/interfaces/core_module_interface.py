@@ -34,7 +34,8 @@ Developer Guidelines:
                 self._solution = load_solution(config_path)
 
 """
-
+import threading
+import time
 from abc import ABCMeta
 from typing import Optional, cast, TypeVar, Type, TYPE_CHECKING, Dict, Any, Tuple
 
@@ -64,7 +65,7 @@ class _SingletonABCMeta(ABCMeta):
 
     _instances: Dict[Type, Any] = {}
     _init_args: Dict[Type, Tuple[Tuple[Any, ...], Dict[str, Any]]] = {}
-    _is_initialized: bool = False
+    _ready_event: Dict[Type, threading.Event] = {}
 
     def __call__(cls, *args, **kwargs):
         """
@@ -72,6 +73,7 @@ class _SingletonABCMeta(ABCMeta):
         """
         if cls not in cls._instances:
             cls._init_args[cls] = (args, kwargs)
+            cls._ready_event[cls] = threading.Event()  # Class readiness event
 
             # Instantiate, potentially execute implementation '__init__' if exists.
             instance = super().__call__(*args, **kwargs)
@@ -80,7 +82,51 @@ class _SingletonABCMeta(ABCMeta):
         return cls._instances[cls]
 
     @classmethod
+    def wait_until_ready(cls, subclass: Type[T], timeout: Optional[float] = 5) -> bool:
+        """
+        Waits for a given subclass (e.g., CoreGUI) to be initialized and ready.
+        Args:
+            subclass (Type[T]): The subclass to wait for.
+            timeout (Optional[float]): Maximum wait time in seconds (default: 5).
+        Returns:
+            bool: True if ready, False if timeout reached.
+        """
+        poll_interval: float = 0.1
+        deadline = time.time() + timeout if timeout is not None else None
+
+        while True:
+            instance = cls._instances.get(subclass)
+            if instance:
+                ready_event = cls._ready_event.get(subclass)
+                if isinstance(ready_event, threading.Event):
+                    remaining = (deadline - time.time()) if deadline else None
+                    if ready_event.wait(timeout=remaining):
+                        return True
+                    return False  # Timed out waiting
+
+            if deadline and time.time() >= deadline:
+                return False  # Timed out before instance appeared
+
+            time.sleep(poll_interval)
+
+    @classmethod
+    def mark_ready(cls, subclass: Type[T]) -> None:
+        """
+        Marks the singleton instance of the given subclass as ready.
+        """
+        event = cls._ready_event.get(subclass)
+        if isinstance(event, threading.Event):
+            event.set()
+
+    @classmethod
     def get_instance_for(cls, subclass: Type[T]) -> Optional[T]:
+        """
+        Returns the singleton instance for the given subclass, if initialized.
+        Args:
+            subclass (Type[T]): The class for which the singleton is requested.
+        Returns:
+            Optional[T]: The instance, or None if not yet created.
+        """
         return cls._instances.get(subclass)
 
 
@@ -102,6 +148,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
         # Register AutoForge root once during its own construction
         core_module_name: str = type(self).__name__
+
         try:
             if core_module_name == "AutoForge":
                 _CORE_AUTO_FORGE_ROOT = cast("AutoForge", self)
@@ -111,7 +158,8 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
             # Preform core specific initialization
             self._initialize(*args, **kwargs)
-            _PRV_MODULE = core_module_name
+            self.mark_ready()
+            self._is_initialized = True
 
         except Exception as core_exception:
             if _CORE_EXCEPTIONS_COUNT < 1:
@@ -122,8 +170,6 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
                 raise RuntimeError(f"Core module '{core_module_name}': {str(core_exception)}")
             else:
                 raise
-
-        self._is_initialized = True
 
     def _initialize(self, *args, **kwargs) -> None:
         """
@@ -149,3 +195,19 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
             Optional[T]: The existing singleton instance, or None.
         """
         return _SingletonABCMeta.get_instance_for(cls)
+
+    @classmethod
+    def wait_until_ready(cls, timeout: Optional[float] = 5) -> bool:
+        """
+        Waits until this module is fully initialized and ready.
+        Delegates to the internal singleton system.
+        """
+        return _SingletonABCMeta.wait_until_ready(cls, timeout)
+
+    @classmethod
+    def mark_ready(cls) -> None:
+        """
+        Marks this module as fully initialized and ready.
+        Delegates to the internal singleton system.
+        """
+        return _SingletonABCMeta.mark_ready(cls)

@@ -21,7 +21,7 @@ from typing import Optional, cast, Dict, Any
 
 # AutoGorge local imports
 from auto_forge import (CoreModuleInterface, CLICommandInterface,
-                        AutoForgeModuleType, AutoForgeModuleInfo, TerminalTeeStream,
+                        AutoForgeModuleType, ModuleInfoType, TerminalTeeStream,
                         PROJECT_COMMANDS_PATH,
                         Registry, AutoLogger)
 
@@ -128,7 +128,7 @@ class CoreCommands(CoreModuleInterface):
                 # Invoke 'get_info()', which is defined by the interface. Since this class was loaded dynamically,
                 # we explicitly pass the Python 'ModuleType' to the implementation so it can update its own metadata.
                 # This type is known to us but cannot be inferred automatically by the loaded class.
-                module_info: AutoForgeModuleInfo = command_instance.get_info(python_module_type=python_module_type)
+                module_info: ModuleInfoType = command_instance.get_info(python_module_type=python_module_type)
 
                 if not module_info:
                     raise RuntimeError(
