@@ -11,10 +11,11 @@ Description:
 import os
 import re
 import sys
+import threading
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from types import ModuleType
-from typing import NamedTuple, TextIO, Any, Optional, Dict, Tuple
+from typing import NamedTuple, TextIO, Any, Optional, Dict, Tuple, Callable
 
 from colorama import Fore
 
@@ -25,7 +26,6 @@ AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
 class AutoForgeModuleType(Enum):
     """
     Enumeration of known AutoForge module types.
-
     Members:
         CORE (int): Built-in core module, part of the AutoForge runtime.
         CLI_COMMAND (int): Dynamically loaded command module, provided either by AutoForge or external extensions.
@@ -38,13 +38,13 @@ class AutoForgeModuleType(Enum):
 
 class ModuleInfoType(NamedTuple):
     """
-    Define a named tuple type for a Python module information retrieve.
+    Define a named tuple type for AutoForge registered modules.
     """
     name: str
     description: Optional[str] = None
     class_name: Optional[str] = None
     class_instance: Optional[Any] = None
-    class_interface: Optional[Any] = None
+    class_interface_name: Optional[str] = None
     auto_forge_module_type: AutoForgeModuleType = AutoForgeModuleType.UNKNOWN
     python_module_type: Optional[ModuleType] = None
     file_name: Optional[str] = None
@@ -62,7 +62,6 @@ class ModuleSummaryType(NamedTuple):
 class ValidationMethodType(Enum):
     """
     Enumeration for supported validation methods.
-
     Attributes:
         EXECUTE_PROCESS (int): Run a shell command and validate based on its return code and/or output.
         READ_FILE (int): Read specific lines from a file and validate expected content.
@@ -76,7 +75,6 @@ class ValidationMethodType(Enum):
 class ExecutionModeType(Enum):
     """
     Defines how a command should be executed.
-
     Attributes:
         SHELL: Execute using a shell subprocess (e.g., bash, cmd).
         PYTHON: Execute as a direct Python callable.
@@ -101,17 +99,37 @@ class MessageBoxType(Enum):
 
 
 class InputBoxTextType(Enum):
+    """
+    Defines the type of text input for an input box.
+    Options:
+        INPUT_TEXT: Plain visible text.
+        INPUT_PASSWORD: Hidden text input (e.g., for passwords).
+    """
     INPUT_TEXT = auto()
     INPUT_PASSWORD = auto()
 
 
 class InputBoxButtonType(Enum):
+    """
+    Defines the types of buttons used in an input box dialog.
+    Options:
+        INPUT_MB_OK: OK/Confirm button.
+        INPUT_CANCEL: Cancel/Close button.
+    """
     INPUT_MB_OK = auto()
     INPUT_CANCEL = auto()
 
 
 @dataclass
 class InputBoxLineType:
+    """
+    Represents a single input line in a multi-line input box dialog.
+    Attributes:
+        label (str): The label displayed next to the input field.
+        input_text (str): Default or pre-filled input value.
+        text_type (InputBoxTextType): Type of input (e.g., plain, password).
+        length (int): Desired input field width; 0 means auto-sized.
+    """
     label: str
     input_text: str = ""
     text_type: InputBoxTextType = InputBoxTextType.INPUT_TEXT
@@ -472,3 +490,52 @@ class ExceptionGuru:
 
         self._file_name = os.path.basename(tb.tb_frame.f_code.co_filename)
         self._line_number = tb.tb_lineno
+
+
+class ThreadGuru:
+    @staticmethod
+    def create_thread_and_wait_ack(
+            target: Callable[..., None],
+            name: Optional[str] = None,
+            daemon: bool = True,
+            timeout: Optional[float] = 5,
+            *args: Any
+    ) -> threading.Thread:
+        """
+        Creates and starts a thread, passing an Event object that the target function can use to
+        signal it has started. Also passes optional user arguments to the target.
+
+        The target must accept `start_event` as the first argument (which may be None),
+        followed by any number of user-defined args.
+
+        Args:
+            target (Callable): The thread entry point function. Signature must be:
+                               `func(start_event: Optional[threading.Event], *args)`
+            name (Optional[str]): Name of the thread.
+            daemon (bool): Whether to run as daemon. Defaults to True.
+            timeout (Optional[float]): Max time (in seconds) to wait for startup. Defaults to 5.
+            *args (Any): Additional arguments to pass to the target function.
+
+        Returns:
+            threading.Thread: The created and started thread.
+        """
+        start_ack = threading.Event()
+
+        def wrapper():
+            try:
+                target(start_ack, *args)
+            finally:
+                if not start_ack.is_set():
+                    start_ack.set()
+
+        thread = threading.Thread(
+            target=wrapper,
+            name=name,
+            daemon=daemon
+        )
+        thread.start()
+
+        if not start_ack.wait(timeout=timeout):
+            raise RuntimeError("timeout waiting for thread to acknowledge startup.")
+
+        return thread

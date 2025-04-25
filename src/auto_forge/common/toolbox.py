@@ -17,6 +17,7 @@ import re
 import sys
 import tempfile
 import textwrap
+import threading
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
@@ -47,6 +48,7 @@ class ToolBox(CoreModuleInterface):
         # Create a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
+        self._test_str:str = "test"
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()

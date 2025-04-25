@@ -3,8 +3,12 @@ Script:         registry.py
 Author:         AutoForge Team
 
 Description:
-    Auxiliary module for managing dynamic module registration within AutoForge.
+    Common module enabling dynamic registration of modules within AutoForge.
+    It also provides functionality to resolve class and method names into callable
+    objects, allowing AutoForge to dynamically invoke functionality based on
+    user-provided JSON files.
 """
+
 import inspect
 from abc import ABCMeta
 from types import ModuleType
@@ -56,10 +60,29 @@ class Registry(CoreModuleInterface):
                         return record
         return None
 
-    from typing import List
+    @staticmethod
+    def _resolve_method_case_insensitive(obj: object, method_name: str) -> Optional[callable]:
+        """
+        Resolves a method on an object by case-insensitive name.
+        Args:
+            obj (object): The object to inspect.
+            method_name (str): The case-insensitive method name.
+        Returns:
+            Callable: The resolved method.
+        """
+        method_name_lower = method_name.lower()
+        for attr in dir(obj):
+            if attr.lower() == method_name_lower:
+                candidate = getattr(obj, attr)
+                if callable(candidate):
+                    return candidate
+                else:
+                    raise AttributeError(f"'{attr}' exists on object but is not callable.")
 
-    def get_modules_summary_list(self, auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> List[
-        ModuleSummaryType]:
+        raise AttributeError(f"no method matching '{method_name}' found (case-insensitive).")
+
+    def get_modules_summary_list(self,
+                                 auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> List[ModuleSummaryType]:
         """
         Returns a list of module summaries (name and description only) that match the specified module type.
         Omits all internal or non-serializable details.
@@ -121,7 +144,7 @@ class Registry(CoreModuleInterface):
     def register_module(self, name: str, description: str,
                         class_name: Optional[str] = None,
                         class_instance: Optional[Any] = None,
-                        class_interface: Optional[Any] = None,
+                        class_interface_name: Optional[str] = None,
                         auto_forge_module_type: Optional[AutoForgeModuleType] = AutoForgeModuleType.UNKNOWN,
                         python_module_type: Optional[ModuleType] = None,
                         version: Optional[str] = None,
@@ -134,7 +157,7 @@ class Registry(CoreModuleInterface):
             description (str): The description of the module.
             class_name (Optional[str]): The name of the class of the module.
             class_instance (Optional[Any]): The class instance of the module.
-            class_interface (Optional[Any], optional): The interface instance of the class.
+            class_interface_name (Optional[str], optional): The interface class name of the class if any.
             auto_forge_module_type (Optional[ModuleType], optional): The AutoForge type of the module.
             python_module_type (Optional[ModuleType], optional): The Python type of the module.
             version (Optional[str], optional): The version of the module.
@@ -149,7 +172,8 @@ class Registry(CoreModuleInterface):
         caller_frame = inspect.currentframe().f_back
         caller_class_name = None
         caller_class_instance = None
-        caller_class_interface = []
+        caller_class_interfaces: Optional[list] = None
+        caller_class_interface_name = None
         caller_module_file_name = None
         caller_python_module_type = None
 
@@ -159,16 +183,21 @@ class Registry(CoreModuleInterface):
 
             if caller_self is not None:
                 # Resolve caller class info
-                caller_class_instance = cast(object, caller_self).__class__
-                caller_class_name = caller_class_instance.__name__
+                caller_class_instance = cast(object, caller_self)
+                caller_class_name = cast(object, caller_self).__class__.__name__
+                caller_class_object = cast(object, caller_self).__class__
 
                 # Inspect base classes and filter ABCs
-                caller_class_interface = [
-                    base for base in inspect.getmro(caller_class_instance)[1:]  # skip the actual class itself
+                caller_class_interfaces: Optional[list] = [
+                    base for base in inspect.getmro(caller_class_object)[1:]  # skip the actual class itself
                     if isinstance(base, ABCMeta)
                 ]
 
             # Resolve file and module
+            if caller_class_interfaces and len(caller_class_interfaces) > 0:
+                caller_class_interface = cast(object, caller_class_interfaces[0])
+                caller_class_interface_name = cast(object, caller_class_interface).__name__
+
             caller_module_file_name = inspect.getfile(caller_frame)
             caller_python_module_type = inspect.getmodule(caller_frame)
 
@@ -181,7 +210,7 @@ class Registry(CoreModuleInterface):
             auto_forge_module_type=auto_forge_module_type,
             python_module_type=python_module_type or caller_python_module_type,
             version=version or "0.0.0",
-            class_interface=class_interface or caller_class_interface,
+            class_interface_name=class_interface_name or caller_class_interface_name,
             file_name=file_name or caller_module_file_name,
         )
 
@@ -209,10 +238,43 @@ class Registry(CoreModuleInterface):
             "class_name": auto_forge_module_info.class_name,
             "class_name_lower": auto_forge_module_info.class_name.lower() if auto_forge_module_info.class_name is not None else None,
             "class_instance": auto_forge_module_info.class_instance,
-            "class_interface": auto_forge_module_info.class_interface,
+            "class_interface_name": auto_forge_module_info.class_interface_name,
             "auto_forge_module_type": auto_forge_module_info.auto_forge_module_type,
             "python_module_type": auto_forge_module_info.python_module_type,
             "version": auto_forge_module_info.version,
             "file_name": auto_forge_module_info.file_name,
         }
         return auto_forge_module_info
+
+    def find_callable_method(self, flat_method_name: str) -> Optional[callable]:
+        """
+        Resolves a class and method name expressed as a flat string (e.g., 'some_class.method_name')
+        into an actual callable belonging to one of the registered class instances.
+        Args:
+            flat_method_name (str): A dot-separated string in the form 'class_name.method_name'.
+        Returns:
+            Optional[callable]: The resolved method if found. Raises an exception on failure.
+        """
+
+        parts = flat_method_name.strip().split('.')
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(f"invalid format: '{flat_method_name}'. expected 'class.method'.")
+
+        class_name, method_name = parts
+        class_name = class_name.lower().strip()
+        method_name = method_name.lower().strip()
+
+        # Locate the record by matching the normalized class name
+        record = self._find_record(value=class_name, key="class_name_lower")
+        if record is None:
+            raise RuntimeError(f"failed to find class '{class_name}'.")
+
+        class_instance = record.get("class_instance")
+        if class_instance is None:
+            raise RuntimeError(f"missing instance for class '{class_name}'.")
+
+        method = self._resolve_method_case_insensitive(class_instance, method_name)
+        if method is None:
+            raise RuntimeError(f"method '{method_name}' not found in class '{class_name}'.")
+
+        return method

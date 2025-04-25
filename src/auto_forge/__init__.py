@@ -21,8 +21,9 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
-                                           ExceptionGuru, TerminalTeeStream, TerminalAnsiCodes,
-                                           TerminalAnsiGuru, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
+                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru,
+                                           TerminalTeeStream, TerminalAnsiCodes,
+                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
@@ -47,10 +48,11 @@ from auto_forge.auto_forge import auto_forge_main as main
 
 # Exported symbols
 __all__ = [
-    "Registry", "ToolBox", "ProgressTracker", "ExceptionGuru",
+    "Registry", "ToolBox", "ProgressTracker",
     "CoreProcessor", "CoreVariables", "CoreSolution", "CoreEnvironment",
     "CoreSignatures", "CoreCommands", "CorePrompt", "CoreGUI",
-    "TerminalAnsiCodes", "TerminalTeeStream", "TerminalAnsiGuru", "TerminalFileIconInfo",
+    "ExceptionGuru", "ThreadGuru", "TerminalAnsiGuru",
+    "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo",
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "ValidationMethodType", "ExecutionModeType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",

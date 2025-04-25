@@ -10,15 +10,17 @@ Description:
     event dispatching across core modules through a managed Tkinter loop.
 """
 
+import atexit
 import queue
 import threading
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk
 from typing import Optional, Any
 
 # AutoGorge local imports
-from auto_forge import (CoreModuleInterface, Registry, AutoForgeModuleType, MessageBoxType,
-                        InputBoxButtonType, InputBoxLineType, ToolBox, AutoLogger)
+from auto_forge import (CoreModuleInterface, Registry, AutoForgeModuleType, MessageBoxType, InputBoxTextType,
+                        InputBoxButtonType, InputBoxLineType, ThreadGuru, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "GUI"
 AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"
@@ -36,6 +38,7 @@ class CoreGUI(CoreModuleInterface):
         Initializes the GUI system. Spawns a thread to run user logic,
         and keeps the GUI running in the main thread.
         """
+
         if threading.current_thread() is not threading.main_thread():
             raise RuntimeError("CoreGUI must be initialized from the main thread!")
 
@@ -45,6 +48,9 @@ class CoreGUI(CoreModuleInterface):
         self._response_queue = queue.Queue()
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._toolbox = ToolBox.get_instance()
+
+        # Register finalizer just in case
+        atexit.register(self._shutdown)
 
         Registry.get_instance().register_module(
             name=AUTO_FORGE_MODULE_NAME,
@@ -56,13 +62,8 @@ class CoreGUI(CoreModuleInterface):
         # Optional: run user code from a background thread
         entry_point = kwargs.get("entry_point")
         if callable(entry_point):
-            start_acknowledge = threading.Event()
-            self._gui_thread = threading.Thread(target=entry_point, daemon=True,
-                                                name="AutoForgeEventSync", args=(start_acknowledge,))
-            self._gui_thread.start()
-            # Wait for the thread to signal back that it has started
-            if not start_acknowledge.wait(timeout=5):
-                raise RuntimeError("timeout waiting for entry point thread to start")
+            self._gui_thread = (ThreadGuru.create_thread_and_wait_ack(target=entry_point, daemon=True,
+                                                                      name="AutoForgeEventSync",timeout=5))
 
     def _process_queue(self):
         """
@@ -80,7 +81,7 @@ class CoreGUI(CoreModuleInterface):
             pass
         self._root.after(100, lambda: self._process_queue())  # type: ignore
 
-    def shutdown(self):
+    def _shutdown(self):
         """
         Gracefully shuts down the GUI system.
         Stops the Tkinter event loop, destroys the root window,
@@ -96,7 +97,80 @@ class CoreGUI(CoreModuleInterface):
             self._gui_thread.join(timeout=2)
 
     def __del__(self):
-        self.shutdown()
+        self._shutdown()
+
+    def input_box(self, caption: str,
+                  button_type: InputBoxButtonType,
+                  lines: list[InputBoxLineType],
+                  centered: bool = True,
+                  top_most: bool = True) -> dict[str, str]:
+        """
+        Displays a customizable input dialog with one or more labeled fields.
+
+        Args:
+            caption (str): The title of the dialog window.
+            button_type (InputBoxButtonType): The button layout (e.g., OK/Cancel).
+            lines (list[InputBoxLineType]): A list of labeled input lines to show.
+            centered (bool): Whether to center the dialog on the screen.
+            top_most (bool): Whether to display the dialog as a topmost window.
+
+        Returns:
+            dict[str, str]: A dictionary mapping line labels to the user's responses.
+                            Returns an empty dict if the user cancels the dialog.
+        """
+
+        def _show() -> dict[str, str]:
+            result: dict[str, str] = {}
+
+            def on_ok():
+                for i, single_entry in enumerate(entries):
+                    result[lines[i].label] = single_entry.get()
+                dialog.destroy()
+
+            def on_cancel():
+                result.clear()
+                dialog.destroy()
+
+            dialog = tk.Toplevel(self._root)
+            dialog.title(caption)
+            dialog.attributes('-topmost', top_most)
+
+            if centered:
+                dialog.update_idletasks()
+                w = dialog.winfo_reqwidth()
+                h = dialog.winfo_reqheight()
+                x = (dialog.winfo_screenwidth() // 2) - (w // 2)
+                y = (dialog.winfo_screenheight() // 2) - (h // 2)
+                dialog.geometry(f"+{x}+{y}")
+
+            entries = []
+            for line in lines:
+                frame = ttk.Frame(dialog)
+                frame.pack(padx=10, pady=5, fill='x')
+                ttk.Label(frame, text=line.label, width=20).pack(side='left')
+                entry = ttk.Entry(frame, width=line.length if line.length > 0 else 20,
+                                  show='*' if line.text_type == InputBoxTextType.INPUT_PASSWORD else '')
+                entry.insert(0, line.input_text)
+                entry.pack(side='left', expand=True, fill='x')
+                entries.append(entry)
+
+            button_frame = ttk.Frame(dialog)
+            button_frame.pack(pady=10)
+
+            if button_type in (InputBoxButtonType.INPUT_MB_OK, InputBoxButtonType.INPUT_CANCEL):
+                ttk.Button(button_frame, text="OK", command=on_ok).pack(side='left', padx=5)
+                if button_type == InputBoxButtonType.INPUT_CANCEL:
+                    ttk.Button(button_frame, text="Cancel", command=on_cancel).pack(side='left', padx=5)
+
+            dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+            dialog.resizable(False, False)
+            dialog.grab_set()
+            dialog.wait_window()
+
+            return result
+
+        self._msg_queue.put(_show)
+        return self._response_queue.get()
 
     def message_box(self, text: str, caption: str, box_type: MessageBoxType,
                     _centered: bool = True, top_most: bool = True) -> Optional[str]:
@@ -142,24 +216,3 @@ class CoreGUI(CoreModuleInterface):
 
         self._msg_queue.put(_show_message_box)
         return self._response_queue.get()
-
-    def input_box(self, caption: str,
-                  button_type: InputBoxButtonType,
-                  lines: list[InputBoxLineType],
-                  centered: bool = True,
-                  top_most: bool = True) -> dict[str, str]:
-        """
-        Displays a customizable input dialog with one or more labeled fields.
-
-        Args:
-            caption (str): The title of the dialog window.
-            button_type (InputBoxButtonType): The button layout (e.g., OK/Cancel).
-            lines (list[InputBoxLineType]): A list of labeled input lines to show.
-            centered (bool): Whether to center the dialog on the screen.
-            top_most (bool): Whether to display the dialog as a topmost window.
-
-        Returns:
-            dict[str, str]: A dictionary mapping line labels to the user's responses.
-                            Returns an empty dict if the user cancels the dialog.
-        """
-        pass

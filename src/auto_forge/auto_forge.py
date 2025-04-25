@@ -23,7 +23,8 @@ from colorama import Fore, Style
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
                         CoreSolution, CoreEnvironment, CoreCommands, CorePrompt,
-                        Registry, AutoLogger, LogHandlersTypes, ExceptionGuru, MessageBoxType,
+                        Registry, AutoLogger, LogHandlersTypes,
+                        ExceptionGuru, ThreadGuru,
                         PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME)
 
 
@@ -77,21 +78,27 @@ class AutoForge(CoreModuleInterface):
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
                                                              automated_mode=automated_mode)
 
-        # Due to quirks in Python's Tkinter implementation, CoreGUI must run in the main thread.
-        # The following creates the CoreGUI singleton and starts the rest of the engine logic
-        # in a separate thread, allowing the GUI loop to remain in the main thread.
-        self._gui: CoreGUI = CoreGUI(entry_point=self._events_sync)
+        if not automated_mode:
+            # Due to quirks in Python's Tkinter implementation, CoreGUI must run in the main thread.
+            # The following creates the CoreGUI singleton and starts the rest of the engine logic
+            # in a separate thread, allowing the GUI loop to remain in the main thread.
+            self._gui: CoreGUI = CoreGUI(entry_point=self._events_sync)
+        else:
+            # Normal start
+            self._events_thread = ThreadGuru.create_thread_and_wait_ack(target=self._events_sync, daemon=True,
+                                                                        name="AutoForgeEventSync", timeout=5)
 
-    def _events_sync(self, start_acknowledge: threading.Event):
+    def _events_sync(self, start_event: Optional[threading.Event] = None):
         """
         Entry point for the AutoForge engine.
-
-        This method listens for events arriving from loaded CoreModules and orchestrates
+        Listens for events arriving from loaded CoreModules and orchestrates
         those components to enable an efficient and responsive workflow.
         Args:
-            start_acknowledge (threading.Event): Event used to signal that the thread has successfully started.
+            start_event (threading.Event, optional): used to signal that the thread has successfully started.
         """
-        start_acknowledge.set()  # Signal that this thread has officially started
+
+        if start_event:
+            start_event.set()  # Signal that this thread has officially started
 
         # Wait for CoreGUI to become ready. Note: CoreGUI must be executed from the main thread,
         # so it may take a moment to fully initialize.
@@ -103,8 +110,7 @@ class AutoForge(CoreModuleInterface):
 
         # Main event loop (placeholder)
         while True:
-            self._gui.message_box("Continue?", "Question", MessageBoxType.MB_OKCANCEL)
-            time.sleep(5)
+            time.sleep(1)
 
     @staticmethod
     def show_version(exit_code: Optional[int] = None) -> None:
