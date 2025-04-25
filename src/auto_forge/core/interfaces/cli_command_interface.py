@@ -21,13 +21,11 @@ import shlex
 import sys
 import time
 from abc import ABC, abstractmethod
-from types import ModuleType
 from typing import Any, Optional
 
 # AutoForge imports
 from auto_forge import (ModuleInfoType, AutoForgeModuleType)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
-from auto_forge.common.toolbox import ToolBox  # Runtime import to prevent circular import
 
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
@@ -137,32 +135,23 @@ class CLICommandInterface(ABC):
         """
         return self._last_error
 
-    def get_info(self, python_module_type: Optional[ModuleType] = None) -> ModuleInfoType:
+    def get_info(self) -> ModuleInfoType:
         """
         Retrievers information about the implemented command line tool.
         Note: Implementation class must call _set_info().
-        Args:
-            python_module_type (Optional[ModuleType]): The type of this dynamically loaded module.
-                Must be provided externally, as it cannot be inferred during dynamic loading.
         Returns:
             ModuleInfoType: a named tuple containing the implemented command id
         """
         if self._module_info is None:
             raise RuntimeError('command info not initialized, make sure call set_info() first')
 
-        # Update the registry with the Python module type and inviolate the description field
-        if python_module_type and not self._module_info.python_module_type:
-            self._module_info = self._module_info._replace(python_module_type=python_module_type)
-
-            # Update the description using the module's docstring, which typically provides
-            # more detailed information than the default description.
-            description = ToolBox.get_module_description(python_module_type=python_module_type)
-            if isinstance(description, str):
-                description = (f"{description}\n\nArgs:\n    "
-                               f"Run '{self._module_info.name} --help' to see all available arguments.")
-                self._module_info = self._module_info._replace(description=description)
-
         return self._module_info
+
+    def update_info(self,command_info: ModuleInfoType):
+        """
+        Updates information about the implemented command line tool.
+        """
+        self._module_info = command_info
 
     def execute(self, flat_args: Optional[str] = None, **kwargs: Any) -> Optional[int]:
         """

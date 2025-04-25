@@ -23,7 +23,7 @@ from typing import Optional, cast, Dict, Any
 from auto_forge import (CoreModuleInterface, CLICommandInterface,
                         AutoForgeModuleType, ModuleInfoType, TerminalTeeStream,
                         PROJECT_COMMANDS_PATH,
-                        Registry, AutoLogger)
+                        Registry, AutoLogger, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "CommandsLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
@@ -47,7 +47,8 @@ class CoreCommands(CoreModuleInterface):
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-        self._registry = Registry.get_instance()
+        self._registry: Registry = Registry.get_instance()
+        self._toolbox: ToolBox = ToolBox.get_instance()
         self._loaded_commands: int = 0
         self._commands_path: Path = PROJECT_COMMANDS_PATH
 
@@ -80,6 +81,7 @@ class CoreCommands(CoreModuleInterface):
             file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
             python_module_type: Optional[ModuleType] = None
             class_object: Optional[object] = None
+            command_description: Optional[str] = None
 
             try:
                 # Attempt to dynamically import the file
@@ -93,13 +95,11 @@ class CoreCommands(CoreModuleInterface):
                     python_module_spec.loader.exec_module(python_module_type)
 
                 if python_module_type is None:
-                    self._logger.warning(
-                        f"File '{file_base_name}' was found, but dynamic import returned None. Skipping")
+                    self._logger.warning(f"File '{file_base_name}' found, but dynamic import returned None. Skipping")
                     continue
 
                 # Now that the file is imported, inspect its contents and find the first class
                 # that inherits from one of the supported interfaces defined in 'self._supported_interfaces'.
-
                 for attr_name in dir(python_module_type):
                     attr = getattr(python_module_type, attr_name)
 
@@ -113,12 +113,12 @@ class CoreCommands(CoreModuleInterface):
                     self._logger.warning(f"No supported class found in module '{file_stem_name}'. Skipping")
                     continue
 
-                interface_type = next(
+                interface_name: str = next(
                     (name for base, name in self._supported_interfaces.items() if issubclass(class_object, base)),
                     None
                 )
 
-                if not interface_type:
+                if not interface_name:
                     self._logger.warning(f"Unsupported command interface in module '{file_stem_name}'. Skipping")
                     continue
 
@@ -128,11 +128,21 @@ class CoreCommands(CoreModuleInterface):
                 # Invoke 'get_info()', which is defined by the interface. Since this class was loaded dynamically,
                 # we explicitly pass the Python 'ModuleType' to the implementation so it can update its own metadata.
                 # This type is known to us but cannot be inferred automatically by the loaded class.
-                module_info: ModuleInfoType = command_instance.get_info(python_module_type=python_module_type)
-
+                module_info: ModuleInfoType = command_instance.get_info()
                 if not module_info:
                     raise RuntimeError(
-                        f"Loaded class '{command_instance.__class__.__name__}' did not return module info")
+                        f"loaded class '{command_instance.__class__.__name__}' did not return module info")
+
+                # Gets extended command description from the module's docstring, which typically provides more
+                # detailed information than the default description.
+
+                command_name = module_info.name
+                docstring_description = self._toolbox.get_module_description(python_module_type=python_module_type)
+                if isinstance(docstring_description, str):
+                    command_description = (f"{docstring_description}\n\nArgs:\n    "
+                                           f"Run '{module_info.name} --help' to see all available arguments")
+
+                command_description = command_description if command_description else module_info.description
 
                 # The command should have automatically updated its metadata in the registry; next we validate this.
                 command_record: Optional[Dict[str, Any]] = self._registry.get_module_record_by_name(
@@ -141,11 +151,21 @@ class CoreCommands(CoreModuleInterface):
                 )
 
                 if not command_record:
-                    raise RuntimeError(f"Command '{module_info.name}' could not be found in the registry.")
+                    raise RuntimeError(f"command '{module_info.name}' could not be found in the registry")
 
-                self._registry.update_module_record(name=module_info.name,
-                                                    class_instance=command_instance, class_interface=interface_type,
-                                                    python_module_type=python_module_type, file_name=file)
+                # Update the registry record and get an updated 'ModuleInfoType' type
+                module_info = self._registry.update_module_record(module_name=module_info.name,
+                                                                  description=command_description,
+                                                                  class_instance=command_instance,
+                                                                  class_interface_name=interface_name,
+                                                                  python_module_type=python_module_type,
+                                                                  file_name=file)
+
+                if module_info is None:
+                    raise RuntimeError(f"command '{command_name}' could not be update in the registry")
+
+                # Refresh the command with  updated info
+                command_instance.update_info(command_info=module_info)
 
                 # Ensure the dynamically loaded module is accessible via sys.modules,
                 # allowing standard import mechanisms and references to resolve it by name.

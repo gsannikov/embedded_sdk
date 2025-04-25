@@ -81,6 +81,31 @@ class Registry(CoreModuleInterface):
 
         raise AttributeError(f"no method matching '{method_name}' found (case-insensitive).")
 
+    def _get_module_info(self, module_name: str) -> Optional[ModuleInfoType]:
+        """
+        Gets a module stored registry record as an ModuleInfoType
+        Args:
+            module_name (str): The exact name of the module.
+        Returns:
+            ModuleInfoType: The constructed module info object when the module was found.
+        """
+
+        record = self._modules_registry.get(module_name)
+        if not record:
+            raise RuntimeError(f"module '{module_name}' not found in registry")
+
+        return ModuleInfoType(
+            name=module_name,
+            description=record.get("description"),
+            class_name=record.get("class_name"),
+            class_instance=record.get("class_instance"),
+            auto_forge_module_type=record.get("auto_forge_module_type"),
+            python_module_type=record.get("python_module_type"),
+            version=record.get("version"),
+            class_interface_name=record.get("class_interface_name"),
+            file_name=record.get("file_name"),
+        )
+
     def get_modules_summary_list(self,
                                  auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> List[ModuleSummaryType]:
         """
@@ -97,24 +122,27 @@ class Registry(CoreModuleInterface):
             if meta.get("auto_forge_module_type") == auto_forge_module_type
         ]
 
-    def update_module_record(self, name: str, **updates: Any) -> bool:
+    def update_module_record(self, module_name: str, **updates: Any) -> Optional[ModuleInfoType]:
         """
         Updates one or more fields of a module record in the registry.
         Args:
-            name (str): The name of the module to update.
+            module_name (str): The name of the module to update.
             **updates: Arbitrary key-value pairs to update in the module record.
         Returns:
-            bool: True if the record was updated, False if the module was not found.
+            ModuleInfoType (optional): the updated record convert to ModuleInfoType, or exception on error.
         """
-        record = self._modules_registry.get(name)
 
+        record = self._modules_registry.get(module_name)
         if not record:
-            raise RuntimeError(f"module '{name}' not found in registry")
+            raise RuntimeError(f"module '{module_name}' not found in registry")
 
-        for key, value in updates.items():
-            record[key] = value
+        # Validate all keys exist before applying any updates
+        invalid_keys = [k for k in updates if k not in record]
+        if invalid_keys:
+            raise RuntimeError(f"invalid update key(s) for module '{module_name}': {invalid_keys}")
 
-        return True
+        record.update(updates)
+        return self._get_module_info(module_name=module_name)
 
     def get_module_record_by_name(self, module_name: str,
                                   case_insensitive: bool = False) -> Optional[Dict[str, Any]]:
