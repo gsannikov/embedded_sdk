@@ -13,8 +13,6 @@ import argparse
 import logging
 import os
 import sys
-import threading
-import time
 from typing import Optional
 
 # Colorama
@@ -22,10 +20,8 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
-                        CoreSolution, CoreEnvironment, CoreLoader, CorePrompt,
-                        Registry, AutoLogger, LogHandlersTypes,
-                        ExceptionGuru, ThreadGuru,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_COMMANDS_PATH)
+                        CoreSolution, CoreEnvironment, CoreLoader, CorePrompt, Registry, AutoLogger, LogHandlersTypes,
+                        ExceptionGuru, PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_COMMANDS_PATH)
 
 
 class AutoForge(CoreModuleInterface):
@@ -82,39 +78,10 @@ class AutoForge(CoreModuleInterface):
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
                                                              automated_mode=automated_mode)
 
-        if not automated_mode:
-            # Due to quirks in Python's Tkinter implementation, CoreGUI must run in the main thread.
-            # The following creates the CoreGUI singleton and starts the rest of the engine logic
-            # in a separate thread, allowing the GUI loop to remain in the main thread.
-            self._gui: CoreGUI = CoreGUI(entry_point=self._events_sync)
-        else:
-            # Normal start
-            self._events_thread = ThreadGuru.create_thread_and_wait_ack(target=self._events_sync, daemon=True,
-                                                                        name="AutoForgeEventSync", timeout=5)
-
-    def _events_sync(self, start_event: Optional[threading.Event] = None):
-        """
-        Entry point for the AutoForge engine.
-        Listens for events arriving from loaded CoreModules and orchestrates
-        those components to enable an efficient and responsive workflow.
-        Args:
-            start_event (threading.Event, optional): used to signal that the thread has successfully started.
-        """
-
-        if start_event:
-            start_event.set()  # Signal that this thread has officially started
-
-        # Wait for CoreGUI to become ready. Note: CoreGUI must be executed from the main thread,
-        # so it may take a moment to fully initialize.
-        if not CoreGUI.wait_until_ready(timeout=5):
-            raise TimeoutError("CoreGUI did not become ready in time")
+        self._gui: CoreGUI = CoreGUI()
 
         # Show startup branding
         self._toolbox.print_logo(clear_screen=True)
-
-        # Main event loop (placeholder)
-        while True:
-            time.sleep(1)
 
     @staticmethod
     def show_version(exit_code: Optional[int] = None) -> None:

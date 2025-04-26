@@ -13,6 +13,7 @@ Description:
 import atexit
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
@@ -20,7 +21,7 @@ from typing import Optional, Any
 
 # AutoGorge local imports
 from auto_forge import (CoreModuleInterface, Registry, AutoForgeModuleType, MessageBoxType, InputBoxTextType,
-                        InputBoxButtonType, InputBoxLineType, ThreadGuru, ToolBox, AutoLogger)
+                        InputBoxButtonType, InputBoxLineType, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "GUI"
 AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"
@@ -31,6 +32,7 @@ class CoreGUI(CoreModuleInterface):
 
         self._alive = True
         self._gui_thread = None  # Optional joinable thread
+
         super().__init__(*args, **kwargs)
 
     def _initialize(self, **kwargs: Any):
@@ -40,7 +42,7 @@ class CoreGUI(CoreModuleInterface):
         """
 
         if threading.current_thread() is not threading.main_thread():
-            raise RuntimeError("CoreGUI must be initialized from the main thread!")
+            raise RuntimeError(f"{self.__class__.__name__} must be initialized from the main thread!")
 
         self._root = tk.Tk()
         self._root.withdraw()
@@ -52,6 +54,7 @@ class CoreGUI(CoreModuleInterface):
         # Register finalizer just in case
         atexit.register(self._shutdown)
 
+        # Add to AutoForge modules registry
         Registry.get_instance().register_module(
             name=AUTO_FORGE_MODULE_NAME,
             description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -59,20 +62,12 @@ class CoreGUI(CoreModuleInterface):
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
 
-        # Optional: run user code from a background thread
-        entry_point = kwargs.get("entry_point")
-        if callable(entry_point):
-            self._gui_thread = (ThreadGuru.create_thread_and_wait_ack(target=entry_point, daemon=True,
-                                                                      name="AutoForgeEventSync",timeout=5))
-
     def _process_queue(self):
         """
         Internal method that processes GUI function requests from the message queue.
         Repeatedly scheduled via `after()` to run on the Tkinter event loop.
         """
         try:
-            # Mark the singleton instance as ready (used by wait_until_ready() callers)
-            self.mark_ready()
             while True:
                 func = self._msg_queue.get_nowait()
                 result = func()
@@ -99,6 +94,24 @@ class CoreGUI(CoreModuleInterface):
     def __del__(self):
         self._shutdown()
 
+    def _wait_for_response(self) -> Optional[Any]:
+        """
+        Waits for a GUI response from the response queue, while processing Tkinter events.
+        Returns:
+            Optional[Any]: The result from the response queue, or None if timed out or GUI closed.
+        """
+
+        while True:
+            try:
+                return self._response_queue.get_nowait()
+            except queue.Empty:
+                try:
+                    self._root.update_idletasks()
+                    self._root.update()
+                except tk.TclError:
+                    return None  # GUI closed
+                time.sleep(0.05)
+
     def input_box(self, caption: str,
                   button_type: InputBoxButtonType,
                   lines: list[InputBoxLineType],
@@ -108,18 +121,18 @@ class CoreGUI(CoreModuleInterface):
         Displays a customizable input dialog with one or more labeled fields.
 
         Args:
-            caption (str): The title of the dialog window.
-            button_type (InputBoxButtonType): The button layout (e.g., OK/Cancel).
-            lines (list[InputBoxLineType]): A list of labeled input lines to show.
+            caption (str): Title of the dialog window.
+            button_type (InputBoxButtonType): Button layout (e.g., OK, OK/Cancel).
+            lines (list[InputBoxLineType]): List of labeled input fields.
             centered (bool): Whether to center the dialog on the screen.
             top_most (bool): Whether to display the dialog as a topmost window.
 
         Returns:
-            dict[str, str]: A dictionary mapping line labels to the user's responses.
-                            Returns an empty dict if the user cancels the dialog.
+            dict[str, str]: A dictionary mapping line labels to user input.
+                            Returns an empty dict if the dialog is canceled or times out.
         """
 
-        def _show() -> dict[str, str]:
+        def _show_input_box() -> dict[str, str]:
             result: dict[str, str] = {}
 
             def on_ok():
@@ -157,20 +170,18 @@ class CoreGUI(CoreModuleInterface):
             button_frame = ttk.Frame(dialog)
             button_frame.pack(pady=10)
 
-            if button_type in (InputBoxButtonType.INPUT_MB_OK, InputBoxButtonType.INPUT_CANCEL):
-                ttk.Button(button_frame, text="OK", command=on_ok).pack(side='left', padx=5)
-                if button_type == InputBoxButtonType.INPUT_CANCEL:
-                    ttk.Button(button_frame, text="Cancel", command=on_cancel).pack(side='left', padx=5)
+            ttk.Button(button_frame, text="OK", command=on_ok).pack(side='left', padx=5)
+            if button_type == InputBoxButtonType.INPUT_CANCEL:
+                ttk.Button(button_frame, text="Cancel", command=on_cancel).pack(side='left', padx=5)
 
             dialog.protocol("WM_DELETE_WINDOW", on_cancel)
             dialog.resizable(False, False)
             dialog.grab_set()
             dialog.wait_window()
-
             return result
 
-        self._msg_queue.put(_show)
-        return self._response_queue.get()
+        self._msg_queue.put(_show_input_box)
+        return self._wait_for_response()
 
     def message_box(self, text: str, caption: str, box_type: MessageBoxType,
                     _centered: bool = True, top_most: bool = True) -> Optional[str]:
@@ -215,4 +226,4 @@ class CoreGUI(CoreModuleInterface):
             return result
 
         self._msg_queue.put(_show_message_box)
-        return self._response_queue.get()
+        return self._wait_for_response()

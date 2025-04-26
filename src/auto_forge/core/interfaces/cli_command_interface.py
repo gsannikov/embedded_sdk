@@ -98,13 +98,13 @@ class CLICommandInterface(ABC):
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
-    def __init__(self, command_name: str,
+    def __init__(self, command_name: Optional[str] = None,
                  raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
         Args:.
-            command_name (str): The name of the CLI command.
+            command_name (str, optional): The name of the command.
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
@@ -112,14 +112,16 @@ class CLICommandInterface(ABC):
         self._raise_exceptions = raise_exceptions
         self._command_name: str = command_name
 
-        # Create a command dedicated logger instance
-        self._logger = AutoLogger().get_logger(name=command_name)
-
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
 
+        caller_module_name = caller_globals.get("AUTO_FORGE_MODULE_NAME",None)
         caller_module_description = caller_globals.get("AUTO_FORGE_MODULE_DESCRIPTION","Description not provided")
         caller_module_version = caller_globals.get("AUTO_FORGE_MODULE_VERSION","0.0.0")
+
+        self._command_name: str = command_name if command_name is not None else caller_module_name
+        # Create a command dedicated logger instance
+        self._logger = AutoLogger().get_logger(name=command_name)
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()

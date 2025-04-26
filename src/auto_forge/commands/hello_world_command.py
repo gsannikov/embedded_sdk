@@ -10,7 +10,7 @@ import argparse
 from typing import Any
 
 # AutoForge imports
-from auto_forge import CLICommandInterface, AutoLogger
+from auto_forge import CLICommandInterface, AutoLogger, CoreGUI, MessageBoxType
 
 
 class HelloCommand(CLICommandInterface):
@@ -51,6 +51,10 @@ class HelloCommand(CLICommandInterface):
         """
         if args.text:
             print(f"Hello '{args.text}' 😎")
+
+            gui:CoreGUI = CoreGUI.get_instance()
+            if gui:
+                gui.message_box("This is a test message.", "Hello world",MessageBoxType.MB_OK)
 
             self._logger.info(f"'{self._command_name}' executed successfully")
             return 0
