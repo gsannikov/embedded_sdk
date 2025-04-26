@@ -22,10 +22,10 @@ from colorama import Fore, Style
 
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
-                        CoreSolution, CoreEnvironment, CoreCommands, CorePrompt,
+                        CoreSolution, CoreEnvironment, CoreLoader, CorePrompt,
                         Registry, AutoLogger, LogHandlersTypes,
                         ExceptionGuru, ThreadGuru,
-                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME)
+                        PROJECT_RESOURCES_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_COMMANDS_PATH)
 
 
 class AutoForge(CoreModuleInterface):
@@ -74,7 +74,11 @@ class AutoForge(CoreModuleInterface):
         # Initialize core modules
         self._toolbox: Optional[ToolBox] = ToolBox()
         self._processor: Optional[CoreProcessor] = CoreProcessor()
-        self._commands: Optional[CoreCommands] = CoreCommands()
+
+        # Load all the builtin commands
+        self._loader: Optional[CoreLoader] = CoreLoader()
+        self._loader.probe(path=PROJECT_COMMANDS_PATH)
+
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=workspace_path,
                                                              automated_mode=automated_mode)
 

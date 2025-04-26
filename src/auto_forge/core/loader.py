@@ -1,11 +1,10 @@
 """
-Script:         commands_loader.py
+Script:         loader.py
 Author:         AutoForge Team
 
 Description:
-    Core module which defines the 'CommandsLoader' class, responsible for dynamically
-    discovering, validating, executing and registering CLI command modules that implement
-    supported interface types such as CLICommandInterface.
+    Core module which is responsible for dynamically discovering, validating, executing and registering modules
+    that implement supported interfaces types.
 """
 
 import glob
@@ -17,32 +16,31 @@ from contextlib import redirect_stdout, redirect_stderr
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, cast, Dict, Any
+from typing import Optional, Dict, Any
 
 # AutoGorge local imports
 from auto_forge import (CoreModuleInterface, CLICommandInterface,
                         AutoForgeModuleType, ModuleInfoType, TerminalTeeStream,
-                        PROJECT_COMMANDS_PATH,
                         Registry, AutoLogger, ToolBox)
 
-AUTO_FORGE_MODULE_NAME = "CommandsLoader"
-AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load CLI commands"
+AUTO_FORGE_MODULE_NAME = "Loader"
+AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load supported modules"
 
 
-class CoreCommands(CoreModuleInterface):
+class CoreLoader(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
         Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
         See 'CoreModuleInterface' usage.
         """
-        self._command_output: Optional[str] = None
+        self._execution_output: Optional[str] = None
 
         super().__init__(*args, **kwargs)
 
     def _initialize(self) -> None:
         """
-        Initializes the 'CommandsLoader' class and prepares the command registry.
+        Initializes the 'CoreLoader' class and prepares the command registry.
         """
 
         # Get a logger instance
@@ -50,32 +48,33 @@ class CoreCommands(CoreModuleInterface):
         self._registry: Registry = Registry.get_instance()
         self._toolbox: ToolBox = ToolBox.get_instance()
         self._loaded_commands: int = 0
-        self._commands_path: Path = PROJECT_COMMANDS_PATH
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {
             CLICommandInterface: "CLICommandInterface"
         }
 
-        # Search for commands and register them
-        self._probe()
-
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
                                        description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def _probe(self) -> int:
+    def probe(self, path: str) -> int:
         """
-        Scans the project commands path for Python modules, validates command classes,
-        and registers them into the internal command registry.
+        Scans the a path for Python modules, search for classes that are derived from familiar base classes,
+        instantiate them and register them.
+        Args:
+            path (str): Path to search for modules.
         Returns:
-            int: Number of successfully loaded commands.
+            int: Number of successfully instantiated classes.
         """
-        if not self._commands_path.exists():
-            raise RuntimeError(f"commands path not found: {self._commands_path}")
 
-        for file in glob.glob(str(self._commands_path / "*.py")):
+        commands_path = Path(path)
+        if not commands_path.exists():
+            self._logger.warning(f"Specified commands path not found: {path}")
+            return 0
+
+        for file in glob.glob(str(commands_path / "*.py")):
 
             file_base_name: str = os.path.basename(file)
             file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
@@ -130,8 +129,9 @@ class CoreCommands(CoreModuleInterface):
                 # This type is known to us but cannot be inferred automatically by the loaded class.
                 module_info: ModuleInfoType = command_instance.get_info()
                 if not module_info:
-                    raise RuntimeError(
-                        f"loaded class '{command_instance.__class__.__name__}' did not return module info")
+                    self._logger.warning(f"Loaded class '{command_instance.__class__.__name__}' "
+                                         f"did not return module info. Skipping")
+                    continue
 
                 # Gets extended command description from the module's docstring, which typically provides more
                 # detailed information than the default description.
@@ -151,7 +151,8 @@ class CoreCommands(CoreModuleInterface):
                 )
 
                 if not command_record:
-                    raise RuntimeError(f"command '{module_info.name}' could not be found in the registry")
+                    self._logger.warning(f"Command '{module_info.name}' could not be found in the registry. Skipping")
+                    continue
 
                 # Update the registry record and get an updated 'ModuleInfoType' type
                 module_info = self._registry.update_module_record(module_name=module_info.name,
@@ -162,7 +163,8 @@ class CoreCommands(CoreModuleInterface):
                                                                   file_name=file)
 
                 if module_info is None:
-                    raise RuntimeError(f"command '{command_name}' could not be update in the registry")
+                    self._logger.warning(f"Command '{command_name}' could not be update in the registry. Skipping")
+                    continue
 
                 # Refresh the command with  updated info
                 command_instance.update_info(command_info=module_info)
@@ -185,56 +187,51 @@ class CoreCommands(CoreModuleInterface):
 
     def get_last_output(self) -> Optional[str]:
         """
-        Returns the last executed command output.
+        Returns the last execution stored output buffer.
         Handy when a command is being executed silenced where later we need to observe its output.
         """
-        return self._command_output
+        return self._execution_output
 
-    def execute(self, command: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[int]:
+    def execute(self, name: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[int]:
         """
-        Executes a registered CLI command by name with optional shell-style arguments.
-
+        Invokes the 'execute' method of a registered module, if the method is available.
         Args:
-            command (str): The name of the command to execute.
+            name (str): The name of the registered module to use.
             arguments (Optional[str]): A shell-style argument string (e.g., "-p --verbose").
                                        If None, the command will run with default or no arguments.
             suppress_output (bool): suppress_output (bool): If True, suppress terminal output.
-
         Returns:
-            Optional[int]: The result code returned by the command's `execute()` method.
-                           Typically 0 for success, non-zero for error.
+            Optional[int]: The result code returned by the `execute()` method, typically 0 for success, else error.
         """
-
-        self._command_output = None  # Invalidate last command output
-        self._logger.debug(f"Executing AutoForge command: '{command}'")
+        self._execution_output = None  # Invalidate last command output
+        self._logger.debug(f"Executing: '{name}'")
 
         # Registry lookup
-        command_record = self._registry.get_module_record_by_name(module_name=command.strip())
-        if command_record is None:
-            raise RuntimeError(f"command '{command}' is not recognized")
+        module_record = self._registry.get_module_record_by_name(module_name=name.strip())
+        if module_record is None:
+            raise RuntimeError(f"command '{name}' is not recognized")
 
         # Making sure the record belongs to an AutoForge dynamically loaded CLI command
-        auto_forge_module_type = command_record.get("auto_forge_module_type", AutoForgeModuleType.UNKNOWN)
-        if auto_forge_module_type != AutoForgeModuleType.CLI_COMMAND:
-            raise RuntimeError(f"module '{command}' is registered, but is not marked as a CLI command.")
+        auto_forge_module_type = module_record.get("auto_forge_module_type", AutoForgeModuleType.UNKNOWN)
+        if auto_forge_module_type == AutoForgeModuleType.UNKNOWN:
+            raise RuntimeError(f"module '{name}' is registered, but is not marked as unknown")
 
-        # Get the stored class instance, cast it the base interface class and execute.
-        class_instance = command_record.get("class_instance", None)
+        # Get the stored class instance, cast it 'Any' to silence PyCharm 'Unresolved ref' warning
+        class_instance: Any = module_record.get("class_instance", None)
         if class_instance is None:
-            raise RuntimeError(f"could not find an instance of '{command}' in the registry.")
+            raise RuntimeError(f"could not find an instance of '{name}' in the registry")
 
-        # Being pedantic, making sure the command was derived from 'CLICommandInterface'
-        command_instance: CLICommandInterface = cast(CLICommandInterface, class_instance)
-        if not isinstance(command_instance, CLICommandInterface):
-            raise RuntimeError(f"command '{command}' does not implement the expected 'CLICommandInterface'")
+        # Making sure the method implements 'execute'
+        if not self._toolbox.has_method(class_instance, 'execute'):
+            raise RuntimeError(f"module '{name}' does not implement 'execute'")
 
         # Finally execute, optionally with or without terminal output.
         buffer = io.StringIO()
         output_stream = buffer if suppress_output else TerminalTeeStream(sys.stdout, buffer)
 
         with redirect_stdout(output_stream), redirect_stderr(output_stream):
-            result = command_instance.execute(flat_args=arguments)
+            result = class_instance.execute(flat_args=arguments)
 
-        # Store the command output in the class - lsat command output
-        self._command_output = buffer.getvalue()
+        # Store the command output in the class - lsat execution output
+        self._execution_output = buffer.getvalue()
         return result

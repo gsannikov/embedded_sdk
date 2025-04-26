@@ -29,9 +29,9 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (CLICommandInterface, ToolBox, AutoLogger)
 
-AUTO_FORGE_COMMAND_NAME = "mini_west"
-AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
-AUTO_FORGE_COMMAND_VERSION = "1.0"
+AUTO_FORGE_MODULE_NAME = "mini_west"
+AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
+AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
 class _WestProject:
@@ -81,18 +81,13 @@ class MiniWestCommand(CLICommandInterface):
         self._ignored_projects_list = set()  # Manifest projects to exclude
         self._automated_mode: Optional[bool] = False  # Indicate if we're allowed to use colors
         self._projects: List[_WestProject] = []  # List of 'WestProject' class instances
-
-        # Get logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
-        self._toolbox = ToolBox.get_instance()
+        self._toolbox = ToolBox.get_instance()  # Toolbox class instance
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
-                         command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         command_version=AUTO_FORGE_COMMAND_VERSION,
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
         self._is_initialized = True

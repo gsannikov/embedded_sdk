@@ -17,7 +17,6 @@ import re
 import sys
 import tempfile
 import textwrap
-import threading
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
@@ -48,7 +47,7 @@ class ToolBox(CoreModuleInterface):
         # Create a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
-        self._test_str:str = "test"
+        self._test_str: str = "test"
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -914,3 +913,20 @@ class ToolBox(CoreModuleInterface):
             return description
 
         return doc
+
+    @staticmethod
+    def has_method(instance: object, method_name: str) -> bool:
+        """
+        Checks if the given class instance provides a method with the given name.
+        Args:
+            instance (object): The class instance to check.
+            method_name (str): The method name to look for.
+
+        Returns:
+            bool: True if the method exists and is callable, False otherwise.
+        """
+        is_callable: bool = False
+        with suppress(Exception):
+            is_callable = callable(getattr(instance, method_name, None))
+
+        return is_callable

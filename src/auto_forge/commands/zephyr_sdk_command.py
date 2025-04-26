@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import Optional, Any, cast
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, AutoLogger)
+from auto_forge import (CLICommandInterface)
 
-AUTO_FORGE_COMMAND_NAME = "zephyr_sdk"
-AUTO_FORGE_COMMAND_DESCRIPTION = "Zephyr SDK utilities"
-AUTO_FORGE_COMMAND_VERSION = "1.0"
+AUTO_FORGE_MODULE_NAME = "zephyr_sdk"
+AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr SDK utilities"
+AUTO_FORGE_MODULE_VERSION = "1.0"
 
 # Default CMake user package registry path where the Zephyr SDK is expected to be registered
 CMAKE_PACKAGE_PATH: Path = Path.home() / ".cmake/packages/Zephyr-sdk"
@@ -39,17 +39,12 @@ class ZephyrSDKCommand(CLICommandInterface):
         self._path: Optional[str] = None  # Detected Zephyr SDK path
         self._version: Optional[str] = None  # Detected SDK version
 
-        # Get logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
+        # Extract optional parameters from kwargs
         self._cmake_pkg_dir: Optional[Path] = Path(kwargs.get('cmake_pkg_dir', CMAKE_PACKAGE_PATH))
-
-        # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
-                         command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         command_version=AUTO_FORGE_COMMAND_VERSION,
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
     def initialize(self, **kwargs: Any) -> bool:

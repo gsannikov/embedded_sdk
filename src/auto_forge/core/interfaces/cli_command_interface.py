@@ -16,6 +16,7 @@ Description:
 """
 
 import argparse
+import inspect
 import io
 import shlex
 import sys
@@ -24,7 +25,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (ModuleInfoType, AutoForgeModuleType)
+from auto_forge import (ModuleInfoType, AutoForgeModuleType, AutoLogger)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 
@@ -97,28 +98,35 @@ class CLICommandInterface(ABC):
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
-    def __init__(self, command_name: str, command_description: Optional[str] = None,
-                 command_version: Optional[str] = None,
+    def __init__(self, command_name: str,
                  raise_exceptions: bool = False):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
         Args:.
             command_name (str): The name of the CLI command.
-            command_description (str): Optional description of the CLI command.
-            command_version (str): Optional version of the CLI command.
             raise_exceptions (bool): Whether to raise an exception when parsing errors.
         """
 
         self._last_error: Optional[str] = None
         self._raise_exceptions = raise_exceptions
+        self._command_name: str = command_name
+
+        # Create a command dedicated logger instance
+        self._logger = AutoLogger().get_logger(name=command_name)
+
+        caller_frame = inspect.stack()[1].frame
+        caller_globals = caller_frame.f_globals
+
+        caller_module_description = caller_globals.get("AUTO_FORGE_MODULE_DESCRIPTION","Description not provided")
+        caller_module_version = caller_globals.get("AUTO_FORGE_MODULE_VERSION","0.0.0")
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
         self._module_info: ModuleInfoType = (
             registry.register_module(name=command_name,
-                                     description=command_description if command_description else "Description not provided",
-                                     version=command_version if command_version else "0.0.0",
+                                     description=caller_module_description,
+                                     version=caller_module_version,
                                      auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
 
         # Optional tool initialization logic

@@ -35,7 +35,7 @@ from auto_forge.common.progress_tracker import (ProgressTracker)
 
 # Core / common modules
 from auto_forge.core.processor import CoreProcessor
-from auto_forge.core.commands import CoreCommands
+from auto_forge.core.loader import CoreLoader
 from auto_forge.core.environment import CoreEnvironment
 from auto_forge.core.variables import CoreVariables
 from auto_forge.core.gui import CoreGUI
@@ -50,7 +50,7 @@ from auto_forge.auto_forge import auto_forge_main as main
 __all__ = [
     "Registry", "ToolBox", "ProgressTracker",
     "CoreProcessor", "CoreVariables", "CoreSolution", "CoreEnvironment",
-    "CoreSignatures", "CoreCommands", "CorePrompt", "CoreGUI",
+    "CoreSignatures", "CoreLoader", "CorePrompt", "CoreGUI",
     "ExceptionGuru", "ThreadGuru", "TerminalAnsiGuru",
     "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo",
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "ValidationMethodType", "ExecutionModeType",

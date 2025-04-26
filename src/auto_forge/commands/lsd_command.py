@@ -35,11 +35,11 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (CLICommandInterface, ToolBox,
-                        TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP, AutoLogger)
+                        TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 
-AUTO_FORGE_COMMAND_NAME = "lsd"
-AUTO_FORGE_COMMAND_DESCRIPTION = "ls - reimagined"
-AUTO_FORGE_COMMAND_VERSION = "1.0"
+AUTO_FORGE_MODULE_NAME = "lsd"
+AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
+AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
 class LSDCommand(CLICommandInterface):
@@ -52,9 +52,7 @@ class LSDCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        # Create a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
-        self._toolbox = ToolBox.get_instance()
+        self._toolbox = ToolBox.get_instance()   # Gets the toolbox class instance
 
         # Helps to get the date formatted to the specific system local settings
         locale.setlocale(locale.LC_TIME, '')
@@ -67,9 +65,7 @@ class LSDCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
-                         command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         command_version=AUTO_FORGE_COMMAND_VERSION,
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
     @staticmethod

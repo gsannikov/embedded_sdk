@@ -25,7 +25,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreCommands, CoreEnvironment,
+from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment,
                         AutoForgeModuleType, ExecutionModeType,
                         Registry, AutoLogger, ToolBox,
                         PROJECT_NAME)
@@ -54,7 +54,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._prompt_base: Optional[str] = None
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
-        self._commands_loader: Optional[CoreCommands] = CoreCommands.get_instance()
+        self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
         self._executable_db: Optional[Dict[str, str]] = None
         self._loaded_commands: int = 0
         self._last_execution_return_code: Optional[int] = 0
@@ -94,8 +94,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._remove_command(cmd)
 
         # Assign path_complete to the complete_cd and complete_ls methods
-        self.complete_cd = self.path_complete
         self.complete_lss = self.path_complete
+        self.complete_cd = self.path_complete
 
         # Add several basic aliases
         self.set_alias('..', 'cd ..')
@@ -154,7 +154,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 # noinspection PyShadowingNames
                 def dynamic_cmd(self, arg):
                     try:
-                        result = self._commands_loader.execute(name, arg)
+                        result = self._loader.execute(name, arg)
                         self._last_execution_return_code = result
                         return 0
                     except Exception as e:

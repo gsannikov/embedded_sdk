@@ -16,11 +16,11 @@ import shutil
 from typing import Optional, Any, Dict, List
 
 # AutoForge imports
-from auto_forge import (CoreProcessor, CLICommandInterface, AutoLogger)
+from auto_forge import (CoreProcessor, CLICommandInterface)
 
-AUTO_FORGE_COMMAND_NAME = "relocator"
-AUTO_FORGE_COMMAND_DESCRIPTION = "Code restructure assistant"
-AUTO_FORGE_COMMAND_VERSION = "1.0"
+AUTO_FORGE_MODULE_NAME = "relocator"
+AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
+AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
 class _RelocateDefaults:
@@ -123,16 +123,11 @@ class RelocatorCommand(CLICommandInterface):
         self._relocate_folders_data: Optional[List[str, Any]] = None
         self._relocate_folders_count: Optional[int] = 0
 
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
-
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
-                         command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         command_version=AUTO_FORGE_COMMAND_VERSION,
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
     def _load_recipe(self, recipe_file: str):

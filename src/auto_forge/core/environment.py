@@ -31,7 +31,7 @@ from typing import Optional, Union, Any, List, Callable
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreCommands,
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
                         AutoForgeModuleType, ProgressTracker, ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
 
@@ -75,7 +75,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._toolbox: ToolBox = ToolBox.get_instance()
-        self._commands: CoreCommands = CoreCommands.get_instance()
+        self._loader: CoreLoader = CoreLoader.get_instance()
 
         # Determine which package manager is available on the system.
         if shutil.which("apt"):
@@ -463,10 +463,10 @@ class CoreEnvironment(CoreModuleInterface):
         """
 
         self._logger.debug(f"Executing registered command: '{command}'")
-        return_code = self._commands.execute(command=command, arguments=arguments,
-                                             suppress_output=suppress_output)
+        return_code = self._loader.execute(name=command, arguments=arguments,
+                                           suppress_output=suppress_output)
         # Get the command output
-        command_response = self._commands.get_last_output().strip()
+        command_response = self._loader.get_last_output().strip()
 
         if return_code != expected_return_code:
             raise RuntimeError(

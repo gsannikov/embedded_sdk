@@ -16,11 +16,11 @@ from typing import Optional, Any
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreSignatures, ToolBox, AutoLogger)
+from auto_forge import (CLICommandInterface, CoreSignatures, ToolBox)
 
-AUTO_FORGE_COMMAND_NAME = "sig_tool"
-AUTO_FORGE_COMMAND_DESCRIPTION = "Binary file signing tool"
-AUTO_FORGE_COMMAND_VERSION = "1.0"
+AUTO_FORGE_MODULE_NAME = "sig_tool"
+AUTO_FORGE_MODULE_DESCRIPTION = "Binary file signing tool"
+AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
 class SigToolCommand(CLICommandInterface):
@@ -43,16 +43,11 @@ class SigToolCommand(CLICommandInterface):
         self._git_commit: Optional[Commit] = None
         self._git_commit_hash: Optional[str] = None
 
-        # Get logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_COMMAND_NAME)
-
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_COMMAND_NAME,
-                         command_description=AUTO_FORGE_COMMAND_DESCRIPTION,
-                         command_version=AUTO_FORGE_COMMAND_VERSION,
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
     def _create_sig_tool(self, **kwargs: Any) -> bool:
