@@ -7,10 +7,11 @@ Description:
 """
 
 import argparse
-from typing import Any
+from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import CLICommandInterface, AutoLogger, CoreGUI, MessageBoxType
+from auto_forge import (CLICommandInterface, CoreGUI, MessageBoxType,
+                        InputBoxLineType, InputBoxTextType, InputBoxButtonType)
 
 
 class HelloCommand(CLICommandInterface):
@@ -25,7 +26,6 @@ class HelloCommand(CLICommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
                 - raise_exceptions (bool): If True, raises exceptions on error instead of returning error codes.
         """
-        self._logger = AutoLogger().get_logger(name='hello')
 
         super().__init__(command_name="hello")
 
@@ -38,7 +38,19 @@ class HelloCommand(CLICommandInterface):
         parser.add_argument(
             "-t", "--text",
             type=str,
-            help="Optional text to greet."
+            help="Optional text to print in the console greeting."
+        )
+
+        parser.add_argument(
+            "-m", "--message_box_text",
+            type=str,
+            help="Optional text to display using the GUI message box."
+        )
+
+        parser.add_argument(
+            "-i", "--input_box_text",
+            type=str,
+            help="Optional text to display using the GUI input box."
         )
 
     def run(self, args: argparse.Namespace) -> int:
@@ -49,15 +61,44 @@ class HelloCommand(CLICommandInterface):
         Returns:
             int: 0 on success, non-zero on failure.
         """
+        return_code: int = 0
+        response: Optional[Any] = None
+        default_text: str = "Hello from AutoForge!"
+        gui: CoreGUI = CoreGUI.get_instance()
+
         if args.text:
             print(f"Hello '{args.text}' 😎")
 
-            gui:CoreGUI = CoreGUI.get_instance()
-            if gui:
-                gui.message_box("This is a test message.", "Hello world",MessageBoxType.MB_OK)
+        elif args.message_box_text:
+            message_box_text = args.message_box_text or args.text or default_text
+            response = gui.message_box(text=message_box_text, caption="GUI Greeting", box_type=MessageBoxType.MB_OK)
 
-            self._logger.info(f"'{self._command_name}' executed successfully")
-            return 0
+        elif args.input_box_text:
+            input_box_text = args.input_box_text or args.text or default_text
+            # Prepare the input lines
+            input_lines = [
+                InputBoxLineType(
+                    label="Username",
+                    input_text="",
+                    text_type=InputBoxTextType.INPUT_TEXT,
+                    length=30
+                ),
+                InputBoxLineType(
+                    label="Password",
+                    input_text="",
+                    text_type=InputBoxTextType.INPUT_PASSWORD,
+                    length=30
+                )
+            ]
 
-        self._logger.warning("HelloCommand called without required arguments")
-        return CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            response = gui.input_box(caption=input_box_text, lines=input_lines,
+                                     button_type=InputBoxButtonType.INPUT_CANCEL)
+
+        else:
+            # Error: no arguments
+            return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+
+        if response:
+            print(f"Got {response}")
+
+        return return_code

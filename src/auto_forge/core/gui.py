@@ -103,14 +103,18 @@ class CoreGUI(CoreModuleInterface):
 
         while True:
             try:
+                # Try to get a result without blocking
                 return self._response_queue.get_nowait()
             except queue.Empty:
-                try:
-                    self._root.update_idletasks()
-                    self._root.update()
-                except tk.TclError:
-                    return None  # GUI closed
-                time.sleep(0.05)
+                pass  # No result yet; continue
+
+            try:
+                self._root.update_idletasks()
+                self._root.update()
+            except tk.TclError:
+                return None  # GUI closed
+
+            time.sleep(0.05)  # Small sleep to avoid busy-wait
 
     def input_box(self, caption: str,
                   button_type: InputBoxButtonType,
