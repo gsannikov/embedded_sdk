@@ -14,6 +14,7 @@ import importlib.util
 import inspect
 import os
 import re
+import shutil
 import sys
 import tempfile
 import textwrap
@@ -866,7 +867,7 @@ class ToolBox(CoreModuleInterface):
         return 0
 
     @staticmethod
-    def get_module_description(python_module_type: Optional[ModuleType] = None) -> Optional[str]:
+    def get_module_docstring(python_module_type: Optional[ModuleType] = None) -> Optional[str]:
         """
         Returns the 'Description:' section of a module docstring, if present.
         If no 'Description:' section exists, returns the full module docstring.
@@ -894,22 +895,7 @@ class ToolBox(CoreModuleInterface):
         )
 
         if match:
-            # Convert to a single clean line
             description = match.group(1).strip()
-            # Replace all newline characters with a space
-            description = description.replace('\n', ' ').replace('\r', ' ')
-            # Collapse multiple spaces/tabs into a single space
-            description = re.sub(r'[ \t]+', ' ', description).strip()
-            # Add line break after each sentence-ending period
-            description = (re.sub(r'\. (?=[A-Z])', '.\n', description)).strip()
-
-            # Ensure it ends with a period
-            if not description.endswith('.'):
-                description += '.'
-
-            # Smart wrapping
-            description = textwrap.fill(description, width=80)
-
             return description
 
         return doc
@@ -930,3 +916,66 @@ class ToolBox(CoreModuleInterface):
             is_callable = callable(getattr(instance, method_name, None))
 
         return is_callable
+
+    @staticmethod
+    def get_terminal_width(default_width: Optional[int] = 100) -> int:
+        """
+        Attempts to detect the terminal width.
+        Args:
+            default_width (Optional[int]): Width to return if detection fails (defaults to 80).
+        Returns:
+            int: Detected terminal width or `default_width` if detection fails.
+        """
+        width = None
+        with suppress(Exception):
+            width = shutil.get_terminal_size().columns
+
+        return width if width is not None else default_width
+
+    def flatten_text(self, text: str, default_text: Optional[str] = None) -> str:
+        """
+        Flattens a block of text into a cleaned, single-line form.
+        Actions:
+            Remove ANSI sequences.
+            Convert carriage returns '\r' to line feeds '\n'.
+            Replace single or multiple '\n' with a dot '.'.
+            Collapse multiple consecutive dots into a single dot.
+            Capitalize the first letter of each sentence.
+
+        Args:
+            text (str): The input text to flatten.
+            default_text (Optional[str]): Text to return if the result is empty or None.
+
+        Returns:
+            str: The flattened and formatted text.
+        """
+        if text is None:
+            cleared_text = ""
+        else:
+            cleared_text = self.strip_ansi(text).strip()
+
+        # Normalize carriage returns to newlines
+        cleared_text = cleared_text.replace('\r', '\n')
+
+        # Replace one or more newlines with a single dot
+        cleared_text = re.sub(r'\n+', '.', cleared_text)
+
+        # Replace multiple consecutive dots with a single dot
+        cleared_text = re.sub(r'\.{2,}', '.', cleared_text)
+
+        # Strip again (if leading/trailing dots exist after substitution)
+        cleared_text = cleared_text.strip('.').strip()
+
+        # Capitalize after dots
+        if cleared_text:
+            sentences = [s.strip().capitalize() for s in cleared_text.split('.')]
+            cleared_text = '. '.join(sentences).strip()
+            if cleared_text and not cleared_text.endswith('.'):
+                cleared_text += '.'
+
+        # Final fallback
+        if not cleared_text:
+            return default_text if default_text is not None else ""
+
+        return cleared_text
+

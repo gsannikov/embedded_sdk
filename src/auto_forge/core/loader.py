@@ -80,7 +80,6 @@ class CoreLoader(CoreModuleInterface):
             file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
             python_module_type: Optional[ModuleType] = None
             class_object: Optional[object] = None
-            command_description: Optional[str] = None
 
             try:
                 # Attempt to dynamically import the file
@@ -137,12 +136,8 @@ class CoreLoader(CoreModuleInterface):
                 # detailed information than the default description.
 
                 command_name = module_info.name
-                docstring_description = self._toolbox.get_module_description(python_module_type=python_module_type)
-                if isinstance(docstring_description, str):
-                    command_description = (f"{docstring_description}\n\nArgs:\n    "
-                                           f"Run '{module_info.name} --help' to see all available arguments")
-
-                command_description = command_description if command_description else module_info.description
+                docstring_description = self._toolbox.get_module_docstring(python_module_type=python_module_type)
+                command_description = docstring_description if docstring_description else module_info.description
 
                 # The command should have automatically updated its metadata in the registry; next we validate this.
                 command_record: Optional[Dict[str, Any]] = self._registry.get_module_record_by_name(

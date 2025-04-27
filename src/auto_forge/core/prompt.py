@@ -58,6 +58,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._executable_db: Optional[Dict[str, str]] = None
         self._loaded_commands: int = 0
         self._last_execution_return_code: Optional[int] = 0
+        self._term_width = self._toolbox.get_terminal_width(default_width=100)
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -359,24 +360,40 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         console = Console()
 
-        # Build a table of commands
-        table = Table(box=box.ROUNDED, highlight=True, expand=False)
+        # Reserve some space for panel borders/margins
+        max_desc_width = self._term_width - 30  # Approx 30 for command column and panel padding
+
+        # Build the commands table
+        table = Table(box=box.ROUNDED, highlight=True, expand=True)
         table.add_column("Command", style="bold green", no_wrap=True)
-        table.add_column("Description", style="dim", overflow="fold")
+        table.add_column("Description", style="dim", overflow="fold", no_wrap=False)
 
         commands = sorted(self.get_all_commands())
         for cmd in commands:
             if cmd in self.hidden_commands:
                 continue
+
             method = getattr(self, f'do_{cmd}', None)
-            doc = method.__doc__.strip().splitlines()[0] if method and method.__doc__ else ""
+            doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
+
+            # Truncate description if necessary
+            if len(doc) > max_desc_width:
+                if max_desc_width > 3:
+                    doc = doc[:max_desc_width - 3] + "..."
+                else:
+                    doc = doc[:max_desc_width]
+
             table.add_row(cmd, doc)
 
-        # Wrap in a nice panel
-        panel = Panel.fit(table, title="🛠  Available Commands", border_style="cyan")
+        # Wrap the table in a Panel
+        panel = Panel(
+            table,
+            title="🛠  Available Commands",
+            border_style="cyan",
+            width=self._term_width  # Force panel to fit terminal width
+        )
 
-        # Show everything
-        console.print("\n", panel, "\n")  # Adds newlines before and after
+        console.print("\n", panel, "\n")
         return None
 
     def default(self, statement: Any) -> None:
