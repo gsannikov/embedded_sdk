@@ -358,11 +358,21 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Otherwise, builds a stylized command list using rich tables and panels,
         including truncated and flattened descriptions.
         """
-        if arg:
-            # noinspection PyArgumentList
-            return super().do_help(arg)
 
         console = Console()
+
+        if arg:
+            if arg:
+                # User typed 'help my_command' --> Show help for that specific command
+                method = getattr(self, f'do_{arg}', None)
+                if method and method.__doc__:
+                    clean_doc = self._toolbox.flatten_text(method.__doc__, default_text="No description available.")
+                    console.print("\n", Panel(f"\n[bold green]{arg}[/bold green]: {clean_doc}\n",
+                                              border_style="cyan",
+                                              title="Command Help"), "\n")
+                else:
+                    console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
+                return None
 
         # Reserve some space for panel borders/margins
         max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
@@ -404,7 +414,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Fallback handler for unrecognized commands — executes them via the system shell.
         Method is called when a user types a command that is not defined as a `do_*` method.
-
         Args:
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
@@ -418,13 +427,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         cmd, args = parts
 
         try:
-            self._environment.execute_shell_command(
-                command=cmd,
-                arguments=args,
-                shell=True,
-                immediate_echo=True,
-                auto_expand=False,
-                expected_return_code=None
-            )
+            if cmd in {"htop", "top", "vim", "less", "nano", "vi"}:
+                # Full TTY handoff for interactive apps
+                full_command = cmd + ' ' + ' '.join(args)
+                self._environment.execute_fullscreen_shell_command(full_command=full_command)
+            else:
+                self._environment.execute_shell_command(
+                    command=cmd,
+                    arguments=args,
+                    shell=True,
+                    immediate_echo=True,
+                    auto_expand=False,
+                    expected_return_code=None,
+                    use_pty=True,
+                )
         except Exception as execution_error:
             print(f"{self._prompt_base}: {execution_error}")

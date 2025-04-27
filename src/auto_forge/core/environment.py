@@ -727,6 +727,24 @@ class CoreEnvironment(CoreModuleInterface):
             if master_fd != -1:
                 os.close(master_fd)
 
+    @staticmethod
+    def execute_fullscreen_shell_command(full_command: str) -> None:
+        """
+        Runs a full-screen TUI command like 'htop' or 'vim' by fully attaching to the terminal.
+        """
+        try:
+            subprocess.run(
+                full_command,
+                shell=True,
+                check=False,
+                stdin=sys.stdin,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                env=os.environ,
+            )
+        except KeyboardInterrupt:
+            pass  # Allow Ctrl+C to cleanly return
+
     def validate_prerequisite(self,
                               command: str,
                               arguments: Optional[str] = None,
