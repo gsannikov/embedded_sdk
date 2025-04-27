@@ -4,7 +4,7 @@ Author:         AutoForge Team
 
 Description:
     AutoForge command for displaying richly formatted directory listings, inspired by https://github.com/lsd-rs/lsd.
-    This enhanced listing tool, "lsd", provides color-coded output, icon-based file identification,
+    This enhanced listing tool, 'lsd', provides color-coded output, icon-based file identification,
     and timestamped views, designed to integrate into the AutoForge build system CLI environment.
 
     This module defines file and directory icon mappings using the Nerd Fonts glyph set.
@@ -52,7 +52,7 @@ class LSDCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._toolbox = ToolBox.get_instance()   # Gets the toolbox class instance
+        self._toolbox = ToolBox.get_instance()  # Gets the toolbox class instance
 
         # Helps to get the date formatted to the specific system local settings
         locale.setlocale(locale.LC_TIME, '')

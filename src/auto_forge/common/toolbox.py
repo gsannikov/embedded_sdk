@@ -562,13 +562,19 @@ class ToolBox(CoreModuleInterface):
         Args:
             path (str): The input path string, which may contain '~' or environment variables.
             to_absolute (bool): If True (default), the path is resolved to an absolute path.
-
         Returns:
             str: The expanded (and optionally absolute) path.
         """
+
+        if not path.strip():
+            return ""  # do NOT expand empty string
+
         expanded_path = os.path.expanduser(os.path.expandvars(path))
-        if to_absolute:
+
+        # Only call abspath if it's safe
+        if to_absolute and not expanded_path.endswith(os.sep + '.'):
             expanded_path = os.path.abspath(expanded_path)
+
         return expanded_path
 
     @staticmethod
@@ -941,11 +947,10 @@ class ToolBox(CoreModuleInterface):
             Replace single or multiple '\n' with a dot '.'.
             Collapse multiple consecutive dots into a single dot.
             Capitalize the first letter of each sentence.
-
+            Preserve URLs and email addresses without altering their internal dots.
         Args:
             text (str): The input text to flatten.
             default_text (Optional[str]): Text to return if the result is empty or None.
-
         Returns:
             str: The flattened and formatted text.
         """
@@ -954,28 +959,74 @@ class ToolBox(CoreModuleInterface):
         else:
             cleared_text = self.strip_ansi(text).strip()
 
-        # Normalize carriage returns to newlines
         cleared_text = cleared_text.replace('\r', '\n')
 
-        # Replace one or more newlines with a single dot
-        cleared_text = re.sub(r'\n+', '.', cleared_text)
+        # Protect URLs and emails
+        url_pattern = r'\b(?:https?|ftp)://[^\s]+'
+        email_pattern = r'\b[\w\.-]+@[\w\.-]+\.\w+\b'
 
-        # Replace multiple consecutive dots with a single dot
+        protected = {}
+
+        def protect(match):
+            protected_token = f"__PROTECTED_{len(protected)}__"
+            protected[protected_token] = match.group(0)
+            return protected_token
+
+        cleared_text = re.sub(url_pattern, protect, cleared_text)
+        cleared_text = re.sub(email_pattern, protect, cleared_text)
+
+        # Work safely
+        cleared_text = re.sub(r'\n+', '.', cleared_text)
         cleared_text = re.sub(r'\.{2,}', '.', cleared_text)
 
-        # Strip again (if leading/trailing dots exist after substitution)
         cleared_text = cleared_text.strip('.').strip()
 
-        # Capitalize after dots
-        if cleared_text:
-            sentences = [s.strip().capitalize() for s in cleared_text.split('.')]
-            cleared_text = '. '.join(sentences).strip()
-            if cleared_text and not cleared_text.endswith('.'):
-                cleared_text += '.'
-
-        # Final fallback
         if not cleared_text:
             return default_text if default_text is not None else ""
 
-        return cleared_text
+        # --- Capitalize sentences, but skip inside __PROTECTED__ blocks ---
+        parts = re.split(r'(__PROTECTED_\d+__)', cleared_text)  # split into normal / protected pieces
 
+        result = []
+        capitalize_next = True
+
+        for part in parts:
+            if part.startswith("__PROTECTED_") and part.endswith("__"):
+                # Protected part - don't touch
+                result.append(part)
+                capitalize_next = False
+            else:
+                new_part = []
+                for c in part:
+                    if capitalize_next and c.isalpha():
+                        new_part.append(c.upper())
+                        capitalize_next = False
+                    else:
+                        new_part.append(c)
+
+                    if c in '.!?':
+                        capitalize_next = True
+                    elif c.strip():
+                        capitalize_next = False
+
+                result.append(''.join(new_part))
+
+        flattened_text = ''.join(result).strip()
+
+        # Restore URLs and emails
+        for token, original in protected.items():
+            flattened_text = flattened_text.replace(token, original)
+
+        # Now final cleaning phase:
+        # 1. Collapse any remaining multiple dots
+        flattened_text = re.sub(r'\.{2,}', '.', flattened_text)
+
+        # 2. Collapse multiple spaces into a single space
+        flattened_text = re.sub(r'\s{2,}', ' ', flattened_text)
+
+        # 3. Ensure a single final dot
+        flattened_text = flattened_text.strip()
+        if flattened_text and not flattened_text.endswith('.'):
+            flattened_text += '.'
+
+        return flattened_text

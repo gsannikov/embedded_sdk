@@ -119,7 +119,7 @@ class AutoForge(CoreModuleInterface):
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
             # Enter build system prompt loop
-            self._prompt = CorePrompt()
+            self._prompt = CorePrompt(history_file="~/.auto_forge_history")
             return self._prompt.cmdloop()
 
         # Propagate

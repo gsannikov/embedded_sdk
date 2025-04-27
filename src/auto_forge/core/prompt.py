@@ -41,13 +41,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def _initialize(self, prompt: Optional[str] = None) -> None:
+    def _initialize(self, prompt: Optional[str] = None,
+                    max_completion_results: Optional[int] = 100,
+                    history_file: Optional[str] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         Args:
             prompt (Optional[str]): Optional custom base prompt string.
                 If not specified, the lowercase project name ('autoforge') will be used
                 as the base prefix for the dynamic prompt.
+            max_completion_results (Optional[int]): Maximum number of completion results.
+            history_file (Optional[str]): Optional file to store the prompt history and make it persistent
         """
 
         self._toolbox = ToolBox.get_instance()
@@ -57,6 +61,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
         self._executable_db: Optional[Dict[str, str]] = None
         self._loaded_commands: int = 0
+        self._history_file: Optional[str] = None
+        self._max_completion_results = max_completion_results
         self._last_execution_return_code: Optional[int] = 0
         self._term_width = self._toolbox.get_terminal_width(default_width=100)
 
@@ -90,13 +96,18 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
 
+        # Assign path_complete to the complete_cd and complete_ls methods
+        self._register_generic_complete()
+
+        # Create persistent history object
+        if history_file is not None:
+            history_file = self._toolbox.get_expanded_path(history_file)
+            self._history_file = history_file
+            self._load_history()
+
         # Remove unnecessary built-in commands
         for cmd in ['macro', 'edit', 'run_pyscript']:
             self._remove_command(cmd)
-
-        # Assign path_complete to the complete_cd and complete_ls methods
-        self.complete_lss = self.path_complete
-        self.complete_cd = self.path_complete
 
         # Add several basic aliases
         self.set_alias('..', 'cd ..')
@@ -106,6 +117,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.set_alias('ll', 'lss -la')
         self.set_alias('l', 'ls')
         self.set_alias('exit', 'quit')
+        self.set_alias('x', 'quit')
         self.set_alias('gs', 'git status')
         self.set_alias('ga', 'git add .')
         self.set_alias('gc', 'git commit -m')
@@ -122,7 +134,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Hide and disable a built-in cmd2 command by overriding its method.
         """
-        # Step 1: Hide from help
+        # Hide from help
         if command_name not in self.hidden_commands:
             self.hidden_commands.append(command_name)
 
@@ -174,12 +186,29 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return added_commands
 
+    def _load_history(self):
+        """Load history from file if available."""
+        if self._history_file is not None and os.path.exists(self._history_file):
+            try:
+                readline.read_history_file(self._history_file)
+                self._logger.debug(f"History loaded from {self._history_file}")
+            except Exception as exception:
+                self._logger.warning(f"Failed to load history: {exception}")
+
+    def _save_history(self):
+        """Save history to file if specified"""
+        if self._history_file is not None:
+            try:
+                readline.write_history_file(self._history_file)
+                self._logger.debug(f"History saved to {self._history_file}")
+            except Exception as exception:
+                self._logger.warning(f"Failed to save history: {exception}")
+
     def _build_executable_index(self) -> None:
         """
         Scan all PATH directories and populate self._executable_db
         with executable names mapped to their full paths.
         """
-
         self._executable_db = {}
         seen_dirs = set()
 
@@ -205,7 +234,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Safely splits a shell-style command line into command and arguments.
         Args:
             line (str): The raw input command line.
-
         Returns:
             Optional[tuple[str, str]]: A tuple (command, args) if valid, otherwise None.
         """
@@ -226,18 +254,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def _update_prompt(self, board_name: Optional[str] = None):
         """
         Dynamically update the cmd2 prompt to mimic a modern Zsh-style shell prompt.
-
         The prompt includes:
             - The active virtual environment or board name (if provided).
             - The current working directory, using `~` when within the home folder.
             - Git branch name (if in a Git repo).
             - A rightward Unicode arrow symbol as a prompt indicator.
-
         Args:
             board_name (Optional[str]): A board name to display in the prompt. If not provided,
                                         falls back to the VIRTUAL_ENV or '(unknown)'.
         """
-
         # Virtual environment / board name section
         venv = os.environ.get("VIRTUAL_ENV")
         venv_prompt = f"({board_name})" if board_name else ("(unknown)" if venv else "")
@@ -269,6 +294,221 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             f"{git_branch} {Fore.YELLOW}{arrow}{Style.RESET_ALL} "
         )
 
+    def _print_prompt(self):
+        """
+        Immediately re-display the current prompt after an interrupt.
+        """
+        with suppress(Exception):
+            self.stdout.write(self.prompt)
+            self.stdout.flush()
+
+    def _register_generic_complete(self):
+        """
+        Dynamically create generic complete for all do_* commands.
+        Completes path names by default. Can customize behavior for specific commands.
+        """
+        special_behavior = {
+            "cd": {"only_dirs": True},
+        }
+
+        def make_completer(complete_only_dirs: bool):
+            # noinspection PyShadowingNames,SpellCheckingInspection
+            def completer(self, text, line, begidx, endidx):
+                return self._complete_for_do_commands(text, line, begidx, endidx, only_dirs=complete_only_dirs)
+
+            return completer
+
+        for attr_name in dir(self):
+            if attr_name.startswith('do_') and callable(getattr(self, attr_name)):
+                cmd_name = attr_name[3:]  # Remove 'do_' prefix to get command name
+                completer_name = f"complete_{cmd_name}"
+
+                # Skip if already manually defined
+                if hasattr(self, completer_name):
+                    continue
+
+                # Look for special behavior
+                only_dirs = special_behavior.get(cmd_name, {}).get("only_dirs", False)
+                completer_func = make_completer(complete_only_dirs=only_dirs)
+
+                # Correctly bind the completer function to self
+                setattr(self, completer_name, completer_func.__get__(self))
+
+    # noinspection SpellCheckingInspection
+    def _complete_for_do_commands(self, text: str, line: str, _begidx: int, _endidx: int,
+                                  only_dirs: bool = False) -> list[str]:
+        """
+        Generic path completer for do_* commands.
+        Args:
+            text (str): Partial word being completed.
+            line (str): Full input line.
+            _begidx (int): Start index of completion text (unused).
+            _endidx (int): End index of completion text (unused).
+            only_dirs (bool): Whether to complete only directories.
+        Returns:
+            list[str]: Completion matches.
+        """
+
+        matches = []
+        state = 0
+        buffer_ends_with_space = (len(line) > 0 and line[-1].isspace())
+
+        while True:
+            match = self._path_complete(text, state, only_dirs=only_dirs,
+                                        complete_entire_directory=buffer_ends_with_space)
+            if match is None:
+                break
+            matches.append(match)
+            state += 1
+
+        return matches
+
+    def _path_complete(self, text: str, state: int, only_dirs: bool = False,
+                       complete_entire_directory: bool = False) -> Optional[str]:
+        """
+        Retrieve a single path match based on the current completion state.
+        This function is called repeatedly by the completion engine, passing increasing `state` values starting
+        from 0, until it returns None to signal no more matches.
+
+        Args:
+            text (str): The input text to complete, typically the partially typed path.
+            state (int): The match index to return; 0 for the first match, 1 for the second, etc.
+            only_dirs (bool, optional): If True, only directory matches are considered.
+            complete_entire_directory (bool, optional): If True, completes the full path even if
+                only one directory is partially typed.
+        Returns:
+            Optional[str]: The matching path at the given state, or None if no match exists.
+        """
+        matches = self._gather_path_matches(text, only_dirs=only_dirs,
+                                            complete_entire_directory=complete_entire_directory)
+        try:
+            return matches[state]
+        except IndexError:
+            return None
+
+    def _gather_path_matches(self, text: str, only_dirs: bool = False,
+                             complete_entire_directory: bool = False) -> list[str]:
+        """
+        Gather all filesystem path matches based on the provided text input.
+        Args:
+            text (str): The input text representing a partial or full filesystem path.
+            only_dirs (bool, optional): If True, only directories are included in the matches.
+            complete_entire_directory (bool, optional): If True, allows completion even if the
+                partial text is empty, effectively listing the entire directory.
+        Returns:
+            list[str]: A list of matching entries, sorted with directories listed after files.
+        """
+        text = text.strip()
+        expanded_text = self._toolbox.get_expanded_path(text)
+
+        if not expanded_text:
+            directory = "."
+            partial = ""
+        else:
+            directory, partial = os.path.split(expanded_text)
+            if not directory:
+                directory = "."
+        try:
+            entries = os.listdir(directory)
+        except (OSError, FileNotFoundError):
+            return []
+
+        matches = []
+
+        for entry in entries:
+            full_path = os.path.join(directory, entry)
+            is_dir = os.path.isdir(full_path)
+
+            if only_dirs and not is_dir:
+                continue
+
+            if partial and not entry.startswith(partial):
+                continue
+            elif not complete_entire_directory and not partial:
+                continue
+
+            display_entry = entry + os.sep if is_dir else entry
+            matches.append(display_entry)
+
+        matches = sorted(set(matches), key=lambda x: (not x.endswith(os.sep), x.lower()))
+
+        if len(matches) > self._max_completion_results:
+            matches = matches[:self._max_completion_results]
+
+        return matches
+
+    def complete(self, text: str, state: int,
+                 custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[str]:
+        """
+        Global tab-completion handler for commands and file paths.
+        Handles completion based on the current input context:
+        - Suggests executable shell commands.
+        - Suggests dynamically loaded CLI commands.
+        - Suggests built-in commands (methods starting with do_).
+        - Suggests filesystem entries (files/directories) when completing arguments.
+
+        Args:
+            text (str): The partial word to complete.
+            state (int): The completion attempt index (0 for the first match, 1 for the second, etc.).
+            custom_settings (Optional[CustomCompletionSettings]): Optional custom settings for completion behavior.
+
+        Returns:
+            Optional[str]: The matching completion string for the given state, or None if no match is available.
+        """
+
+        buffer = readline.get_line_buffer()
+        buffer_ends_with_space = buffer.endswith(' ')
+        tokens = buffer.strip().split()
+
+        if not tokens:
+            return super().complete(text, state, custom_settings)
+
+        matches = []
+
+        if len(tokens) == 1 and not buffer_ends_with_space:
+            partial = tokens[0]
+
+            # System executables
+            matches.extend(cmd for cmd in self._executable_db if cmd.startswith(partial))
+
+            # Dynamically loaded CLI commands
+            if self._loaded_commands:
+                dynamic_cmds = [cmd.name for cmd in self._dynamic_cli_commands_list]
+                matches.extend(cmd for cmd in dynamic_cmds if cmd.startswith(partial))
+
+            # Built-in do_* methods
+            builtin_cmds = [name[3:] for name in dir(self) if name.startswith('do_') and callable(getattr(self, name))]
+            matches.extend(cmd for cmd in builtin_cmds if cmd.startswith(partial))
+
+            matches = sorted(set(matches))
+
+            if len(matches) > self._max_completion_results:
+                matches = matches[:self._max_completion_results]
+        else:
+            # Completing arguments after the first command
+            cmd = tokens[0]
+            if cmd in self._executable_db or cmd in [c.name for c in self._dynamic_cli_commands_list]:
+                # External binaries or loaded dynamic commands (cat, nano, etc.)
+                matches = self._gather_path_matches(text, complete_entire_directory=buffer_ends_with_space)
+            elif hasattr(self, f"do_{cmd}"):
+                # Built-in command (e.g., do_cd, do_ls)
+                completer_func = getattr(self, f"complete_{cmd}", None)
+                if completer_func:
+                    try:
+                        return completer_func(text, buffer, len(buffer) - len(text), len(buffer))[state]
+                    except (AttributeError, TypeError, IndexError):
+                        return None
+                else:
+                    # Default fallback for built-in commands
+                    matches = self._gather_path_matches(text, complete_entire_directory=buffer_ends_with_space)
+            else:
+                return super().complete(text, state, custom_settings)
+
+        try:
+            return matches[state]
+        except IndexError:
+            return None
+
     def set_alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
         """
         Add or delete an alias.
@@ -281,45 +521,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         else:
             self.aliases[alias_name] = alias_definition
 
-    def complete(self, text: str, state: int,
-                 custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[str]:
-        """
-        Global tab completion handler. Adds shell-style binary name completion at the beginning of the line.
-        Also completes dynamically loaded commands from the loader.
-        """
-        buffer = readline.get_line_buffer()
-        tokens = buffer.strip().split()
-
-        if len(tokens) <= 1 and buffer.strip().startswith(text):
-            # From your system executable db
-            matches = [cmd for cmd in self._executable_db if cmd.startswith(text)]
-
-            # Add dynamically registered commands
-            if self._loaded_commands:
-                dynamic_commands = [cmd.name for cmd in self._dynamic_cli_commands_list]
-                matches.extend([cmd for cmd in dynamic_commands if cmd.startswith(text)])
-
-            # Deduplicate and sort
-            matches = sorted(set(matches))
-            try:
-                return matches[state]
-            except IndexError:
-                return None
-
-        # Delegate to cmd2's default behavior for args, flags, etc.
-        return super().complete(text, state)
-
     def do_cd(self, path: str):
         """
-        Change the current working directory and update the CLI prompt accordingly.
-        This method mimics the behavior of the shell `cd` command:
-
+        This method mimics the behavior of the shell 'cd' command and changing the current working directory and
+        update the prompt accordingly.
         Args:
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
         # Expand
         path = self._toolbox.get_expanded_path(path)
-
         try:
             if not os.path.exists(path):
                 raise RuntimeError(f"no such file or directory: {path}")
@@ -427,7 +637,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         cmd, args = parts
 
         try:
-            if cmd in {"htop", "top", "vim", "less", "nano", "vi"}:
+            if cmd in {"htop", "top", "vim", "less", "nano", "vi", "clear"}:
                 # Full TTY handoff for interactive apps
                 full_command = cmd + ' ' + ' '.join(args)
                 self._environment.execute_fullscreen_shell_command(full_command=full_command)
@@ -441,5 +651,42 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     expected_return_code=None,
                     use_pty=True,
                 )
+        except KeyboardInterrupt:
+            pass
+
         except Exception as execution_error:
             print(f"{self._prompt_base}: {execution_error}")
+
+    def sigint_handler(self, signum, frame):
+        """
+        Handles SIGINT signals (e.g., Ctrl+C or Ctrl+Break) while idling at the command prompt.
+        Behavior:
+            - If a KeyboardInterrupt is raised (idle interrupt), it is caught and silently ignored.
+            - If any other unexpected exception occurs during interrupt handling, it is re-raised to propagate normally.
+        Args:
+            signum (int): The signal number received (typically SIGINT).
+            frame (FrameType): The current stack frame when the signal was received.
+        Raises:
+            Exception: Any non-KeyboardInterrupt exceptions encountered during interrupt handling are re-raised.
+        """
+        try:
+            self._raise_keyboard_interrupt()
+        except KeyboardInterrupt:
+            # Handle clean idle interrupts nicely
+            print("^C")
+            self._print_prompt()
+            pass
+        # Propagate all others
+        except Exception:
+            raise
+
+    def postloop(self) -> None:
+        """
+        Called once when exiting the command loop.
+        """
+
+        # Save history when the session ends
+        self._save_history()
+
+        self.poutput("\nClosing prompt..\n")
+        super().postloop()  # Always call the parent
