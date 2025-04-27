@@ -352,7 +352,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def do_help(self, arg) -> None:
         """
-        AutoForge CLI Help. command.
+        Displays a custom, panel-based CLI help screen for AutoForge commands.
+
+        If an argument is provided, defers to the default cmd2 help behavior.
+        Otherwise, builds a stylized command list using rich tables and panels,
+        including truncated and flattened descriptions.
         """
         if arg:
             # noinspection PyArgumentList
@@ -361,7 +365,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         console = Console()
 
         # Reserve some space for panel borders/margins
-        max_desc_width = self._term_width - 30  # Approx 30 for command column and panel padding
+        max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
 
         # Build the commands table
         table = Table(box=box.ROUNDED, highlight=True, expand=True)
