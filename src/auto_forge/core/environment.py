@@ -24,15 +24,15 @@ import sys
 import threading
 import time
 import urllib.request
+import zipfile
 from contextlib import suppress
-from pathlib import Path
 from typing import Optional, Union, Any, List, Callable
 
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
-                        AutoForgeModuleType, ProgressTracker, ExecutionModeType, ValidationMethodType,
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader, AutoForgeModuleType, ProgressTracker,
+                        ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -149,7 +149,7 @@ class CoreEnvironment(CoreModuleInterface):
             Optional[str]: Full path to the resolved Python executable.
         """
         if venv_path:
-            venv_path = self._toolbox.get_expanded_path(path=venv_path.strip())
+            venv_path = self.environment_variable_expand(text=venv_path.strip())
             python_executable = os.path.join(venv_path, 'bin', 'python')
         else:
             python_executable = shutil.which("python")
@@ -331,6 +331,10 @@ class CoreEnvironment(CoreModuleInterface):
         Returns:
             str: The fully expanded variable, ignoring special bash constructs.
         """
+
+        if not text.strip():
+            return ""  # do NOT expand empty string
+
         # First expand user tilde
         path_with_user = os.path.expanduser(text)
 
@@ -1149,102 +1153,160 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as py_git_error:
             raise Exception(f"git operation failure {str(py_git_error)}")
 
-    @staticmethod
-    def detect_zephyr_sdk():
+    def git_get_path_from_url(self, url: str,
+                              destination_file_name: str,
+                              allowed_extensions: Optional[List[str]] = None,
+                              delete_if_exisit: bool = False,
+                              proxy: Optional[str] = None,
+                              token: Optional[str] = None) -> Optional[str]:
         """
-        Detect the installed Zephyr SDK by examining the CMake user package registry.
+        Downloads a GitHub folder (tree URL or API URL) as a .zip archive.
+        Args:
+            url (str): The URL from which to download the file:
+                This is expected to be a GitHub repository URL which points to path rather than a file.
+            destination_file_name (str): The local path/file where the downloaded file should be saved.
+            allowed_extensions (Optional[List[str]]): Allowed file extensions. If None, all files are downloaded.
+            delete_if_exisit (bool): Delete local copy of the file if exists.
+            proxy (Optional[str]): The proxy server URL to use for the download.
+            token (Optional[str]): An authorization token for accessing the file.
 
         Returns:
-            dict or None: A dictionary with:
-                - 'sdk_path' (str): Absolute path to the Zephyr SDK.
-                - 'version' (str): Version string inferred from the directory name.
-            Returns None if the SDK is not found or appears invalid.
-
-        Notes:
-            - This does not rely on environment variables or PATH.
-            - Assumes standard SDK install with 'zephyr-sdk-setup.sh' registration.
+            str: Full path to the created .zip archive.
         """
-        cmake_pkg_dir = Path.home() / ".cmake/packages/Zephyr-sdk"
-        if not cmake_pkg_dir.is_dir():
-            return None
+        url = self._toolbox.normalize_text(text=url)
+        url = self._toolbox.normalize_to_github_api_url(url=url)
 
-        for pkg_file in cmake_pkg_dir.iterdir():
-            if not pkg_file.is_file():
-                continue
+        if url is None:
+            raise RuntimeError(f"URL '{url}' is not a valid URL")
 
-            try:
-                with pkg_file.open("r", encoding="utf-8") as f:
-                    first_line = f.readline().strip()
-            except (OSError, UnicodeDecodeError):
-                continue
+        # We're getting a pth so the URL is expected to point to git path
+        is_url_path = self._toolbox.is_url_path(url)
+        if is_url_path is None or not is_url_path:
+            raise RuntimeError(f"URL '{url}' is not a valid URL or not pointing to a path")
 
-            if first_line.startswith("%"):
-                first_line = first_line[1:]
+        if destination_file_name is None:
+            raise RuntimeError(f"Destination file name must be specified")
 
-            cmake_dir = Path(first_line)
-            sdk_path = cmake_dir.parent
+        destination_file_name = CoreEnvironment.environment_variable_expand(text=destination_file_name,
+                                                                            to_absolute_path=True)
 
-            # Validate existence of expected toolchain binary
-            if not (sdk_path / "arm-zephyr-eabi" / "bin" / "arm-zephyr-eabi-gcc").exists():
-                continue
+        # Make sure we got something that look like path that points to a filed name
+        is_destination_path = self._toolbox.looks_like_unix_path(destination_file_name)
+        if is_destination_path:
+            raise RuntimeError(f"destination '{destination_file_name}' must point to a file name")
 
-            # Extract version
-            version = (
-                sdk_path.name.replace("zephyr-sdk-", "").upper()
-                if sdk_path.name.startswith("zephyr-sdk-")
-                else "UNKNOWN"
-            )
+        # Remove destination file if exists
+        if os.path.exists(destination_file_name):
+            if not delete_if_exisit:
+                raise RuntimeError(f"destination '{destination_file_name}' already exisit and "
+                                   f"we're nit allowed to delete")
+            else:
+                os.remove(destination_file_name)
 
-            return {
-                "sdk_path": str(sdk_path),
-                "version": version
-            }
+        # Gets the files list
+        files: list = self.url_get(url=url, destination=None, proxy=proxy, token=token)
+        if not isinstance(files, list):
+            raise RuntimeError(f"could not get listing for remote URL")
 
-        return None
+        # Download files and create ZIP
+        destination_temp_path = self._toolbox.get_temp_pathname()
 
-    def download_file(self, url: str, local_path: str,
-                      delete_local: bool = False,
-                      proxy: Optional[str] = None,
-                      token: Optional[str] = None,
-                      timeout: Optional[float] = None,
-                      extra_headers: Optional[dict] = None):
+        try:
+            for file_info in files:
+                if file_info['type'] != 'file':
+                    continue  # Skip subdirectories (for now)
+
+                filename = file_info['name']
+                # If allowed_extensions is specified, filter
+                if allowed_extensions:
+                    if not any(filename.lower().endswith(ext.lower()) for ext in allowed_extensions):
+                        continue  # Skip files not matching allowed extensions
+
+                file_url = file_info['download_url']
+                local_filename = os.path.join(destination_temp_path, file_info['name'])
+
+                # Use the provided download function
+                file_url = self._toolbox.normalize_to_github_api_url(url=file_url)
+                self.url_get(url=file_url, proxy=proxy, token=token, destination=local_filename)
+
+            # After all files are downloaded, zip them
+            with zipfile.ZipFile(destination_file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, filenames in os.walk(destination_temp_path):
+                    for filename in filenames:
+                        full_path = os.path.join(root, filename)
+                        archive_name = os.path.relpath(full_path, destination_temp_path)
+                        zipf.write(full_path, archive_name)
+
+            return destination_file_name
+
+        except Exception:
+            raise
+        finally:
+            shutil.rmtree(destination_temp_path)
+
+    def url_get(self, url: str,
+                destination: Optional[str] = None,
+                delete_if_exisit: Optional[bool] = False,
+                proxy: Optional[str] = None,
+                token: Optional[str] = None,
+                timeout: Optional[float] = None,
+                extra_headers: Optional[dict] = None) -> Optional[Any]:
         """
-        Downloads a file from a specified URL to a specified local path, with optional authentication, proxy support,
-        and additional HTTP headers. When verbosity is on the download progress is shown.
+        Downloads a file / list of files from a specified URL to a specified local path, with optional authentication,
+        proxy support, and additional HTTP headers. When verbosity is on the download progress is shown.
         Args:
             url (str): The URL from which to download the file.
-            local_path (str): The local path / file where the downloaded file should be saved.
-            delete_local (bool): Delete local copy of the file if exists.
+            destination (Optional[str]): The local path / file where the downloaded file should be saved.
+            delete_if_exisit (bool): Delete local copy of the file if exists.
             proxy (Optional[str]): The proxy server URL to use for the download.
             token (Optional[str]): An authorization token for accessing the file.
             timeout (Optional[float]): The timeout for the download operation, in seconds.
             extra_headers (Optional[dict]): Additional headers to include in the download request.
 
         Returns:
-            None, raising exception on error.
+            Any - based on the context or exception on error.
         """
         remote_file: Optional[str] = None
+        destination_file: Optional[str] = None
+        effective_timeout: Optional[float] = None if timeout == 0 else timeout
 
         try:
             # Normalize URL and output name
-            url = self._toolbox.normalize_text(url)
-            remote_file = self._toolbox.filename_from_url(url=url)
-            local_path = self.environment_variable_expand(text=local_path, to_absolute_path=True)
+            url = self._toolbox.normalize_text(text=url)
+            is_url_path = self._toolbox.is_url_path(url)
 
-            # If we got just a plain path use the remote file to create a path that point to file name
-            if os.path.isdir(local_path):
-                local_path = os.path.join(local_path, remote_file)
+            if is_url_path is None:
+                raise RuntimeError(f"URL '{url}' is not a valid URL")
 
-            if os.path.exists(local_path):
-                if not delete_local:
-                    raise FileExistsError(f"destination file '{os.path.basename(local_path)}' already exists")
+            if not is_url_path:
+
+                # When the remote URL points to a path, we will attempt to retrieve the directory listing.
+                # Therefore, the following section, which constructs the destination file and path, becomes relevant.
+                remote_file = self._toolbox.file_from_url(url=url)
+
+                if destination is None:
+                    destination = self._toolbox.get_temp_pathname()
+                    is_destination_path = True
                 else:
-                    os.remove(local_path)
+                    # Expand the provided destination string as needed
+                    destination = self.environment_variable_expand(text=destination, to_absolute_path=True)
+                    # Try to detect if destination looks like a path
+                    is_destination_path = self._toolbox.looks_like_unix_path(destination)
 
-            # Create the directory if it does not exist
-            local_dir = os.path.dirname(local_path)
-            if not os.path.exists(local_dir):
-                self.path_create(path=local_dir, erase_if_exist=False)
+                if is_destination_path:
+                    destination_dir = destination
+                    destination_file = os.path.join(destination_dir, remote_file)
+                else:
+                    destination_dir = os.path.dirname(destination)
+                    destination_file = destination
+
+                if os.path.exists(destination_file):
+                    if not delete_if_exisit:
+                        raise FileExistsError(f"destination file '{os.path.basename(destination)}' already exists")
+                    else:
+                        os.remove(destination_file)
+                else:  # Create the directory if it does not exist
+                    self.path_create(path=destination_dir, erase_if_exist=False)
 
             # Set up the HTTP request
             request = urllib.request.Request(url)
@@ -1268,25 +1330,48 @@ class CoreEnvironment(CoreModuleInterface):
                 urllib.request.install_opener(opener)
 
             # Perform the download operation
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                total_size = int(response.getheader('Content-Length').strip())
-                downloaded_size = 0
-                chunk_size = 1024 * 10  # 10KB chunk size
+            with urllib.request.urlopen(request, timeout=effective_timeout) as response:
 
-                with open(local_path, 'wb') as out_file:
-                    while True:
-                        chunk = response.read(chunk_size)
-                        if not chunk:
-                            break
-                        out_file.write(chunk)
-                        downloaded_size += len(chunk)
+                content_length = response.getheader('Content-Length')
 
-                        progress_percentage = (downloaded_size / total_size) * 100
-                        percentage_text = f"{progress_percentage:.2f}%"
-                        self._tracker.set_body_in_place(text=percentage_text)
+                if content_length is None or is_url_path:
+                    content = response.read()
+                    if is_url_path:
+                        # When the UTL points to a path, return the file listing
+                        files = json.loads(content.decode('utf-8'))
+                        return files
+                    else:
+                        with open(destination_file, 'wb') as f:
+                            f.write(content)
+
+                        written_bytes = len(content)
+                        return written_bytes
+                else:
+                    total_size = int(response.getheader('Content-Length').strip())
+                    downloaded_size = 0
+                    chunk_size = 1024 * 10  # 10KB chunk size
+                    self._logger.debug(f"Starting '{destination_file}' download, size: {total_size} bytes")
+
+                    with open(destination_file, 'wb') as out_file:
+                        while True:
+                            chunk = response.read(chunk_size)
+                            if not chunk:
+                                break
+                            out_file.write(chunk)
+                            downloaded_size += len(chunk)
+
+                            progress_percentage = (downloaded_size / total_size) * 100
+                            percentage_text = f"{progress_percentage:.2f}%"
+
+                            if self._tracker is not None:
+                                # Update the tracker if we have it
+                                self._tracker.set_body_in_place(text=percentage_text)
+
+                self._logger.debug(f"Total {total_size} bytes downloaded and written")
+                return downloaded_size
 
         except Exception as download_error:
-            raise RuntimeError(f"could not download '{remote_file or url}', {download_error}")
+            raise RuntimeError(f"download error '{remote_file or url}', {download_error}")
 
     def follow_steps(self, steps_file: str) -> Optional[int]:
         """
@@ -1301,11 +1386,9 @@ class CoreEnvironment(CoreModuleInterface):
 
         try:
             # Expand, convert to absolute path and verify
-            steps_file = CoreEnvironment.environment_variable_expand(text=steps_file, to_absolute_path=True)
+            steps_file = self.environment_variable_expand(text=steps_file, to_absolute_path=True)
             if not os.path.exists(steps_file):
                 raise RuntimeError(f"steps file '{steps_file}' does not exist")
-
-            self.detect_zephyr_sdk()
 
             # Process as JSON
             steps_schema = self._processor.preprocess(steps_file)

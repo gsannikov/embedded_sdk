@@ -17,6 +17,7 @@ from types import MethodType
 from typing import Any, Optional, Dict
 
 import cmd2
+import pydevd_pycharm
 from cmd2 import ansi, CustomCompletionSettings
 from colorama import Fore, Style
 from rich import box
@@ -25,13 +26,16 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment,
+from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment, CoreVariables,
                         AutoForgeModuleType, ExecutionModeType,
                         Registry, AutoLogger, ToolBox,
                         PROJECT_NAME)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
+
+# Insert debug attach point
+pydevd_pycharm.settrace('127.0.0.1', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
 
 
 class CorePrompt(CoreModuleInterface, cmd2.Cmd):
@@ -55,6 +59,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         self._toolbox = ToolBox.get_instance()
+        self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._prompt_base: Optional[str] = None
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
@@ -101,7 +106,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Create persistent history object
         if history_file is not None:
-            history_file = self._toolbox.get_expanded_path(history_file)
+            history_file = self._variables.expand(text=history_file)
             self._history_file = history_file
             self._load_history()
 
@@ -389,29 +394,42 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def _gather_path_matches(self, text: str, only_dirs: bool = False,
                              complete_entire_directory: bool = False) -> list[str]:
         """
-        Gather all filesystem path matches based on the provided text input.
+        Gather filesystem path matches based on the provided text input.
         Args:
             text (str): The input text representing a partial or full filesystem path.
             only_dirs (bool, optional): If True, only directories are included in the matches.
-            complete_entire_directory (bool, optional): If True, allows completion even if the
-                partial text is empty, effectively listing the entire directory.
+            complete_entire_directory (bool, optional): If True, allows listing even if the partial text is empty.
         Returns:
             list[str]: A list of matching entries, sorted with directories listed after files.
         """
         text = text.strip()
-        expanded_text = self._toolbox.get_expanded_path(text)
+
+        if text.endswith(os.sep):
+            complete_entire_directory = True
+
+        expanded_text = self._variables.expand(text=text)
 
         if not expanded_text:
             directory = "."
             partial = ""
         else:
-            directory, partial = os.path.split(expanded_text)
-            if not directory:
-                directory = "."
+            if os.path.isdir(expanded_text):
+                directory = expanded_text
+                partial = ""
+            else:
+                directory, partial = os.path.split(expanded_text)
+                if not directory:
+                    directory = "."
+
         try:
             entries = os.listdir(directory)
         except (OSError, FileNotFoundError):
             return []
+
+        # Set up prefix to remove from matches
+        prefix = directory
+        if prefix and not prefix.endswith(os.sep):
+            prefix += os.sep
 
         matches = []
 
@@ -427,7 +445,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             elif not complete_entire_directory and not partial:
                 continue
 
-            display_entry = entry + os.sep if is_dir else entry
+            suffix = entry[len(partial):] if partial else entry
+
+            # Decide what to display
+            if partial:
+                display_entry = text + suffix
+            else:
+                display_entry = suffix
+
+            if is_dir:
+                display_entry += os.sep
+
             matches.append(display_entry)
 
         matches = sorted(set(matches), key=lambda x: (not x.endswith(os.sep), x.lower()))
@@ -529,7 +557,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
         # Expand
-        path = self._toolbox.get_expanded_path(path)
+        path = self._variables.expand(text=path)
         try:
             if not os.path.exists(path):
                 raise RuntimeError(f"no such file or directory: {path}")
@@ -673,7 +701,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._raise_keyboard_interrupt()
         except KeyboardInterrupt:
             # Handle clean idle interrupts nicely
-            print("^C")
+            sys.argv = [sys.argv[0]]  # Clean command line buffer
+            sys.stderr.write('\n')
             self._print_prompt()
             pass
         # Propagate all others

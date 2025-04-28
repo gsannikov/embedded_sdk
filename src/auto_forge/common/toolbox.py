@@ -23,7 +23,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, Tuple, Type, Union, SupportsInt
 from typing import Optional
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, ParseResult
 
 import psutil
 from colorama import Fore
@@ -104,36 +104,32 @@ class ToolBox(CoreModuleInterface):
             raise exception
 
     @staticmethod
-    def looks_like_path(might_be_path: str) -> bool:
+    def looks_like_unix_path(might_be_path: str) -> bool:
         """
-        Determines if a given string looks like a filesystem path.
-        Using regular expressions to check for patterns that are typical in filesystem paths.
-        It considers a string as a path if it includes directory separators that indicate a hierarchy,
-        or is formatted like a full path with a drive letter on Windows systems.
-
-        Additionally, it excludes common HTML patterns to prevent misidentification.
-
+        Determines if a given string looks like a Unix-style filesystem path.
+        A string is considered a path if:
+        - It includes one or more directory separators ("/"),
+        - It does not obviously end with a file name (e.g., has a known file extension).
         Args:
             might_be_path (str): The string to check.
-
         Returns:
-            bool: True if the string looks like a path, False otherwise.
+            bool: True if the string looks like a Unix path (directory), False otherwise.
         """
-        # Exclude common HTML tag patterns to avoid misidentifying HTML as paths
+        if not might_be_path:
+            return False
+
+        # Exclude common HTML tags
         if re.search(r"<\s*[a-zA-Z]+.*?>", might_be_path):
             return False
 
-        # Check for directory separators or Windows drive letters
-        unix_path_pattern = r".+/.+"
-        windows_path_pattern = r"(?:[a-zA-Z]:\\).+"
-        if re.match(unix_path_pattern, might_be_path) or re.match(windows_path_pattern, might_be_path):
-            return True
-
-        # Alternatively, check if the path parses into multiple parts indicating a hierarchy
         path = Path(might_be_path)
-        if len(path.parts) > 1:
-            return True
-        return False
+
+        # If the path has a suffix (.txt, .jsonc, .zip, etc.), likely a file, not a directory
+        if path.suffix:
+            return False
+
+        # Must contain at least one slash to be considered Unix-like
+        return '/' in might_be_path
 
     def store_value(self, key: Any, value: Any) -> bool:
         """
@@ -565,7 +561,6 @@ class ToolBox(CoreModuleInterface):
         Returns:
             str: The expanded (and optionally absolute) path.
         """
-
         if not path.strip():
             return ""  # do NOT expand empty string
 
@@ -619,7 +614,6 @@ class ToolBox(CoreModuleInterface):
     def tail(f, n):
         """
         Efficiently reads the last n lines from a file object.
-
         Args:
             f (file object): The file object from which to read.
             n (int): The number of lines to read from the end of the file.
@@ -644,15 +638,29 @@ class ToolBox(CoreModuleInterface):
         return lines[-n:]
 
     @staticmethod
-    def get_temp_filename():
-        # Create a temporary file and immediately close it
-        fd, temp_path = tempfile.mkstemp()
-        os.close(fd)  # Close the file descriptor to avoid resource leakage
+    def get_temp_filename() -> Optional[str]:
+        """
+        Generates a unique temporary filename without creating a persistent file on disk.
+        """
+        try:
+            fd, temp_file = tempfile.mkstemp()
+            os.close(fd)  # Close the file descriptor to avoid resource leakage
+            os.remove(temp_file)  # Delete the file, keeping the path
+            return temp_file
+        except Exception:
+            raise
 
-        # Optionally, delete the file if you just need the name
-        os.remove(temp_path)
-
-        return temp_path
+    @staticmethod
+    def get_temp_pathname() -> Optional[str]:
+        """
+        Generates a unique temporary directory path without creating the actual directory.
+        """
+        try:
+            temp_path = tempfile.mkdtemp()
+            os.rmdir(temp_path)  # Delete the created temp directory immediately
+            return temp_path
+        except Exception:
+            raise
 
     @staticmethod
     def file_to_base64(file_name: str) -> Optional[str]:
@@ -766,21 +774,84 @@ class ToolBox(CoreModuleInterface):
         return normalized_string
 
     @staticmethod
-    def filename_from_url(url: str) -> str:
+    def normalize_to_github_api_url(url: str) -> Optional[str]:
         """
-        Extracts the filename from a given URL.
+        Validates and normalizes a GitHub URL to its corresponding GitHub API URL.
         Args:
-            url (str): The URL from which to extract the filename.
-
+            url (str): The input GitHub URL, either a 'tree' URL or an 'api.github.com' contents URL.
         Returns:
-            str: The extracted filename.
+            Optional[str]: The GitHub API URL if valid and successfully converted, otherwise None.
         """
-        parsed_url = urlparse(url)
-        # Extract the path part of the URL
-        path = parsed_url.path
-        # Unquote URL-encoded characters and extract the base name of the file
-        filename = os.path.basename(unquote(path))
-        return filename
+        # Quietly validate the URL structure
+        with suppress(Exception):
+            parsed: ParseResult = urlparse(url)
+            if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+                return None
+
+        # Already an API URL
+        if 'api.github.com' in parsed.netloc:
+            return url
+
+        # Convert GitHub tree URL to API format
+        match = re.match(r"^https://github\.com/([^/]+)/([^/]+)/tree/([^/]+)/(.*)", url)
+        if not match:
+            return url  # Nothing to convert - return original URL
+
+        owner, repo, branch, path = match.groups()
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
+        return api_url
+
+    def file_from_url(self, url: str, enforce_only_file: bool = False) -> Optional[str]:
+        """
+        Extracts the file or path name (last component) from a given URL.
+        Args:
+            url (str): The URL from which to extract the filename or path segment.
+            enforce_only_file (bool): Fail if the URL does not point to a file.
+        Returns:
+            Optional[str]: The extracted filename or path segment, or None if extraction fails.
+        """
+
+        if enforce_only_file and self.is_url_path(url):
+            # URL points to a path rather than afile name.
+            return None
+
+        with suppress(Exception):
+            parsed_url = urlparse(url)
+            path = parsed_url.path
+            if not path:
+                return None
+            filename = os.path.basename(unquote(path.rstrip('/')))
+            return filename
+
+        return None
+
+    @staticmethod
+    def is_url_path(url: str) -> Optional[bool]:
+        """
+        Determines if a given URL likely points to a directory (path) rather than a file.
+        Args:
+            url (str): The URL to evaluate.
+        Returns:
+            Optional[bool]:
+                - True if the URL likely refers to a path (directory),
+                - False if it likely refers to a file,
+                - None if the URL is invalid or cannot be evaluated.
+        """
+        with suppress(Exception):
+            parsed = urlparse(url)
+            path = parsed.path
+            if not path:
+                return None
+
+            last_segment = os.path.basename(path.rstrip('/'))
+
+            if not last_segment:
+                return None
+
+            # If last segment contains a dot ('.'), assume it's a file
+            return '.' not in last_segment
+
+        return None
 
     @staticmethod
     def is_directory_empty(path: str, raise_exception: bool = False) -> bool:

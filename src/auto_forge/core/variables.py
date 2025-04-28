@@ -18,7 +18,7 @@ from typing import Optional, Any, Dict, List, Tuple, Match
 # Builtin AutoForge core libraries
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
                         AutoForgeModuleType, VariableFieldType,
-                        Registry, AutoLogger)
+                        ToolBox, Registry, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
@@ -50,6 +50,7 @@ class CoreVariables(CoreModuleInterface):
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._toolbox = ToolBox.get_instance()
         self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
         self._config_file_name: Optional[str] = variables_config_file_name
         self._base_config_file_name: Optional[str] = None
@@ -105,27 +106,37 @@ class CoreVariables(CoreModuleInterface):
         except Exception as conversion_error:
             raise RuntimeError(f"failed to convert {value} to string {str(conversion_error)}")
 
-    def _get_index(self, variable_name: str) -> Optional[int]:
+    def _get_index(self, variable_name: str, flexible: bool = False) -> Optional[int]:
         """
         Finds a Variable index by its name using binary search.
         Args:
             variable_name (str): The name of the Variable to find.
+            flexible (bool): If True, allows partial matching of a variable prefix.
 
         Returns:
             Optional[int]: The index of the object if found, -1 otherwise.
         """
         with self._lock:
-
-            # Must have something to search in
             if self._variables is None or self._search_keys is None or len(self._variables) == 0:
                 return -1
 
-            # Binary search for the key
+            # Try exact match first
             key_to_find = (False, variable_name)
             index = bisect_left(self._search_keys, key_to_find)
 
             if index != len(self._variables) and self._variables[index].name == variable_name:
                 return index
+
+            # If flexible search requested, attempt prefix matching
+            if flexible:
+                # Check backwards from the insert position
+                for prefix_len in range(len(variable_name), 0, -1):
+                    candidate_name = variable_name[:prefix_len]
+                    key_candidate = (False, candidate_name)
+                    idx = bisect_left(self._search_keys, key_candidate)
+                    if idx != len(self._variables) and self._variables[idx].name == candidate_name:
+                        return idx
+
             return -1
 
     def _construct_name(self, variable_name: Any) -> str:
@@ -296,35 +307,41 @@ class CoreVariables(CoreModuleInterface):
 
         return expanded
 
-    def expand(self, variable_name: str) -> Optional[str]:
+    def get(self, variable_name: str, flexible: bool = False, quiet: bool = False) -> Optional[str]:
         """
         Gets a Variable value by its name. If not found, attempts to expand as an environment variable.
-
         Args:
             variable_name (str): The name of the Variable to find.
+            flexible (bool): If True, allows partial matching of a variable prefix.
+            quiet (bool): If True, exceptions will be suppressed.
 
         Returns:
             Optional[str]: The value converted to string if found, raises Exception otherwise.
         """
         with self._lock:
-            index = self._get_index(variable_name)
+            index = self._get_index(variable_name=variable_name, flexible=flexible)
             if index == -1:
                 # Try again without initial $ if it exists
                 if variable_name.startswith('$'):
                     variable_name = variable_name[1:]
-                    index = self._get_index(variable_name)
+                    index = self._get_index(variable_name=variable_name, flexible=flexible)
                     if index == -1:
                         # Expand environment variables and user home directory notations
                         expanded = os.path.expanduser(os.path.expandvars(variable_name))
                         if expanded == variable_name:  # No expansion occurred
-                            raise RuntimeError(f"Variable '{variable_name}' not found")
+                            if not quiet:
+                                raise RuntimeError(f"variable '{variable_name}' not found")
+                            return None
+
                         return expanded
                 else:
-                    raise RuntimeError(f"Variable '{variable_name}' not found")
+                    if not quiet:
+                        raise RuntimeError(f"variable '{variable_name}' not found")
+                    return None
 
             return self._to_string(self._variables[index].value)
 
-    def set_value(self, variable_name: str, value: Any) -> bool:
+    def set(self, variable_name: str, value: Any) -> bool:
         """
         Update the value of a variable identified by its name.
         Args:
@@ -430,3 +447,52 @@ class CoreVariables(CoreModuleInterface):
 
             self._variables.pop(index)  # Remove it
             self._refresh()  # Update the list and the search dictionary
+
+    def expand(self, text: str) -> str:
+        """
+        Expands variables embedded within the input text and resolves the path.
+        Supports both $VAR and ${VAR} syntax, correctly handling adjacent expansions.
+        """
+        if text:
+            text = text.strip()
+
+        if not text:
+            return ""
+
+        result = []
+        i = 0
+        length = len(text)
+
+        while i < length:
+            if text[i] == '$':
+                if i + 1 < length and text[i + 1] == '{':
+                    # ${VAR}
+                    end_brace = text.find('}', i + 2)
+                    if end_brace != -1:
+                        var_name = text[i + 2:end_brace]
+                        var_value = self.get(variable_name=var_name, quiet=True, flexible=True)
+                        result.append(var_value if var_value is not None else text[i:end_brace + 1])
+                        i = end_brace + 1
+                        continue
+                else:
+                    # $VAR
+                    j = i + 1
+                    while j < length and (text[j].isalnum() or text[j] == '_'):
+                        j += 1
+                    if j > i + 1:
+                        var_name = text[i + 1:j]
+                        var_value = self.get(variable_name=var_name, quiet=True, flexible=True)
+                        result.append(var_value if var_value is not None else text[i:j])
+                        i = j
+                        continue
+
+            # Normal character
+            result.append(text[i])
+            i += 1
+
+        expanded_text = ''.join(result)
+
+        # Now expand ~ and make absolute
+        final_path = self._toolbox.get_expanded_path(path=expanded_text, to_absolute=True)
+
+        return final_path

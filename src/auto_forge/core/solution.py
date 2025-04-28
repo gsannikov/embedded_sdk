@@ -453,7 +453,7 @@ class CoreSolution(CoreModuleInterface):
         """
         if variable_type == PreProcessType.ENVIRONMENT:
             # Should not match when $ is followed by 'ref_' or surrounded by '<' and '>'
-            return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._variables.expand(m.group(0)), text)
+            return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._variables.get(m.group(0)), text)
 
         elif variable_type == PreProcessType.REFERENCE:
             def _replace_match(match: re.Match) -> str:
