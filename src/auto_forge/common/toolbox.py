@@ -18,6 +18,7 @@ import shutil
 import sys
 import tempfile
 import textwrap
+import zipfile
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
@@ -30,12 +31,13 @@ from colorama import Fore
 
 # Retrieve our package base path from settings
 from auto_forge import (CoreModuleInterface,
-                        AutoForgeModuleType, AutoLogger,
+                        AddressInfoType, AutoForgeModuleType, AutoLogger,
                         PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
+AUTO_FORGE_TEMP_PATTERN = "__AUTO_FORGE_" # Prefix for temporary path names
 
 
 class ToolBox(CoreModuleInterface):
@@ -643,7 +645,8 @@ class ToolBox(CoreModuleInterface):
         Generates a unique temporary filename without creating a persistent file on disk.
         """
         try:
-            fd, temp_file = tempfile.mkstemp()
+            temp_path_name = ToolBox.get_temp_pathname(create_path=True)
+            fd, temp_file = tempfile.mkstemp(dir=temp_path_name, suffix=".temp.af")
             os.close(fd)  # Close the file descriptor to avoid resource leakage
             os.remove(temp_file)  # Delete the file, keeping the path
             return temp_file
@@ -651,16 +654,33 @@ class ToolBox(CoreModuleInterface):
             raise
 
     @staticmethod
-    def get_temp_pathname() -> Optional[str]:
+    def get_temp_pathname(create_path: Optional[bool] = False) -> Optional[str]:
         """
         Generates a unique temporary directory path without creating the actual directory.
+        Args:
+            create_path (bool, optional): If True, creates a new temporary directory path.
         """
         try:
-            temp_path = tempfile.mkdtemp()
-            os.rmdir(temp_path)  # Delete the created temp directory immediately
+            temp_path = tempfile.mkdtemp(prefix=AUTO_FORGE_TEMP_PATTERN)
+            if not create_path:  # Typically we're only interested ony in a temporary name without creating the path
+                os.rmdir(temp_path)
             return temp_path
         except Exception:
             raise
+
+    @staticmethod
+    def clear_residual_files() -> None:
+        """
+        Scans the system temporary directory and deletes any residual
+        AutoForge-related directories (those starting with '__AUTO_FORGE_').
+        """
+        with suppress(Exception):
+            temp_dir = tempfile.gettempdir()
+
+            for entry in os.scandir(temp_dir):
+                if entry.is_dir() and entry.name.startswith(AUTO_FORGE_TEMP_PATTERN):
+                    with suppress(Exception):
+                        shutil.rmtree(entry.path)
 
     @staticmethod
     def file_to_base64(file_name: str) -> Optional[str]:
@@ -752,6 +772,77 @@ class ToolBox(CoreModuleInterface):
         return False, None  # Returns False and None if an exception occurs
 
     @staticmethod
+    def unzip_file(zip_file_name: str, destination_path: Optional[str] = None) -> Optional[str]:
+        """
+        Unzips a zip archive into a destination directory.
+        Args:
+            zip_file_name (str): Path to the zip file to extract.
+            destination_path (Optional[str], optional): Path where contents should be extracted.
+                If None, the archive directory will be used.
+        Returns:
+            str: Path to the directory where files were extracted.
+        """
+
+        zip_file_name = ToolBox.get_expanded_path(zip_file_name)
+        if not os.path.isfile(zip_file_name):
+            raise FileNotFoundError(f"Zip file '{zip_file_name}' does not exist or is not a file.")
+
+        if destination_path is None:
+            # Use the archive path when not specified
+            destination_path = os.path.dirname(zip_file_name)
+        else:
+            destination_path = ToolBox.get_expanded_path(destination_path)
+
+        try:
+            with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
+                zip_ref.extractall(destination_path)
+        except zipfile.BadZipFile as zip_error:
+            raise zipfile.BadZipFile(f"Failed to extract '{zip_file_name}': {zip_error}")
+        except Exception as exception:
+            raise Exception(f"Unexpected error while extracting '{zip_file_name}': {exception}")
+
+        return destination_path
+
+    @staticmethod
+    def get_address_and_port(endpoint: Optional[str]) -> Optional[AddressInfoType]:
+        """
+        Parses an endpoint string of the form 'host:port' and returns an AddressInfo tuple.
+        Args:
+            endpoint (Optional[str]): The endpoint string to parse.
+        Returns:
+            Optional[AddressInfoType]: A named tuple containing:
+                - host (str): Hostname or IP address.
+                - port (int): TCP port number.
+                - is_host_name (bool): True if host is a name, False if host is an IP address.
+            None if the input is invalid.
+        """
+        if endpoint is None or ':' not in endpoint:
+            return None
+
+        host_part, port_part = endpoint.rsplit(":", 1)
+
+        # Validate port
+        if not port_part.isdigit():
+            return None
+
+        port = int(port_part)
+        if not (1 <= port <= 65535):
+            return None
+
+        # Check if host looks like an IP address
+        is_ip = bool(re.fullmatch(r"(\d{1,3}\.){3}\d{1,3}", host_part))
+        if is_ip:
+            octets = host_part.split(".")
+            if not all(0 <= int(octet) <= 255 for octet in octets):
+                return None  # Invalid IP address
+
+        # Reconstruct endpoint as a host:port string
+        endpoint = f"{host_part}:{str(port)}"
+
+        # Otherwise, assume it's a hostname
+        return AddressInfoType(host=host_part, port=port, endpoint=endpoint, is_host_name=not is_ip)
+
+    @staticmethod
     def normalize_text(text: Optional[str], allow_empty: bool = False) -> str:
         """
         Normalize the input string by stripping leading and trailing whitespace.
@@ -812,7 +903,7 @@ class ToolBox(CoreModuleInterface):
         """
 
         if enforce_only_file and self.is_url_path(url):
-            # URL points to a path rather than afile name.
+            # URL points to a path rather than a file name.
             return None
 
         with suppress(Exception):
@@ -824,6 +915,18 @@ class ToolBox(CoreModuleInterface):
             return filename
 
         return None
+
+    @staticmethod
+    def is_url(text: str) -> bool:
+        """
+        Determines if a given text is likely a URL.
+        Args:
+            text (str): The text to evaluate.
+        Returns:
+            bool: True if the text looks like a URL, False otherwise.
+        """
+        parsed = urlparse(text)
+        return bool(parsed.scheme) and bool(parsed.netloc)
 
     @staticmethod
     def is_url_path(url: str) -> Optional[bool]:
@@ -1089,13 +1192,13 @@ class ToolBox(CoreModuleInterface):
             flattened_text = flattened_text.replace(token, original)
 
         # Now final cleaning phase:
-        # 1. Collapse any remaining multiple dots
+        # Collapse any remaining multiple dots
         flattened_text = re.sub(r'\.{2,}', '.', flattened_text)
 
-        # 2. Collapse multiple spaces into a single space
+        # Collapse multiple spaces into a single space
         flattened_text = re.sub(r'\s{2,}', ' ', flattened_text)
 
-        # 3. Ensure a single final dot
+        # Ensure a single final dot
         flattened_text = flattened_text.strip()
         if flattened_text and not flattened_text.endswith('.'):
             flattened_text += '.'

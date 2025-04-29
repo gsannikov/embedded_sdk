@@ -1154,7 +1154,7 @@ class CoreEnvironment(CoreModuleInterface):
             raise Exception(f"git operation failure {str(py_git_error)}")
 
     def git_get_path_from_url(self, url: str,
-                              destination_file_name: str,
+                              destination_file_name: Optional[str] = None,
                               allowed_extensions: Optional[List[str]] = None,
                               delete_if_exisit: bool = False,
                               proxy: Optional[str] = None,
@@ -1184,8 +1184,9 @@ class CoreEnvironment(CoreModuleInterface):
         if is_url_path is None or not is_url_path:
             raise RuntimeError(f"URL '{url}' is not a valid URL or not pointing to a path")
 
+        # Use temporary destination file if not specified
         if destination_file_name is None:
-            raise RuntimeError(f"Destination file name must be specified")
+            destination_file_name = self._toolbox.get_temp_filename()
 
         destination_file_name = CoreEnvironment.environment_variable_expand(text=destination_file_name,
                                                                             to_absolute_path=True)
@@ -1208,9 +1209,10 @@ class CoreEnvironment(CoreModuleInterface):
         if not isinstance(files, list):
             raise RuntimeError(f"could not get listing for remote URL")
 
-        # Download files and create ZIP
+        # Define temporary paths to work on
         destination_temp_path = self._toolbox.get_temp_pathname()
 
+        # Download files and create ZIP
         try:
             for file_info in files:
                 if file_info['type'] != 'file':
@@ -1373,11 +1375,12 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as download_error:
             raise RuntimeError(f"download error '{remote_file or url}', {download_error}")
 
-    def follow_steps(self, steps_file: str) -> Optional[int]:
+    def follow_steps(self, steps_file: str, tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
             steps_file (str): Path to the steps JSON file.
+            tracker (Optional[ProgressTracker]): A progress tracker instance to, else a local one will be carted.
         Returns:
             int: Exit code of the function.
         """
@@ -1400,8 +1403,8 @@ class CoreEnvironment(CoreModuleInterface):
             self._status_add_time_prefix = steps_schema.get("status_add_time_prefix", self._status_add_time_prefix)
 
             # Initialize a track instance
-            self._tracker = ProgressTracker(title_length=self._status_title_length,
-                                            add_time_prefix=self._status_add_time_prefix)
+            self._tracker = tracker if tracker is not None else ProgressTracker(title_length=self._status_title_length,
+                                                                                add_time_prefix=self._status_add_time_prefix)
 
             # User optional greetings messages
             self._print(steps_schema.get("status_pre_message"))
@@ -1445,4 +1448,4 @@ class CoreEnvironment(CoreModuleInterface):
         finally:
             # Restore terminal cursor on exit
             os.chdir(local_path)  # Restore initial path
-            self._tracker.close()
+            self._tracker = None

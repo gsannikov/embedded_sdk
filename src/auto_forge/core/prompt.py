@@ -17,7 +17,6 @@ from types import MethodType
 from typing import Any, Optional, Dict
 
 import cmd2
-import pydevd_pycharm
 from cmd2 import ansi, CustomCompletionSettings
 from colorama import Fore, Style
 from rich import box
@@ -33,9 +32,6 @@ from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment, CoreVa
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
-
-# Insert debug attach point
-pydevd_pycharm.settrace('127.0.0.1', port=5678, stdoutToServer=True, stderrToServer=True, suspend=False)
 
 
 class CorePrompt(CoreModuleInterface, cmd2.Cmd):
@@ -123,6 +119,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.set_alias('l', 'ls')
         self.set_alias('exit', 'quit')
         self.set_alias('x', 'quit')
+        self.set_alias('q', 'quit')
         self.set_alias('gs', 'git status')
         self.set_alias('ga', 'git add .')
         self.set_alias('gc', 'git commit -m')
@@ -604,10 +601,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 # User typed 'help my_command' --> Show help for that specific command
                 method = getattr(self, f'do_{arg}', None)
                 if method and method.__doc__:
-                    clean_doc = self._toolbox.flatten_text(method.__doc__, default_text="No description available.")
-                    console.print("\n", Panel(f"\n[bold green]{arg}[/bold green]: {clean_doc}\n",
-                                              border_style="cyan",
-                                              title="Command Help"), "\n")
+                    command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
+                    console.print("\n",
+                                  Panel(f"[bold green]{arg}[/bold green]: {method.__doc__}",
+                                        border_style="cyan",
+                                        title=command_help_title,
+                                        padding=(1, 1), width=self._term_width),
+                                  "\n")  # Force panel to fit terminal width
                 else:
                     console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
                 return None
@@ -638,11 +638,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             table.add_row(cmd, doc)
 
         # Wrap the table in a Panel
+        master_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Available Commands"
         panel = Panel(
             table,
-            title="🛠  Available Commands",
+            title=master_help_title,
             border_style="cyan",
-            width=self._term_width  # Force panel to fit terminal width
+            padding=(1, 1), width=self._term_width  # Force panel to fit terminal width
         )
 
         console.print("\n", panel, "\n")

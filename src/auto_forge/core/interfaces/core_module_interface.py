@@ -45,6 +45,8 @@ from auto_forge import ExceptionGuru
 if TYPE_CHECKING:
     from auto_forge.auto_forge import AutoForge
 
+from colorama import Fore, Style
+
 # Generic type variable used to represent subclasses of CoreModuleInterface
 T = TypeVar("T", bound="CoreModuleInterface")
 
@@ -177,6 +179,14 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         Override this method in subclasses to perform custom init using arguments passed on first instantiation.
         """
         pass
+
+    @staticmethod
+    def who_we_are() -> str:
+        """
+        Returns the decorated AutoForge branding string.
+        Includes colored segments and an emoji.
+        """
+        return f"{Fore.LIGHTBLUE_EX}Auto{Fore.LIGHTWHITE_EX}🛠️Forge{Style.RESET_ALL}"
 
     @property
     def auto_forge(self) -> "AutoForge":

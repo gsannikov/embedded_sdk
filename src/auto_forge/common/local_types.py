@@ -135,6 +135,19 @@ class InputBoxLineType:
     text_type: InputBoxTextType = InputBoxTextType.INPUT_TEXT
     length: int = 0  # 0 = auto width
 
+class AddressInfoType(NamedTuple):
+    """
+    Defines a TCP endpoint consisting of:
+    - host (str): Either an IP address (IPv4) or a hostname.
+    - port (int): TCP port number.
+    - endpoint (str): a string formated as host:port
+    - is_host_name (bool): True if 'host' is a hostname, False if it's an IP address.
+    """
+    host: str
+    port: int
+    endpoint:str
+    is_host_name: bool
+
 
 @dataclass
 class SignatureSchemaType:

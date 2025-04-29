@@ -60,7 +60,9 @@ class _TrackerState(Enum):
 
 class ProgressTracker:
     def __init__(self, title_length: int = 80, add_time_prefix: bool = False,
-                 min_update_interval_ms: int = 250, hide_cursor: bool = True):
+                 min_update_interval_ms: int = 250, hide_cursor: bool = True,
+                 linger_interval_ms: int = 0,
+                 default_new_line: bool = True) -> None:
         """
         Initializes the ProgressTracker instance.
 
@@ -68,15 +70,19 @@ class ProgressTracker:
             title_length (int): Maximum length of the status message title.
             add_time_prefix (bool): Whether to prefix messages with the current time.
             min_update_interval_ms (int): Minimum interval in milliseconds between updates to prevent flickering.
+            linger_interval_ms (int): Time to wait between consecutive lines update.
+            default_new_line (bool): Default behaviour for new message.
         """
         self._state = _TrackerState.UN_INITIALIZES
-        self._add_time_prefix = add_time_prefix
-        self._title_length = title_length
-        self._terminal_width = shutil.get_terminal_size().columns
+        self._add_time_prefix: bool = add_time_prefix
+        self._title_length: int = title_length
+        self._terminal_width: int = shutil.get_terminal_size().columns
         self._ansi_term = TerminalAnsiGuru()
         self._pre_text: Optional[str] = None
+        self._linger_interval_ms: int = linger_interval_ms
         self._min_update_interval_ms = min_update_interval_ms
         self._last_update_time = 0  # Epoch time of the last update
+        self._default_new_line: bool = default_new_line
         self._state = _TrackerState.PRE
 
         # Hide the cursor
@@ -108,7 +114,6 @@ class ProgressTracker:
         """
         Formats the preliminary status message to include a time prefix (if enabled) and ensures
         it fits within the defined title length by truncating if necessary and padding with dots.
-
         Args:
             text (str): The preliminary status message to display.
 
@@ -116,6 +121,10 @@ class ProgressTracker:
             str: The formatted string ready for display.
         """
         time_string = datetime.now().strftime("%H:%M:%S ") if self._add_time_prefix else ""
+        title_usable_length = self._title_length - len(time_string)
+        if len(text) > title_usable_length:
+            text = text[-max(0, title_usable_length - 4):]  # Truncate from the left
+
         text_length = len(time_string) + len(text)
         dots_count = self._title_length - text_length - 2
         dots = "." * max(0, dots_count)  # Ensure non-negative count of dots
@@ -131,17 +140,21 @@ class ProgressTracker:
 
         return formatted_text
 
-    def set_pre(self, text: str, new_line: bool = True) -> bool:
+    def set_pre(self, text: str, new_line: Optional[bool] = None) -> bool:
         """
         Sets the preliminary message, preparing the display format in the console.
 
         Args:
             text (str): The preliminary status message to display.
-            new_line (bool): Whether or star the message in a new line.
+            new_line (Optional[bool]): Whether or star the message in a new line.
         """
 
         if self._state != _TrackerState.PRE:
             return False
+
+        # Set default new line behaviour when not specified explicitly
+        if new_line is None:
+            new_line = self._default_new_line
 
         text = self._normalize_text(text, allow_empty=True)
         formatted_text = self._pre_format(text)
@@ -192,6 +205,7 @@ class ProgressTracker:
         body_start_pos = len(
             self._pre_format(self._pre_text).strip())  # Calculate end position of the formatted pre text
         max_body_length = self._terminal_width - body_start_pos
+
         sys.stdout.write(text[:max_body_length])
         self._ansi_term.erase_line_to_end()
         sys.stdout.flush()
@@ -203,7 +217,6 @@ class ProgressTracker:
     def set_result(self, text: str, status_code: Optional[int] = None) -> bool:
         """
         Sets the result message with an optional status code and decides whether to add a new line.
-
         Args:
             text (str): The result message to display.
             status_code (Optional[int]): The status code to determine message color.
@@ -216,12 +229,17 @@ class ProgressTracker:
         text = f"{color}{text}{Style.RESET_ALL}" if status_code is not None else text
 
         sys.stdout.write(text)
+        sys.stdout.flush()
         self._ansi_term.erase_line_to_end()
         self._pre_text = None
         self._state = _TrackerState.PRE
+
+        if self._linger_interval_ms:
+            time.sleep(self._linger_interval_ms / 1000.0)
+
         return True
 
-    def set_complete(self, pre_text: str, result_text: str, status_code: Optional[int] = None) -> bool:
+    def set_complete_line(self, pre_text: str, result_text: str, status_code: Optional[int] = None) -> bool:
         """
         Sets a complete line in a single call by printing the preliminary text with a timestamp,
         followed by the result text.
@@ -236,10 +254,9 @@ class ProgressTracker:
 
         return False
 
-    def close(self):
+    def __del__(self):
         """
-        Closes the ProgressTracker instance by making the cursor visible again and marking
-        the state as uninitialized.
+        Class destructor.
         """
         sys.stdout.write('\n')
         self._ansi_term.set_cursor_visibility(True)

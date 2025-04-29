@@ -19,7 +19,7 @@ from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 # Basic types
 from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType,
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
-                                           InputBoxTextType, InputBoxButtonType, InputBoxLineType,
+                                           InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
                                            ExceptionGuru, ThreadGuru, TerminalAnsiGuru,
                                            TerminalTeeStream, TerminalAnsiCodes,
@@ -54,7 +54,7 @@ __all__ = [
     "ExceptionGuru", "ThreadGuru", "TerminalAnsiGuru",
     "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo",
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "ValidationMethodType", "ExecutionModeType",
-    "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType",
+    "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
     "CLICommandInterface", "CoreModuleInterface",
     "SignatureFileHandler", "Signature",
