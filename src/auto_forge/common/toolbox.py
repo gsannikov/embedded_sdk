@@ -31,13 +31,13 @@ from colorama import Fore
 
 # Retrieve our package base path from settings
 from auto_forge import (CoreModuleInterface,
-                        AddressInfoType, AutoForgeModuleType, AutoLogger,
+                        AddressInfoType, AutoForgeModuleType, AutoLogger, TerminalAnsiCodes,
                         PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
-AUTO_FORGE_TEMP_PATTERN = "__AUTO_FORGE_" # Prefix for temporary path names
+AUTO_FORGE_TEMP_PATTERN = "__AUTO_FORGE_"  # Prefix for temporary path names
 
 
 class ToolBox(CoreModuleInterface):
@@ -1015,11 +1015,9 @@ class ToolBox(CoreModuleInterface):
     def print_logo(ascii_art_file: Optional[str] = None, clear_screen: bool = False) -> int:
         """
         Displays an ASCII logo from a file with alternating colors per line.
-
         Args:
             ascii_art_file (str): Path to the logo file.
             clear_screen (bool): Whether to clear the screen before printing.
-
         Returns:
             int: 0 if successful, 1 if the file does not exist.
         """
@@ -1035,15 +1033,16 @@ class ToolBox(CoreModuleInterface):
 
         # Clear screen and move cursor to top-left
         if clear_screen:
-            print("\033[2J\033[H", end='')
-        print()
+            sys.stdout.write(TerminalAnsiCodes.CLS_SB)
+        sys.stdout.write('\n')
 
         with open(ascii_art_file, 'r', encoding='utf-8') as f:
             for i, line in enumerate(f):
                 color = Fore.LIGHTBLUE_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
-                print(f"{color}{line}", end='')
+                sys.stdout.write(f"{color}{line}")
 
-        print('\n')  # Final newlines
+        sys.stdout.write('\n')  # Final newlines
+        sys.stdout.flush()
         return 0
 
     @staticmethod

@@ -14,10 +14,10 @@ import subprocess
 import sys
 from contextlib import suppress
 from types import MethodType
-from typing import Any, Optional, Dict
+from typing import Optional, Dict, Any
 
 import cmd2
-from cmd2 import ansi, CustomCompletionSettings
+from cmd2 import ansi, CustomCompletionSettings, Statement
 from colorama import Fore, Style
 from rich import box
 from rich.console import Console
@@ -96,6 +96,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
+        self.default_to_shell = True
 
         # Assign path_complete to the complete_cd and complete_ls methods
         self._register_generic_complete()
@@ -649,7 +650,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         console.print("\n", panel, "\n")
         return None
 
-    def default(self, statement: Any) -> None:
+    def default(self, statement: Statement) -> None:
         """
         Fallback handler for unrecognized commands — executes them via the system shell.
         Method is called when a user types a command that is not defined as a `do_*` method.
@@ -657,34 +658,32 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
 
-        command = statement.command + " " + statement.args if hasattr(statement, 'args') else str(statement)
-        parts = self._split_command_line(command.strip())
-
-        if not parts:
-            return  # Nothing to execute
-
-        cmd, args = parts
+        kwargs: Dict[str, Any] = dict()
+        shell = os.environ.get("SHELL")
+        if shell:
+            kwargs['executable'] = shell
 
         try:
-            if cmd in {"htop", "top", "vim", "less", "nano", "vi", "clear"}:
+            if statement.command in {"htop", "top", "vim", "less", "nano", "vi", "clear"}:
                 # Full TTY handoff for interactive apps
-                full_command = cmd + ' ' + ' '.join(args)
+                full_command = statement.command_and_args
                 self._environment.execute_fullscreen_shell_command(full_command=full_command)
             else:
                 self._environment.execute_shell_command(
-                    command=cmd,
-                    arguments=args,
+                    command=statement.command,
+                    arguments=statement.args,
                     shell=True,
                     immediate_echo=True,
                     auto_expand=False,
                     expected_return_code=None,
                     use_pty=True,
+                    **kwargs,
                 )
         except KeyboardInterrupt:
             pass
 
         except Exception as execution_error:
-            print(f"{self._prompt_base}: {execution_error}")
+            print(f"{self.who_we_are()}: {format(execution_error)}")
 
     def sigint_handler(self, signum, frame):
         """

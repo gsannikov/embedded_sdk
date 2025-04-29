@@ -28,7 +28,7 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (TerminalAnsiGuru)
+from auto_forge import (TerminalAnsiGuru, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
@@ -120,12 +120,16 @@ class ProgressTracker:
         Returns:
             str: The formatted string ready for display.
         """
+
+        input_len = len(ToolBox.strip_ansi(text).strip())
+
         time_string = datetime.now().strftime("%H:%M:%S ") if self._add_time_prefix else ""
         title_usable_length = self._title_length - len(time_string)
-        if len(text) > title_usable_length:
+        if input_len > title_usable_length:
             text = text[-max(0, title_usable_length - 4):]  # Truncate from the left
+            input_len = len(ToolBox.strip_ansi(text).strip())
 
-        text_length = len(time_string) + len(text)
+        text_length = len(time_string) + input_len
         dots_count = self._title_length - text_length - 2
         dots = "." * max(0, dots_count)  # Ensure non-negative count of dots
 
@@ -143,7 +147,6 @@ class ProgressTracker:
     def set_pre(self, text: str, new_line: Optional[bool] = None) -> bool:
         """
         Sets the preliminary message, preparing the display format in the console.
-
         Args:
             text (str): The preliminary status message to display.
             new_line (Optional[bool]): Whether or star the message in a new line.
@@ -249,15 +252,22 @@ class ProgressTracker:
             result_text (str): Result message text.
             status_code (Optional[int]): Optional status code used to determine message color.
         """
-        if self.set_pre(text=pre_text, new_line=True):
-            return self.set_result(text=result_text, status_code=status_code)
+        ret_val = False
 
-        return False
+        if self.set_pre(text=pre_text, new_line=True):
+            ret_val = self.set_result(text=result_text, status_code=status_code)
+            if ret_val:
+                sys.stdout.write('\n')
+
+        return ret_val
 
     def __del__(self):
         """
         Class destructor.
         """
-        sys.stdout.write('\n')
+        sys.stdout.write('\r')
+        self._ansi_term.erase_line_to_end()
+        sys.stdout.write('\r')
+
         self._ansi_term.set_cursor_visibility(True)
         self._state = _TrackerState.UN_INITIALIZES

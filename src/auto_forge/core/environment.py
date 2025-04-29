@@ -579,7 +579,8 @@ class CoreEnvironment(CoreModuleInterface):
                               use_pty: bool = False,
                               expected_return_code: Optional[int] = 0,
                               cwd: Optional[str] = None,
-                              searched_token: Optional[str] = None) -> Optional[str]:
+                              searched_token: Optional[str] = None,
+                              **kwargs) -> Optional[str]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -636,12 +637,12 @@ class CoreEnvironment(CoreModuleInterface):
             self._logger.debug(f"Executing: {full_command} (PTY)")
             master_fd, slave_fd = pty.openpty()
             process = subprocess.Popen(full_command, stdin=slave_fd, stdout=slave_fd,
-                                       stderr=slave_fd, shell=shell, cwd=cwd, env=env, bufsize=0)
+                                       stderr=slave_fd, shell=shell, cwd=cwd, bufsize=0,**kwargs)
 
         else:  # Normal flow
             self._logger.debug(f"Executing: {full_command}")
             process = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, shell=shell, cwd=cwd, env=env, bufsize=0)
+                                       stderr=subprocess.STDOUT, shell=shell, cwd=cwd, bufsize=0,**kwargs)
         try:
 
             start_time = time.time()  # Initialize start_time here for timeout management

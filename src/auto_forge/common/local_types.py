@@ -135,6 +135,7 @@ class InputBoxLineType:
     text_type: InputBoxTextType = InputBoxTextType.INPUT_TEXT
     length: int = 0  # 0 = auto width
 
+
 class AddressInfoType(NamedTuple):
     """
     Defines a TCP endpoint consisting of:
@@ -145,7 +146,7 @@ class AddressInfoType(NamedTuple):
     """
     host: str
     port: int
-    endpoint:str
+    endpoint: str
     is_host_name: bool
 
 
@@ -232,7 +233,11 @@ class TerminalAnsiCodes:
     """
     Provides ANSI color codes.
     """
+    # Screen
+    CLS: str = "\033[H\033[2J"
+    CLS_SB: str = "\033[2J\033[3J\033[H"  # Including rollback buffer.
 
+    # Style
     RESET: str = "\033[0m"
     BOLD: str = "\033[1m"
     DIM: str = "\033[2m"

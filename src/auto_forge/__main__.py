@@ -12,6 +12,7 @@ import sys
 # Globally initialize colorama library
 from colorama import init
 
+# AutoForge imports
 from auto_forge import main
 
 if __name__ == "__main__":

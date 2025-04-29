@@ -23,7 +23,7 @@ from colorama import Fore, Style
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
                         CoreSolution, CoreEnvironment, CoreLoader, CorePrompt, Registry, AutoLogger,
-                        AddressInfoType, LogHandlersTypes, ProgressTracker,
+                        AddressInfoType, LogHandlersTypes, ProgressTracker, TerminalAnsiCodes,
                         ExceptionGuru, PROJECT_VERSION, PROJECT_NAME, PROJECT_COMMANDS_PATH)
 
 
@@ -43,7 +43,8 @@ class AutoForge(CoreModuleInterface):
         self._solution_name: Optional[str] = None
 
         # Create local progress traker for initialization activities we might have to do.
-        self._tracker = ProgressTracker(title_length=120, linger_interval_ms=500, default_new_line=False)
+        self._tracker = ProgressTracker(linger_interval_ms=500, default_new_line=False,
+                                        title_length=64, add_time_prefix=True)
 
         self._variables: Optional[CoreVariables] = None
         self._gui: Optional[CoreGUI] = None
@@ -73,8 +74,6 @@ class AutoForge(CoreModuleInterface):
         Args:
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
-
-        print(f"\n\nAutoForge v{PROJECT_VERSION} starting...\n")
 
         # Pass all received arguments down to _validate_arguments
         self._validate_arguments(*args, **kwargs)
@@ -226,7 +225,7 @@ class AutoForge(CoreModuleInterface):
                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)."
                 )
 
-        self._tracker.set_result(text="OK", status_code=0)
+        self._tracker.set_result(text="✔️")
 
     def _attach_debugger(self, host: str = '127.0.0.1', port: int = 5678, abort_execution: bool = False) -> None:
         """
@@ -244,16 +243,15 @@ class AutoForge(CoreModuleInterface):
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
                 pydevd_pycharm.settrace(host=host, port=port, stdoutToServer=False, stderrToServer=False, suspend=False)
-            self._tracker.set_result(text="OK", status_code=0)
+            self._tracker.set_result(text="✔️")
 
         except Exception as exception:
-            self._tracker.set_result(text="ERROR", status_code=1)
             if abort_execution:
                 raise exception
 
     def forge(self) -> Optional[int]:
         """
-        Run the AutoForge core system.
+        Load a solution and fire the AutoForge shell.
         """
         try:
 
@@ -261,18 +259,18 @@ class AutoForge(CoreModuleInterface):
             ToolBox.clear_residual_files()
 
             if self._solution_url:
-                self._tracker.set_pre(text=f"Getting '{self._solution_url}'")
+                self._tracker.set_pre(text=f"Downloading solution package")
                 # Download all files in a given remote git path to a local zip file
                 self._solution_package_file = (
                     self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exisit=True,
                                                             proxy=self._proxy_server.endpoint,
                                                             token=self._git_token))
-                self._tracker.set_result(text="OK", status_code=0)
+                self._tracker.set_result(text="✔️")
 
             if self._solution_package_file is not None and self._solution_package_path is None:
                 self._tracker.set_pre(text=f"Decompressing package: '{self._solution_package_file}'")
                 self._solution_package_path = ToolBox.unzip_file(self._solution_package_file)
-                self._tracker.set_result(text="OK", status_code=0)
+                self._tracker.set_result(text="✔️")
 
             self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
 
@@ -285,14 +283,14 @@ class AutoForge(CoreModuleInterface):
             if not os.path.isfile(solution_file):
                 raise RuntimeError(f"The main solution file '{solution_file}' was not found")
 
-            self._tracker.set_pre(text=f"Loading solution: '{solution_file}'")
+            self._tracker.set_pre(text=f"Loading solution from '{solution_file}'")
             self._solution = CoreSolution(solution_config_file_name=solution_file)
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
             self._solution_name = self._solution.get_primary_solution_name()
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
-            self._tracker.set_result(text="OK", status_code=0)
+            self._tracker.set_result(text="✔️")
             self._tracker = None
 
             # Greetings earthlings, we're here!
@@ -306,7 +304,7 @@ class AutoForge(CoreModuleInterface):
         # Propagate
         except Exception:
             if self._tracker is not None:
-                self._tracker.set_result(text="ERROR", status_code=1)
+                self._tracker.set_result(text="❌")
             raise
 
 
@@ -382,6 +380,9 @@ def auto_forge_main() -> Optional[int]:
         )
 
         args = parser.parse_args()
+
+        # Spread the news
+        print(f"{TerminalAnsiCodes.CLS_SB}{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Instantiate AutoForge, pass all argumnets
         auto_forge: AutoForge = AutoForge(**vars(args))

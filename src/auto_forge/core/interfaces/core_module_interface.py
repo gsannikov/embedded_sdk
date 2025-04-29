@@ -182,7 +182,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
     @staticmethod
     def who_we_are() -> str:
-        """
+        """`
         Returns the decorated AutoForge branding string.
         Includes colored segments and an emoji.
         """
