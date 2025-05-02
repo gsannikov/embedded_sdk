@@ -855,12 +855,12 @@ class ToolBox(CoreModuleInterface):
         """
         # Check for None or empty string after potential stripping
         if text is None or not isinstance(text, str):
-            raise ValueError("Input must be a non-empty string.")
+            raise ValueError("input must be a non-empty string.")
 
         # Strip whitespace
         normalized_string = text.strip()
         if not allow_empty and not normalized_string:
-            raise ValueError("Input string cannot be empty after stripping")
+            raise ValueError("input string cannot be empty after stripping")
 
         return normalized_string
 

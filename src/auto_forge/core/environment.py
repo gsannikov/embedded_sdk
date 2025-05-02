@@ -25,8 +25,9 @@ import threading
 import time
 import urllib.request
 import zipfile
+from collections import deque
 from contextlib import suppress
-from typing import Optional, Union, Any, List, Callable
+from typing import Optional, Union, Any, List, Callable, Dict, Mapping
 
 from colorama import Fore, Style
 
@@ -110,6 +111,16 @@ class CoreEnvironment(CoreModuleInterface):
         """
         if not self._automated_mode and isinstance(text, str):
             print(text)
+
+    @staticmethod
+    def _flatten_command(command: str, arguments: Optional[Union[str, List[Any]]] = None) -> str:
+        if arguments is None:
+            return command
+        if isinstance(arguments, str):
+            return f"{command} {arguments}"
+        if isinstance(arguments, list):
+            return " ".join([command] + [shlex.quote(str(arg)) for arg in arguments])
+        raise TypeError("arguments must be None, a string, or a list")
 
     @staticmethod
     def _get_linux_distro() -> Optional[tuple[str, str]]:
@@ -239,7 +250,7 @@ class CoreEnvironment(CoreModuleInterface):
                 command = f"dnf list --available {package_name}"
                 search_pattern = package_name
 
-            command_response = self.execute_shell_command(command=command)
+            command_response = self.execute_shell_command(command_and_args=command)
             if command_response is not None or search_pattern not in command_response:
                 raise EnvironmentError(f"system package '{package_name}' not validated using {self._package_manager}")
 
@@ -523,13 +534,11 @@ class CoreEnvironment(CoreModuleInterface):
             try:
                 if command_type == ExecutionModeType.SHELL:
                     self.execute_shell_command(
-                        command=command,
-                        arguments=arguments,
+                        command_and_args=self._flatten_command(command=command, arguments=arguments),
                         shell=True,
-                        immediate_echo=True,
-                        auto_expand=False,
-                        timeout=timeout,
-                        expected_return_code=None
+                        terminal_echo=True,
+                        expand_command=False,
+                        timeout=timeout
                     )
                     result_container['code'] = 0
 
@@ -570,90 +579,110 @@ class CoreEnvironment(CoreModuleInterface):
         print(Style.RESET_ALL, end='')  # Ensure styling is reset
         return result_container.get('code', 1)
 
-    def execute_shell_command(self, command: str, arguments: str = "",
+    def execute_shell_command(self, command_and_args: str,
                               timeout: Optional[float] = None,
-                              shell: bool = True,
-                              sudo: bool = False,
-                              immediate_echo: bool = False,
-                              auto_expand: bool = True,
-                              use_pty: bool = False,
-                              expected_return_code: Optional[int] = 0,
-                              cwd: Optional[str] = None,
+                              terminal_echo: bool = False,
+                              expand_command: bool = True,
+                              use_pty: bool = True,
                               searched_token: Optional[str] = None,
-                              **kwargs) -> Optional[str]:
+                              check: bool = True,
+                              shell: bool = True,
+                              cwd: Optional[str] = None,
+                              env: Optional[Mapping[str, str]] = None) -> Optional[str]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
-            command (str): The base command to execute (e.g., 'ls', 'ping').
-            arguments (str): Additional arguments to pass to the command.
+            command_and_args (str): a single string for the command along its arguments.
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
-            shell (bool): If True, the command will be executed in a shell environment.
-            sudo (bool): If True, the command will be executed with superuser privileges. Defaults to False.
-            immediate_echo (bool): If True, the command response will be immediately echoed to the terminal. Defaults to False.
-            auto_expand (bool): If True, the command will be expanded to resolve any input similar to '$EXAMPLE'.
+            terminal_echo (bool): If True, the command response will be immediately echoed to the terminal. Defaults to False.
+            expand_command (bool): If True, the command will be expanded to resolve any input similar to '$EXAMPLE'.
             use_pty (bool): If True, the command will be executed in a PTY environment. Defaults to False.
-            expected_return_code (int): The expected exit code of the command. A deviation from this
-                                        result will be considered an error.
-            cwd (Optional[str]): The directory from which the process should be executed.
             searched_token (Optional[str]): A token to search for in the command output.
+            check (bool): If True, the command will raise CalledProcessError if the return code is non-zero
+            shell (bool): If True, the command will be executed in a shell environment.
+            cwd (Optional[str]): The directory from which the process should be executed.
+            env (Optional[Mapping[str, str]]): Environment variables.
 
         Returns:
             str: The executed command output or None if exception is raised.
         """
-        full_command = f"{'sudo ' if sudo else ''}{command} {arguments}".strip()  # Create a single string
+
         polling_interval: float = 0.0001
-        # PTY master descriptor
-        master_fd: int = -1
+        kwargs: Optional[Dict[str, Any]] = None
+        line_buffer = bytearray()
+        lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
+        master_fd: Optional[int] = None  # PTY master descriptor
+        timeout = self._default_execution_time is timeout is None  # Set default timeout when not provided
+        env = os.environ if env is None else env
 
-        if auto_expand:
-            full_command = self.environment_variable_expand(text=full_command)  # Expand as needed
-        base_command = os.path.basename(command)
-        env = os.environ.copy()
+        # Parse to the input string to a list and get the base command
+        command_and_args = ToolBox.normalize_text(text=command_and_args)
 
-        # Set default timeout when not provided
-        if timeout is None:
-            timeout = self._default_execution_time
+        # Expand as needed
+        if expand_command:
+            command_and_args = self.environment_variable_expand(text=command_and_args)
 
-        args_list = shlex.split(full_command)
+        command_and_arguments_list = shlex.split(command_and_args)
+        full_command = command_and_arguments_list[0]  # The command
+        command = os.path.basename(full_command)
+
+        # When not using shell we have to use list for the arguments rather than string
         if not shell:
-            # When not using shell we have to use list for the arguments rather than string
-            full_command = args_list
+            _command = command_and_arguments_list
+        else:
+            _command = command_and_args
+            env_shell = os.environ.get("SHELL")
+            if env_shell:
+                kwargs = dict()
+                kwargs['executable'] = env_shell
 
-        if shutil.which(args_list[0]) is None:
-            raise RuntimeError(f"command not found: {args_list[0]}")
+        if shutil.which(command) is None:
+            raise RuntimeError(f"command not found: {command}")
 
-        # Expand and validate working path if specified
-        if cwd is not None:
-            if auto_expand:
-                cwd = self.environment_variable_expand(text=cwd, to_absolute_path=True)
-            if not os.path.exists(cwd):
-                raise RuntimeError(f"specified work path '{cwd}' does not exist")
-            else:
-                self.environment_append_to_path(path=cwd)
-                env = os.environ.copy()
+        def _bytes_to_message_queue(input_buffer: bytearray, message_queue: deque) -> str:
+            """
+            Decode a UTF-8 byte buffer, remove ANSI escape codes, and append the result
+            to a message queue. Clears the input buffer after processing.
+            Args:
+                input_buffer (bytearray): Incoming buffer of raw bytes.
+                message_queue (deque): Target queue to store cleaned lines.
+            Returns:
+                str: The cleaned string (or empty string if nothing was added).
+            """
+            try:
+                text = input_buffer.decode('utf-8', errors='replace')
+            except Exception as decode_error:
+                raise RuntimeError(f"Decode error: {decode_error}")
+
+            clear_text = self._toolbox.strip_ansi(text).strip()
+            if clear_text:
+                message_queue.append(clear_text)
+                self._logger.debug(f"> {clear_text}")
+
+            input_buffer.clear()
+            return clear_text
 
         # Execute the external command
         if use_pty:
-            self._logger.debug(f"Executing: {full_command} (PTY)")
+            self._logger.debug(f"Executing: {command_and_args} (PTY)")
             master_fd, slave_fd = pty.openpty()
-            process = subprocess.Popen(full_command, stdin=slave_fd, stdout=slave_fd,
-                                       stderr=slave_fd, shell=shell, cwd=cwd, bufsize=0,**kwargs)
+            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+                                       bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
 
         else:  # Normal flow
-            self._logger.debug(f"Executing: {full_command}")
-            process = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, shell=shell, cwd=cwd, bufsize=0,**kwargs)
-        try:
+            self._logger.debug(f"Executing: {command_and_args}")
+            process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
 
+        # Loop and read the spawned process output upto timeout or normal termination
+        try:
             start_time = time.time()  # Initialize start_time here for timeout management
             while process.poll() is not None:
                 time.sleep(polling_interval)
                 if timeout > 0 and (time.time() - start_time > timeout):
                     process.kill()
                     raise TimeoutError(f"'{command}' process didn't start after {timeout} seconds")
-
-            output_line = bytearray()
-            command_response = ""
 
             start_time = time.time()  # Initialize start_time here for timeout management
             while True:
@@ -674,29 +703,21 @@ class CoreEnvironment(CoreModuleInterface):
                     if received_byte == b'':
                         break
                     else:
+                        # Immediately echo to the byte to the terminal if set
+                        if terminal_echo:
+                            sys.stdout.write(received_byte.decode('utf-8'))
+                            sys.stdout.flush()
 
                         # Aggregate bytes into complete single lines for logging
-                        output_line.append(received_byte[0])
+                        line_buffer.append(received_byte[0])
 
                         if received_byte in (b'\n', b'\r'):
-                            # Immediately echo to the terminal if set
-                            if immediate_echo:
-                                sys.stdout.write(output_line.decode('utf-8'))
-                                sys.stdout.flush()
+                            # Clear the line and aggravate into a queue
+                            text_line = _bytes_to_message_queue(line_buffer, lines_queue)
 
-                            complete_line = output_line.decode('utf-8').strip()
-                            complete_line = self._toolbox.strip_ansi(complete_line).strip()
-                            output_line.clear()
-
-                            if complete_line:
-                                # Aggregate all lines into a complete command response string
-                                command_response += complete_line + '\n'
-                                # Log it when debug is enabled
-                                self._logger.debug(f"> {complete_line}")
-
-                                # Log the command output
-                                if self._tracker is not None:
-                                    self._tracker.set_body_in_place(text=complete_line)
+                            # Track it if we have a tracker instate
+                            if text_line and self._tracker is not None:
+                                self._tracker.set_body_in_place(text=text_line)
                 else:
                     # No data ready to read — check if process exited
                     if process.poll() is not None:
@@ -709,43 +730,43 @@ class CoreEnvironment(CoreModuleInterface):
 
             process.wait()
 
+            # Add any remaining bytes
+            if line_buffer:
+                _bytes_to_message_queue(line_buffer, lines_queue)
+
             # Done executing
-            command_response = self._toolbox.normalize_text(text=command_response, allow_empty=True)
             return_code = process.returncode
 
+            # Optionally raise exception non-zero return code
+            if check and return_code != 0:
+                raise subprocess.CalledProcessError(
+                    returncode=process.returncode,
+                    cmd=command, output=process.stdout, stderr=process.stderr)
+
+            command_response: str = "\n".join(lines_queue)  # Convert to a full string with newlines
             if searched_token and command_response and searched_token not in command_response:
                 raise ValueError(f"token '{searched_token}' not found in response")
-
-            if expected_return_code is not None and return_code != expected_return_code:
-                raise RuntimeError(
-                    f"'{base_command}' failed with return code {return_code}: {command_response}")
 
             return command_response
 
         except subprocess.TimeoutExpired:
             process.kill()
             raise
-        except Exception as execution_error:
-            raise execution_error
+        except Exception:
+            raise
         finally:
-            # Close PTY descriptor
-            if master_fd != -1:
+            if master_fd is not None:  # Close PTY descriptor
                 os.close(master_fd)
 
     @staticmethod
-    def execute_fullscreen_shell_command(full_command: str) -> None:
+    def execute_fullscreen_shell_command(command_and_args: str) -> None:
         """
         Runs a full-screen TUI command like 'htop' or 'vim' by fully attaching to the terminal.
         """
         try:
             subprocess.run(
-                full_command,
-                shell=True,
-                check=False,
-                stdin=sys.stdin,
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                env=os.environ,
+                command_and_args,
+                shell=True, check=False, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr, env=os.environ,
             )
         except KeyboardInterrupt:
             pass  # Allow Ctrl+C to cleanly return
@@ -755,7 +776,6 @@ class CoreEnvironment(CoreModuleInterface):
                               arguments: Optional[str] = None,
                               cwd: Optional[str] = None,
                               validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
-                              expected_return_code: int = 0,
                               expected_response: Optional[str] = None,
                               allow_greater_decimal: bool = False) -> Optional[Any]:
         """
@@ -767,7 +787,6 @@ class CoreEnvironment(CoreModuleInterface):
             arguments (Optional[str]): Arguments to pass to the command (EXECUTE_PROCESS only).
             cwd (Optional[str]): The directory from which the process should be executed.
             validation_method (ValidationMethodType): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
-            expected_return_code (int): The expected exit code from the command.
             expected_response (Optional[str]): Expected content in output (for EXECUTE_PROCESS)
                 or file content (for READ_FILE).
             allow_greater_decimal (bool): If True, allows the decimal response to be greater than expected repose (as decimal).
@@ -782,9 +801,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Execute a process and check its response
             if validation_method == ValidationMethodType.EXECUTE_PROCESS:
                 command_response = self.execute_shell_command(
-                    command=command,
-                    arguments=arguments,
-                    expected_return_code=expected_return_code,
+                    command_and_args=self._flatten_command(command=command, arguments=arguments),
                     cwd=cwd
                 )
 
@@ -960,10 +977,11 @@ class CoreEnvironment(CoreModuleInterface):
 
             full_py_venv_path = self.path_create(expanded_path, erase_if_exist=True, project_path=True)
 
-            python_command = python_binary
-            command_arguments = f"-m venv {full_py_venv_path}"
-            self.execute_shell_command(command=python_command, arguments=command_arguments,
-                                       cwd=expanded_python_binary_path)
+            command = python_binary
+            arguments = f"-m venv {full_py_venv_path}"
+            self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=arguments),
+                cwd=expanded_python_binary_path)
 
         except Exception as py_venv_error:
             raise Exception(f"could not create virtual environment in '{venv_path}' {str(py_venv_error)}")
@@ -979,11 +997,12 @@ class CoreEnvironment(CoreModuleInterface):
         """
         try:
             # Determines the path to the Python executable.
-            python_executable = self._get_python_binary_path(venv_path=venv_path)
+            command = self._get_python_binary_path(venv_path=venv_path)
 
             # Construct the command to update pip
-            command_arguments = "-m pip install --upgrade pip"
-            self.execute_shell_command(command=python_executable, arguments=command_arguments)
+            arguments = "-m pip install --upgrade pip"
+            self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=arguments))
 
         except Exception as py_env_error:
             raise Exception(f"could not update pip {py_env_error}")
@@ -1000,7 +1019,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         try:
             # Determines the path to the Python executable.
-            python_executable = self._get_python_binary_path(venv_path=venv_path)
+            command = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
             package_or_requirements = self._toolbox.normalize_text(package_or_requirements)
@@ -1009,12 +1028,13 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Determine if the input is a package name or a path to a requirements file
             if package_or_requirements.endswith('.txt'):
-                command_arguments = f"-m pip install -r {package_or_requirements}"
+                arguments = f"-m pip install -r {package_or_requirements}"
             else:
-                command_arguments = f"-m pip install {package_or_requirements}"
+                arguments = f"-m pip install {package_or_requirements}"
 
             # Execute the command
-            self.execute_shell_command(command=python_executable, arguments=command_arguments, shell=False)
+            self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments)
+                                       , shell=False)
 
         except Exception as python_pip_error:
             raise Exception(f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}")
@@ -1030,17 +1050,19 @@ class CoreEnvironment(CoreModuleInterface):
         """
         try:
             # Determines the path to the Python executable.
-            python_executable = self._get_python_binary_path(venv_path=venv_path)
+            command = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
             package = self._toolbox.normalize_text(package)
             if not package:
                 raise RuntimeError(f"no package specified for pip")
 
-            command_arguments = f"-m pip uninstall -y {package}"
+            arguments = f"-m pip uninstall -y {package}"
 
             # Execute the command
-            self.execute_shell_command(command=python_executable, arguments=command_arguments, shell=False)
+            self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=arguments),
+                shell=False)
 
         except Exception as python_pip_error:
             raise Exception(f"could not uninstall pip package(s) '{package}' {python_pip_error}")
@@ -1059,7 +1081,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         try:
             # Determines the path to the Python executable.
-            python_executable = self._get_python_binary_path(venv_path=venv_path)
+            command = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
             package = self._toolbox.normalize_text(package)
@@ -1067,8 +1089,9 @@ class CoreEnvironment(CoreModuleInterface):
                 raise RuntimeError(f"no package specified for pip")
 
             # Construct and execute the command
-            command_arguments = f"-m pip show {package}"
-            command_response = self.execute_shell_command(command=python_executable, arguments=command_arguments)
+            arguments = f"-m pip show {package}"
+            command_response = self.execute_shell_command(command_and_args=
+                                                          self._flatten_command(command=command, arguments=arguments))
 
             if command_response is not None:
                 # Attempt to extract the version out of the text
@@ -1109,8 +1132,10 @@ class CoreEnvironment(CoreModuleInterface):
             self.path_erase(path=dest_repo_path, allow_non_empty=clear_destination_path)
 
             # Construct and execute the git clone command
-            command_arguments = f"clone --progress {repo_url} {dest_repo_path}"
-            self.execute_shell_command(command="git", arguments=command_arguments,
+            command = "git"
+            arguments = f"clone --progress {repo_url} {dest_repo_path}"
+            self.execute_shell_command(command_and_args=
+                                       self._flatten_command(command=command, arguments=arguments),
                                        timeout=timeout)
 
         except Exception as py_git_error:
@@ -1136,19 +1161,22 @@ class CoreEnvironment(CoreModuleInterface):
             # Validate and prepare the repository path
             normalized_repo_path = self._toolbox.normalize_text(dest_repo_path)
             dest_repo_path = self.environment_variable_expand(text=normalized_repo_path, to_absolute_path=True)
+            command = "git"
 
             if not os.path.exists(dest_repo_path):
                 raise FileNotFoundError(f"repo path '{dest_repo_path}' does not exist")
 
             if pull_latest:
                 # Perform a git pull to update the repository
-                pull_command = "pull"
-                self.execute_shell_command(command="git", arguments=pull_command,
+                arguments = "pull"
+                self.execute_shell_command(command_and_args=
+                                           self._flatten_command(command=command, arguments=arguments),
                                            cwd=dest_repo_path, timeout=timeout)
 
             # Construct and execute the git checkout command
-            command_arguments = f"checkout {revision}"
-            self.execute_shell_command(command="git", arguments=command_arguments,
+            arguments = f"checkout {revision}"
+            self.execute_shell_command(command_and_args=
+                                       self._flatten_command(command=command, arguments=arguments),
                                        cwd=dest_repo_path, timeout=timeout)
 
         except Exception as py_git_error:

@@ -10,6 +10,7 @@ Description:
 """
 
 import argparse
+import builtins
 import contextlib
 import io
 import logging
@@ -23,7 +24,7 @@ from colorama import Fore, Style
 # Internal AutoForge imports
 from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
                         CoreSolution, CoreEnvironment, CoreLoader, CorePrompt, Registry, AutoLogger,
-                        AddressInfoType, LogHandlersTypes, ProgressTracker, TerminalAnsiCodes,
+                        AddressInfoType, LogHandlersTypes, TerminalAnsiCodes,
                         ExceptionGuru, PROJECT_VERSION, PROJECT_NAME, PROJECT_COMMANDS_PATH)
 
 
@@ -41,11 +42,6 @@ class AutoForge(CoreModuleInterface):
         self._solution: Optional[CoreSolution] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
-
-        # Create local progress traker for initialization activities we might have to do.
-        self._tracker = ProgressTracker(linger_interval_ms=500, default_new_line=False,
-                                        title_length=64, add_time_prefix=True)
-
         self._variables: Optional[CoreVariables] = None
         self._gui: Optional[CoreGUI] = None
         self._prompt: Optional[CorePrompt] = None
@@ -61,6 +57,10 @@ class AutoForge(CoreModuleInterface):
         self._remote_debugging: Optional[AddressInfoType] = None
         self._proxy_server: Optional[AddressInfoType] = None
         self._create_workspace: bool = False
+
+        # Save the original print
+        self._original_print = builtins.print
+        self._original_write = sys.stdout.write
 
         super().__init__(*args, **kwargs)
 
@@ -124,8 +124,6 @@ class AutoForge(CoreModuleInterface):
         solution_package = kwargs.get("solution_package")
         remote_debugging: Optional[str] = kwargs.get("remote_debugging")
         proxy_server: Optional[str] = kwargs.get("proxy_server")
-
-        self._tracker.set_pre(text=f"Validating argumnets")
 
         # Defensive check: workspace_path should always be set since it is marked as 'required' in argparse.
         # This condition should never occur under normal usage.
@@ -225,9 +223,8 @@ class AutoForge(CoreModuleInterface):
                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)."
                 )
 
-        self._tracker.set_result(text="✔️")
-
-    def _attach_debugger(self, host: str = '127.0.0.1', port: int = 5678, abort_execution: bool = False) -> None:
+    @staticmethod
+    def _attach_debugger(host: str = '127.0.0.1', port: int = 5678, abort_execution: bool = False) -> None:
         """
         Attempt to attach to a remote PyCharm debugger.
         Args:
@@ -237,13 +234,10 @@ class AutoForge(CoreModuleInterface):
         """
         try:
 
-            self._tracker.set_pre(text="Attach to remote PyCharm debugger")
-
             import pydevd_pycharm
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
                 pydevd_pycharm.settrace(host=host, port=port, stdoutToServer=False, stderrToServer=False, suspend=False)
-            self._tracker.set_result(text="✔️")
 
         except Exception as exception:
             if abort_execution:
@@ -254,23 +248,18 @@ class AutoForge(CoreModuleInterface):
         Load a solution and fire the AutoForge shell.
         """
         try:
-
             # Remove anny previously generated autoforge temporary files.
             ToolBox.clear_residual_files()
 
             if self._solution_url:
-                self._tracker.set_pre(text=f"Downloading solution package")
                 # Download all files in a given remote git path to a local zip file
                 self._solution_package_file = (
                     self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exisit=True,
                                                             proxy=self._proxy_server.endpoint,
                                                             token=self._git_token))
-                self._tracker.set_result(text="✔️")
 
             if self._solution_package_file is not None and self._solution_package_path is None:
-                self._tracker.set_pre(text=f"Decompressing package: '{self._solution_package_file}'")
                 self._solution_package_path = ToolBox.unzip_file(self._solution_package_file)
-                self._tracker.set_result(text="✔️")
 
             self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
 
@@ -283,15 +272,12 @@ class AutoForge(CoreModuleInterface):
             if not os.path.isfile(solution_file):
                 raise RuntimeError(f"The main solution file '{solution_file}' was not found")
 
-            self._tracker.set_pre(text=f"Loading solution from '{solution_file}'")
             self._solution = CoreSolution(solution_config_file_name=solution_file)
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
             self._solution_name = self._solution.get_primary_solution_name()
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
-            self._tracker.set_result(text="✔️")
-            self._tracker = None
 
             # Greetings earthlings, we're here!
             self._toolbox.print_logo(clear_screen=True)
@@ -301,10 +287,7 @@ class AutoForge(CoreModuleInterface):
             self._prompt = CorePrompt(history_file="~/.auto_forge_history")
             return self._prompt.cmdloop()
 
-        # Propagate
-        except Exception:
-            if self._tracker is not None:
-                self._tracker.set_result(text="❌")
+        except Exception:  # Propagate
             raise
 
 

@@ -9,12 +9,11 @@ Description:
 
 import os
 import readline
-import shlex
 import subprocess
 import sys
 from contextlib import suppress
 from types import MethodType
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 
 import cmd2
 from cmd2 import ansi, CustomCompletionSettings, Statement
@@ -231,28 +230,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                             self._executable_db[entry.name] = entry.path
             except OSError:
                 continue  # skip unreadable dirs
-
-    def _split_command_line(self, line: str) -> Optional[tuple[str, str]]:
-        """
-        Safely splits a shell-style command line into command and arguments.
-        Args:
-            line (str): The raw input command line.
-        Returns:
-            Optional[tuple[str, str]]: A tuple (command, args) if valid, otherwise None.
-        """
-        try:
-            parts = shlex.split(line)
-
-            if not parts:
-                return None
-
-            command = parts[0]
-            args = ' '.join(parts[1:]) if len(parts) > 1 else ''
-            return command, args
-
-        except ValueError as value_error:
-            self._logger.warning(f"Error while parsing command line arguments {value_error}")
-            return None
 
     def _update_prompt(self, board_name: Optional[str] = None):
         """
@@ -576,12 +553,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         try:
             self._environment.execute_shell_command(
-                command=f"ls {args} --color=auto -F",
+                command_and_args=f"ls {args} --color=auto -F",
                 shell=True,
-                immediate_echo=True,
-                auto_expand=False,
-                use_pty=True,
-                expected_return_code=None
+                terminal_echo=True,
+                expand_command=True,
+                check=False,
+                use_pty=True
             )
         except Exception as exception:
             self.perror(f"ls: {exception}")
@@ -658,32 +635,25 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
 
-        kwargs: Dict[str, Any] = dict()
-        shell = os.environ.get("SHELL")
-        if shell:
-            kwargs['executable'] = shell
-
         try:
-            if statement.command in {"htop", "top", "vim", "less", "nano", "vi", "clear"}:
+            if statement.command in {"htop", "top", "btop", "vim", "less", "nano", "vi", "clear"}:
                 # Full TTY handoff for interactive apps
                 full_command = statement.command_and_args
-                self._environment.execute_fullscreen_shell_command(full_command=full_command)
+                self._environment.execute_fullscreen_shell_command(command_and_args=full_command)
             else:
                 self._environment.execute_shell_command(
-                    command=statement.command,
-                    arguments=statement.args,
-                    shell=True,
-                    immediate_echo=True,
-                    auto_expand=False,
-                    expected_return_code=None,
-                    use_pty=True,
-                    **kwargs,
-                )
+                    command_and_args=statement.command_and_args,
+                    terminal_echo=True,
+                    expand_command=True)
         except KeyboardInterrupt:
             pass
 
-        except Exception as execution_error:
-            print(f"{self.who_we_are()}: {format(execution_error)}")
+        except subprocess.CalledProcessError as exception:
+            self._logger.warning(f"Command '{exception.cmd}' failed with {exception.returncode}")
+            pass
+
+        except Exception as exception:
+            print(f"[{self.who_we_are()}]: {format(exception)}")
 
     def sigint_handler(self, signum, frame):
         """
@@ -705,6 +675,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             sys.stderr.write('\n')
             self._print_prompt()
             pass
+
         # Propagate all others
         except Exception:
             raise
