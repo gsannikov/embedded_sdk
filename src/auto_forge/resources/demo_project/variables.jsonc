@@ -16,33 +16,16 @@
 	},
 	"variables": [
 		{
-			"name": "PROJECT_NAME",
-			"value": "userspace",
-			"description": "Project name"
-		},
-		{
 			"name": "HOME_BASE",
-			"value": "$HOME/.auto_forge/<$ref_PROJECT_NAME>",
+			"value": "$PROJECT_WORKSPACE/$SOLUTION_NAME",
 			"description": "Locally stored project user preferences",
 			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
-			"name": "BUILD_MAX_CORES",
-			"value": 30,
-			"description": "Max cores allowed for Ninja"
-		},
-		{
 			"name": "BUILD_BASE",
 			"value": "<$ref_PROJECT_WORKSPACE>/build",
 			"description": "Base path for compilers outputs",
-			"path_must_exist": true,
-			"create_path_if_not_exist": true
-		},
-		{
-			"name": "VSCODE_PROJECT",
-			"value": "<$ref_PROJECT_WORKSPACE>/.vscode",
-			"description": "VSCode related files",
 			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
@@ -56,7 +39,7 @@
 		{
 			"name": "BUILD_IMAGES",
 			"value": "<$ref_BUILD_BASE>/images",
-			"description": "Compiled images",
+			"description": "Compiled binaries",
 			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
@@ -75,7 +58,7 @@
 		},
 		{
 			"name": "PROJ_BASE",
-			"value": "<$ref_PROJECT_WORKSPACE>/<$ref_PROJECT_NAME>",
+			"value": "<$ref_PROJECT_WORKSPACE>/<$ref_SOLUTION_NAME>",
 			"description": "Project base path",
 			"path_must_exist": true
 		},
@@ -90,27 +73,15 @@
 			"name": "PROJ_SCRIPTS",
 			"value": "<$ref_PROJ_BASE>/scripts",
 			"description": "Project scripts",
-			"path_must_exist": true
-		},
-		{
-			"name": "PROJ_JSONS",
-			"value": "<$ref_PROJ_SCRIPTS>/jsons",
-			"description": "Configuration JSON files",
 			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
-			"name": "PROJ_TEMPLATES",
-			"value": "<$ref_PROJ_SCRIPTS>/templates",
-			"description": "Miscalculates templates",
-			"path_must_exist": true,
-			"create_path_if_not_exist": true
-		},
-		{
-			"name": "PROJ_FW_BASE",
+			"name": "PROJ_SOURCES_BASE",
 			"value": "<$ref_PROJ_BASE>/fw",
 			"description": "Firmware sources base path",
-			"path_must_exist": true
+			"path_must_exist": true,
+			"create_path_if_not_exist": true
 		}
 	]
 }

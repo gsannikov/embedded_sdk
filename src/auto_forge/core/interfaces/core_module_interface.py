@@ -34,6 +34,7 @@ Developer Guidelines:
                 self._solution = load_solution(config_path)
 
 """
+import inspect
 import threading
 import time
 from abc import ABCMeta
@@ -158,8 +159,14 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
                 if _CORE_AUTO_FORGE_ROOT is None:
                     raise RuntimeError("AutoForge must be instantiated before any core module.")
 
+            # Properties extracted from the module code
+            caller_frame = inspect.stack()[1].frame
+            caller_globals = caller_frame.f_globals
+            self.module_config_file_name = caller_globals.get("AUTO_FORGE_MODULE_CONFIG_FILE", None)
+
             # Preform core specific initialization
             self._initialize(*args, **kwargs)
+
             self.mark_ready()
             self._is_initialized = True
 
@@ -179,6 +186,13 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         Override this method in subclasses to perform custom init using arguments passed on first instantiation.
         """
         pass
+
+    @staticmethod
+    def config_file_base_name() -> Optional[str]:
+        """
+        Gets the base configuration file name expected by the module if any.
+        """
+        return None
 
     @staticmethod
     def who_we_are() -> str:

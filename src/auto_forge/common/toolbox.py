@@ -12,6 +12,7 @@ import base64
 import importlib.metadata
 import importlib.util
 import inspect
+import json
 import os
 import re
 import shutil
@@ -22,12 +23,14 @@ import zipfile
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Tuple, Type, Union, SupportsInt
+from typing import Any, Dict, Tuple, Type, Union, SupportsInt, List
 from typing import Optional
 from urllib.parse import urlparse, unquote, ParseResult
 
 import psutil
 from colorama import Fore
+from rich.console import Console
+from rich.text import Text
 
 # Retrieve our package base path from settings
 from auto_forge import (CoreModuleInterface,
@@ -108,29 +111,33 @@ class ToolBox(CoreModuleInterface):
     @staticmethod
     def looks_like_unix_path(might_be_path: str) -> bool:
         """
-        Determines if a given string looks like a Unix-style filesystem path.
-        A string is considered a path if:
-        - It includes one or more directory separators ("/"),
-        - It does not obviously end with a file name (e.g., has a known file extension).
+        Determines if a string looks like a valid Unix-style filesystem path.
         Args:
             might_be_path (str): The string to check.
         Returns:
-            bool: True if the string looks like a Unix path (directory), False otherwise.
+            bool: True if the string looks like a Unix directory path, False otherwise.
         """
-        if not might_be_path:
+        if not might_be_path or not isinstance(might_be_path, str):
             return False
 
-        # Exclude common HTML tags
-        if re.search(r"<\s*[a-zA-Z]+.*?>", might_be_path):
+        # Reject strings with obvious syntax errors (e.g., unmatched or unexpected characters)
+        if '<' in might_be_path or '>' in might_be_path:
+            return False
+
+        if re.search(r'[<>:"|?*]', might_be_path):  # extra caution — reserved or risky characters
             return False
 
         path = Path(might_be_path)
 
-        # If the path has a suffix (.txt, .jsonc, .zip, etc.), likely a file, not a directory
+        # Reject if it's clearly a file (based on extension)
         if path.suffix:
             return False
 
-        # Must contain at least one slash to be considered Unix-like
+        # Require at least one slash and non-empty parts
+        parts = might_be_path.strip('/').split('/')
+        if len(parts) < 1 or any(not part for part in parts):
+            return False
+
         return '/' in might_be_path
 
     def store_value(self, key: Any, value: Any) -> bool:
@@ -1203,3 +1210,116 @@ class ToolBox(CoreModuleInterface):
             flattened_text += '.'
 
         return flattened_text
+
+
+    @staticmethod
+    def json_pretty_print(
+            obj: Any,
+            indent: int = 0,
+            console: Optional[Console] = None,
+            line_number: Optional[List[int]] = None,
+            numbering_width: int = 4,
+            highlight_keys: Optional[List[str]] = None
+    ) -> None:
+        """
+        Recursively pretty-prints a JSON-compatible object to the terminal using Rich.
+
+        Features:
+        - Line numbers with configurable width
+        - JSON syntax coloring similar to Rich's 'default' theme
+        - Optional highlighting of specific key names using distinct colors
+
+        Args:
+            obj: The JSON-compatible object (dict/list) to print.
+            indent: Current indentation level (used internally during recursion).
+            console: Optional Rich Console object to direct output. If None, a default Console is created.
+            line_number: Internal counter used for line numbering; should be left as None when called externally.
+            numbering_width: Number of characters to reserve for line numbers (e.g., 4 allows up to 9999 lines).
+            highlight_keys: List of key names to color with distinctive styles for better visibility.
+
+        """
+        if console is None:
+            console = Console(force_terminal=True, color_system="truecolor")
+        if line_number is None:
+            line_number = [1]
+        if highlight_keys is None:
+            highlight_keys = []
+
+        if not isinstance(highlight_keys, list) or not all(isinstance(k, str) for k in highlight_keys):
+            raise ValueError("highlight_keys must be a list of strings")
+        if not isinstance(numbering_width, int) or numbering_width < 1:
+            raise ValueError("numbering_width must be a positive integer")
+
+        # Rich "default" color mimicry + overrides for specific keys
+        color_pool = [
+            "bold red", "bold blue", "bold magenta", "bold green",
+            "bright_blue", "bright_cyan", "bright_magenta", "bright_green",
+            "bright_white", "bold cyan", "bold white", "bright_black",
+        ]
+
+        color_map = {k: color_pool[i % len(color_pool)] for i, k in enumerate(highlight_keys)}
+        indent_str = "    " * indent
+
+        def _print_line(text_obj: Text) -> None:
+            num = str(line_number[0]).rjust(numbering_width)
+            line_number[0] += 1
+            numbered_line = Text(num + " │ ", style="dim") + text_obj
+            console.print(numbered_line)
+
+        def _get_value_style(v: Any) -> str:
+            if isinstance(v, str):
+                return "green"
+            elif isinstance(v, bool):
+                return "magenta"
+            elif v is None:
+                return "dim"
+            elif isinstance(v, (int, float)):
+                return "cyan"
+            else:
+                return "white"
+
+        if isinstance(obj, dict):
+            _print_line(Text(indent_str + "{"))
+            items = list(obj.items())
+            for i, (key, value) in enumerate(items):
+                is_last = (i == len(items) - 1)
+                key_style = color_map.get(key, "bold yellow")
+                key_text = Text(f'"{key}"', style=key_style)
+
+                line = Text(indent_str + "    ")
+                line.append(key_text)
+                line.append(": ")
+
+                if isinstance(value, (dict, list)):
+                    _print_line(line)
+                    ToolBox.json_pretty_print(value, indent + 1, console, line_number, numbering_width, highlight_keys)
+                else:
+                    val_str = json.dumps(value)
+                    style = _get_value_style(value)
+                    line.append(Text(val_str, style=style))
+                    if not is_last:
+                        line.append(",")
+                    _print_line(line)
+
+            _print_line(Text(indent_str + "}"))
+
+        elif isinstance(obj, list):
+            _print_line(Text(indent_str + "["))
+            for i, item in enumerate(obj):
+                is_last = (i == len(obj) - 1)
+                if isinstance(item, (dict, list)):
+                    ToolBox.json_pretty_print(item, indent + 1, console, line_number, numbering_width, highlight_keys)
+                else:
+                    val_str = json.dumps(item)
+                    style = _get_value_style(item)
+                    line = Text(indent_str + "    ")
+                    line.append(Text(val_str, style=style))
+                    if not is_last:
+                        line.append(",")
+                    _print_line(line)
+            _print_line(Text(indent_str + "]"))
+
+        else:
+            val_str = json.dumps(obj)
+            style = _get_value_style(obj)
+            _print_line(Text(indent_str + val_str, style=style))

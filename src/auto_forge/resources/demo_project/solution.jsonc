@@ -74,116 +74,60 @@
 {
 	// Required configuration files for other core modules
 	"includes": {
-		// Workspace initialization
+		// Solution variables
+		"variables": "variables.jsonc",
+		// Workspace creation steps
 		"setup": "setup.jsonc",
-		// Projects environment variables
-		"environment": "environment.jsonc",
 		// Supported toolchains
 		"toolchains": "toolchains.jsonc",
 		// Defines schema version be used
 		"schema": "1.0"
 	},
 
-	// Define a list with supported boards
-	"boards": [
-		"imc_simics",
-		"cinic"
-	],
-
 	// Solutions list
 	"solutions": [
 		{
-			"name": "userspace",
-			"description": "Integrated Management Complex v2",
-			"build_path": "$BUILD_BASE/test",
-			"workspace": "/home/workspace",
+			"name": "sample",
+			"description": "Sample solution",
+			"build_path": "$BUILD_OUT",
+			"workspace": "$PROJECT_WORKSPACE",
 			"projects": [
 				{
-					"name": "zephyr",
-					"description": "Zephyr RTOS",
+					"name": "hello_world",
+					"description": "Hellow world C project",
 					"tool_chain": {
-						"name": "Zephyr",
-						"id": "SDK_0.16.8"
+						"name": "x86_64 Linux GCC",
+						"compiler": "gcc",
+						"compiler_version": ">=9.0",
+						"platform": "linux",
+						"architecture": "x86_64",
+						"build_system": "make",
+						"make_version": ">=4.0",
+						"required_tools": ["gcc", "make"]
 					},
 					"configurations": [
 						{
 							"name": "debug",
-							"test_var": "<$ref_solutions[userspace].projects[app].configurations[release].test_var>",
-							"board": "imc_simics",
-							"menu_system_alias": "bd",
-							"cmake_top_level_path": "/home/dummy/<$ref_board>",
-							"build_path": "<$ref_solutions[userspace].build_path>/<$ref_projects[].name>/<$ref_board>/<$ref_name>",
-							"compiler_command": "west",
-							"execute_from": "<$ref_solutions[].workspace>",
+							"command_name": "bd",
+							"build_path": "<$ref_solutions[sample].build_path>/<$ref_projects[].name>/<$ref_name>",
+							"compiler_command": "make",
+							"execute_from": "$PROJ_SOURCES_BASE/hellow_world",
 							"expected_result": 0,
 							"compiler_options": [
-								"build",
-								"-b <$ref_board>",
-								"<$ref_cmake_top_level_path>",
-								"-o=-j 20",
-								"-p auto",
-								"--build-dir <$ref_build_path>",
-								"--",
-								"-DCONFIG_DEBUG=y",
-								"-DCONFIG_NO_OPTIMIZATIONS=y",
-								"-DCONFIG_DEBUG_INFO=y"
+								"BUILD_DIR= <$ref_build_path>"
 							],
 							"artifacts": [
-								"<$ref_build_path>/zephyr/zephyr.bin",
-								"<$ref_build_path>/zephyr/zephyr.elf"
+								"<$ref_build_path>/hello"
 							]
 						},
 						{
 							"name": "release",
-							"board": "cinic",
-							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[debug]>",
+							"data": "<$derived_from_solutions[sample].projects[hello_world].configurations[debug]>",
+							"command_name": "br",
 							"compiler_options": [
-								"build",
-								"-b <$ref_board>",
-								"<$ref_cmake_top_level_path>",
-								"-o=-j $BUILD_MAX_CORES",
-								"-p auto",
-								"--build-dir <$ref_build_path>",
-								"--",
-								"-DCONFIG_DEBUG=:n",
-								"-DCONFIG_NO_OPTIMIZATIONS=:n",
-								"-DCONFIG_DEBUG_INFO=:n",
-								"-DCONFIG_SPEED_OPTIMIZATIONS=:y"
+								"release",
+								"BUILD_DIR= <$ref_build_path>"
 							]
-						},
-						{
-							"name": "release_tag",
-							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[release]>"
-						}
-					]
-				},
-				{
-					"name": "app",
-					"description": "Application",
-					"tool_chain": {
-						"name": "GCC",
-						"id": "1.0"
-					},
-					"configurations": [
-						{
-							"name": "release",
-							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[release]>",
-							"test_var": "<$ref_solutions[userspace].projects[bootloader].configurations[production].test_var>"
-						}
-					]
-				},
-				{
-					"name": "bootloader",
-					"description": "ARM Boot Loader",
-					"tool_chain": {
-						"name": "GCC",
-						"id": "1.0"
-					},
-					"configurations": [
-						{
-							"name": "production",
-							"data": "<$derived_from_solutions[userspace].projects[zephyr].configurations[release]>",
-							"test_var": "<$ref_solutions[userspace].projects[zephyr].configurations[debug].name>"
 						}
 					]
 				}

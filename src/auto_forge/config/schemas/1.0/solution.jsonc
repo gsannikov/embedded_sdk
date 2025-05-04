@@ -66,14 +66,10 @@
 									"properties": {
 										"name": {
 											"type": "string"
-										},
-										"id": {
-											"type": "string"
 										}
 									},
 									"required": [
-										"name",
-										"id"
+										"name"
 									]
 								},
 								"configurations": {
@@ -83,9 +79,6 @@
 										"type": "object",
 										"properties": {
 											"name": {
-												"type": "string"
-											},
-											"board": {
 												"type": "string"
 											},
 											"cmake_top_level_path": {
@@ -118,7 +111,6 @@
 										},
 										"required": [
 											"name",
-											"board",
 											"build_path",
 											"compiler_command",
 											"execute_from",

@@ -22,7 +22,7 @@ from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
-
+AUTO_FORGE_MODULE_CONFIG_FILE = "variables.jsonc"
 
 class CoreVariables(CoreModuleInterface):
     """
@@ -41,11 +41,12 @@ class CoreVariables(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, variables_config_file_name) -> None:
+    def _initialize(self, variables_config_file_name:str, solution_name:str) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
             variables_config_file_name (str): Configuration JSON file name.
+            solution_name (str): Solution name.
         """
 
         # Get a logger instance
@@ -70,7 +71,7 @@ class CoreVariables(CoreModuleInterface):
 
         # Build variables list
         if self._config_file_name is not None:
-            self._load_from_file(config_file_name=variables_config_file_name, rebuild=True)
+            self._load_from_file(config_file_name=variables_config_file_name, solution_name=solution_name,rebuild=True)
         else:
             raise RuntimeError("variables configuration file not specified")
 
@@ -189,9 +190,9 @@ class CoreVariables(CoreModuleInterface):
             self._variables_defaults = None
             self._search_keys = None
 
-    def _load_from_file(self, config_file_name: str, rebuild: bool = False) -> Optional[int]:
+    def _load_from_file(self, config_file_name: str, solution_name:str, rebuild: bool = False) -> Optional[int]:
         """
-        Constructs or rebuilds the configuration data based on an environment JSONc file.
+        Constructs or rebuilds the configuration data based on an variables JSONc file.
 
         If `rebuild` is True, any existing configuration is discarded before rebuilding,
         ensuring that the list is refreshed entirely from the raw data. If `rebuild` is False
@@ -199,6 +200,7 @@ class CoreVariables(CoreModuleInterface):
 
         Args:
             config_file_name(str): JSON file containing variables to load
+            solution_name (str): The name of the solution name
             rebuild (bool): Specifies whether to forcibly rebuild the variable list even if it
                             already exists. Defaults to False.
 
@@ -214,24 +216,20 @@ class CoreVariables(CoreModuleInterface):
                 # Preprocess
                 raw_data: Optional[Dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
                 if raw_data is None:
-                    raise RuntimeError(f"unable to load environment file: {config_file_name}")
+                    raise RuntimeError(f"unable to load variables file: {config_file_name}")
 
                 # Extract variables, defaults and other options
                 raw_variables = raw_data.get('variables', {})
                 if raw_variables is None or len(raw_variables) == 0:
-                    raise RuntimeError(f"environment file: '{config_file_name}' contain no variables")
+                    raise RuntimeError(f"variables file: '{config_file_name}' contain no variables")
 
                 self._base_file_name = os.path.basename(config_file_name)
                 self._variables_defaults = raw_data.get('defaults', {})
 
-                #  If auto prefix is enabled, use the project name (upper cased) as prefix
+                #  If auto prefix is enabled, use the solution name (upper cased) as prefix
                 self._variable_auto_prefix = raw_data.get('auto_prefix', self._variable_auto_prefix)
-                # Try to locate an element whose  'name' is "PROJECT_NAME"
-                target_dict = next((item for item in raw_variables if item['name'] == 'PROJECT_NAME'), None)
-                if target_dict:
-                    project_name = target_dict.get('value', None)
-                if self._variable_auto_prefix and isinstance(project_name, str):
-                    self._variable_prefix: Optional[str] = f"{project_name.upper()}_"
+                if self._variable_auto_prefix:
+                    self._variable_prefix: Optional[str] = f"{solution_name.upper()}_"
 
                 self._variable_force_upper_case_names = raw_data.get('force_upper_case_names', False)
                 self._base_config_file_name = os.path.basename(config_file_name)
@@ -240,7 +238,9 @@ class CoreVariables(CoreModuleInterface):
                 if rebuild is True:
                     self._variables = None
 
-                # Statically add workspace path
+                # Statically add the solution name and the workspace path
+                self.add(variable_name="SOLUTION_NAME", value=solution_name,
+                         description="Solution name")
                 self.add(variable_name="PROJECT_WORKSPACE", value=self._workspace_path,
                          description="Workspace path", path_must_exist=True, create_path_if_not_exist=False)
 
@@ -258,12 +258,12 @@ class CoreVariables(CoreModuleInterface):
 
             except Exception as exception:
                 self._variables = None
-                raise RuntimeError(f"environment file '{self._base_file_name}' error {exception}")
+                raise RuntimeError(f"variables file '{self._base_file_name}' error {exception}")
 
     def _expand_variable_value(self, value: Any) -> Any:
         """
         Expands a given value by replacing placeholders with actual values from a dictionary
-        and by expanding environment variables and user home directories.
+        and by expanding variables variables and user home directories.
         Args:
             value (Any): The input value which may contain placeholders. If `value` is not a string, it is
                          returned as-is without modification.
@@ -272,7 +272,7 @@ class CoreVariables(CoreModuleInterface):
 
         Notes:
             The function uses regular expressions to identify and replace placeholders and relies on
-            `os.path.expandvars` and `os.path.expanduser` for environment variable and user directory expansion.
+            `os.path.expandvars` and `os.path.expanduser` for variable and user directory expansion.
             It iteratively replaces all placeholders until no more substitutions can be made, ensuring that
             nested placeholders are fully expanded.
         """
@@ -298,18 +298,25 @@ class CoreVariables(CoreModuleInterface):
             old_value = value
             value = re.sub(pattern, replace_var, value)
 
-        # Now handle the environment variable expansions
-        expanded = os.path.expanduser(os.path.expandvars(value))
+        # Now handle the variable expansions
+        expanded = self.expand(value)
         if '$' in expanded and any(char.isalpha() for char in
-                                   expanded.split('$')[1]):  # Check for unresolved environment variables
+                                   expanded.split('$')[1]):  # Check for unresolved variables
             first_unresolved = expanded.split('$')[1].split('/')[0].split('\\')[0]
-            raise ValueError(f"environment variable ${first_unresolved} could not be expanded.")
+            raise ValueError(f"variable ${first_unresolved} could not be expanded.")
 
         return expanded
 
+    @staticmethod
+    def config_file_base_name() -> Optional[str]:
+        """
+        Gets the base configuration file name expected by the module if any.
+        """
+        return AUTO_FORGE_MODULE_CONFIG_FILE
+
     def get(self, variable_name: str, flexible: bool = False, quiet: bool = False) -> Optional[str]:
         """
-        Gets a Variable value by its name. If not found, attempts to expand as an environment variable.
+        Gets a Variable value by its name. If not found, attempts to expand as an variable.
         Args:
             variable_name (str): The name of the Variable to find.
             flexible (bool): If True, allows partial matching of a variable prefix.
@@ -326,7 +333,7 @@ class CoreVariables(CoreModuleInterface):
                     variable_name = variable_name[1:]
                     index = self._get_index(variable_name=variable_name, flexible=flexible)
                     if index == -1:
-                        # Expand environment variables and user home directory notations
+                        # Expand variables and user home directory notations
                         expanded = os.path.expanduser(os.path.expandvars(variable_name))
                         if expanded == variable_name:  # No expansion occurred
                             if not quiet:
@@ -398,6 +405,12 @@ class CoreVariables(CoreModuleInterface):
             new_var.description = new_var.description.capitalize()
 
         new_var.value = self._expand_variable_value(value)
+
+        # When it's path
+        if path_must_exist or create_path_if_not_exist:
+            if not self._toolbox.looks_like_unix_path(new_var.value):
+                raise RuntimeError(f"value '{new_var.value}' set by '{new_var.name}' does not look like a unix path")
+
         new_var.path_must_exist = path_must_exist
         new_var.create_path_if_not_exist = create_path_if_not_exist
 
@@ -416,7 +429,7 @@ class CoreVariables(CoreModuleInterface):
             if not path_exist:
                 if not new_var.create_path_if_not_exist:
                     raise RuntimeError(
-                        f"path '{new_var.value}' does not exist and marked as must exist")
+                        f"path '{new_var.value}' reqwired by '{variable_name}' does not exist and marked as must exist")
                 else:
                     self._logger.warning(f"Specified path: '{new_var.value}' does not exist and needs be created ")
 
@@ -494,5 +507,4 @@ class CoreVariables(CoreModuleInterface):
 
         # Now expand ~ and make absolute
         final_path = self._toolbox.get_expanded_path(path=expanded_text, to_absolute=True)
-
         return final_path

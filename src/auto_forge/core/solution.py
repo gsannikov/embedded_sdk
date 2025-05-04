@@ -41,7 +41,7 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables, CoreSignatures,
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables, CoreSignatures, ToolBox,
                         Registry, AutoForgeModuleType, PROJECT_SCHEMAS_PATH, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
@@ -77,11 +77,13 @@ class CoreSolution(CoreModuleInterface):
         self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
         self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
+        self._root_solution_name:Optional[str] = None # The name if the first solution which must exisit
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
         self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
+        self._toolbox = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
 
         # Load the solution
         self._preprocess(solution_config_file_name)
@@ -175,12 +177,20 @@ class CoreSolution(CoreModuleInterface):
         else:
             raise Exception("no solutions found")
 
-    def show(self):
-        """Prints the loaded solution as a formated JSON string"""
+    def show(self, pretty: bool = False):
+        """
+        Prints the loaded solution as a formated JSON string
+        Args:
+            pretty (bool): If True, prints pretty formatted JSON string with colors.
+        """
         if not self._solution_loaded:
             raise RuntimeError(
                 "no solution is currently loaded")
-        print(json.dumps(self._solution_data, sort_keys=True, indent=4))
+        if not pretty:
+            print(json.dumps(self._solution_data, sort_keys=True, indent=4))
+        else:
+            self._toolbox.json_pretty_print(self._solution_data,
+                                            highlight_keys=["name", "build_path"])
 
     def get_root(self) -> Optional[Dict[str, Any]]:
         """
@@ -212,14 +222,21 @@ class CoreSolution(CoreModuleInterface):
         # Store the solution's path since we may have to load other files from that path
         self._config_file_path = os.path.dirname(self._config_file_name)
 
+        solutions = self._root_context.get("solutions", [])
+        if isinstance(solutions, list) and solutions:
+            self._root_solution_name = solutions[0].get("name")
+
+        if not isinstance(self._root_solution_name, str):
+            raise Exception(f"missing or invalid 'name' in the first solution entry of '{self._config_file_path}'")
+
         # Get a reference to the include JSON list, we will use them to jump start other core modules
         self._includes = self._root_context.get("includes", {})
         if self._includes is None or len(self._includes) == 0:
             raise RuntimeError(f"no includes defined in '{os.path.basename(self._config_file_name)}'")
 
         # Initialize the variables core module based on the configuration file we got
-        config_file = f"{self._config_file_path}/{self._includes.get('environment')}"
-        self._variables = CoreVariables(variables_config_file_name=config_file)
+        config_file = f"{self._config_file_path}/{self._includes.get('variables')}"
+        self._variables = CoreVariables(variables_config_file_name=config_file,solution_name=self._root_solution_name)
 
         schema_version = self._includes.get("schema")
         if schema_version is not None:
@@ -638,7 +655,7 @@ class CoreSolution(CoreModuleInterface):
                         for config in configurations:
                             if config.get("name") == config_name:
                                 return config
-        raise ValueError(f"configuration {config_name} not found in {project_name} of {solution_name}.")
+        raise ValueError(f"configuration {config_name} not found in project '{project_name}' of solution '{solution_name}'")
 
     @staticmethod
     def _find_references(root: Union[dict, list]) -> bool:

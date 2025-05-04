@@ -153,6 +153,7 @@ class CLICommandInterface(ABC):
         self._raise_exceptions = raise_exceptions
         self._command_name: str = command_name
 
+
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
 

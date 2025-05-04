@@ -22,11 +22,10 @@
 */
 
 {
-	"project_name": "demo",
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
-	"status_pre_message": "\nHello, welcome to the demo project setup..",
+	"status_pre_message": "\nHello, welcome to the $SOLUTION_NAME setup..",
 	"status_post_message": "\n\nSetup is completed.\n",
 	// Steps:
 	"steps": [
@@ -75,26 +74,18 @@
 			}
 		},
 		{
-			"description": "Looking for 'ninja'",
+			"description": "Looking for 'make'",
 			"method": "validate_prerequisite",
 			"arguments": {
-				"command": "ninja",
+				"command": "make",
 				"arguments": "--version"
 			}
 		},
 		{
-			"description": "Looking for 'cmake'",
+			"description": "Looking for 'gcc'",
 			"method": "validate_prerequisite",
 			"arguments": {
-				"command": "cmake",
-				"arguments": "--version"
-			}
-		},
-		{
-			"description": "Looking for 'dtc'",
-			"method": "validate_prerequisite",
-			"arguments": {
-				"command": "dtc",
+				"command": "gcc",
 				"arguments": "--version"
 			}
 		},
@@ -125,10 +116,9 @@
 			"arguments": {
 				"paths": [
 					"build",
-					"externs",
 					"build/logs",
-					"userspace/fw",
-					"userspace/scripts"
+					"$SOLUTION_NAME/fw",
+					"$SOLUTION_NAME/scripts"
 				]
 			}
 		},
@@ -172,43 +162,12 @@
 			}
 		},
 		{
-			"description": "Cloning 'userspace'",
+			"description": "Cloning 'hello_world'",
 			"method": "git_clone_repo",
 			"arguments": {
-				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
+				"repo_url": "https://github.com/emichael72/hello_world.git",
 				"dest_repo_path": "userspace/fw",
 				"timeout": 360
-			}
-		},
-		{
-			"description": "Locating Zephyr SDK Path",
-			"method": "execute_cli_command",
-			"arguments": {
-				"command": "zephyr_sdk",
-				"arguments": "--get_zephyr_path",
-				"suppress_output": true
-			},
-			"response_store_key": "zephyr_sdk_path"
-		},
-		{
-			"description": "Locating Zephyr SDK Version",
-			"method": "execute_cli_command",
-			"arguments": {
-				"command": "zephyr_sdk",
-				"arguments": "--get_zephyr_version",
-				"suppress_output": true
-			},
-			"response_store_key": "zephyr_sdk_version"
-		},
-		{
-			"description": "Downloading the Zephyr SDK",
-			"method": "download_file",
-			"step_disabled": true,
-			"arguments": {
-				"url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.8/zephyr-sdk-0.16.8_linux-x86_64.tar.xz",
-				"proxy": "http://proxy-dmz.intel.com:911",
-				"local_path": "externs",
-				"delete_local": true
 			}
 		}
 	]

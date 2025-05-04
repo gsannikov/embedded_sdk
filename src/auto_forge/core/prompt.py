@@ -169,7 +169,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 # noinspection PyShadowingNames
                 def dynamic_cmd(self, arg):
                     try:
-                        result = self._loader.execute(name, arg)
+                        if isinstance(arg,Statement):
+                            args = arg.args
+                        elif isinstance(arg,str):
+                            args = arg.strip()
+                        else:
+                            raise RuntimeError(f"command {cmd_name} has an unsupported argumnets type")
+
+                        result = self._loader.execute(name, args)
                         self._last_execution_return_code = result
                         return 0
                     except Exception as e:
