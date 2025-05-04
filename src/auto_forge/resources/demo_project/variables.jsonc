@@ -11,76 +11,67 @@
 	"auto_prefix": false,
 	"defaults": {
 		"description": "Description not specified",
-		"path_must_exist": false,
+		"is_path": true,
 		"create_path_if_not_exist": false
 	},
 	"variables": [
 		{
 			"name": "HOME_BASE",
-			"value": "$PROJECT_WORKSPACE/$SOLUTION_NAME",
+			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
 			"description": "Locally stored project user preferences",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "BUILD_BASE",
-			"value": "<$ref_PROJECT_WORKSPACE>/build",
+			"value": "<$ref_PROJ_WORKSPACE>/build",
 			"description": "Base path for compilers outputs",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "BUILD_OUT",
 			"value": "<$ref_BUILD_BASE>/out",
 			"description": "Compilation outputs and temporary files",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "BUILD_IMAGES",
 			"value": "<$ref_BUILD_BASE>/images",
 			"description": "Compiled binaries",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "BUILD_LOGS",
 			"value": "<$ref_BUILD_BASE>/logs",
 			"description": "Runtime build logs",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "PYTHON_VENV",
-			"value": "<$ref_PROJECT_WORKSPACE>/.venv",
+			"value": "<$ref_PROJ_WORKSPACE>/.venv",
 			"description": "Python virtual environment",
-			"path_must_exist": true
+			"path_must_exist": false
 		},
 		{
 			"name": "PROJ_BASE",
-			"value": "<$ref_PROJECT_WORKSPACE>/<$ref_SOLUTION_NAME>",
-			"description": "Project base path",
-			"path_must_exist": true
+			"value": "<$ref_PROJ_WORKSPACE>/<$ref_SOLUTION_NAME>",
+			"description": "Project base path"
 		},
 		{
 			"name": "DOCS_BASE",
 			"value": "<$ref_PROJ_BASE>/docs",
 			"description": "Project Documents",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "PROJ_SCRIPTS",
 			"value": "<$ref_PROJ_BASE>/scripts",
 			"description": "Project scripts",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		},
 		{
 			"name": "PROJ_SOURCES_BASE",
 			"value": "<$ref_PROJ_BASE>/fw",
 			"description": "Firmware sources base path",
-			"path_must_exist": true,
 			"create_path_if_not_exist": true
 		}
 	]

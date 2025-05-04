@@ -151,6 +151,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
         # Register AutoForge root once during its own construction
         core_module_name: str = type(self).__name__
+        self._is_initialized = False
 
         try:
             if core_module_name == "AutoForge":
@@ -186,13 +187,6 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         Override this method in subclasses to perform custom init using arguments passed on first instantiation.
         """
         pass
-
-    @staticmethod
-    def config_file_base_name() -> Optional[str]:
-        """
-        Gets the base configuration file name expected by the module if any.
-        """
-        return None
 
     @staticmethod
     def who_we_are() -> str:

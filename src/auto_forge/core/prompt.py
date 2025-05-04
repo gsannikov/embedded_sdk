@@ -24,7 +24,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment, CoreVariables,
+from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment, CoreVariables, CoreSolution,
                         AutoForgeModuleType, ExecutionModeType,
                         Registry, AutoLogger, ToolBox,
                         PROJECT_NAME)
@@ -56,6 +56,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._toolbox = ToolBox.get_instance()
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
+        self._solution:CoreSolution = CoreSolution.get_instance()
         self._prompt_base: Optional[str] = None
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
@@ -120,6 +121,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.set_alias('exit', 'quit')
         self.set_alias('x', 'quit')
         self.set_alias('q', 'quit')
+        self.set_alias('cln', 'clear')
         self.set_alias('gs', 'git status')
         self.set_alias('ga', 'git add .')
         self.set_alias('gc', 'git commit -m')
@@ -238,21 +240,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             except OSError:
                 continue  # skip unreadable dirs
 
-    def _update_prompt(self, board_name: Optional[str] = None):
+    def _update_prompt(self, active_name: Optional[str] = None):
         """
         Dynamically update the cmd2 prompt to mimic a modern Zsh-style shell prompt.
         The prompt includes:
-            - The active virtual environment or board name (if provided).
+            - The active virtual environment if provided.
             - The current working directory, using `~` when within the home folder.
             - Git branch name (if in a Git repo).
             - A rightward Unicode arrow symbol as a prompt indicator.
         Args:
-            board_name (Optional[str]): A board name to display in the prompt. If not provided,
+            active_name (Optional[str]): A board name to display in the prompt. If not provided,
                                         falls back to the VIRTUAL_ENV or '(unknown)'.
         """
         # Virtual environment / board name section
+        solution_name = self._solution.get_primary_solution_name()
+
         venv = os.environ.get("VIRTUAL_ENV")
-        venv_prompt = f"({board_name})" if board_name else ("(unknown)" if venv else "")
+        venv_prompt = f"[{active_name}]" if active_name else (f"[{solution_name}]" if solution_name else f"[{venv}]")
 
         # Current working directory, abbreviated with ~ if under home
         cwd = os.getcwd()

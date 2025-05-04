@@ -13,6 +13,7 @@ import os
 import re
 import threading
 from bisect import bisect_left
+from dataclasses import asdict
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
@@ -23,6 +24,7 @@ from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
 AUTO_FORGE_MODULE_CONFIG_FILE = "variables.jsonc"
+
 
 class CoreVariables(CoreModuleInterface):
     """
@@ -41,7 +43,7 @@ class CoreVariables(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, variables_config_file_name:str, solution_name:str) -> None:
+    def _initialize(self, variables_config_file_name: str, solution_name: str) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
@@ -71,7 +73,7 @@ class CoreVariables(CoreModuleInterface):
 
         # Build variables list
         if self._config_file_name is not None:
-            self._load_from_file(config_file_name=variables_config_file_name, solution_name=solution_name,rebuild=True)
+            self._load_from_file(config_file_name=variables_config_file_name, solution_name=solution_name, rebuild=True)
         else:
             raise RuntimeError("variables configuration file not specified")
 
@@ -190,7 +192,7 @@ class CoreVariables(CoreModuleInterface):
             self._variables_defaults = None
             self._search_keys = None
 
-    def _load_from_file(self, config_file_name: str, solution_name:str, rebuild: bool = False) -> Optional[int]:
+    def _load_from_file(self, config_file_name: str, solution_name: str, rebuild: bool = False) -> Optional[int]:
         """
         Constructs or rebuilds the configuration data based on an variables JSONc file.
 
@@ -239,10 +241,8 @@ class CoreVariables(CoreModuleInterface):
                     self._variables = None
 
                 # Statically add the solution name and the workspace path
-                self.add(variable_name="SOLUTION_NAME", value=solution_name,
-                         description="Solution name")
-                self.add(variable_name="PROJECT_WORKSPACE", value=self._workspace_path,
-                         description="Workspace path", path_must_exist=True, create_path_if_not_exist=False)
+                self.add(variable_name="SOLUTION_NAME", value=solution_name, description="Solution name", is_path=False)
+                self.add(variable_name="PROJ_WORKSPACE", value=self._workspace_path, description="Workspace path")
 
                 # Process each variable from the dictionary
                 for var in raw_variables:
@@ -251,10 +251,18 @@ class CoreVariables(CoreModuleInterface):
                                   'name', 'value', 'description', 'path_must_exist',
                                   'create_path_if_not_exist')}
 
-                    self.add(variable_name=var.get('name', None), value=var.get('value', None),
-                             description=var.get('description', None),
+                    variable_name = var.get('name', None)
+                    variable_value = var.get('value', None)
+                    if variable_name is None or variable_value is None:
+                        raise RuntimeError(
+                            f"invalid variable without 'name' or 'value' or both in '{config_file_name}'")
+
+                    self.add(variable_name=variable_name, value=variable_value,
+                             description=var.get('description', "Description not provided"),
+                             is_path=var.get('is_path', True),
                              path_must_exist=var.get('path_must_exist', None),
-                             create_path_if_not_exist=var.get('create_path_if_not_exist', None), **kwargs)
+                             create_path_if_not_exist=var.get('create_path_if_not_exist', None),
+                             **kwargs)
 
             except Exception as exception:
                 self._variables = None
@@ -306,13 +314,6 @@ class CoreVariables(CoreModuleInterface):
             raise ValueError(f"variable ${first_unresolved} could not be expanded.")
 
         return expanded
-
-    @staticmethod
-    def config_file_base_name() -> Optional[str]:
-        """
-        Gets the base configuration file name expected by the module if any.
-        """
-        return AUTO_FORGE_MODULE_CONFIG_FILE
 
     def get(self, variable_name: str, flexible: bool = False, quiet: bool = False) -> Optional[str]:
         """
@@ -367,8 +368,10 @@ class CoreVariables(CoreModuleInterface):
             self._variables[index].value = value
             return True
 
-    def add(self, variable_name: str, value: Any, description: Optional[str] = None,
-            path_must_exist: Optional[bool] = None,
+    def add(self, variable_name: str, value: Any,
+            description: str,
+            is_path: bool = True,
+            path_must_exist: bool = True,
             create_path_if_not_exist: Optional[bool] = None,
             **_kwargs) -> Optional[bool]:
         """
@@ -376,8 +379,9 @@ class CoreVariables(CoreModuleInterface):
         Args:
             variable_name (str): The name of the variable to update.
             value (Any): The new value to assign to the variable.
-            description (Optional[str], optional): Description of the variable.
-            path_must_exist (Optional[bool]): If True, the path will be validated.
+            description (str): Description of the variable.
+            is_path (Optional[bool]): Whether the variable is a path or not.
+            path_must_exist (bool): If True, the path will be validated.
             create_path_if_not_exist (Optional[bool]): If True, the path will be created.
             _kwargs(optional): Additional keyword arguments to pass to the variable.
 
@@ -385,16 +389,13 @@ class CoreVariables(CoreModuleInterface):
             Optional[bool]: Returns True if the variable was successfully added. Returns
                             None if a variable with the same name already exists.
         """
-        # Basic sanity
-        if variable_name is None or value is None:
-            raise RuntimeError(f"bad variable name or value")
 
         new_var = VariableFieldType()
 
         # Construct name
         new_var.base_name = (variable_name.upper() if self._variable_force_upper_case_names else variable_name).strip()
         new_var.name = self._construct_name(variable_name)
-        new_var.description = description if description is not None else "Description not provided"
+        new_var.description = description
 
         index = self._get_index(new_var.name)
         if index != -1:
@@ -404,34 +405,41 @@ class CoreVariables(CoreModuleInterface):
         if self._variable_capitalize_description:
             new_var.description = new_var.description.capitalize()
 
-        new_var.value = self._expand_variable_value(value)
+        # When it's not a path
+        if not is_path:
+            new_var.is_path = False
+            new_var.path_must_exist = False
+            new_var.create_path_if_not_exist = False
+            new_var.value = value
+        else:
+            new_var.is_path = True
+            new_var.value = self._expand_variable_value(value)
 
-        # When it's path
-        if path_must_exist or create_path_if_not_exist:
+            # The variable should be treated as a path
             if not self._toolbox.looks_like_unix_path(new_var.value):
                 raise RuntimeError(f"value '{new_var.value}' set by '{new_var.name}' does not look like a unix path")
 
-        new_var.path_must_exist = path_must_exist
-        new_var.create_path_if_not_exist = create_path_if_not_exist
+            new_var.path_must_exist = path_must_exist
+            new_var.create_path_if_not_exist = create_path_if_not_exist
 
-        # Use defaults if None was specified
-        if new_var.create_path_if_not_exist is None:
-            new_var.create_path_if_not_exist = self._variables_defaults.get('create_path_if_not_exist', False)
+            # Use defaults if None was specified
+            if new_var.create_path_if_not_exist is None:
+                new_var.create_path_if_not_exist = self._variables_defaults.get('create_path_if_not_exist', False)
 
-        if new_var.create_path_if_not_exist:
-            os.makedirs(new_var.value, exist_ok=True)
+            if new_var.create_path_if_not_exist:
+                os.makedirs(new_var.value, exist_ok=True)
 
-        if new_var.path_must_exist is None:
-            new_var.path_must_exist = self._variables_defaults.get('path_must_exist', False)
+            if new_var.path_must_exist is None:
+                new_var.path_must_exist = self._variables_defaults.get('path_must_exist', True)
 
-        if new_var.path_must_exist:
-            path_exist = os.path.exists(new_var.value)
-            if not path_exist:
-                if not new_var.create_path_if_not_exist:
-                    raise RuntimeError(
-                        f"path '{new_var.value}' reqwired by '{variable_name}' does not exist and marked as must exist")
-                else:
-                    self._logger.warning(f"Specified path: '{new_var.value}' does not exist and needs be created ")
+            if new_var.path_must_exist:
+                path_exist = os.path.exists(new_var.value)
+                if not path_exist:
+                    if not new_var.create_path_if_not_exist:
+                        raise RuntimeError(
+                            f"path '{new_var.value}' reqwired by '{variable_name}' does not exist and marked as must exist")
+                    else:
+                        self._logger.warning(f"Specified path: '{new_var.value}' does not exist and needs be created ")
 
         new_var.kwargs = _kwargs
 
@@ -453,6 +461,10 @@ class CoreVariables(CoreModuleInterface):
             Optional[bool]: Returns True if the variable was successfully removed.
                             Raises RuntimeError for any issues encountered.
         """
+
+        if not self._is_initialized:
+            raise RuntimeError(f"variables not initialized")
+
         with self._lock:
             index = self._get_index(variable_name)
             if index == -1:
@@ -466,6 +478,7 @@ class CoreVariables(CoreModuleInterface):
         Expands variables embedded within the input text and resolves the path.
         Supports both $VAR and ${VAR} syntax, correctly handling adjacent expansions.
         """
+
         if text:
             text = text.strip()
 
@@ -508,3 +521,18 @@ class CoreVariables(CoreModuleInterface):
         # Now expand ~ and make absolute
         final_path = self._toolbox.get_expanded_path(path=expanded_text, to_absolute=True)
         return final_path
+
+    def export(self) -> list[dict]:
+        """
+        Exports the internal list of VariableFieldType instances into
+        a list of dictionaries.
+
+        Returns:
+            list[dict]: A list of dictionaries representing the variables.
+
+        """
+
+        if not isinstance(self._variables, list):
+            raise ValueError("storage empty, no variables to export")
+
+        return [asdict(var) for var in self._variables if isinstance(var, VariableFieldType)]

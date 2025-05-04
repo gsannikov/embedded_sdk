@@ -189,6 +189,7 @@ class VariableFieldType:
     base_name: Optional[Any] = None
     description: Optional[str] = None
     value: Optional[Any] = None
+    is_path: Optional[bool] = None
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None
     kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)

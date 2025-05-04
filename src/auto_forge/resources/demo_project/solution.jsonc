@@ -90,7 +90,7 @@
 			"name": "sample",
 			"description": "Sample solution",
 			"build_path": "$BUILD_OUT",
-			"workspace": "$PROJECT_WORKSPACE",
+			"workspace": "$PROJ_WORKSPACE",
 			"projects": [
 				{
 					"name": "hello_world",
