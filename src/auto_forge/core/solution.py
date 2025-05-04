@@ -55,11 +55,15 @@ class CoreSolution(CoreModuleInterface):
     predefined schemas, and expanding variables to their actual values.
     """
 
-    def _initialize(self, solution_config_file_name) -> None:
+    def _initialize(self, solution_config_file_name: str,
+                    workspace_path: str,
+                    workspace_creation_mode: bool = False) -> None:
         """
         Initializes the 'Solution' class using a configuration JSON file.
         Args:
             solution_config_file_name (str): The path to the JSON configuration file.
+            workspace_path (str): The workspace path.
+            workspace_creation_mode (bool): Specify if the solution is loaded in a workspace initialization mode.
         """
 
         if not solution_config_file_name:
@@ -77,13 +81,15 @@ class CoreSolution(CoreModuleInterface):
         self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
         self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
-        self._root_solution_name:Optional[str] = None # The name if the first solution which must exisit
+        self._root_solution_name: Optional[str] = None  # The name if the first solution which must exisit
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
         self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
         self._toolbox = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
+        self._workspace_creation_mode: bool = workspace_creation_mode  # Creation argumnets
+        self._workspace_path: str = workspace_path  # Creation argumnets
 
         # Load the solution
         self._preprocess(solution_config_file_name)
@@ -104,6 +110,15 @@ class CoreSolution(CoreModuleInterface):
         """
         path = f"$.solutions[?(@.name=='{solution_name}')]" if solution_name else "$.solutions[*]"
         return self._query_json_path(path)
+
+    def get_included_file(self, include_name: str) -> Optional[str]:
+        """ Return an included file name based on its key within the 'includes' cluster"""
+
+        include_file = self._includes.get(include_name)
+        if include_file and self._config_file_path:
+            include_file_path: str = os.path.join(str(self._config_file_path), str(include_file))
+            return include_file_path
+        return None
 
     def get_solutions_list(self) -> Optional[Union[List, Dict]]:
         """
@@ -236,7 +251,9 @@ class CoreSolution(CoreModuleInterface):
 
         # Initialize the variables core module based on the configuration file we got
         config_file = f"{self._config_file_path}/{self._includes.get('variables')}"
-        self._variables = CoreVariables(variables_config_file_name=config_file,solution_name=self._root_solution_name)
+        self._variables = CoreVariables(variables_config_file_name=config_file, solution_name=self._root_solution_name,
+                                        workspace_path=self._workspace_path,
+                                        workspace_creation_mode=self._workspace_creation_mode)
 
         schema_version = self._includes.get("schema")
         if schema_version is not None:
@@ -655,7 +672,8 @@ class CoreSolution(CoreModuleInterface):
                         for config in configurations:
                             if config.get("name") == config_name:
                                 return config
-        raise ValueError(f"configuration {config_name} not found in project '{project_name}' of solution '{solution_name}'")
+        raise ValueError(
+            f"configuration {config_name} not found in project '{project_name}' of solution '{solution_name}'")
 
     @staticmethod
     def _find_references(root: Union[dict, list]) -> bool:

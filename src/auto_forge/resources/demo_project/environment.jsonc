@@ -93,8 +93,7 @@
 			"description": "Getting git access token using 'dt'",
 			"method": "execute_shell_command",
 			"arguments": {
-				"command": "dt",
-				"arguments": "github print-token",
+				"command_and_args": "dt github print-token",
 				"cwd": "$HOME/bin"
 			},
 			// Store the executed command response in key name 'dt_token'
@@ -166,7 +165,7 @@
 			"method": "git_clone_repo",
 			"arguments": {
 				"repo_url": "https://github.com/emichael72/hello_world.git",
-				"dest_repo_path": "userspace/fw",
+				"dest_repo_path": "$PROJ_SOURCES_BASE/hello_world",
 				"timeout": 360
 			}
 		}

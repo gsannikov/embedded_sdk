@@ -148,7 +148,9 @@ class AutoForge(CoreModuleInterface):
             raise RuntimeError(f"Workspace path '{self._workspace_path}' does not exist and creation is disabled.")
 
         # If we ware requested to create a workspace, the destination path must be empty
-        if self._create_workspace and not ToolBox.is_directory_empty(self._workspace_path):
+        if (self._create_workspace
+                and os.path.exists(self._workspace_path)
+                and not ToolBox.is_directory_empty(self._workspace_path)):
             raise RuntimeError(f"Path '{self._workspace_path}' is not empty while workspace creation is enabled.")
 
         # Solution package validation:
@@ -272,20 +274,44 @@ class AutoForge(CoreModuleInterface):
             if not os.path.isfile(solution_file):
                 raise RuntimeError(f"The main solution file '{solution_file}' was not found")
 
-            self._solution = CoreSolution(solution_config_file_name=solution_file)
+            # Loads the solution file with multiple parsing passes and comprehensive structural validation.
+            # Also initializes the core variables module as part of the process.
+
+            self._solution = CoreSolution(solution_config_file_name=solution_file,
+                                          workspace_path=self._workspace_path,
+                                          workspace_creation_mode=self._create_workspace)
+
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
             self._solution_name = self._solution.get_primary_solution_name()
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
-            # Greetings earthlings, we're here!
-            self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}")
+            if not self._create_workspace:
 
-            # Start blocking build system user mode shell
-            self._gui: CoreGUI = CoreGUI()
-            self._prompt = CorePrompt(history_file="~/.auto_forge_history")
-            return self._prompt.cmdloop()
+                # ==============================================================
+                # User interactive shell.
+                # Indefinite loop until user exits the shell using 'quit'
+                # ==============================================================
+
+                # Greetings earthlings, we're here!
+                self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}")
+
+                # Start blocking build system user mode shell
+                self._gui: CoreGUI = CoreGUI()
+                self._prompt = CorePrompt(history_file="~/.auto_forge_history")
+                return self._prompt.cmdloop()
+            else:
+
+                # ==============================================================
+                # Execute workspace creation script
+                # Follow workspace setup steps as defined by the solution.
+                # ==============================================================
+                env_steps_file: Optional[str] = self._solution.get_included_file('environment')
+                if env_steps_file is None:
+                    raise RuntimeError(f"an environment steps file was not specified in the solution")
+                # Execute suction creation steps
+                return self._environment.follow_steps(steps_file=env_steps_file)
 
         except Exception:  # Propagate
             raise

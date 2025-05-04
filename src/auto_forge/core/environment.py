@@ -32,9 +32,11 @@ from typing import Optional, Union, Any, List, Callable, Dict, Mapping
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader, AutoForgeModuleType, ProgressTracker,
+from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
+                        AutoForgeModuleType, ProgressTracker,
                         ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
+from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -56,6 +58,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._status_add_time_prefix: bool = True
         self._status_new_line: bool = False
         self._tracker: Optional[ProgressTracker] = None
+        self._variables: Optional[CoreVariables] = None
 
         super().__init__(*args, **kwargs)
 
@@ -608,7 +611,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
 
         polling_interval: float = 0.0001
-        kwargs: Optional[Dict[str, Any]] = None
+        kwargs: Optional[Dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
         master_fd: Optional[int] = None  # PTY master descriptor
@@ -625,6 +628,10 @@ class CoreEnvironment(CoreModuleInterface):
         command_and_arguments_list = shlex.split(command_and_args)
         full_command = command_and_arguments_list[0]  # The command
         command = os.path.basename(full_command)
+
+        # Expand current work directory if specified
+        if cwd:
+            cwd = self.environment_variable_expand(text=cwd)
 
         # When not using shell we have to use list for the arguments rather than string
         if not shell:
@@ -932,6 +939,9 @@ class CoreEnvironment(CoreModuleInterface):
 
         for path in paths:
             try:
+                if self._variables and path:
+                    path = self._variables.expand(text=path, expand_path=False)
+
                 full_path = os.path.join(self._workspace_path, path) if project_path else path
                 full_path = os.path.expanduser(os.path.expandvars(full_path))
 
@@ -1033,8 +1043,8 @@ class CoreEnvironment(CoreModuleInterface):
                 arguments = f"-m pip install {package_or_requirements}"
 
             # Execute the command
-            self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments)
-                                       , shell=False)
+            self.execute_shell_command(command_and_args=
+                                       self._flatten_command(command=command, arguments=arguments), shell=False)
 
         except Exception as python_pip_error:
             raise Exception(f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}")
@@ -1126,6 +1136,9 @@ class CoreEnvironment(CoreModuleInterface):
             repo_url = self._toolbox.normalize_text(repo_url)
 
             # Normalize and prepare the destination path
+            if self._variables is not None:
+                dest_repo_path = self._variables.expand(text=dest_repo_path, expand_path=False)
+
             dest_repo_path = self.environment_variable_expand(text=dest_repo_path, to_absolute_path=True)
 
             # Optionally clear the destination path
@@ -1415,6 +1428,17 @@ class CoreEnvironment(CoreModuleInterface):
         """
         step_number: int = 0
         local_path = os.path.abspath(os.getcwd())  # Store initial path
+        self._variables = CoreVariables.get_instance()
+
+        def _expand_and_print(msg: Optional[Any]) -> None:
+            """ Expands an input if its a string, resolve inner variables and finally print thed results."""
+            if not isinstance(msg, str) or msg == "":
+                return None
+
+            expanded_msg = self._variables.expand(text=msg, expand_path=False)
+            if expanded_msg:
+                print(expanded_msg)
+            return None
 
         try:
             # Expand, convert to absolute path and verify
@@ -1436,7 +1460,7 @@ class CoreEnvironment(CoreModuleInterface):
                                                                                 add_time_prefix=self._status_add_time_prefix)
 
             # User optional greetings messages
-            self._print(steps_schema.get("status_pre_message"))
+            _expand_and_print(steps_schema.get("status_pre_message"))
 
             # Move to the workspace path if exisit as early as possible
             if os.path.exists(self._workspace_path):
@@ -1468,7 +1492,7 @@ class CoreEnvironment(CoreModuleInterface):
                 step_number = step_number + 1
 
             # User optional signoff messages
-            self._print(steps_schema.get("status_post_message"))
+            _expand_and_print(steps_schema.get("status_post_message"))
             return 0
 
         except Exception as steps_error:

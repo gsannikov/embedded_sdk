@@ -17,7 +17,7 @@ from dataclasses import asdict
 from typing import Optional, Any, Dict, List, Tuple, Match
 
 # Builtin AutoForge core libraries
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreEnvironment,
+from auto_forge import (CoreModuleInterface, CoreProcessor,
                         AutoForgeModuleType, VariableFieldType,
                         ToolBox, Registry, AutoLogger)
 
@@ -43,12 +43,18 @@ class CoreVariables(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, variables_config_file_name: str, solution_name: str) -> None:
+    def _initialize(self, variables_config_file_name: str,
+                    workspace_path: str,
+                    solution_name: str,
+                    workspace_creation_mode: bool = False) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
             variables_config_file_name (str): Configuration JSON file name.
+            workspace_path (str): The workspace path.
             solution_name (str): Solution name.
+            workspace_creation_mode (bool): When set to True, path existence checks are skipped,
+                assuming the workspace is not yet created and is being initialized.
         """
 
         # Get a logger instance
@@ -62,6 +68,7 @@ class CoreVariables(CoreModuleInterface):
         self._variable_capitalize_description: bool = True  # Description field formatting
         self._variables_defaults: Optional[dict] = None  # Optional default variables properties
         self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
+        self._workspace_creation_mode: bool = workspace_creation_mode
         self._search_keys: Optional[
             List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
@@ -69,7 +76,7 @@ class CoreVariables(CoreModuleInterface):
         self._processor: CoreProcessor = CoreProcessor.get_instance()
 
         # Get the workspace from AutoForge
-        self._workspace_path = CoreEnvironment.get_workspace_path()
+        self._workspace_path = workspace_path
 
         # Build variables list
         if self._config_file_name is not None:
@@ -426,20 +433,25 @@ class CoreVariables(CoreModuleInterface):
             if new_var.create_path_if_not_exist is None:
                 new_var.create_path_if_not_exist = self._variables_defaults.get('create_path_if_not_exist', False)
 
-            if new_var.create_path_if_not_exist:
-                os.makedirs(new_var.value, exist_ok=True)
+            # Only enforce 'create_path_if_not_exist' and 'path_must_exist' directives during normal operation,
+            # not during initial workspace creation.
 
-            if new_var.path_must_exist is None:
-                new_var.path_must_exist = self._variables_defaults.get('path_must_exist', True)
+            if not self._workspace_creation_mode:
+                if new_var.create_path_if_not_exist:
+                    os.makedirs(new_var.value, exist_ok=True)
 
-            if new_var.path_must_exist:
-                path_exist = os.path.exists(new_var.value)
-                if not path_exist:
-                    if not new_var.create_path_if_not_exist:
-                        raise RuntimeError(
-                            f"path '{new_var.value}' reqwired by '{variable_name}' does not exist and marked as must exist")
-                    else:
-                        self._logger.warning(f"Specified path: '{new_var.value}' does not exist and needs be created ")
+                if new_var.path_must_exist is None:
+                    new_var.path_must_exist = self._variables_defaults.get('path_must_exist', True)
+
+                if new_var.path_must_exist:
+                    path_exist = os.path.exists(new_var.value)
+                    if not path_exist:
+                        if not new_var.create_path_if_not_exist:
+                            raise RuntimeError(
+                                f"path '{new_var.value}' reqwired by '{variable_name}' does not exist and marked as must exist")
+                        else:
+                            self._logger.warning(
+                                f"Specified path: '{new_var.value}' does not exist and needs be created ")
 
         new_var.kwargs = _kwargs
 
@@ -473,10 +485,13 @@ class CoreVariables(CoreModuleInterface):
             self._variables.pop(index)  # Remove it
             self._refresh()  # Update the list and the search dictionary
 
-    def expand(self, text: str) -> str:
+    def expand(self, text: str, expand_path: bool = True) -> str:
         """
         Expands variables embedded within the input text and resolves the path.
         Supports both $VAR and ${VAR} syntax, correctly handling adjacent expansions.
+        Args:
+            text (str): The text to expand.
+            expand_path (bool): If true, treat the input as path and expand accordingly
         """
 
         if text:
@@ -519,8 +534,10 @@ class CoreVariables(CoreModuleInterface):
         expanded_text = ''.join(result)
 
         # Now expand ~ and make absolute
-        final_path = self._toolbox.get_expanded_path(path=expanded_text, to_absolute=True)
-        return final_path
+        if expand_path:
+            expanded_text = self._toolbox.get_expanded_path(path=expanded_text, to_absolute=True)
+
+        return expanded_text
 
     def export(self) -> list[dict]:
         """

@@ -74,12 +74,10 @@
 {
 	// Required configuration files for other core modules
 	"includes": {
-		// Solution variables
+		// Solution variables - mandatory
 		"variables": "variables.jsonc",
-		// Workspace creation steps
-		"setup": "setup.jsonc",
-		// Supported toolchains
-		"toolchains": "toolchains.jsonc",
+		// Workspace environment creation steps optional include
+		"environment": "environment.jsonc",
 		// Defines schema version be used
 		"schema": "1.0"
 	},
