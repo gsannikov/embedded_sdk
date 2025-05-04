@@ -92,7 +92,7 @@
 			"projects": [
 				{
 					"name": "hello_world",
-					"description": "Hellow world C project",
+					"description": "Hello world C project",
 					"tool_chain": {
 						"name": "x86_64 Linux GCC",
 						"compiler": "gcc",
