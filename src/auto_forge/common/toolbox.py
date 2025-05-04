@@ -1019,14 +1019,14 @@ class ToolBox(CoreModuleInterface):
         return ansi_escape_pattern.sub('', text)
 
     @staticmethod
-    def print_logo(ascii_art_file: Optional[str] = None, clear_screen: bool = False) -> int:
+    def print_logo(ascii_art_file: Optional[str] = None, clear_screen: bool = False,
+                   terminal_title: Optional[str] = None) -> None:
         """
         Displays an ASCII logo from a file with alternating colors per line.
         Args:
             ascii_art_file (str): Path to the logo file.
             clear_screen (bool): Whether to clear the screen before printing.
-        Returns:
-            int: 0 if successful, 1 if the file does not exist.
+            terminal_title (Optional[str]): Optional text to use as the terminal title.
         """
 
         # Demo ASCII Art file
@@ -1036,7 +1036,7 @@ class ToolBox(CoreModuleInterface):
         if not ascii_art_file or not os.path.isfile(ascii_art_file):
             ascii_art_file = demo_file
             if not os.path.isfile(ascii_art_file):
-                return 1
+                return None
 
         # Clear screen and move cursor to top-left
         if clear_screen:
@@ -1050,7 +1050,10 @@ class ToolBox(CoreModuleInterface):
 
         sys.stdout.write('\n')  # Final newlines
         sys.stdout.flush()
-        return 0
+
+        if terminal_title is not None:
+            ToolBox.set_terminal_title(terminal_title)
+        return None
 
     @staticmethod
     def get_module_docstring(python_module_type: Optional[ModuleType] = None) -> Optional[str]:
@@ -1210,7 +1213,6 @@ class ToolBox(CoreModuleInterface):
             flattened_text += '.'
 
         return flattened_text
-
 
     @staticmethod
     def json_pretty_print(

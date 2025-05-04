@@ -280,7 +280,7 @@ class AutoForge(CoreModuleInterface):
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
             # Greetings earthlings, we're here!
-            self._toolbox.print_logo(clear_screen=True)
+            self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}")
 
             # Start blocking build system user mode shell
             self._gui: CoreGUI = CoreGUI()

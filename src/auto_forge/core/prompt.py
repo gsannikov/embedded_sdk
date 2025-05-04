@@ -56,7 +56,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._toolbox = ToolBox.get_instance()
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
-        self._solution:CoreSolution = CoreSolution.get_instance()
+        self._solution: CoreSolution = CoreSolution.get_instance()
         self._prompt_base: Optional[str] = None
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
@@ -171,9 +171,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 # noinspection PyShadowingNames
                 def dynamic_cmd(self, arg):
                     try:
-                        if isinstance(arg,Statement):
+                        if isinstance(arg, Statement):
                             args = arg.args
-                        elif isinstance(arg,str):
+                        elif isinstance(arg, str):
                             args = arg.strip()
                         else:
                             raise RuntimeError(f"command {cmd_name} has an unsupported argumnets type")
@@ -700,4 +700,5 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._save_history()
 
         self.poutput("\nClosing prompt..\n")
+        self._toolbox.set_terminal_title("Terminal")
         super().postloop()  # Always call the parent
