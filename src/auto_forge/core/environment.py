@@ -9,7 +9,7 @@ Description:
     - Management of Python virtual environments and PIP packages.
     - Probing the user environment to ensure prerequisites are met.
 """
-
+import inspect
 import json
 import logging
 import os
@@ -29,14 +29,13 @@ from collections import deque
 from contextlib import suppress
 from typing import Optional, Union, Any, List, Callable, Dict, Mapping
 
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
                         AutoForgeModuleType, ProgressTracker,
                         ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -261,16 +260,6 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception:
             raise
 
-    @staticmethod
-    def get_workspace_path() -> Optional[str]:
-        """
-        Returns the workspace path which was used to initialize this..
-        Returns:
-            str: The workspace path, expanded and normalized.
-        """
-        local_instance = CoreEnvironment.get_instance()
-        return local_instance._workspace_path
-
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
                              create_as_needed: bool = False,
                              change_dir: bool = False) -> Optional[str]:
@@ -452,11 +441,15 @@ class CoreEnvironment(CoreModuleInterface):
         if not callable(method):
             raise ValueError(f"method '{method_name}' not found in '{self.__class__.__name__}'")
 
+        # Finetune the argumnets to the executed method based on its signature
+        method_signature = inspect.signature(method)
+        method_kwargs, extra_kwargs = self._toolbox.filter_kwargs_for_method(kwargs=arguments, sig=method_signature)
+
         self._logger.debug(f"Executing Python method: '{method.__name__}'")
 
         # Execute the method with the arguments
         try:
-            execution_result = method(**arguments)
+            execution_result = method(**method_kwargs)
             return execution_result
 
         except Exception as exception:
@@ -1492,6 +1485,7 @@ class CoreEnvironment(CoreModuleInterface):
                 step_number = step_number + 1
 
             # User optional signoff messages
+            self._tracker.set_end()
             _expand_and_print(steps_schema.get("status_post_message"))
             return 0
 

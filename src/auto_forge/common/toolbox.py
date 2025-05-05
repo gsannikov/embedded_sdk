@@ -28,15 +28,14 @@ from typing import Optional
 from urllib.parse import urlparse, unquote, ParseResult
 
 import psutil
-from colorama import Fore
-from rich.console import Console
-from rich.text import Text
-
 # Retrieve our package base path from settings
 from auto_forge import (CoreModuleInterface,
                         AddressInfoType, AutoForgeModuleType, AutoLogger, TerminalAnsiCodes,
                         PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
+from colorama import Fore
+from rich.console import Console
+from rich.text import Text
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -45,7 +44,7 @@ AUTO_FORGE_TEMP_PATTERN = "__AUTO_FORGE_"  # Prefix for temporary path names
 
 class ToolBox(CoreModuleInterface):
 
-    def _initialize(self, *args, **kwargs) -> None:
+    def _initialize(self, *_args, **_kwargs) -> None:
         """
         Initialize the 'ToolBox' class.
         """
@@ -434,7 +433,7 @@ class ToolBox(CoreModuleInterface):
         extra_kwargs = {}
         used_keys = set()
 
-        def search_and_assign(current_dict, path=''):
+        def _search_and_assign(current_dict, path=''):
             """
             Recursively searches and assigns values from nested dictionaries to the appropriate keyword
             argument dictionary.
@@ -448,12 +447,12 @@ class ToolBox(CoreModuleInterface):
 
                 if isinstance(value, dict):
                     # Recursively search nested dictionaries
-                    search_and_assign(value, current_path)
+                    _search_and_assign(value, current_path)
                 else:
                     # Assign values directly, handle flat structure
-                    assign_value(key, value, current_path)
+                    _assign_value(key, value, current_path)
 
-        def assign_value(key, value, full_key):
+        def _assign_value(key, value, full_key):
             """
             Assigns a value to the correct dictionary based on its key and checks for potential key collisions.
             Args:
@@ -480,7 +479,7 @@ class ToolBox(CoreModuleInterface):
                 extra_kwargs[base_key] = value
             used_keys.add(base_key)
 
-        search_and_assign(kwargs)
+        _search_and_assign(kwargs)
         return method_kwargs, extra_kwargs
 
     @staticmethod

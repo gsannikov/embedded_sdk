@@ -161,11 +161,12 @@
 			}
 		},
 		{
-			"description": "Cloning 'hello_world'",
+			"description": "Cloning 'btop'",
 			"method": "git_clone_repo",
 			"arguments": {
-				"repo_url": "https://github.com/emichael72/hello_world.git",
-				"dest_repo_path": "$PROJ_SOURCES_BASE/hello_world",
+				"repo_url": "https://github.com/aristocratos/btop.git",
+				"dest_repo_path": "$PROJ_SOURCES_BASE/btop",
+				"revision": "main",
 				"timeout": 360
 			}
 		}

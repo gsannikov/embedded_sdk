@@ -91,8 +91,8 @@
 			"workspace": "$PROJ_WORKSPACE",
 			"projects": [
 				{
-					"name": "hello_world",
-					"description": "Hello world C project",
+					"name": "btop",
+					"description": "Resource monitor that shows usage and stats for processor, memory, disks, network and processes.",
 					"tool_chain": {
 						"name": "x86_64 Linux GCC",
 						"compiler": "gcc",
@@ -108,11 +108,12 @@
 							"name": "debug",
 							"command_name": "bd",
 							"build_path": "<$ref_solutions[sample].build_path>/<$ref_projects[].name>/<$ref_name>",
+							"execute_from": "$PROJ_SOURCES_BASE/<$ref_projects[].name>",
 							"compiler_command": "make",
-							"execute_from": "$PROJ_SOURCES_BASE/hellow_world",
 							"expected_result": 0,
 							"compiler_options": [
-								"BUILD_DIR= <$ref_build_path>"
+								"BUILDDIR=<$ref_build_path>",
+								"EXTRA_CXXFLAGS=\",-I<$ref_build_path>\""
 							],
 							"artifacts": [
 								"<$ref_build_path>/hello"
@@ -120,11 +121,11 @@
 						},
 						{
 							"name": "release",
-							"data": "<$derived_from_solutions[sample].projects[hello_world].configurations[debug]>",
+							"data": "<$derived_from_solutions[sample].projects[btop].configurations[debug]>",
 							"command_name": "br",
 							"compiler_options": [
-								"release",
-								"BUILD_DIR= <$ref_build_path>"
+								"BUILDDIR=<$ref_build_path>",
+								"EXTRA_CXXFLAGS=\",-I<$ref_build_path>\""
 							]
 						}
 					]
