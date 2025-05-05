@@ -66,6 +66,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._max_completion_results = max_completion_results
         self._last_execution_return_code: Optional[int] = 0
         self._term_width = self._toolbox.get_terminal_width(default_width=100)
+        self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -114,7 +115,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Add several basic aliases
         self.set_alias('..', 'cd ..')
         self.set_alias('~', 'cd $HOME')
-        self.set_alias('gw', f'cd {CoreEnvironment.get_instance().get_workspace_path()}')
+        self.set_alias('gw', f'cd {self._project_workspace}')
         self.set_alias('ls', 'lsd -g')
         self.set_alias('ll', 'lss -la')
         self.set_alias('l', 'ls')

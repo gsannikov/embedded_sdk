@@ -310,8 +310,18 @@ class AutoForge(CoreModuleInterface):
                 env_steps_file: Optional[str] = self._solution.get_included_file('environment')
                 if env_steps_file is None:
                     raise RuntimeError(f"an environment steps file was not specified in the solution")
+
                 # Execute suction creation steps
-                return self._environment.follow_steps(steps_file=env_steps_file)
+                ret_val = self._environment.follow_steps(steps_file=env_steps_file)
+
+                # Lastly store the solution in the newly created workspace
+                scripts_path = self._variables.get(variable_name="PROJ_SCRIPTS")
+                if scripts_path is not None:
+                    solution_destination_path = os.path.join(scripts_path, 'solution')
+                    self._toolbox.cp(pattern=f'{self._solution_package_path}/*.*',
+                                     dest_dir=f'{solution_destination_path}')
+                return ret_val
+
 
         except Exception:  # Propagate
             raise

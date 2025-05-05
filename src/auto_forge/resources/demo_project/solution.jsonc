@@ -81,7 +81,6 @@
 		// Defines schema version be used
 		"schema": "1.0"
 	},
-
 	// Solutions list
 	"solutions": [
 		{
@@ -101,7 +100,10 @@
 						"architecture": "x86_64",
 						"build_system": "make",
 						"make_version": ">=4.0",
-						"required_tools": ["gcc", "make"]
+						"required_tools": [
+							"gcc",
+							"make"
+						]
 					},
 					"configurations": [
 						{

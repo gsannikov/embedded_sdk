@@ -90,6 +90,14 @@
 			}
 		},
 		{
+			"description": "Looking for 'g++'",
+			"method": "validate_prerequisite",
+			"arguments": {
+				"command": "g++",
+				"arguments": "--version"
+			}
+		},
+		{
 			"description": "Getting git access token using 'dt'",
 			"method": "execute_shell_command",
 			"arguments": {

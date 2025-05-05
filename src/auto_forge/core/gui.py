@@ -35,7 +35,7 @@ class CoreGUI(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, **kwargs: Any):
+    def _initialize(self, **_kwargs: Any):
         """
         Initializes the GUI system. Spawns a thread to run user logic,
         and keeps the GUI running in the main thread.

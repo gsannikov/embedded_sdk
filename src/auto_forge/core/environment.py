@@ -9,6 +9,7 @@ Description:
     - Management of Python virtual environments and PIP packages.
     - Probing the user environment to ensure prerequisites are met.
 """
+import codecs
 import inspect
 import json
 import logging
@@ -29,13 +30,14 @@ from collections import deque
 from contextlib import suppress
 from typing import Optional, Union, Any, List, Callable, Dict, Mapping
 
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
                         AutoForgeModuleType, ProgressTracker,
                         ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -610,6 +612,7 @@ class CoreEnvironment(CoreModuleInterface):
         master_fd: Optional[int] = None  # PTY master descriptor
         timeout = self._default_execution_time is timeout is None  # Set default timeout when not provided
         env = os.environ if env is None else env
+        decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
 
         # Parse to the input string to a list and get the base command
         command_and_args = ToolBox.normalize_text(text=command_and_args)
@@ -638,6 +641,30 @@ class CoreEnvironment(CoreModuleInterface):
 
         if shutil.which(command) is None:
             raise RuntimeError(f"command not found: {command}")
+
+        def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
+            """
+            Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
+
+            This function uses a persistent UTF-8 decoder to correctly handle multibyte characters
+            (e.g., box-drawing or Unicode symbols) that may span multiple byte reads. Output is
+            flushed immediately to ensure real-time terminal updates.
+
+            Args:
+                byte_data (bytes): A single byte read from a terminal or subprocess stream.
+                suppress_errors (bool): If True, suppresses decoding or write errors silently.
+                                        If False, exceptions will propagate.
+            """
+            try:
+                if not isinstance(byte_data, bytes):
+                    raise TypeError("byte_data must be of type 'bytes'")
+                decoded = decoder.decode(byte_data)
+                if terminal_echo:
+                    sys.stdout.write(decoded)
+                    sys.stdout.flush()
+            except (UnicodeDecodeError, OSError, TypeError) as decode_exception:
+                if not suppress_errors:
+                    raise decode_exception
 
         def _bytes_to_message_queue(input_buffer: bytearray, message_queue: deque) -> str:
             """
@@ -705,8 +732,9 @@ class CoreEnvironment(CoreModuleInterface):
                     else:
                         # Immediately echo to the byte to the terminal if set
                         if terminal_echo:
-                            sys.stdout.write(received_byte.decode('utf-8'))
-                            sys.stdout.flush()
+                            _print_bytes_safely(received_byte)
+                            # sys.stdout.write(received_byte.decode('utf-8',errors='replace'))
+                            # sys.stdout.flush()
 
                         # Aggregate bytes into complete single lines for logging
                         line_buffer.append(received_byte[0])

@@ -9,6 +9,7 @@ Description:
 """
 
 import base64
+import glob
 import importlib.metadata
 import importlib.util
 import inspect
@@ -28,14 +29,15 @@ from typing import Optional
 from urllib.parse import urlparse, unquote, ParseResult
 
 import psutil
+from colorama import Fore
+from rich.console import Console
+from rich.text import Text
+
 # Retrieve our package base path from settings
 from auto_forge import (CoreModuleInterface,
                         AddressInfoType, AutoForgeModuleType, AutoLogger, TerminalAnsiCodes,
                         PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
-from colorama import Fore
-from rich.console import Console
-from rich.text import Text
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -1324,3 +1326,27 @@ class ToolBox(CoreModuleInterface):
             val_str = json.dumps(obj)
             style = _get_value_style(obj)
             _print_line(Text(indent_str + val_str, style=style))
+
+    @staticmethod
+    def cp(pattern: str, dest_dir: str):
+        """
+        Copies files matching a wildcard pattern to the destination directory.\
+        If the destination directory does not exist, it will be created.
+        Metadata such as timestamps and permissions are preserved.
+
+        Args:
+            pattern (str): Wildcard pattern (e.g. 'a/*.txt', 'a/*.*').
+            dest_dir (str): Target directory to copy files into.
+        """
+        # Expand the pattern into a list of matching files
+        matched_files = glob.glob(pattern)
+        if not matched_files:
+            raise FileNotFoundError(f"no files match pattern: {pattern}")
+
+        os.makedirs(dest_dir, exist_ok=True)
+
+        for src_file in matched_files:
+            if os.path.isfile(src_file):
+                base_name = os.path.basename(src_file)
+                dst_path = os.path.join(dest_dir, base_name)
+                shutil.copy2(src_file, dst_path)
