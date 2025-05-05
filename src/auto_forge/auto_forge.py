@@ -320,6 +320,9 @@ class AutoForge(CoreModuleInterface):
                     solution_destination_path = os.path.join(scripts_path, 'solution')
                     self._toolbox.cp(pattern=f'{self._solution_package_path}/*.*',
                                      dest_dir=f'{solution_destination_path}')
+                    self._toolbox.cp(pattern=f'{solution_destination_path}/auto_go.sh',
+                                     dest_dir=f'{self._workspace_path}')
+
                 return ret_val
 
 
