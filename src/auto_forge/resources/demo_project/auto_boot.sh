@@ -165,6 +165,11 @@ main() {
 	printf "Running AutoForge using solution: '%s'...\n" "$solution"
 	"${autoforge_cmd[@]}"
 	ret_val=$?
+
+	# Temporary bypass, should be fixed
+	chmod +x "$workspace_path/auto_go.sh" >/dev/null 2>&1 || true
+
+	return $ret_val
 }
 
 # Entry point
