@@ -29,6 +29,12 @@ curl -sSL \
   | bash -s -- -w ./ws -s https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/demo_project -t $GITHUB_TOKEN
 ```
 
+### Installing the package.
+
+```bash
+pip install git+https://github.com/emichael72/auto_forge.git --force-reinstall
+```
+
 ## License
 
 This project is licensed under the MIT License—see the LICENSE file for details.
