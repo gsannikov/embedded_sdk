@@ -16,6 +16,19 @@ Key features include:
 
 AutoForge was built with scalability in mind — whether you're managing a small embedded project or orchestrating complex multi-stage builds, it provides the right balance of automation, clarity, and control.
 
+### Setup Instructions.
+
+The following is a sample link that installs the demo solution.
+To use it, make sure you have exported your GitHub token to the environment as GITHUB_TOKEN.
+
+```bash
+curl -sSL \
+  -H "Authorization: token ${GITHUB_TOKEN}" \
+  -H "Cache-Control: no-store" \
+  "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/demo_project/auto_boot.sh" \
+  | bash -s -- -w ./ws -s https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/demo_project -t $GITHUB_TOKEN
+```
+
 ## License
 
 This project is licensed under the MIT License—see the LICENSE file for details.
