@@ -14,8 +14,8 @@
 HTTP_PROXY_SERVER="http://proxy-dmz.intel.com:911"
 HTTPS_PROXY_SERVER="http://proxy-dmz.intel.com:911"
 
-DEMO_PROJECT_URL="https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/demo_project
-"
+AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
+
 #
 # @brief Update the environment with proxy settings if we have them defined in this scriprt.
 # @return Returns 0 on overall success, else failure.
@@ -63,7 +63,7 @@ install_autoforge() {
 	pip3 uninstall -y auto_forge &> /dev/null
 
 	# Install auto_forge from the provided URL, without any output
-	if pip3 install git+$AUTO_FORGE_URL -q > /dev/null 2>&1; then
+	if pip3 install git+$AUTO_FORGE_URL -q --force-reinstall > /dev/null 2>&1; then
 		# Check if installation was successful
 		if pip3 list 2> /dev/null | grep -q 'auto_forge'; then
 			return 0
@@ -98,7 +98,6 @@ main() {
 		echo "  -w, --workspace [path]       Destination workspace path."
 		echo "  -s, --solution  [path/url]   Solution to use (local path or URL)."
 		echo "  -t, --token     [token]      Optional Git token for remote solution."
-		echo "  -v, --verbose                Enable verbose output."
 		echo "  -h, --help                   Display this help and exit."
 		echo
 	}
@@ -117,10 +116,6 @@ main() {
 			-t|--token)
 				token="$2"
 				shift 2
-				;;
-			-v|--verbose)
-				verbose=1
-				shift
 				;;
 			-h|--help)
 				display_help
@@ -146,22 +141,16 @@ main() {
 		return 1
 	fi
 
-	# Optional verbose output
-	if [[ "$verbose" -eq 1 ]]; then
-		echo "Workspace path: $workspace_path"
-		echo "Solution:       $solution"
-		[[ -n "$token" ]] && echo "Git token:      (provided)"
-	fi
-
 	# Set proxy if needed
 	setup_proxy_environment
 
 	# Install AutoForge
+	printf "\nDownloading and installing AutoForge...\r"
 	install_autoforge || return 1
 
 	# Run AutoForge
 	autoforge_cmd=(
-		python -m autoforge
+		python3 -m auto_forge
 		-w "$workspace_path"
 		-p "$solution"
 		--create-workspace
@@ -173,6 +162,7 @@ main() {
 		autoforge_cmd+=(--git-token "$token")
 	fi
 
+	printf "Running AutoForge using solution: '%s'...\n" "$solution"
 	"${autoforge_cmd[@]}"
 	ret_val=$?
 }
