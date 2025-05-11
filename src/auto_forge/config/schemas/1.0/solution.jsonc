@@ -40,14 +40,29 @@
 					"build_path": {
 						"type": "string"
 					},
+					"workspace": {
+						"type": "string"
+					},
 					"environment_config": {
 						"type": "string"
 					},
 					"signature_schema": {
 						"type": "string"
 					},
-					"workspace": {
-						"type": "string"
+					"tool_chains": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"name"
+							],
+							"additionalProperties": true
+						}
 					},
 					"projects": {
 						"type": "array",
@@ -70,7 +85,8 @@
 									},
 									"required": [
 										"name"
-									]
+									],
+									"additionalProperties": true
 								},
 								"configurations": {
 									"type": "array",
@@ -134,6 +150,7 @@
 					"name",
 					"build_path",
 					"workspace",
+					"tool_chains",
 					"projects"
 				]
 			}
@@ -143,3 +160,5 @@
 		"solutions"
 	]
 }
+
+

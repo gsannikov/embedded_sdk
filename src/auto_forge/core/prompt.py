@@ -112,21 +112,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         for cmd in ['macro', 'edit', 'run_pyscript']:
             self._remove_command(cmd)
 
-        # Add several basic aliases
-        self.set_alias('..', 'cd ..')
-        self.set_alias('~', 'cd $HOME')
-        self.set_alias('gw', f'cd {self._project_workspace}')
-        self.set_alias('ls', 'lsd -g')
-        self.set_alias('ll', 'lss -la')
-        self.set_alias('l', 'ls')
-        self.set_alias('exit', 'quit')
-        self.set_alias('x', 'quit')
-        self.set_alias('q', 'quit')
-        self.set_alias('cln', 'clear')
-        self.set_alias('gs', 'git status')
-        self.set_alias('ga', 'git add .')
-        self.set_alias('gc', 'git commit -m')
-        self.set_alias('gp', 'git push')
+        # Dynamically add aliases based on a user defined dictionary in the solution file
+        aliases = self._solution.get_arbitrary_item(key='aliases')
+        if isinstance(aliases, dict):
+            for alias_name, alias_definition in aliases.items():
+                self.set_alias(alias_name, alias_definition)
+        else:
+            self._logger.warning("'aliases' ware not dynamically loaded from the solution")
 
         self._update_prompt()
 

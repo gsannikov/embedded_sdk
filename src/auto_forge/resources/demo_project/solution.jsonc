@@ -81,6 +81,23 @@
 		// Defines schema version be used
 		"schema": "1.0"
 	},
+	// Project command aliases
+	"aliases": {
+		"..": "cd ..",
+		"~": "cd $HOME",
+		"gw": "cd $PROJ_WORKSPACE",
+		"ls": "lsd -g",
+		"ll": "lss -la",
+		"l": "ls",
+		"exit": "quit",
+		"x": "quit",
+		"q": "quit",
+		"cln": "clear",
+		"gs": "git status",
+		"ga": "git add .",
+		"gc": "git commit -m",
+		"gp": "git push"
+	},
 	// Solutions list
 	"solutions": [
 		{
@@ -88,23 +105,40 @@
 			"description": "Sample solution",
 			"build_path": "$BUILD_OUT",
 			"workspace": "$PROJ_WORKSPACE",
+			"tool_chains": [
+				{
+					"name": "x86_64 Linux GCC",
+					"compiler": "gcc",
+					"compiler_version": ">=9.0",
+					"platform": "linux",
+					"architecture": "x86_64",
+					"build_system": "make",
+					"make_version": ">=4.0",
+					"required_tools": [
+						"gcc",
+						"make"
+					]
+				},
+				{
+					"name": "ARM Cross Toolchain",
+					"compiler": "arm-none-eabi-gcc",
+					"compiler_version": ">=10.0",
+					"platform": "linux",
+					"architecture": "arm",
+					"build_system": "cmake",
+					"make_version": ">=3.16",
+					"required_tools": [
+						"arm-none-eabi-gcc",
+						"cmake",
+						"ninja"
+					]
+				}
+			],
 			"projects": [
 				{
 					"name": "btop",
+					"tool_chain": "<$ref_solutions[sample].tool_chains[x86_64 Linux GCC]>",
 					"description": "Resource monitor that shows usage and stats for processor, memory, disks, network and processes.",
-					"tool_chain": {
-						"name": "x86_64 Linux GCC",
-						"compiler": "gcc",
-						"compiler_version": ">=9.0",
-						"platform": "linux",
-						"architecture": "x86_64",
-						"build_system": "make",
-						"make_version": ">=4.0",
-						"required_tools": [
-							"gcc",
-							"make"
-						]
-					},
 					"configurations": [
 						{
 							"name": "debug",

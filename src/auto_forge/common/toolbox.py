@@ -1217,30 +1217,38 @@ class ToolBox(CoreModuleInterface):
 
     @staticmethod
     def json_pretty_print(
-            obj: Any,
-            indent: int = 0,
+            obj: Union[Dict[str, Any], List[Any]],
+            indent: int = 4,
             console: Optional[Console] = None,
             line_number: Optional[List[int]] = None,
             numbering_width: int = 4,
             highlight_keys: Optional[List[str]] = None
     ) -> None:
         """
-        Recursively pretty-prints a JSON-compatible object to the terminal using Rich.
-
-        Features:
-        - Line numbers with configurable width
-        - JSON syntax coloring similar to Rich's 'default' theme
-        - Optional highlighting of specific key names using distinct colors
+        Pretty-prints a JSON-compatible object using native JSON formatting,
+        Rich manual styling, and a configurable skin for colors and layout.
 
         Args:
-            obj: The JSON-compatible object (dict/list) to print.
-            indent: Current indentation level (used internally during recursion).
-            console: Optional Rich Console object to direct output. If None, a default Console is created.
-            line_number: Internal counter used for line numbering; should be left as None when called externally.
-            numbering_width: Number of characters to reserve for line numbers (e.g., 4 allows up to 9999 lines).
-            highlight_keys: List of key names to color with distinctive styles for better visibility.
-
+            obj: A dictionary or list representing a JSON structure.
+            indent: Number of spaces for indentation (default: 4).
+            console: Optional Rich Console object. If None, a default is created.
+            line_number: Internal counter for line numbers. Should be left as None externally.
+            numbering_width: Width reserved for line numbers.
+            highlight_keys: Optional list of JSON key names to highlight using distinctive colors.
         """
+        # Static skin definition for formatting
+        JSON_SKIN: Dict[str, str] = {
+            "line_number": "dim",
+            "line_separator": "dim",
+            "key_default": "bold yellow",
+            "value_string": "green",
+            "value_number": "cyan",
+            "value_bool": "magenta",
+            "value_null": "dim",
+            "punctuation": "white",
+            "bracket": "bold white",
+        }
+
         if console is None:
             console = Console(force_terminal=True, color_system="truecolor")
         if line_number is None:
@@ -1253,100 +1261,98 @@ class ToolBox(CoreModuleInterface):
         if not isinstance(numbering_width, int) or numbering_width < 1:
             raise ValueError("numbering_width must be a positive integer")
 
-        # Rich "default" color mimicry + overrides for specific keys
         color_pool = [
             "bold red", "bold blue", "bold magenta", "bold green",
             "bright_blue", "bright_cyan", "bright_magenta", "bright_green",
             "bright_white", "bold cyan", "bold white", "bright_black",
         ]
-
         color_map = {k: color_pool[i % len(color_pool)] for i, k in enumerate(highlight_keys)}
-        indent_str = "    " * indent
 
-        def _print_line(text_obj: Text) -> None:
+        json_str = json.dumps(obj, indent=indent, ensure_ascii=False)
+        lines = json_str.splitlines()
+        key_pattern = re.compile(r'(\s*)"(.*?)":\s*(.*)')
+        list_value_pattern = re.compile(r'(\s*)"(.*?)":\s*\[(.*)\](,?)$')
+        list_item_pattern = re.compile(r'(\s*)(".*?"|true|false|null|\d+)(,?)$')
+
+        print()
+        for line in lines:
+            styled = Text()
+            match = key_pattern.match(line)
+            list_item = list_item_pattern.match(line)
+
+            if match:
+                indent_spaces, key, value = match.groups()
+                styled.append(indent_spaces)
+
+                key_style = color_map.get(key, JSON_SKIN["key_default"])
+                styled.append(f'"{key}"', style=key_style)
+                styled.append(": ", style=JSON_SKIN["punctuation"])
+
+                value = value.rstrip(',')
+                comma = "," if line.strip().endswith(',') else ""
+
+                if value.startswith('"') and value.endswith('"'):
+                    styled.append(value, style=JSON_SKIN["value_string"])
+                elif value in ('true', 'false'):
+                    styled.append(value, style=JSON_SKIN["value_bool"])
+                elif value == 'null':
+                    styled.append(value, style=JSON_SKIN["value_null"])
+                else:
+                    styled.append(value, style=JSON_SKIN["value_number"])
+
+                if comma:
+                    styled.append(comma, style=JSON_SKIN["punctuation"])
+
+            elif list_item:
+                indent_spaces, val, comma = list_item.groups()
+                styled.append(indent_spaces)
+
+                if val.startswith('"') and val.endswith('"'):
+                    styled.append(val, style=JSON_SKIN["value_string"])
+                elif val in ('true', 'false'):
+                    styled.append(val, style=JSON_SKIN["value_bool"])
+                elif val == 'null':
+                    styled.append(val, style=JSON_SKIN["value_null"])
+                else:
+                    styled.append(val, style=JSON_SKIN["value_number"])
+
+                if comma:
+                    styled.append(comma, style=JSON_SKIN["punctuation"])
+
+            else:
+                for char in line:
+                    if char in ['{', '}', '[', ']']:
+                        styled.append(char, style=JSON_SKIN["bracket"])
+                    elif char == ':' or char == ',':
+                        styled.append(char, style=JSON_SKIN["punctuation"])
+                    else:
+                        styled.append(char)
+
             num = str(line_number[0]).rjust(numbering_width)
             line_number[0] += 1
-            numbered_line = Text(num + " │ ", style="dim") + text_obj
-            console.print(numbered_line)
+            console.print(Text(num + " │ ", style=JSON_SKIN["line_number"]) + styled)
+        print()
 
-        def _get_value_style(v: Any) -> str:
-            if isinstance(v, str):
-                return "green"
-            elif isinstance(v, bool):
-                return "magenta"
-            elif v is None:
-                return "dim"
-            elif isinstance(v, (int, float)):
-                return "cyan"
-            else:
-                return "white"
 
-        if isinstance(obj, dict):
-            _print_line(Text(indent_str + "{"))
-            items = list(obj.items())
-            for i, (key, value) in enumerate(items):
-                is_last = (i == len(items) - 1)
-                key_style = color_map.get(key, "bold yellow")
-                key_text = Text(f'"{key}"', style=key_style)
+def cp(pattern: str, dest_dir: str):
+    """
+    Copies files matching a wildcard pattern to the destination directory.\
+    If the destination directory does not exist, it will be created.
+    Metadata such as timestamps and permissions are preserved.
 
-                line = Text(indent_str + "    ")
-                line.append(key_text)
-                line.append(": ")
+    Args:
+        pattern (str): Wildcard pattern (e.g. 'a/*.txt', 'a/*.*').
+        dest_dir (str): Target directory to copy files into.
+    """
+    # Expand the pattern into a list of matching files
+    matched_files = glob.glob(pattern)
+    if not matched_files:
+        raise FileNotFoundError(f"no files match pattern: {pattern}")
 
-                if isinstance(value, (dict, list)):
-                    _print_line(line)
-                    ToolBox.json_pretty_print(value, indent + 1, console, line_number, numbering_width, highlight_keys)
-                else:
-                    val_str = json.dumps(value)
-                    style = _get_value_style(value)
-                    line.append(Text(val_str, style=style))
-                    if not is_last:
-                        line.append(",")
-                    _print_line(line)
+    os.makedirs(dest_dir, exist_ok=True)
 
-            _print_line(Text(indent_str + "}"))
-
-        elif isinstance(obj, list):
-            _print_line(Text(indent_str + "["))
-            for i, item in enumerate(obj):
-                is_last = (i == len(obj) - 1)
-                if isinstance(item, (dict, list)):
-                    ToolBox.json_pretty_print(item, indent + 1, console, line_number, numbering_width, highlight_keys)
-                else:
-                    val_str = json.dumps(item)
-                    style = _get_value_style(item)
-                    line = Text(indent_str + "    ")
-                    line.append(Text(val_str, style=style))
-                    if not is_last:
-                        line.append(",")
-                    _print_line(line)
-            _print_line(Text(indent_str + "]"))
-
-        else:
-            val_str = json.dumps(obj)
-            style = _get_value_style(obj)
-            _print_line(Text(indent_str + val_str, style=style))
-
-    @staticmethod
-    def cp(pattern: str, dest_dir: str):
-        """
-        Copies files matching a wildcard pattern to the destination directory.\
-        If the destination directory does not exist, it will be created.
-        Metadata such as timestamps and permissions are preserved.
-
-        Args:
-            pattern (str): Wildcard pattern (e.g. 'a/*.txt', 'a/*.*').
-            dest_dir (str): Target directory to copy files into.
-        """
-        # Expand the pattern into a list of matching files
-        matched_files = glob.glob(pattern)
-        if not matched_files:
-            raise FileNotFoundError(f"no files match pattern: {pattern}")
-
-        os.makedirs(dest_dir, exist_ok=True)
-
-        for src_file in matched_files:
-            if os.path.isfile(src_file):
-                base_name = os.path.basename(src_file)
-                dst_path = os.path.join(dest_dir, base_name)
-                shutil.copy2(src_file, dst_path)
+    for src_file in matched_files:
+        if os.path.isfile(src_file):
+            base_name = os.path.basename(src_file)
+            dst_path = os.path.join(dest_dir, base_name)
+            shutil.copy2(src_file, dst_path)

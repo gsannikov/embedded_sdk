@@ -30,14 +30,13 @@ from collections import deque
 from contextlib import suppress
 from typing import Optional, Union, Any, List, Callable, Dict, Mapping
 
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
                         AutoForgeModuleType, ProgressTracker,
                         ExecutionModeType, ValidationMethodType,
                         Registry, ToolBox, AutoLogger)
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -452,7 +451,11 @@ class CoreEnvironment(CoreModuleInterface):
         # Execute the method with the arguments
         try:
             execution_result = method(**method_kwargs)
-            return execution_result
+            # Type check or conversion if needed
+            if isinstance(execution_result, (str, int)) or execution_result is None:
+                return execution_result
+            else:
+                raise None  # Method did not return an expected return value
 
         except Exception as exception:
             raise exception
@@ -881,8 +884,8 @@ class CoreEnvironment(CoreModuleInterface):
         # Propagate the exception
         except Exception:
             raise
-        finally:
-            return command_response
+
+        return command_response
 
     def path_erase(self, path: str, allow_non_empty: bool = False, raise_exception_if_not_exisit: bool = False):
         """

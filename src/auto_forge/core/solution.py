@@ -120,6 +120,14 @@ class CoreSolution(CoreModuleInterface):
             return include_file_path
         return None
 
+    def get_arbitrary_item(self, key: str) -> Optional[Union[List[Any], Dict[str, Any]]]:
+        """Returns a list or dictionary from the solution JSON by key, or None if not found or invalid type."""
+        if self._solution_data is not None:
+            value = self._solution_data.get(key)
+            if isinstance(value, (list, dict)):
+                return value
+        return None
+
     def get_solutions_list(self) -> Optional[Union[List, Dict]]:
         """
         Returns the solutions list.
@@ -308,10 +316,6 @@ class CoreSolution(CoreModuleInterface):
             self._process_and_refresh(method=self._traverse_and_process_derivations)
             self._process_and_refresh(method=self._traverse_and_process_variables)
 
-            # If a schema was set, validate the fully constructed solution configuration
-            if self._solution_schema is not None:
-                validate(instance=self._solution_data, schema=self._solution_schema)
-
             # Continues processing and refreshing until no more references are found
             # or the maximum number of iterations is reached to prevent infinite loops.
             while self._find_references(self._solution_data) and self._pre_processed_iterations < self._max_iterations:
@@ -322,6 +326,10 @@ class CoreSolution(CoreModuleInterface):
                 raise RuntimeError(
                     f"exceeded maximum reference resolution iterations '{self._max_iterations}', "
                     f"potential unresolved references or circular dependencies!")
+
+            # Finally, if a schema was specified, validate the fully constructed solution configuration
+            if self._solution_schema is not None:
+                validate(instance=self._solution_data, schema=self._solution_schema)
 
             # From now on we can serve solution queries from 'AutoForge'
             self._solution_loaded = True
@@ -483,29 +491,39 @@ class CoreSolution(CoreModuleInterface):
             variable_type (PreProcessType): The type of variables to resolve (environment or reference).
 
         Returns:
-            str: The string with all variables resolved according to the type.
+            Any: The resolved variable, currently string or dictionary.
         """
+
+        # Bypass regrex substitute method signature and allow us to return the original matched type
+        matched_json_object: Optional[Any] = None
+
         if variable_type == PreProcessType.ENVIRONMENT:
             # Should not match when $ is followed by 'ref_' or surrounded by '<' and '>'
             return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._variables.get(m.group(0)), text)
 
         elif variable_type == PreProcessType.REFERENCE:
             def _replace_match(match: re.Match) -> str:
+
+                nonlocal matched_json_object
+
                 # Extract the content directly needed for resolving the reference
                 ref_content = match.group(1)  # Adjusted to capture correctly
                 resolved_value = self._resolve_reference(ref_content)
+                matched_json_object = resolved_value
+
                 if resolved_value is None:
                     self._logger.debug(f"'{ref_content}' could not be resolved")
 
                 return str(resolved_value) if resolved_value is not None else match.group(0)
 
             regex_pattern = r"<\$ref_([^>]+)>"
-            results = re.sub(regex_pattern, _replace_match, text)
-            return results
+            re.sub(regex_pattern, _replace_match, text)  # Actual returned type is in 'matched_json_object'
+
+            return matched_json_object
         else:
             raise ValueError(f"unknown variable type: {variable_type}")
 
-    def _resolve_reference(self, reference_path: str) -> str:
+    def _resolve_reference(self, reference_path: str) -> Union[str, dict]:
         """
         Resolves a single reference path `<$ref_???>` by retrieving the corresponding value
         from the current context, project, or solution.
@@ -596,13 +614,14 @@ class CoreSolution(CoreModuleInterface):
                 resolved_reference = self._resolve_nested_path(specific_solution, path.strip('.'))
 
         # Finally, make sure we got something
-        if resolved_reference is None or not isinstance(resolved_reference, str):
+        if not isinstance(resolved_reference, (str, dict)):
             raise RuntimeError(f"reference not resolved or was referencing a non-string '{reference_path}'")
 
         # Clean the resolved reference and check for circular references
-        raw_resolved_reference = re.sub(r'^<\$ref_|>$', '', resolved_reference).strip()
-        if raw_resolved_reference == reference_path:
-            raise ValueError(f"circular reference in '{resolved_reference}'")
+        if isinstance(resolved_reference, str):
+            raw_resolved_reference = re.sub(r'^<\$ref_|>$', '', resolved_reference).strip()
+            if raw_resolved_reference == reference_path:
+                raise ValueError(f"circular reference in '{resolved_reference}'")
 
         return resolved_reference
 
@@ -629,6 +648,8 @@ class CoreSolution(CoreModuleInterface):
                             element = self._get_project_by_name(sub_element, key)
                         elif name == "configurations":
                             element = self._get_configuration_by_name(sub_element, key)
+                        elif name == "tool_chains":
+                            element = self._get_configuration_by_name(sub_element, key)
                     if not element:
                         raise ValueError(f"no {name} found with name '{key}' in path '{path}'")
                 else:
@@ -636,7 +657,7 @@ class CoreSolution(CoreModuleInterface):
             else:
                 element = element.get(part, None)
                 if element is None:
-                    raise ValueError(f"'{path}' not found.")
+                    raise ValueError(f"'{path}' not found")
         return element
 
     @staticmethod

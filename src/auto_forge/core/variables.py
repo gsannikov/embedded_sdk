@@ -341,11 +341,14 @@ class CoreVariables(CoreModuleInterface):
                     variable_name = variable_name[1:]
                     index = self._get_index(variable_name=variable_name, flexible=flexible)
                     if index == -1:
+
+                        # Attempt to resolve as environment, restore the '$' as needed
+                        env_var = f"${variable_name}" if not variable_name.startswith("$") else variable_name
                         # Expand variables and user home directory notations
-                        expanded = os.path.expanduser(os.path.expandvars(variable_name))
+                        expanded = os.path.expanduser(os.path.expandvars(env_var))
                         if expanded == variable_name:  # No expansion occurred
                             if not quiet:
-                                raise RuntimeError(f"variable '{variable_name}' not found")
+                                raise RuntimeError(f"variable '{env_var}' was not resolved or expanded")
                             return None
 
                         return expanded
