@@ -1271,7 +1271,6 @@ class ToolBox(CoreModuleInterface):
         json_str = json.dumps(obj, indent=indent, ensure_ascii=False)
         lines = json_str.splitlines()
         key_pattern = re.compile(r'(\s*)"(.*?)":\s*(.*)')
-        list_value_pattern = re.compile(r'(\s*)"(.*?)":\s*\[(.*)\](,?)$')
         list_item_pattern = re.compile(r'(\s*)(".*?"|true|false|null|\d+)(,?)$')
 
         print()
