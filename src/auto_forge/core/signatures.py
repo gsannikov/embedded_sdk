@@ -17,11 +17,20 @@ import os
 import re
 import struct
 import zlib
-from typing import Match, Optional, Any, Dict, List
+from re import Match
+from typing import Any, Optional
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables,
-                        AutoForgeModuleType, SignatureFieldType, SignatureSchemaType, Registry, AutoLogger)
+from auto_forge import (
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreModuleInterface,
+    CoreProcessor,
+    CoreVariables,
+    Registry,
+    SignatureFieldType,
+    SignatureSchemaType,
+)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
@@ -46,8 +55,8 @@ class CoreSignatures(CoreModuleInterface):
 
         self._config_file_name: Optional[str] = None
         self._signature_id: Optional[int] = 42
-        self._raw_dictionary: Optional[Dict[str, Any]] = {}
-        self._schemas: List[SignatureSchemaType] = []
+        self._raw_dictionary: Optional[dict[str, Any]] = {}
+        self._schemas: list[SignatureSchemaType] = []
         self._processor: CoreProcessor = CoreProcessor.get_instance()
         self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
 
@@ -126,7 +135,7 @@ class CoreSignatures(CoreModuleInterface):
 
             calculated_schema_size = struct.calcsize(schema.format_string)
             if calculated_schema_size is None or calculated_schema_size == 0:
-                raise RuntimeError(f"could not calculate schema expected size")
+                raise RuntimeError("could not calculate schema expected size")
 
             # Verify that the size calculated matches the 'size' attribute specified in the schema.
             if calculated_schema_size != schema.size:
@@ -141,7 +150,9 @@ class CoreSignatures(CoreModuleInterface):
                                  description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def deserialize(self, file_name: str) -> Optional["SignatureFileHandler"]:
+    def deserialize(  # noqa: C901 # Acceptable complexity
+            self,
+            file_name: str) -> Optional["SignatureFileHandler"]:
         """
         Loads and maps a binary file into memory, searches for signatures and extracts their fields.
         The returned `FileHandler` instance allows iteration over signatures and their respective fields.
@@ -152,7 +163,7 @@ class CoreSignatures(CoreModuleInterface):
             Optional[SignatureFileHandler]: A `FileHandler` instance if the file is successfully loaded, otherwise `None`.
         """
         try:
-            def product_lookup(product_id: int, product_sub_id: int) -> Optional[Dict[str, Any]]:
+            def product_lookup(product_id: int, product_sub_id: int) -> Optional[dict[str, Any]]:
                 raw_products = self._raw_dictionary.get("products")
                 if raw_products is None:
                     return None
@@ -165,7 +176,7 @@ class CoreSignatures(CoreModuleInterface):
 
                 return None  # Did not find any product matching the search clues
 
-            def _manufacture_lookup(manufacturer_id: int) -> Optional[Dict[str, Any]]:
+            def _manufacture_lookup(manufacturer_id: int) -> Optional[dict[str, Any]]:
                 raw_manufactures = self._raw_dictionary.get("manufacturers")
                 if raw_manufactures is None:
                     return None
@@ -177,7 +188,7 @@ class CoreSignatures(CoreModuleInterface):
 
                 return None  # Did not find any manufacture matching the search clues
 
-            def _family_lookup(family_id: int) -> Optional[Dict[str, Any]]:
+            def _family_lookup(family_id: int) -> Optional[dict[str, Any]]:
                 raw_families = self._raw_dictionary.get("families")
                 if raw_families is None:
                     return None
@@ -228,7 +239,7 @@ class CoreSignatures(CoreModuleInterface):
             self._logger.error(f"Exception while deserializing {exception}")
             raise RuntimeError(exception) from exception
 
-    def find_schemas(self, schema_name: Optional[str] = None) -> Optional[List["SignatureSchemaType"]]:
+    def find_schemas(self, schema_name: Optional[str] = None) -> Optional[list["SignatureSchemaType"]]:
         """
         Retrieves a list of schemas based on the specified criteria.
         If a name is provided, it returns all schemas matching that name.
@@ -313,7 +324,7 @@ class CoreSignatures(CoreModuleInterface):
                 raise ValueError(f"unsupported type '{type_base}'.")
 
         except Exception as exception:
-            raise RuntimeError(f"error processing type '{field_type}': {exception}")
+            raise RuntimeError(f"error processing type '{field_type}': {exception}") from exception
 
     @staticmethod
     def _parse_type_and_array(field_type: str):
@@ -338,7 +349,7 @@ class CoreSignatures(CoreModuleInterface):
         return type_base.strip(), array_size
 
     @staticmethod
-    def _validate_schema_mandatory_field(signature: Dict[str, Any], field_name: str, field_value_type: type) -> bool:
+    def _validate_schema_mandatory_field(signature: dict[str, Any], field_name: str, field_value_type: type) -> bool:
         """
         Validates whether a specified field exists in the provided dictionary and checks if its type matches the expected type.
 
@@ -357,7 +368,7 @@ class CoreSignatures(CoreModuleInterface):
 
         return False
 
-    def _validate_schema_structure_members(self, schema: Dict[str, Any]):
+    def _validate_schema_structure_members(self, schema: dict[str, Any]):
         """
         Validates that each field in a given schema has a unique name within the same structural level,
         including any nested structures. This method does not enforce global uniqueness across different
@@ -410,10 +421,10 @@ class CoreSignatures(CoreModuleInterface):
                     return int(value)
             else:
                 raise TypeError(f"unsupported type {type(value)}")
-        except ValueError:
-            raise ValueError(f"value '{value}' is not a valid number.")
+        except ValueError as value_error:
+            raise ValueError(f"value '{value}' is not a valid number") from value_error
 
-    def _get_field_size_from_dictionary(self, dictionary: Dict[str, Any], field_name: str) -> Optional[int]:
+    def _get_field_size_from_dictionary(self, dictionary: dict[str, Any], field_name: str) -> Optional[int]:
         """
         Retrieves the size of a specified field from a schema dictionary. This method is crucial during the
         initial schema handling steps when the fields are not yet organized into a structured list of objects.
@@ -426,17 +437,17 @@ class CoreSignatures(CoreModuleInterface):
             Optional[int]: The size of the field in bytes, or None if the field is not found.
         """
 
-        def _get_filed_size(item: Dict[str, Any]) -> Optional[int]:
+        def _get_filed_size(item: dict[str, Any]) -> Optional[int]:
             """Uses type_to_size() along with the sham specified type to get a filed size in bytes"""
             item_size: int = 0
             nonlocal field_name
 
             try:
-                item_name: Optional[str] = item.get('name', None)
+                item_name: Optional[str] = item.get('name')
                 if item_name is None:
                     raise RuntimeError("missing field property 'name' from schema")
                 if field_name == item_name:
-                    item_type: Optional[str] = item.get('type', None)
+                    item_type: Optional[str] = item.get('type')
                     if item_type is None:
                         raise RuntimeError("missing field property 'type' from schema")
 
@@ -444,7 +455,7 @@ class CoreSignatures(CoreModuleInterface):
                 return self._to_decimal(item_size)
 
             except Exception as exception:
-                raise RuntimeError(exception)
+                raise RuntimeError(exception) from exception
 
         for field in dictionary['fields']:
             field_type: Optional[str] = field.get('type', None)
@@ -463,7 +474,7 @@ class CoreSignatures(CoreModuleInterface):
 
         return -1  # $ Error
 
-    def _build_format_string_from_dictionary(self, dictionary: Dict[str, Any]) -> Optional[str]:
+    def _build_format_string_from_dictionary(self, dictionary: dict[str, Any]) -> Optional[str]:
         """
         Constructs a format string for struct packing/unpacking based on a given schema.
         Iteratively processes a schema dictionary that defines types and potentially nested structures to create a
@@ -488,7 +499,7 @@ class CoreSignatures(CoreModuleInterface):
         except KeyError as key_error:
             raise RuntimeError(f"could not construct format string missing {key_error}") from key_error
         except Exception as exception:
-            raise RuntimeError(f"could not construct format string {exception}")
+            raise RuntimeError(f"could not construct format string {exception}") from exception
 
 
 class Signature:
@@ -537,7 +548,7 @@ class Signature:
         self.family_name: Optional[str] = None
 
         # The List of empty fields belongs this signature
-        self.fields: List[SignatureFieldType] = []
+        self.fields: list[SignatureFieldType] = []
 
     def _read_image(self) -> Optional[bytearray]:
         """
@@ -549,7 +560,7 @@ class Signature:
 
             bytes_to_read: int = self.file_image_size
             if self.file_image_size == 0:
-                raise RuntimeError(f"image size is unknown")
+                raise RuntimeError("image size is unknown")
 
             # When the image has extra padding bytes, read them as well
             if self.padding_bytes > 0 and not self.has_boundaries:
@@ -562,7 +573,7 @@ class Signature:
                 return image_data
 
         except Exception as exception:
-            raise RuntimeError(f"failed to read the image data: {exception}")
+            raise RuntimeError(f"failed to read the image data: {exception}") from exception
 
     def _update_integrity(self, image_bytes: bytearray, verify_only: Optional[bool] = False) -> Optional[bool]:
         """
@@ -650,7 +661,7 @@ class Signature:
             return self
 
         except Exception as exception:
-            raise RuntimeError(f"failed to refresh signature: {exception}")
+            raise RuntimeError(f"failed to refresh signature: {exception}") from exception
 
     def verify(self) -> Optional[bool]:
         """
@@ -694,7 +705,7 @@ class Signature:
                                f"at offset {hex(destination_offset)}")
 
             if not self.verified and not ignore_bad_integrity:
-                raise RuntimeError(f"can't save a signature which did not pass integrity check")
+                raise RuntimeError("can't save a signature which did not pass integrity check")
 
             # Read the current image data from storage.
             image_bytes = self._read_image()
@@ -756,7 +767,7 @@ class Signature:
         try:
 
             if field is None or data is None or field.data is None:
-                raise RuntimeError(f"can't set an invalid field")
+                raise RuntimeError("can't set an invalid field")
 
             if field.read_only:
                 raise RuntimeError(f"field {field.name} is read-only")
@@ -791,7 +802,7 @@ class Signature:
         except Exception as exception:
             raise RuntimeError(exception) from exception
 
-    def find_fields(self, name: str) -> Optional[List[SignatureFieldType]]:
+    def find_fields(self, name: str) -> Optional[list[SignatureFieldType]]:
         """
         Returns a list of all fields with the given name.
 
@@ -848,14 +859,14 @@ class SignatureFileHandler:
         self._file_read_offset: Optional[int] = 0
         self._logger: logging.Logger = logging.getLogger(AUTO_FORGE_MODULE_NAME)
         self.schema_name: Optional[str] = schema_name
-        self.signatures: List[Signature] = []  # Empty list to store found signatures
+        self.signatures: list[Signature] = []  # Empty list to store found signatures
         self.signatures_lib: Optional[CoreSignatures] = signatures_lib
 
         # Load the binary file and scan for signatures
         if self._build_signatures_list() == 0:
             raise RuntimeError(f"error handling file '{file_name}' no signatures found")
 
-    def find_signatures(self, criteria_list: List[Dict[str, Any]]) -> Optional[List['Signature']]:
+    def find_signatures(self, criteria_list: list[dict[str, Any]]) -> Optional[list['Signature']]:
         """
         Searches for signatures that match all the provided criteria sets. Each criteria set
         in the list is considered a distinct set of conditions that a signature's fields must
@@ -894,7 +905,7 @@ class SignatureFileHandler:
         return results if results else None
 
     @staticmethod
-    def _matches_criteria(field: SignatureFieldType, criteria: Dict[str, Any]) -> bool:
+    def _matches_criteria(field: SignatureFieldType, criteria: dict[str, Any]) -> bool:
         """
         Checks if a signature field matches all specified criteria.
         Iterates through each criterion and compares it to the attribute of the field object.
@@ -980,7 +991,7 @@ class SignatureFileHandler:
             if not signature.unpacked_data or "fields" not in schema.dictionary:
                 raise RuntimeError("No unpacked data or schema provided")
 
-            def _process_fields(fields: List[Dict]):
+            def _process_fields(fields: list[dict]):
                 """
                 Recursively process fields, ensuring every field is present in the unpacked data.
                 Raises an error if the schema and unpacked data do not match.
@@ -1016,7 +1027,7 @@ class SignatureFileHandler:
                 )
 
         except Exception as exception:
-            raise RuntimeError(f"error processing fields: {exception}")
+            raise RuntimeError(f"error processing fields: {exception}") from exception
 
     @staticmethod
     def _calculate_signature_offsets(signature: Signature):
@@ -1088,7 +1099,7 @@ class SignatureFileHandler:
 
             schemas: Optional[list[SignatureSchemaType]] = self.signatures_lib.find_schemas(self.schema_name)
             if schemas is None or len(schemas) != 1:
-                raise RuntimeError(f"no schema or more than one schema found")
+                raise RuntimeError("no schema or more than one schema found")
 
             schema = schemas[0]
             self._logger.debug(
@@ -1157,7 +1168,7 @@ class SignatureFileHandler:
 
         except Exception as exception:
             self._close_file()  # Ensure proper cleanup on error
-            raise RuntimeError(f"error opening file '{self._file_name}': {exception}")
+            raise RuntimeError(f"error opening file '{self._file_name}': {exception}") from exception
 
     def _close_file(self):
         """

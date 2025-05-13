@@ -34,8 +34,13 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, ToolBox,
-                        TerminalAnsiCodes, TerminalFileIconInfo, TERMINAL_ICONS_MAP)
+from auto_forge import (
+    TERMINAL_ICONS_MAP,
+    CLICommandInterface,
+    TerminalAnsiCodes,
+    TerminalFileIconInfo,
+    ToolBox,
+)
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"

@@ -27,16 +27,27 @@ import time
 import urllib.request
 import zipfile
 from collections import deque
+from collections.abc import Mapping
 from contextlib import suppress
-from typing import Optional, Union, Any, List, Callable, Dict, Mapping
+from typing import Any, Callable, Optional, Union
+
+# Third-party
+from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreLoader,
-                        AutoForgeModuleType, ProgressTracker,
-                        ExecutionModeType, ValidationMethodType,
-                        Registry, ToolBox, AutoLogger)
+from auto_forge import (
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreLoader,
+    CoreModuleInterface,
+    CoreProcessor,
+    ExecutionModeType,
+    ProgressTracker,
+    Registry,
+    ToolBox,
+    ValidationMethodType,
+)
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -53,7 +64,7 @@ class CoreEnvironment(CoreModuleInterface):
         See 'CoreModuleInterface' usage.
         """
         self._workspace_path: Optional[str] = None
-        self._steps_data: Optional[List[str, Any]] = None
+        self._steps_data: Optional[list[tuple[str, Any]]] = None
         self._status_title_length: int = 80
         self._status_add_time_prefix: bool = True
         self._status_new_line: bool = False
@@ -89,7 +100,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
         self._system_type = platform.system().lower()
-        self._is_wsl = True if "wsl" in platform.release().lower() else False
+        self._is_wsl = "wsl" in platform.release().lower()
 
         # Get extended distro info when we're running under Linux
         if self._system_type == "linux":
@@ -116,7 +127,7 @@ class CoreEnvironment(CoreModuleInterface):
             print(text)
 
     @staticmethod
-    def _flatten_command(command: str, arguments: Optional[Union[str, List[Any]]] = None) -> str:
+    def _flatten_command(command: str, arguments: Optional[Union[str, list[Any]]] = None) -> str:
         if arguments is None:
             return command
         if isinstance(arguments, str):
@@ -135,19 +146,26 @@ class CoreEnvironment(CoreModuleInterface):
         """
         distro_info = {'name': 'unknown', 'version': 'unknown'}
 
-        with suppress(Exception):
-            with open("/etc/os-release", "r") as file:
-                # Read each line and split by '=' to extract key-value pairs
-                for line in file:
-                    if line.startswith("ID="):
-                        # Clean up the ID value and convert to lowercase
-                        distro_info['name'] = line.strip().split('=')[1].strip().replace('"', '').lower()
-                    elif line.startswith("VERSION_ID="):
-                        # Clean up the VERSION_ID value and convert to lowercase
-                        distro_info['version'] = line.strip().split('=')[1].strip().replace('"', '').lower()
+        # Attempt to open the file and extract distro info,
+        # suppressing any exceptions (e.g., file not found, permission error)
+        with suppress(Exception), open("/etc/os-release") as file:
+            # Iterate through each line to find OS name and version
+            for line in file:
+                if line.startswith("ID="):
+                    # Extract and clean the distro name
+                    distro_info['name'] = (
+                        line.strip().split('=')[1].strip().replace('"', '').lower()
+                    )
+                elif line.startswith("VERSION_ID="):
+                    # Extract and clean the distro version
+                    distro_info['version'] = (
+                        line.strip().split('=')[1].strip().replace('"', '').lower()
+                    )
 
-                return distro_info['name'], distro_info['version']
+            # Return tuple only if both name and version were found
+            return distro_info['name'], distro_info['version']
 
+        # If anything failed (file missing, parsing error), return None
         return None
 
     def _get_python_binary_path(self, venv_path: Optional[str] = None) -> Optional[str]:
@@ -206,8 +224,8 @@ class CoreEnvironment(CoreModuleInterface):
             if number.is_integer():
                 return int(number)
             return number
-        except ValueError:
-            raise ValueError("found value is not a number")
+        except ValueError as value_error:
+            raise ValueError("found value is not a number") from value_error
 
     @staticmethod
     def _extract_python_package_version(package_info: str) -> Optional[str]:
@@ -243,7 +261,7 @@ class CoreEnvironment(CoreModuleInterface):
             search_pattern: Optional[str] = None
 
             if self._package_manager is None:
-                raise EnvironmentError("no supported package manager found (APT or DNF)")
+                raise OSError("no supported package manager found (APT or DNF)")
 
             # Determine the package manager
             if self._package_manager == "apt":
@@ -255,7 +273,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             command_response = self.execute_shell_command(command_and_args=command)
             if command_response is not None or search_pattern not in command_response:
-                raise EnvironmentError(f"system package '{package_name}' not validated using {self._package_manager}")
+                raise OSError(f"system package '{package_name}' not validated using {self._package_manager}")
 
         # Propagate the exception
         except Exception:
@@ -278,7 +296,7 @@ class CoreEnvironment(CoreModuleInterface):
         try:
 
             if self._workspace_path is None:
-                raise RuntimeError(f"stored 'workspace path' cannot be None")
+                raise RuntimeError("stored 'workspace path' cannot be None")
 
             # Expand environment variables and user home shortcuts in the path
             self._workspace_path = self.environment_variable_expand(text=self._workspace_path, to_absolute_path=True)
@@ -430,8 +448,8 @@ class CoreEnvironment(CoreModuleInterface):
         if isinstance(arguments, str):
             try:
                 arguments = json.loads(arguments)
-            except json.JSONDecodeError:
-                raise ValueError("invalid JSON string provided for arguments.")
+            except json.JSONDecodeError as json_error:
+                raise ValueError("invalid JSON string provided for arguments") from json_error
 
         # Default to empty dict if no arguments provided
         if arguments is None:
@@ -455,7 +473,7 @@ class CoreEnvironment(CoreModuleInterface):
             if isinstance(execution_result, (str, int)) or execution_result is None:
                 return execution_result
             else:
-                raise None  # Method did not return an expected return value
+                return None  # Method did not return an expected return value
 
         except Exception as exception:
             raise exception
@@ -580,16 +598,17 @@ class CoreEnvironment(CoreModuleInterface):
         print(Style.RESET_ALL, end='')  # Ensure styling is reset
         return result_container.get('code', 1)
 
-    def execute_shell_command(self, command_and_args: str,
-                              timeout: Optional[float] = None,
-                              terminal_echo: bool = False,
-                              expand_command: bool = True,
-                              use_pty: bool = True,
-                              searched_token: Optional[str] = None,
-                              check: bool = True,
-                              shell: bool = True,
-                              cwd: Optional[str] = None,
-                              env: Optional[Mapping[str, str]] = None) -> Optional[str]:
+    def execute_shell_command(  # noqa: C901
+            self, command_and_args: str,
+            timeout: Optional[float] = None,
+            terminal_echo: bool = False,
+            expand_command: bool = True,
+            use_pty: bool = True,
+            searched_token: Optional[str] = None,
+            check: bool = True,
+            shell: bool = True,
+            cwd: Optional[str] = None,
+            env: Optional[Mapping[str, str]] = None) -> Optional[str]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -609,7 +628,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
 
         polling_interval: float = 0.0001
-        kwargs: Optional[Dict[str, Any]] = {}
+        kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
         master_fd: Optional[int] = None  # PTY master descriptor
@@ -682,7 +701,7 @@ class CoreEnvironment(CoreModuleInterface):
             try:
                 text = input_buffer.decode('utf-8', errors='replace')
             except Exception as decode_error:
-                raise RuntimeError(f"Decode error: {decode_error}")
+                raise RuntimeError(f"Decode error: {decode_error}") from decode_error
 
             clear_text = self._toolbox.strip_ansi(text).strip()
             if clear_text:
@@ -722,10 +741,7 @@ class CoreEnvironment(CoreModuleInterface):
                     readable, _, _ = select.select([process.stdout], [], [], polling_interval)
 
                 if readable:
-                    if use_pty:
-                        received_byte = os.read(master_fd, 1)
-                    else:
-                        received_byte = process.stdout.read(1)
+                    received_byte = os.read(master_fd, 1) if use_pty else process.stdout.read(1)
 
                     if not received_byte:
                         break  # EOF: nothing more to read
@@ -794,13 +810,11 @@ class CoreEnvironment(CoreModuleInterface):
         """
         Runs a full-screen TUI command like 'htop' or 'vim' by fully attaching to the terminal.
         """
-        try:
+        with suppress(KeyboardInterrupt):
             subprocess.run(
                 command_and_args,
                 shell=True, check=False, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr, env=os.environ,
             )
-        except KeyboardInterrupt:
-            pass  # Allow Ctrl+C to cleanly return
 
     def validate_prerequisite(self,
                               command: str,
@@ -864,7 +878,7 @@ class CoreEnvironment(CoreModuleInterface):
                 if not expected_response:
                     raise ValueError("expected response must be provided for READ_FILE validation")
 
-                with open(file_path, 'r') as f:
+                with open(file_path) as f:
                     lines = f.readlines()
                     start = max(0, line_number - 1)
                     end = start + line_count
@@ -938,7 +952,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as erase_exception:
             raise erase_exception
 
-    def path_create(self, path: Optional[str] = None, paths: Optional[List[str]] = None,
+    def path_create(self, path: Optional[str] = None, paths: Optional[list[str]] = None,
                     erase_if_exist: bool = False, project_path: bool = True) -> Optional[str]:
         """
         Create a path or folder tree. Optionally erase if it exists.
@@ -977,7 +991,7 @@ class CoreEnvironment(CoreModuleInterface):
                 last_full_path = full_path  # Update the last path created
 
             except Exception as path_create_error:
-                raise Exception(f"could not create '{full_path}': {str(path_create_error)}")
+                raise Exception(f"could not create '{full_path}': {path_create_error!s}") from path_create_error
 
         return last_full_path  # Return the path of the last directory successfully created
 
@@ -1018,7 +1032,8 @@ class CoreEnvironment(CoreModuleInterface):
                 cwd=expanded_python_binary_path)
 
         except Exception as py_venv_error:
-            raise Exception(f"could not create virtual environment in '{venv_path}' {str(py_venv_error)}")
+            raise Exception(
+                f"could not create virtual environment in '{venv_path}' {py_venv_error!s}") from py_venv_error
 
     def python_update_pip(self, venv_path: Optional[str] = None):
         """
@@ -1039,7 +1054,7 @@ class CoreEnvironment(CoreModuleInterface):
                 command_and_args=self._flatten_command(command=command, arguments=arguments))
 
         except Exception as py_env_error:
-            raise Exception(f"could not update pip {py_env_error}")
+            raise Exception(f"could not update pip {py_env_error}") from py_env_error
 
     def python_package_add(self, package_or_requirements: str, venv_path: Optional[str] = None):
         """
@@ -1058,7 +1073,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Normalize inputs
             package_or_requirements = self._toolbox.normalize_text(package_or_requirements)
             if len(package_or_requirements) == 0:
-                raise RuntimeError(f"no package or requirements file specified for pip")
+                raise RuntimeError("no package or requirements file specified for pip")
 
             # Determine if the input is a package name or a path to a requirements file
             if package_or_requirements.endswith('.txt'):
@@ -1071,7 +1086,8 @@ class CoreEnvironment(CoreModuleInterface):
                                        self._flatten_command(command=command, arguments=arguments), shell=False)
 
         except Exception as python_pip_error:
-            raise Exception(f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}")
+            raise Exception(
+                f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}") from python_pip_error
 
     def python_package_uninstall(self, package: str, venv_path: Optional[str] = None):
         """
@@ -1089,7 +1105,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Normalize inputs
             package = self._toolbox.normalize_text(package)
             if not package:
-                raise RuntimeError(f"no package specified for pip")
+                raise RuntimeError("no package specified for pip")
 
             arguments = f"-m pip uninstall -y {package}"
 
@@ -1099,7 +1115,7 @@ class CoreEnvironment(CoreModuleInterface):
                 shell=False)
 
         except Exception as python_pip_error:
-            raise Exception(f"could not uninstall pip package(s) '{package}' {python_pip_error}")
+            raise Exception(f"could not uninstall pip package(s) '{package}' {python_pip_error}") from python_pip_error
 
     def python_package_get_version(self, package: str, venv_path: Optional[str] = None) -> \
             Optional[str]:
@@ -1120,7 +1136,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Normalize inputs
             package = self._toolbox.normalize_text(package)
             if not package:
-                raise RuntimeError(f"no package specified for pip")
+                raise RuntimeError("no package specified for pip")
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
@@ -1176,7 +1192,7 @@ class CoreEnvironment(CoreModuleInterface):
                                        timeout=timeout)
 
         except Exception as py_git_error:
-            raise Exception(f"git operation failure {str(py_git_error)}")
+            raise Exception(f"git operation failure {py_git_error!s}") from py_git_error
 
     def git_checkout_revision(self, dest_repo_path: str, revision: str,
                               timeout: float = 0,
@@ -1217,11 +1233,11 @@ class CoreEnvironment(CoreModuleInterface):
                                        cwd=dest_repo_path, timeout=timeout)
 
         except Exception as py_git_error:
-            raise Exception(f"git operation failure {str(py_git_error)}")
+            raise Exception(f"git operation failure {py_git_error!s}") from py_git_error
 
     def git_get_path_from_url(self, url: str,
                               destination_file_name: Optional[str] = None,
-                              allowed_extensions: Optional[List[str]] = None,
+                              allowed_extensions: Optional[list[str]] = None,
                               delete_if_exisit: bool = False,
                               proxy: Optional[str] = None,
                               token: Optional[str] = None) -> Optional[str]:
@@ -1273,7 +1289,7 @@ class CoreEnvironment(CoreModuleInterface):
         # Gets the files list
         files: list = self.url_get(url=url, destination=None, proxy=proxy, token=token)
         if not isinstance(files, list):
-            raise RuntimeError(f"could not get listing for remote URL")
+            raise RuntimeError("could not get listing for remote URL")
 
         # Define temporary paths to work on
         destination_temp_path = self._toolbox.get_temp_pathname()
@@ -1286,9 +1302,8 @@ class CoreEnvironment(CoreModuleInterface):
 
                 filename = file_info['name']
                 # If allowed_extensions is specified, filter
-                if allowed_extensions:
-                    if not any(filename.lower().endswith(ext.lower()) for ext in allowed_extensions):
-                        continue  # Skip files not matching allowed extensions
+                if allowed_extensions and not any(filename.lower().endswith(ext.lower()) for ext in allowed_extensions):
+                    continue
 
                 file_url = file_info['download_url']
                 local_filename = os.path.join(destination_temp_path, file_info['name'])
@@ -1312,13 +1327,14 @@ class CoreEnvironment(CoreModuleInterface):
         finally:
             shutil.rmtree(destination_temp_path)
 
-    def url_get(self, url: str,
-                destination: Optional[str] = None,
-                delete_if_exisit: Optional[bool] = False,
-                proxy: Optional[str] = None,
-                token: Optional[str] = None,
-                timeout: Optional[float] = None,
-                extra_headers: Optional[dict] = None) -> Optional[Any]:
+    def url_get(  # noqa: C901 # Acceptable complexity
+            self, url: str,
+            destination: Optional[str] = None,
+            delete_if_exisit: Optional[bool] = False,
+            proxy: Optional[str] = None,
+            token: Optional[str] = None,
+            timeout: Optional[float] = None,
+            extra_headers: Optional[dict] = None) -> Optional[Any]:
         """
         Downloads a file / list of files from a specified URL to a specified local path, with optional authentication,
         proxy support, and additional HTTP headers. When verbosity is on the download progress is shown.
@@ -1439,7 +1455,7 @@ class CoreEnvironment(CoreModuleInterface):
                 return downloaded_size
 
         except Exception as download_error:
-            raise RuntimeError(f"download error '{remote_file or url}', {download_error}")
+            raise RuntimeError(f"download error '{remote_file or url}', {download_error}") from download_error
 
     def follow_steps(self, steps_file: str, tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
@@ -1522,7 +1538,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         except Exception as steps_error:
             self._tracker.set_result(text="Error", status_code=1)
-            raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}")
+            raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}") from steps_error
         finally:
             # Restore terminal cursor on exit
             os.chdir(local_path)  # Restore initial path

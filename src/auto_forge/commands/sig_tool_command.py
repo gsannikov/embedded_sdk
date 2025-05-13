@@ -11,12 +11,11 @@ Description:
 import argparse
 import os
 from pathlib import Path
-from typing import Optional, Any
-
-from git import Commit, Repo
+from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreSignatures, ToolBox)
+from auto_forge import CLICommandInterface, CoreSignatures, ToolBox
+from git import Commit, Repo
 
 AUTO_FORGE_MODULE_NAME = "sig_tool"
 AUTO_FORGE_MODULE_DESCRIPTION = "Binary file signing tool"
@@ -149,7 +148,7 @@ class SigToolCommand(CLICommandInterface):
             # Handle the single signature scenario
             signature = file_handler.signatures[0]
             if not signature.verified:
-                self._logger.warning(f"binary CRC is invalid")
+                self._logger.warning("binary CRC is invalid")
 
             # Only validate the CRC without updating
             if validate_only:
@@ -177,7 +176,7 @@ class SigToolCommand(CLICommandInterface):
                 return int(signature.save(ignore_bad_integrity=True, file_name=destination_path))
 
         except Exception as exception:
-            raise RuntimeError(f"cannot apply CRC on '{source_binary_file}' {exception}")
+            raise RuntimeError(f"cannot apply CRC on '{source_binary_file}' {exception}") from exception
 
     def _pad_file(self, source_binary_file: str, required_size: int, pad_byte: Optional[int] = 0xFF) -> bool:
         """
@@ -226,7 +225,7 @@ class SigToolCommand(CLICommandInterface):
         except Exception as exception:
             raise RuntimeError(
                 f"can't resize '{os.path.basename(source_binary_file)}' "
-                f"to {required_size} bytes: {exception}")
+                f"to {required_size} bytes: {exception}") from exception
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """

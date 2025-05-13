@@ -22,10 +22,10 @@ import shlex
 import sys
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import IO, Any, Optional
 
 # AutoForge imports
-from auto_forge import (ModuleInfoType, AutoForgeModuleType, AutoLogger)
+from auto_forge import AutoForgeModuleType, AutoLogger, ModuleInfoType
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 from auto_forge.common.toolbox import ToolBox
 
@@ -75,7 +75,7 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         """
         return self.error_output.getvalue().strip()
 
-    def print_help(self, file=None):
+    def print_help(self, _file: Optional[IO[str]] = None) -> None:
         """
         Overrides default help output with a custom help message.
         """
@@ -123,7 +123,7 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
 
         print('\n' + final_help + '\n')
 
-    def print_usage(self, file=None):
+    def print_usage(self, _file: Optional[IO[str]] = None) -> None:
         """
         Overrides usage banner output.
         """
@@ -150,9 +150,9 @@ class CLICommandInterface(ABC):
         """
 
         self._last_error: Optional[str] = None
+        self._last_exception: Optional[Exception] = None
         self._raise_exceptions = raise_exceptions
         self._command_name: str = command_name
-
 
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
@@ -254,27 +254,32 @@ class CLICommandInterface(ABC):
             if return_value == self.COMMAND_ERROR_NO_ARGUMENTS:
                 parser.print_help()
 
+
         except SystemExit:
-            # Trap argparse attempt to exiot and return non-zero
+
             self._last_error = parser.get_error_message()
-        except Exception as execution_exception:  # Propagate any other error
+            self._last_exception = None
+        except Exception as execution_exception:
             self._last_error = str(execution_exception).strip()
+            self._last_exception = execution_exception
         finally:
             time.sleep(0.1)
             if self._last_error is not None:
                 if self._raise_exceptions:
-                    raise RuntimeError(self._last_error)
+                    if self._last_exception:
+                        raise RuntimeError(self._last_error) from self._last_exception
+                    else:
+                        raise RuntimeError(self._last_error)
                 else:
                     print(self._last_error)
-
             sys.stdout.flush()
-            return return_value
+        return return_value
 
-    def initialize(self, **kwargs: Any) -> bool:
+    def initialize(self, **_kwargs: Any) -> bool:
         """
         Optional interface method for command-specific one-time initialization.
         Args:
-            **kwargs (Any): Optional initialization parameters specific to the command.
+            **_kwargs (Any): Optional initialization parameters specific to the command.
         Returns:
             bool: True if initialization succeeded, False otherwise.
         """

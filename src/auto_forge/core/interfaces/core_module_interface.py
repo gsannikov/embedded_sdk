@@ -38,15 +38,16 @@ import inspect
 import threading
 import time
 from abc import ABCMeta
-from typing import Optional, cast, TypeVar, Type, TYPE_CHECKING, Dict, Any, Tuple
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, cast
 
 # Import AutoForge only during static type checking to avoid circular import issues at runtime
 from auto_forge import ExceptionGuru
 
+# Third-party
+from colorama import Fore, Style
+
 if TYPE_CHECKING:
     from auto_forge.auto_forge import AutoForge
-
-from colorama import Fore, Style
 
 # Generic type variable used to represent subclasses of CoreModuleInterface
 T = TypeVar("T", bound="CoreModuleInterface")
@@ -66,9 +67,9 @@ class _SingletonABCMeta(ABCMeta):
         It should not be reused or subclassed directly outside the framework core.
     """
 
-    _instances: Dict[Type, Any] = {}
-    _init_args: Dict[Type, Tuple[Tuple[Any, ...], Dict[str, Any]]] = {}
-    _ready_event: Dict[Type, threading.Event] = {}
+    _instances: ClassVar[dict[type, Any]] = {}
+    _init_args: ClassVar[dict[type, tuple[tuple[Any, ...], dict[str, Any]]]] = {}
+    _ready_event: ClassVar[dict[type, threading.Event]] = {}
 
     def __call__(cls, *args, **kwargs):
         """
@@ -85,7 +86,7 @@ class _SingletonABCMeta(ABCMeta):
         return cls._instances[cls]
 
     @classmethod
-    def wait_until_ready(cls, subclass: Type[T], timeout: Optional[float] = 5) -> bool:
+    def wait_until_ready(cls, subclass: type[T], timeout: Optional[float] = 5) -> bool:
         """
         Waits for a given subclass (e.g., CoreGUI) to be initialized and ready.
         Args:
@@ -113,7 +114,7 @@ class _SingletonABCMeta(ABCMeta):
             time.sleep(poll_interval)
 
     @classmethod
-    def mark_ready(cls, subclass: Type[T]) -> None:
+    def mark_ready(cls, subclass: type[T]) -> None:
         """
         Marks the singleton instance of the given subclass as ready.
         """
@@ -122,7 +123,7 @@ class _SingletonABCMeta(ABCMeta):
             event.set()
 
     @classmethod
-    def get_instance_for(cls, subclass: Type[T]) -> Optional[T]:
+    def get_instance_for(cls, subclass: type[T]) -> Optional[T]:
         """
         Returns the singleton instance for the given subclass, if initialized.
         Args:
@@ -177,7 +178,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
                 # Store the exception context in the exception guru utility class.
                 ExceptionGuru()
-                raise RuntimeError(f"Core module '{core_module_name}': {str(core_exception)}")
+                raise RuntimeError(f"Core module '{core_module_name}': {core_exception!s}") from core_exception
             else:
                 raise
 
@@ -205,7 +206,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         return _CORE_AUTO_FORGE_ROOT
 
     @classmethod
-    def get_instance(cls: Type[T]) -> Optional[T]:
+    def get_instance(cls: type[T]) -> Optional[T]:
         """
         Returns the existing singleton instance of the class if it was created,
         or `None` if the class was never explicitly instantiated.

@@ -57,3 +57,41 @@ packages = [
 # Extended package properties should only be placed here to ensure compliance with PEP 621.
 [tool.autoforge_metadata]
 fancy_name = "AutoForge"
+
+#
+# Ruff: Fast Python linter & formatter
+#
+# This section configures Ruff for static analysis and code formatting.
+# - [tool.ruff]: General settings like line length and Python target version.
+# - [tool.ruff.lint]: Enabled/ignored rule categories for code linting.
+# - [tool.ruff.lint.isort]: Sorting behavior for imports (grouping, ordering).
+# - [tool.ruff.lint.per-file-ignores]: Exceptions for specific files.
+#
+# For reference: https://docs.astral.sh/ruff/configuration/
+#
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W", "B", "C90", "I", "UP", "SIM", "TID", "ARG", "N", "RUF"
+]
+
+# Ignore Ruff import-sorting warnings (I001) for this file,
+# as we intentionally follow PyCharm's sorting logic instead.
+
+ignore = [
+    "E501", "D203", "D213", "RUF100", "I001"
+]
+
+# This raises the McCabe complexity threshold from the default (10) to a more reasonable 16,
+# reducing unnecessary warnings for well-contained but naturally complex logic.
+
+[tool.ruff.lint.mccabe]
+max-complexity = 16
+
+[tool.ruff.lint.per-file-ignores]
+"src/auto_forge/__init__.py" = ["I002"]
+

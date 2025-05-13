@@ -10,10 +10,10 @@ Description:
 import json
 import os
 import re
-from typing import Optional, Any, Dict
+from typing import Any, Optional
 
 # AutoForge local imports
-from auto_forge import (CoreModuleInterface, AutoForgeModuleType, Registry, AutoLogger, ToolBox)
+from auto_forge import AutoForgeModuleType, AutoLogger, CoreModuleInterface, Registry, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor"
@@ -119,7 +119,7 @@ class CoreProcessor(CoreModuleInterface):
         cleaned_str = re.sub(r'\n\s*\n', '\n', cleaned_str)  # Collapse multiple new lines
         return cleaned_str.strip()
 
-    def preprocess(self, file_name: str) -> Optional[Dict[str, Any]]:
+    def preprocess(self, file_name: str) -> Optional[dict[str, Any]]:
         """
          Preprocess a JSON file to remove embedded comments.
          Args:
@@ -137,7 +137,7 @@ class CoreProcessor(CoreModuleInterface):
                 raise FileNotFoundError(f"JSONC file '{config_file}' does not exist.")
 
             # Load the file as text
-            with open(config_file, "r") as text_file:
+            with open(config_file) as text_file:
                 json_with_comments = text_file.read()
 
             # Perform comments cleanup
@@ -152,4 +152,4 @@ class CoreProcessor(CoreModuleInterface):
                 error_line = self._get_line_number_from_error(str(json_parsing_error))
                 if error_line is not None:
                     self._show_debug_message(file_name, clean_json, error_line, json_parsing_error)
-            raise RuntimeError(json_parsing_error)
+            raise

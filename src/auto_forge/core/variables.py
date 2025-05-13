@@ -14,12 +14,19 @@ import re
 import threading
 from bisect import bisect_left
 from dataclasses import asdict
-from typing import Optional, Any, Dict, List, Tuple, Match
+from re import Match
+from typing import Any, Optional
 
 # Builtin AutoForge core libraries
-from auto_forge import (CoreModuleInterface, CoreProcessor,
-                        AutoForgeModuleType, VariableFieldType,
-                        ToolBox, Registry, AutoLogger)
+from auto_forge import (
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreModuleInterface,
+    CoreProcessor,
+    Registry,
+    ToolBox,
+    VariableFieldType,
+)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
@@ -70,7 +77,7 @@ class CoreVariables(CoreModuleInterface):
         self._variable_force_upper_case_names: bool = False  # Instruct to force variables to be allways uppercased
         self._workspace_creation_mode: bool = workspace_creation_mode
         self._search_keys: Optional[
-            List[Tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
+            list[tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
 
         # Create an instance of the JSON preprocessing library
         self._processor: CoreProcessor = CoreProcessor.get_instance()
@@ -114,7 +121,7 @@ class CoreVariables(CoreModuleInterface):
         try:
             return str(value)
         except Exception as conversion_error:
-            raise RuntimeError(f"failed to convert {value} to string {str(conversion_error)}")
+            raise RuntimeError(f"failed to convert {value} to string {conversion_error!s}") from conversion_error
 
     def _get_index(self, variable_name: str, flexible: bool = False) -> Optional[int]:
         """
@@ -220,10 +227,10 @@ class CoreVariables(CoreModuleInterface):
         with (self._lock):
             try:
                 if self._variables is not None and not rebuild:
-                    raise RuntimeError(f"variables dictionary exist")
+                    raise RuntimeError("variables dictionary exist")
 
                 # Preprocess
-                raw_data: Optional[Dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
+                raw_data: Optional[dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
                 if raw_data is None:
                     raise RuntimeError(f"unable to load variables file: {config_file_name}")
 
@@ -273,7 +280,7 @@ class CoreVariables(CoreModuleInterface):
 
             except Exception as exception:
                 self._variables = None
-                raise RuntimeError(f"variables file '{self._base_file_name}' error {exception}")
+                raise RuntimeError(f"variables file '{self._base_file_name}' error {exception}") from exception
 
     def _expand_variable_value(self, value: Any) -> Any:
         """
@@ -478,7 +485,7 @@ class CoreVariables(CoreModuleInterface):
         """
 
         if not self._is_initialized:
-            raise RuntimeError(f"variables not initialized")
+            raise RuntimeError("variables not initialized")
 
         with self._lock:
             index = self._get_index(variable_name)

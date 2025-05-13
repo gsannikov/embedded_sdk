@@ -9,6 +9,7 @@ Description:
     dynamically load CLI commands and start the build system shell.
 """
 
+# Standard library imports
 import argparse
 import builtins
 import contextlib
@@ -18,14 +19,30 @@ import os
 import sys
 from typing import Optional
 
-# Colorama
+# Third-party imports
 from colorama import Fore, Style
 
-# Internal AutoForge imports
-from auto_forge import (ToolBox, CoreModuleInterface, CoreProcessor, CoreVariables, CoreGUI,
-                        CoreSolution, CoreEnvironment, CoreLoader, CorePrompt, Registry, AutoLogger,
-                        AddressInfoType, LogHandlersTypes, TerminalAnsiCodes,
-                        ExceptionGuru, PROJECT_VERSION, PROJECT_NAME, PROJECT_COMMANDS_PATH)
+# Local application imports
+from auto_forge import (
+    PROJECT_COMMANDS_PATH,
+    PROJECT_NAME,
+    PROJECT_VERSION,
+    AddressInfoType,
+    AutoLogger,
+    CoreEnvironment,
+    CoreGUI,
+    CoreLoader,
+    CoreModuleInterface,
+    CoreProcessor,
+    CorePrompt,
+    CoreSolution,
+    CoreVariables,
+    ExceptionGuru,
+    LogHandlersTypes,
+    Registry,
+    TerminalAnsiCodes,
+    ToolBox,
+)
 
 
 class AutoForge(CoreModuleInterface):
@@ -101,7 +118,10 @@ class AutoForge(CoreModuleInterface):
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
                                                              automated_mode=self._automated_mode)
 
-    def _validate_arguments(self, *_args, **kwargs) -> None:
+    def _validate_arguments(  # noqa: C901 # Acceptable complexity
+            self,
+            *_args,
+            **kwargs) -> None:
         """
         Validate command-line arguments and set the AutoForge session execution mode.
         Depending on the inputs, AutoForge will either:
@@ -116,114 +136,115 @@ class AutoForge(CoreModuleInterface):
         """
 
         # Get all argumnets from kwargs
-        self._workspace_path = kwargs.get("workspace_path")
-        self._automation_macro = kwargs.get("automation_macro")
-        self._solution_url = kwargs.get("solution_url")
-        self._git_token = kwargs.get("git_token")
-        self._create_workspace = kwargs.get("create_workspace", False)
-        solution_package = kwargs.get("solution_package")
-        remote_debugging: Optional[str] = kwargs.get("remote_debugging")
-        proxy_server: Optional[str] = kwargs.get("proxy_server")
+        def _init_arguments():
+            self._workspace_path = kwargs.get("workspace_path")
+            self._automation_macro = kwargs.get("automation_macro")
+            self._solution_url = kwargs.get("solution_url")
+            self._git_token = kwargs.get("git_token")
+            self._create_workspace = kwargs.get("create_workspace", False)
+            nonlocal solution_package, remote_debugging, proxy_server
+            solution_package = kwargs.get("solution_package")
+            remote_debugging = kwargs.get("remote_debugging")
+            proxy_server = kwargs.get("proxy_server")
 
-        # Defensive check: workspace_path should always be set since it is marked as 'required' in argparse.
-        # This condition should never occur under normal usage.
-        if self._workspace_path is None:
-            raise ValueError("Workspace path must be provided.")
+        def _validate_workspace_path():
+            """
+            Workspace creation behavior:
+            - If the workspace path does not exist and creation is enabled (default), AutoForge will create it
+                based on the solution package instructions.
+            - If the workspace exists and creation is disabled, AutoForge will load the existing workspace.
+            - If the workspace does not exist and creation is disabled, an exception will be raised.
+            """
 
-        # Expand paths and variables
-        self._workspace_path = ToolBox.get_expanded_path(self._workspace_path)
-        if self._automation_macro is not None:
-            self._automation_macro = ToolBox.get_expanded_path(self._automation_macro)
+            if self._workspace_path is None:
+                raise ValueError("Workspace path must be provided.")
+            self._workspace_path = ToolBox.get_expanded_path(self._workspace_path)
+            if not ToolBox.looks_like_unix_path(self._workspace_path):
+                raise ValueError(f"The specified path '{self._workspace_path}' does not look like a valid Unix path.")
+            if not self._create_workspace and not os.path.exists(self._workspace_path):
+                raise RuntimeError(f"Workspace path '{self._workspace_path}' does not exist and creation is disabled.")
 
-        if not ToolBox.looks_like_unix_path(self._workspace_path):
-            raise ValueError(f"The specified path '{self._workspace_path}' does not look like a valid Unix path.")
+            # If we ware requested to create a workspace, the destination path must be empty
+            if (self._create_workspace and os.path.exists(self._workspace_path)
+                    and not ToolBox.is_directory_empty(self._workspace_path)):
+                raise RuntimeError(f"Path '{self._workspace_path}' is not empty while workspace creation is enabled.")
 
-        # Workspace creation behavior:
-        # - If the workspace path does not exist and creation is enabled (default), AutoForge will create it
-        #   based on the solution package instructions.
-        # - If the workspace exists and creation is disabled, AutoForge will load the existing workspace.
-        # - If the workspace does not exist and creation is disabled, an exception will be raised.
+        def _validate_macro():
+            if self._automation_macro is not None:
+                self._automation_macro = ToolBox.get_expanded_path(self._automation_macro)
+                if not os.path.isfile(self._automation_macro):
+                    raise ValueError(
+                        f"Automation macro path '{self._automation_macro}' does not exist or is not a file.")
+                self._automated_mode = True
 
-        if not self._create_workspace and not os.path.exists(self._workspace_path):
-            raise RuntimeError(f"Workspace path '{self._workspace_path}' does not exist and creation is disabled.")
-
-        # If we ware requested to create a workspace, the destination path must be empty
-        if (self._create_workspace
-                and os.path.exists(self._workspace_path)
-                and not ToolBox.is_directory_empty(self._workspace_path)):
-            raise RuntimeError(f"Path '{self._workspace_path}' is not empty while workspace creation is enabled.")
-
-        # Solution package validation:
-        # AutoForge allows flexible input for the 'solution_package' argument:
-        # - The user can specify a path to a solution archive (.zip file), or
-        # - A path to an existing directory containing the solution files.
-        # - A Github URL pointing to git path which contains the solution files.
-        # Validation ensures that the provided path exists and matches one of the accepted formats.
-
-        if solution_package is not None:
+        def _validate_solution_package():
+            """
+            Solution package validation:
+            AutoForge allows flexible input for the 'solution_package' argument:
+            - The user can specify a path to a solution archive (.zip file), or
+            - A path to an existing directory containing the solution files.
+            - A Github URL pointing to git path which contains the solution files.
+            Validation ensures that the provided path exists and matches one of the acc
+            """
+            if not isinstance(solution_package, str):
+                return
 
             if ToolBox.is_url(solution_package):
                 self._solution_url = solution_package
-            else:
-                # Path expansion
-                solution_package = ToolBox.get_expanded_path(solution_package)
-
-                if ToolBox.looks_like_unix_path(solution_package):
-                    # Looks like a UNIX path?
-                    if os.path.isdir(solution_package):
-                        # It's a valid directory
-                        self._solution_package_path = solution_package
-                        self._solution_package_file = None
-
-                    elif os.path.isfile(solution_package) and solution_package.lower().endswith(".zip"):
-                        # An exiting file with .zip extension
-                        self._solution_package_file = solution_package
-                        self._solution_package_path = None
-                    else:
-                        raise ValueError(f"Package '{solution_package}' must be an existing directory or a .zip file.")
+                return
+            solution_package_path = ToolBox.get_expanded_path(solution_package)
+            if ToolBox.looks_like_unix_path(solution_package_path):
+                if os.path.isdir(solution_package_path):
+                    self._solution_package_path = solution_package_path
+                    self._solution_package_file = None
+                elif os.path.isfile(solution_package_path) and solution_package_path.lower().endswith(".zip"):
+                    self._solution_package_file = solution_package_path
+                    self._solution_package_path = None
                 else:
-                    # Doesn't look like a UNIX path — treat it as a possible file
-                    if os.path.isfile(solution_package) and solution_package.lower().endswith(".zip"):
-                        self._solution_package_file = solution_package
-                        self._solution_package_path = None
+                    raise ValueError(f"Package '{solution_package_path}' must be a directory or a .zip file.")
+            elif os.path.isfile(solution_package_path) and solution_package_path.lower().endswith(".zip"):
+                self._solution_package_file = solution_package_path
+                self._solution_package_path = None
+            else:
+                raise ValueError(f"Package '{solution_package_path}' is a directory or a .zip file.")
 
-                    else:
-                        raise ValueError(f"Package '{solution_package}' is an existing directory or a .zip file.")
+        def _validate_solution_url():
+            """
+            Solution URL validation:
+            AutoForge allows optionally specifying a Git URL, which will later be used to retrieve solution files.
+            The URL must have a valid structure and must point to a path (not to a single file)
+            """
 
-        # Solution URL validation:
-        # AutoForge allows optionally specifying a Git URL, which will later be used to retrieve solution files.
-        # The URL must have a valid structure and must point to a path (not to a single file).
-
-        if self._solution_url:
-            is_url_path: Optional[bool] = ToolBox.is_url_path(self._solution_url)
+            if not self._solution_url:
+                return
+            is_url_path = ToolBox.is_url_path(self._solution_url)
             if is_url_path is None:
                 raise RuntimeError(f"The specified URL '{self._solution_url}' is not a valid Git URL.")
             if not is_url_path:
                 raise RuntimeError(f"The specified URL '{self._solution_url}' does not point to a valid path.")
 
-        if self._automation_macro:
-            if not os.path.isfile(self._automation_macro):
-                raise ValueError(f"Automation macro path '{self._automation_macro}' does not exist or is not a file.")
-            self._automated_mode = True
+        def _validate_network_options():
+            if remote_debugging:
+                self._remote_debugging = ToolBox.get_address_and_port(remote_debugging)
+                if self._remote_debugging is None:
+                    raise ValueError(f"The specified remote debugging address '{remote_debugging}' is invalid. "
+                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678).")
+            if proxy_server:
+                self._proxy_server = ToolBox.get_address_and_port(proxy_server)
+                if self._proxy_server is None:
+                    raise ValueError(f"The specified proxy server address '{proxy_server}' is invalid. "
+                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678).")
 
-        # Optional arguments with specific expected format (IP:port)
-        if remote_debugging:
-            # Attempt to parse user input into an (address, port) tuple
-            self._remote_debugging = ToolBox.get_address_and_port(remote_debugging)
-            if self._remote_debugging is None:
-                raise ValueError(
-                    f"The specified remote debugging address '{remote_debugging}' is invalid. "
-                    f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)."
-                )
-
-        if proxy_server:
-            # Attempt to parse user input into an (address, port) tuple
-            self._proxy_server = ToolBox.get_address_and_port(proxy_server)
-            if self._proxy_server is None:
-                raise ValueError(
-                    f"The specified proxy server address '{proxy_server}' is invalid. "
-                    f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)."
-                )
+        # Orchestrate
+        solution_package = None
+        remote_debugging = None
+        proxy_server = None
+        _init_arguments()
+        _validate_workspace_path()
+        _validate_macro()
+        _validate_solution_package()
+        _validate_solution_url()
+        _validate_network_options()
 
     @staticmethod
     def _attach_debugger(host: str = '127.0.0.1', port: int = 5678, abort_execution: bool = False) -> None:
@@ -268,7 +289,7 @@ class AutoForge(CoreModuleInterface):
             # At this point we expect that self._solution_package_path sill point to valid path
             # where all the solution files could be found
             if self._solution_package_path is None:
-                raise RuntimeError(f"Package path is invalid or could not be created")
+                raise RuntimeError("Package path is invalid or could not be created")
 
             solution_file = os.path.join(self._solution_package_path, "solution.jsonc")
             if not os.path.isfile(solution_file):
@@ -309,7 +330,7 @@ class AutoForge(CoreModuleInterface):
                 # ==============================================================
                 env_steps_file: Optional[str] = self._solution.get_included_file('environment')
                 if env_steps_file is None:
-                    raise RuntimeError(f"an environment steps file was not specified in the solution")
+                    raise RuntimeError("an environment steps file was not specified in the solution")
 
                 # Execute suction creation steps
                 ret_val = self._environment.follow_steps(steps_file=env_steps_file)

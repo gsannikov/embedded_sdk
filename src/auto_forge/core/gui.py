@@ -15,13 +15,21 @@ import queue
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox
-from tkinter import ttk
-from typing import Optional, Any
+from tkinter import messagebox, ttk
+from typing import Any, Optional
 
 # AutoGorge local imports
-from auto_forge import (CoreModuleInterface, Registry, AutoForgeModuleType, MessageBoxType, InputBoxTextType,
-                        InputBoxButtonType, InputBoxLineType, ToolBox, AutoLogger)
+from auto_forge import (
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreModuleInterface,
+    InputBoxButtonType,
+    InputBoxLineType,
+    InputBoxTextType,
+    MessageBoxType,
+    Registry,
+    ToolBox,
+)
 
 AUTO_FORGE_MODULE_NAME = "GUI"
 AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"

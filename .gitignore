@@ -3,3 +3,5 @@
 __pycache__/
 *.log
 
+# Ruff static analysis
+.ruff_cache

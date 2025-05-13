@@ -31,8 +31,7 @@ import os
 import re
 from collections import deque
 from enum import Enum
-from typing import Optional, Dict, Any, Set
-from typing import Union, List
+from typing import Any, Optional, Union
 
 # JSONPath support ('XPath' for JSON)
 from jsonpath_ng.ext import parse
@@ -41,8 +40,18 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreProcessor, CoreVariables, CoreSignatures, ToolBox,
-                        Registry, AutoForgeModuleType, PROJECT_SCHEMAS_PATH, AutoLogger)
+from auto_forge import (
+    PROJECT_SCHEMAS_PATH,
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreModuleInterface,
+    CoreProcessor,
+    CoreSignatures,
+    CoreVariables,
+    PrettyPrinter,
+    Registry,
+    ToolBox,
+)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
@@ -76,11 +85,11 @@ class CoreSolution(CoreModuleInterface):
         self._config_file_path: Optional[str] = None  # Loaded solution file path
         self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
         self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
-        self._includes: Optional[Dict[str, Any]] = None  # Additional included JSONS
+        self._includes: Optional[dict[str, Any]] = None  # Additional included JSONS
         self._scope = _ScopeState()  # Initialize scope state to track processing state and context
-        self._solution_data: Optional[Dict[str, Any]] = None  # To store processed solution data
-        self._solution_schema: Optional[Dict[str, Any]] = None  # To store solution schema data
-        self._root_context: Optional[Dict[str, Any]] = None  # To store original, unaltered solution data
+        self._solution_data: Optional[dict[str, Any]] = None  # To store processed solution data
+        self._solution_schema: Optional[dict[str, Any]] = None  # To store solution schema data
+        self._root_context: Optional[dict[str, Any]] = None  # To store original, unaltered solution data
         self._root_solution_name: Optional[str] = None  # The name if the first solution which must exisit
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
@@ -100,7 +109,7 @@ class CoreSolution(CoreModuleInterface):
                                  description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[List, Dict]]:
+    def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific solution or the solutions list.
         Args:
@@ -120,7 +129,7 @@ class CoreSolution(CoreModuleInterface):
             return include_file_path
         return None
 
-    def get_arbitrary_item(self, key: str) -> Optional[Union[List[Any], Dict[str, Any]]]:
+    def get_arbitrary_item(self, key: str) -> Optional[Union[list[Any], dict[str, Any]]]:
         """Returns a list or dictionary from the solution JSON by key, or None if not found or invalid type."""
         if self._solution_data is not None:
             value = self._solution_data.get(key)
@@ -128,16 +137,16 @@ class CoreSolution(CoreModuleInterface):
                 return value
         return None
 
-    def get_solutions_list(self) -> Optional[Union[List, Dict]]:
+    def get_solutions_list(self) -> Optional[Union[list, dict]]:
         """
         Returns the solutions list.
         Returns:
             List, Dict: List of solutions names
         """
-        path = f"$.solutions[*].name"
+        path = "$.solutions[*].name"
         return self._query_json_path(path)
 
-    def query_projects(self, solution_name: str, project_name: Optional[str] = None) -> Optional[Union[List, Dict]]:
+    def query_projects(self, solution_name: str, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific project or a list of all projects that belong to a given solution.
         Args:
@@ -150,7 +159,7 @@ class CoreSolution(CoreModuleInterface):
                 if project_name else f"$.solutions[?(@.name=='{solution_name}')].projects[*]")
         return self._query_json_path(path)
 
-    def get_projects_list(self, solution_name: Optional[str]) -> Optional[Union[List, Dict]]:
+    def get_projects_list(self, solution_name: Optional[str]) -> Optional[Union[list, dict]]:
         """
         Returns the projects list of all projects that belong to a given solution.
         Args:
@@ -162,7 +171,7 @@ class CoreSolution(CoreModuleInterface):
         return self._query_json_path(path)
 
     def query_configurations(self, solution_name: Optional[str] = None, project_name: Optional[str] = None,
-                             configuration_name: Optional[str] = None) -> Optional[Union[List, Dict]]:
+                             configuration_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific configuration or a list of all configurations related to a specific project and solution.
         Args:
@@ -180,7 +189,7 @@ class CoreSolution(CoreModuleInterface):
         return self._query_json_path(path)
 
     def get_configurations_list(self, solution_name: Optional[str],
-                                project_name: Optional[str]) -> Optional[Union[List, Dict]]:
+                                project_name: Optional[str]) -> Optional[Union[list, dict]]:
         """
         Returns a list of  configuration names related to a specific project and solution.
         Args:
@@ -212,10 +221,10 @@ class CoreSolution(CoreModuleInterface):
         if not pretty:
             print(json.dumps(self._solution_data, sort_keys=True, indent=4))
         else:
-            self._toolbox.json_pretty_print(self._solution_data,
-                                            highlight_keys=["name", "build_path"])
+            json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path"])
+            json_print.render(self._solution_data)
 
-    def get_root(self) -> Optional[Dict[str, Any]]:
+    def get_root(self) -> Optional[dict[str, Any]]:
         """
         Retrieves a deep copy of the currently loaded solution data to prevent
         modifications to the original data.
@@ -334,11 +343,11 @@ class CoreSolution(CoreModuleInterface):
             # From now on we can serve solution queries from 'AutoForge'
             self._solution_loaded = True
 
-        except ValidationError as ve:
+        except ValidationError as validation_error:
             print("Schema validation Error:")
-            print(f"Message: {ve.message}")
-            print("Path to the error:", " -> ".join(map(str, ve.path)))
-            raise RuntimeError("validation Error")
+            print(f"Message: {validation_error.message}")
+            print("Path to the error:", " -> ".join(map(str, validation_error.path)))
+            raise RuntimeError("validation Error") from validation_error
         except Exception as exception:
             raise RuntimeError(exception) from exception
 
@@ -398,7 +407,7 @@ class CoreSolution(CoreModuleInterface):
                 # Recursive call with explicit persistence of sets
                 self._traverse_and_process_syntax(item, parent_key, solution_names, project_names, config_names)
 
-    def _traverse_and_process_variables(self, node: Union[dict, list], parent_key: str = None):
+    def _traverse_and_process_variables(self, node: Union[dict, list], parent_key: Optional[str] = None):
         """
         Recursively traverses the JSON structure, updating strings containing variables.
         Args:
@@ -415,10 +424,10 @@ class CoreSolution(CoreModuleInterface):
             for i, item in enumerate(node):
                 if isinstance(item, str):
                     node[i] = self._resolve_variable_in_string(item, PreProcessType.ENVIRONMENT)
-                elif isinstance(item, dict) or isinstance(item, list):
+                elif isinstance(item, (dict, list)):
                     self._traverse_and_process_variables(item, parent_key)
 
-    def _traverse_and_process_derivations(self, node: Union[Dict[str, Any], List[Any]],
+    def _traverse_and_process_derivations(self, node: Union[dict[str, Any], list[Any]],
                                           parent_key: Optional[str] = None) -> None:
         """
         Recursively traverses a JSON-like dictionary or list to process 'data' keys with derivation paths.
@@ -441,8 +450,8 @@ class CoreSolution(CoreModuleInterface):
             for item in node:
                 self._traverse_and_process_derivations(item, parent_key)
 
-    def _traverse_and_process_references(self, node: Union[Dict[str, Any], List[Any]], parent_key: Optional[str] = None,
-                                         current_context: Optional[Dict[str, Any]] = None):
+    def _traverse_and_process_references(self, node: Union[dict[str, Any], list[Any]], parent_key: Optional[str] = None,
+                                         current_context: Optional[dict[str, Any]] = None):
         """
         Recursively traverses the JSON structure and resolves references such as (`<$ref_...>`) found in string values,
         updating the node with the resolved values. It also maintains `current_context`, updating it when a named
@@ -604,7 +613,7 @@ class CoreSolution(CoreModuleInterface):
                 raise ValueError(f"reference '{reference_path}' format or scope not starting with 'solutions'")
 
             key, path = match.groups()  # Corrected to expect only two groups
-            specific_solution: Optional[Dict[str, Any]] = self._get_solution_by_name(solution_name=key.strip(),
+            specific_solution: Optional[dict[str, Any]] = self._get_solution_by_name(solution_name=key.strip(),
                                                                                      solutions=self._solution_data)
             if not specific_solution:
                 raise ValueError(f"no solution found for key '{key}'")
@@ -625,7 +634,7 @@ class CoreSolution(CoreModuleInterface):
 
         return resolved_reference
 
-    def _resolve_nested_path(self, element: Dict[str, Any], path: str) -> Any:
+    def _resolve_nested_path(self, element: dict[str, Any], path: str) -> Any:
         """
         Resolves a nested path within a solution's data structure, handling navigation through projects and
         configurations by name.
@@ -646,9 +655,7 @@ class CoreSolution(CoreModuleInterface):
                     if isinstance(sub_element, list):
                         if name == "projects":
                             element = self._get_project_by_name(sub_element, key)
-                        elif name == "configurations":
-                            element = self._get_configuration_by_name(sub_element, key)
-                        elif name == "tool_chains":
+                        elif name == "configurations" or name == "tool_chains":
                             element = self._get_configuration_by_name(sub_element, key)
                     if not element:
                         raise ValueError(f"no {name} found with name '{key}' in path '{path}'")
@@ -661,21 +668,21 @@ class CoreSolution(CoreModuleInterface):
         return element
 
     @staticmethod
-    def _get_solution_by_name(solution_name: str, solutions: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_solution_by_name(solution_name: str, solutions: dict[str, Any]) -> dict[str, Any]:
         """ Retrieves a specific named solution from the global solutions list. """
         return next((s for s in solutions.get("solutions", []) if s.get("name") == solution_name), {})
 
     @staticmethod
-    def _get_project_by_name(projects: list, project_name: str) -> Dict[str, Any]:
+    def _get_project_by_name(projects: list, project_name: str) -> dict[str, Any]:
         """ Retrieves a specific named project from a list of projects. """
         return next((p for p in projects if p.get("name") == project_name), {})
 
     @staticmethod
-    def _get_configuration_by_name(configurations: list, configuration_name: str) -> Dict[str, Any]:
+    def _get_configuration_by_name(configurations: list, configuration_name: str) -> dict[str, Any]:
         """ Retrieves a specific named configuration from a list of configurations. """
         return next((c for c in configurations if c.get("name") == configuration_name), {})
 
-    def _get_configuration_by_path(self, solution_name: str, project_name: str, config_name: str) -> Dict[str, Any]:
+    def _get_configuration_by_path(self, solution_name: str, project_name: str, config_name: str) -> dict[str, Any]:
         """
         Find a specific configuration within the stored JSON data structure based on full path.
         Args:
@@ -713,7 +720,7 @@ class CoreSolution(CoreModuleInterface):
             current_node = queue.popleft()  # Get the first element from the queue
 
             if isinstance(current_node, dict):
-                for key, value in current_node.items():
+                for _key, value in current_node.items():
                     if isinstance(value, str):
                         if re.search(pattern, value):  # Check for reference pattern in string
                             return True  # Found a reference, return True
@@ -740,7 +747,7 @@ class CoreSolution(CoreModuleInterface):
         """
         # This regex will now check for references that are either standalone or correctly formatted within a string
         pattern = r'(<\$ref[^>]*>)'
-        matches: List[str] = re.findall(pattern, ref_value)
+        matches: list[str] = re.findall(pattern, ref_value)
         if matches:
             for match in matches:
                 if not (match.startswith('<$ref') and match.endswith('>')):
@@ -764,7 +771,7 @@ class CoreSolution(CoreModuleInterface):
                              f"and not contain leading or trailing spaces.")
         return stripped_name
 
-    def _validate_unique_name(self, name: str, name_set: Set[str], entity_type: str) -> None:
+    def _validate_unique_name(self, name: str, name_set: set[str], entity_type: str) -> None:
         """
         Ensures that names within specified contexts (solutions, projects, configurations) are unique.
         Args:
@@ -779,7 +786,7 @@ class CoreSolution(CoreModuleInterface):
                 f"all {entity_type} names must be unique within the same scope.")
         name_set.add(normalized_name)
 
-    def _resolve_derivation_path(self, derivation_string: str) -> Dict[str, Any]:
+    def _resolve_derivation_path(self, derivation_string: str) -> dict[str, Any]:
         """
         Parses the derivation path and fetches the corresponding configuration from the JSON data.
         Args:
@@ -797,7 +804,7 @@ class CoreSolution(CoreModuleInterface):
             raise ValueError(f"invalid derivation path: {derivation_string}")
 
     @staticmethod
-    def _merge_configurations(target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    def _merge_configurations(target: dict[str, Any], source: dict[str, Any]) -> None:
         """
         Merges source configuration into the target configuration without overwriting existing keys.
 
@@ -810,7 +817,7 @@ class CoreSolution(CoreModuleInterface):
                 target[key] = value
 
     @staticmethod
-    def _refresh_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    def _refresh_data(data: dict[str, Any]) -> dict[str, Any]:
         """
         Refreshes the provided JSON-like data by serializing to JSON and then parsing it back.
         This ensures that all data structures are freshly instantiated without shared references.
@@ -823,9 +830,9 @@ class CoreSolution(CoreModuleInterface):
             serialized_data = json.dumps(data)
             return json.loads(serialized_data)
         except (json.JSONDecodeError, TypeError) as json_error:
-            raise RuntimeError(f"error during data refresh: {str(json_error)}")
+            raise RuntimeError(f"error during data refresh: {json_error!s}") from json_error
 
-    def _query_json_path(self, path: str) -> Optional[Union[List, Dict]]:
+    def _query_json_path(self, path: str) -> Optional[Union[list, dict]]:
         """
         Generic method to execute a JSONPath query on the solution data.
         Args:
@@ -909,7 +916,7 @@ class ScopeInfo:
                                        'solutions', 'projects', or 'configurations'.
                                        If None, the scope type remains UNDEFINED.
         """
-        self.node_data: Optional[Dict[str, Any]] = None
+        self.node_data: Optional[dict[str, Any]] = None
         self.type_name: Optional[str] = None if type_name is None else type_name.lower().strip()
         self.name_value: Optional[str] = None
         self.type: Optional[ScopeInfo.ScopeType] = ScopeInfo.ScopeType.UNDEFINED
@@ -923,7 +930,7 @@ class ScopeInfo:
             elif self.type_name == "configurations":
                 self.type = ScopeInfo.ScopeType.CONFIGURATION
 
-    def update(self, node_data: Optional[Dict[str, Any]] = None):
+    def update(self, node_data: Optional[dict[str, Any]] = None):
         """
         Updates the scope with a new node dictionary, setting its name value if present.
         If no node data is provided, the scope is invalidated.
@@ -964,7 +971,7 @@ class _ScopeState:
         self.configuration: Optional[ScopeInfo] = ScopeInfo(type_name="configurations")
         self.current_context: Optional[ScopeInfo] = ScopeInfo()
 
-    def update(self, scope_type_name: str, full_node: Dict[str, Any]) -> None:
+    def update(self, scope_type_name: str, full_node: dict[str, Any]) -> None:
         """
         Updates the state based on the current JSON node being processed.
         Depending on the scope type, the method updates the corresponding
@@ -992,7 +999,7 @@ class _ScopeState:
             self.configuration.update(node_data=full_node)
             self.current_context = self.configuration
 
-    def get_node(self, scope_type_name: str) -> Optional[Dict[str, Any]]:
+    def get_node(self, scope_type_name: str) -> Optional[dict[str, Any]]:
         """
         Retrieves the dictionary representation of a scope based on its type.
         Args:
@@ -1013,13 +1020,11 @@ class _ScopeState:
         Returns:
             Optional[ScopeInfo]: The `ScopeInfo` instance of the requested scope, or None if not found.
         """
-        if scope_type_name == "solutions":
-            return self.solution
-        elif scope_type_name == "projects":
-            return self.project
-        elif scope_type_name == "configurations":
-            return self.configuration
-        return None
+        return {
+            "solutions": self.solution,
+            "projects": self.project,
+            "configurations": self.configuration,
+        }.get(scope_type_name)
 
     def reset(self) -> None:
         """

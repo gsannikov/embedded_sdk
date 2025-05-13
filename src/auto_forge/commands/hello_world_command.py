@@ -10,8 +10,14 @@ import argparse
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreGUI, MessageBoxType,
-                        InputBoxLineType, InputBoxTextType, InputBoxButtonType)
+from auto_forge import (
+    CLICommandInterface,
+    CoreGUI,
+    InputBoxButtonType,
+    InputBoxLineType,
+    InputBoxTextType,
+    MessageBoxType,
+)
 
 
 class HelloCommand(CLICommandInterface):

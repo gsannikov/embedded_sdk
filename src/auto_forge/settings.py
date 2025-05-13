@@ -56,7 +56,7 @@ def auto_forge_get_info(base_path: Path):
         os.environ['AUTO_FORGE_PROJECT_PACKAGE_BASE_PATH'] = str(PROJECT_PACKAGE_BASE_PATH)
 
         # Try to open and load the TOML file
-        with open(toml_path, "r") as toml_file:
+        with open(file=toml_path) as toml_file:
             data = toml.load(toml_file)
             # Update global variables with data from the TOML file
             PROJECT_VERSION = data.get('project', {}).get('version', '0.0')

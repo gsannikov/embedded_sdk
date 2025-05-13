@@ -1,0 +1,59 @@
+/*
+ * Configuration File for Source Tree Reorganization.
+ * Purpose: This JSON file defines the settings and mappings required to reorganize a large source tree into a new structure. 
+ * It specifies the paths, file types, and other options to manage the copying and restructuring processes.
+ *
+ */
+
+{
+	"defaults": {
+		"base_source_path": "userspace",
+		// Mandatory: Path to the existing source tree.
+		"base_destination_path": "userspace_new",
+		// Mandatory: Destination path for the new tree. Must differ from 'base_source_path'.
+		"delete_destination_on_start": true,
+		// Optional: Delete the entire destination directory at the start of the process. Default is false if not specified.
+		"full_debug": true,
+		// Optional: Raises the logger from info -> debug which will results in extensive debug logs.
+		"file_types": [
+			"c",
+			"h"
+		],
+		// Optional: File types to be copied to the destination. Defaults to all types ("*") if not specified.
+		"create_grave_yard": true,
+		// Optional: Create a 'grave_yard' directory for each copied folder containing files that were omitted. Default is false if not specified.
+		"max_copy_depth": 3,
+		// Optional: Maximum depth of destination directory structure allowed. Default is unlimited (-1) if not specified.
+		"create_empty_cmake_file": true
+		// Optional: Place an empty CMakeLists.txt placeholder in each newly created folder. Default is false if not specified.
+	},
+	// Mandatory: a list of one or more items which correlates to source and destination
+	"folders": [
+		{
+			"description": "Management related modules",
+			// Optional: Description of the folder, visible in log output. Default is None if not specified.
+			"source": "libs/lib_mac",
+			// Mandatory: Source directory, appended to 'base_source_path'. Resulting path: '/projects/userspace/libs/lib_mac'.
+			"destination": "mng/lib_mac",
+			// Mandatory: Destination directory, appended to 'base_destination_path'. Resulting path: '/projects/userspace_new/mng/lib_mac'.
+			"file_types": [
+				"c",
+				"h",
+				"txt"
+			]
+			// Optional: Specific file types to be copied for this folder, overriding the default 'file_types'.
+		},
+		{
+			"description": "Management related modules",
+			// Optional: Description of the folder, visible in log output. Default is None if not specified.
+			"source": "mev_i2c_app",
+			// '/projects/userspace/mev_i2c_app'
+			"destination": "mng/i2c_app",
+			// '/projects/userspace_new/mng/i2c_app'.
+			"file_types": [
+				"c"
+			]
+			// Optional: Specific file types to be copied for this folder, overriding the default 'file_types'.
+		}
+	]
+}

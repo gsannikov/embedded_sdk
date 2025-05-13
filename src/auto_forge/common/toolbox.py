@@ -13,7 +13,6 @@ import glob
 import importlib.metadata
 import importlib.util
 import inspect
-import json
 import os
 import re
 import shutil
@@ -24,20 +23,23 @@ import zipfile
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Tuple, Type, Union, SupportsInt, List
-from typing import Optional
-from urllib.parse import urlparse, unquote, ParseResult
+from typing import Any, Optional, SupportsInt, Union
+from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
-from colorama import Fore
-from rich.console import Console
-from rich.text import Text
 
 # Retrieve our package base path from settings
-from auto_forge import (CoreModuleInterface,
-                        AddressInfoType, AutoForgeModuleType, AutoLogger, TerminalAnsiCodes,
-                        PROJECT_BASE_PATH, PROJECT_RESOURCES_PATH)
+from auto_forge import (
+    PROJECT_BASE_PATH,
+    PROJECT_RESOURCES_PATH,
+    AddressInfoType,
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreModuleInterface,
+    TerminalAnsiCodes,
+)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
+from colorama import Fore
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -222,8 +224,8 @@ class ToolBox(CoreModuleInterface):
         """
         try:
             seconds = float(seconds)
-        except ValueError:
-            raise ValueError(f"Invalid input: {seconds} cannot be converted to a float")
+        except ValueError as value_error:
+            raise ValueError(f"Invalid input: {seconds} cannot be converted to a float") from value_error
 
         def pluralize(time, unit):
             """ Returns a string with the unit correctly pluralized based on the time. """
@@ -268,16 +270,16 @@ class ToolBox(CoreModuleInterface):
         Check if the specified class name is defined in the given Python file.
         """
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, encoding='utf-8') as file:
                 for line in file:
                     if line.startswith('class ') and class_name in line:
                         return True
-        except IOError:
+        except OSError:
             return False
         return False
 
     @staticmethod
-    def find_class_in_project(class_name: str, root_path: str = PROJECT_BASE_PATH) -> Optional[Type]:
+    def find_class_in_project(class_name: str, root_path: str = PROJECT_BASE_PATH) -> Optional[type]:
         """
         Search for a class by name in all Python files under a specified directory.
         This function dynamically loads each Python file that contains the specified class name,
@@ -290,7 +292,7 @@ class ToolBox(CoreModuleInterface):
         Returns:
             Optional[Type]: The class if found, None otherwise.
         """
-        for subdir, dirs, files in os.walk(root_path):
+        for subdir, _dirs, files in os.walk(root_path):
             for file in files:
                 if file.endswith(".py"):
                     file_path = os.path.join(subdir, file)
@@ -308,7 +310,8 @@ class ToolBox(CoreModuleInterface):
                                 return getattr(module, class_name)
 
                         except Exception as exception:
-                            raise RuntimeError(f"Failed to import {module_name} from {file_path}: {exception}")
+                            raise RuntimeError(
+                                f"Failed to import {module_name} from {file_path}: {exception}") from exception
                         finally:
                             # Ensure the modified path is always cleaned up
                             if subdir in sys.path:
@@ -317,7 +320,7 @@ class ToolBox(CoreModuleInterface):
         return None
 
     @staticmethod
-    def find_class_in_module(class_name: str, module_name: str) -> Optional[Type]:
+    def find_class_in_module(class_name: str, module_name: str) -> Optional[type]:
         """
         Dynamically find and return a class type by name from a given module.
         """
@@ -331,8 +334,8 @@ class ToolBox(CoreModuleInterface):
                 raise ImportError(f"Module '{module_name}' not found.") from import_error
         return None
 
-    def find_method_name(self, method_name: str, directory: str = None) -> (
-            Tuple)[Optional[str], Optional[str], Optional[str]]:
+    def find_method_name(self, method_name: str, directory: Optional[str] = None) -> (
+            tuple)[Optional[str], Optional[str], Optional[str]]:
         """
          Searches for a specified method within Python files in given directory and returns information about
          the method's location including its class (if applicable) and module path.
@@ -365,7 +368,7 @@ class ToolBox(CoreModuleInterface):
         method_regex = re.compile(r'^\s*def\s+(' + re.escape(method_name) + r')\s*\(', re.MULTILINE)
 
         # Walk through all files in the given directory
-        for root, dirs, files in os.walk(directory):
+        for root, _dirs, files in os.walk(directory):
             for file in files:
                 if file.endswith('.py'):  # Check only Python files
                     file_path = os.path.join(root, file)
@@ -379,7 +382,7 @@ class ToolBox(CoreModuleInterface):
                         continue
 
                     try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
+                        with open(file_path, encoding='utf-8') as f:
                             content = f.read()
                     except Exception as open_error:
                         self._logger.debug(f"Warning could not read file {file_path}: {open_error}")
@@ -412,8 +415,8 @@ class ToolBox(CoreModuleInterface):
         return None, None, None
 
     @staticmethod
-    def filter_kwargs_for_method(kwargs: Dict[str, Any], sig: inspect.Signature) -> (
-            Tuple)[Dict[str, Any], Dict[str, Any]]:
+    def filter_kwargs_for_method(kwargs: dict[str, Any], sig: inspect.Signature) -> (
+            tuple)[dict[str, Any], dict[str, Any]]:
         """
         Filters keyword arguments (`kwargs`) according to the signature of a method, and manages nested structures.
 
@@ -593,7 +596,7 @@ class ToolBox(CoreModuleInterface):
             if title:
                 sys.stdout.write(f"\033]0;{title}\007")
             else:
-                sys.stdout.write(f"\033]0;\007")
+                sys.stdout.write("\033]0;\007")
             sys.stdout.flush()
 
     @staticmethod
@@ -756,7 +759,7 @@ class ToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
-    def is_likely_editable() -> Tuple[bool, Optional[str]]:
+    def is_likely_editable() -> tuple[bool, Optional[str]]:
         """
         Determines if the current running environment is within a Python virtual environment,
         which typically indicates a non-editable (production) environment. Otherwise, it suggests
@@ -805,9 +808,9 @@ class ToolBox(CoreModuleInterface):
             with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
                 zip_ref.extractall(destination_path)
         except zipfile.BadZipFile as zip_error:
-            raise zipfile.BadZipFile(f"Failed to extract '{zip_file_name}': {zip_error}")
+            raise zipfile.BadZipFile(f"Failed to extract '{zip_file_name}': {zip_error}") from zip_error
         except Exception as exception:
-            raise Exception(f"Unexpected error while extracting '{zip_file_name}': {exception}")
+            raise Exception(f"Unexpected error while extracting '{zip_file_name}': {exception}") from exception
 
         return destination_path
 
@@ -845,7 +848,7 @@ class ToolBox(CoreModuleInterface):
                 return None  # Invalid IP address
 
         # Reconstruct endpoint as a host:port string
-        endpoint = f"{host_part}:{str(port)}"
+        endpoint = f"{host_part}:{port!s}"
 
         # Otherwise, assume it's a hostname
         return AddressInfoType(host=host_part, port=port, endpoint=endpoint, is_host_name=not is_ip)
@@ -1044,7 +1047,7 @@ class ToolBox(CoreModuleInterface):
             sys.stdout.write(TerminalAnsiCodes.CLS_SB)
         sys.stdout.write('\n')
 
-        with open(ascii_art_file, 'r', encoding='utf-8') as f:
+        with open(ascii_art_file, encoding='utf-8') as f:
             for i, line in enumerate(f):
                 color = Fore.LIGHTBLUE_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
                 sys.stdout.write(f"{color}{line}")
@@ -1138,10 +1141,7 @@ class ToolBox(CoreModuleInterface):
         Returns:
             str: The flattened and formatted text.
         """
-        if text is None:
-            cleared_text = ""
-        else:
-            cleared_text = self.strip_ansi(text).strip()
+        cleared_text = "" if text is None else self.strip_ansi(text).strip()
 
         cleared_text = cleared_text.replace('\r', '\n')
 
@@ -1216,142 +1216,25 @@ class ToolBox(CoreModuleInterface):
         return flattened_text
 
     @staticmethod
-    def json_pretty_print(
-            obj: Union[Dict[str, Any], List[Any]],
-            indent: int = 4,
-            console: Optional[Console] = None,
-            line_number: Optional[List[int]] = None,
-            numbering_width: int = 4,
-            highlight_keys: Optional[List[str]] = None
-    ) -> None:
+    def cp(pattern: str, dest_dir: str):
         """
-        Pretty-prints a JSON-compatible object using native JSON formatting,
-        Rich manual styling, and a configurable skin for colors and layout.
+        Copies files matching a wildcard pattern to the destination directory.\
+        If the destination directory does not exist, it will be created.
+        Metadata such as timestamps and permissions are preserved.
 
         Args:
-            obj: A dictionary or list representing a JSON structure.
-            indent: Number of spaces for indentation (default: 4).
-            console: Optional Rich Console object. If None, a default is created.
-            line_number: Internal counter for line numbers. Should be left as None externally.
-            numbering_width: Width reserved for line numbers.
-            highlight_keys: Optional list of JSON key names to highlight using distinctive colors.
+            pattern (str): Wildcard pattern (e.g. 'a/*.txt', 'a/*.*').
+            dest_dir (str): Target directory to copy files into.
         """
-        # Static skin definition for formatting
-        JSON_SKIN: Dict[str, str] = {
-            "line_number": "dim",
-            "line_separator": "dim",
-            "key_default": "bold yellow",
-            "value_string": "green",
-            "value_number": "cyan",
-            "value_bool": "magenta",
-            "value_null": "dim",
-            "punctuation": "white",
-            "bracket": "bold white",
-        }
+        # Expand the pattern into a list of matching files
+        matched_files = glob.glob(pattern)
+        if not matched_files:
+            raise FileNotFoundError(f"no files match pattern: {pattern}")
 
-        if console is None:
-            console = Console(force_terminal=True, color_system="truecolor")
-        if line_number is None:
-            line_number = [1]
-        if highlight_keys is None:
-            highlight_keys = []
+        os.makedirs(dest_dir, exist_ok=True)
 
-        if not isinstance(highlight_keys, list) or not all(isinstance(k, str) for k in highlight_keys):
-            raise ValueError("highlight_keys must be a list of strings")
-        if not isinstance(numbering_width, int) or numbering_width < 1:
-            raise ValueError("numbering_width must be a positive integer")
-
-        color_pool = [
-            "bold red", "bold blue", "bold magenta", "bold green",
-            "bright_blue", "bright_cyan", "bright_magenta", "bright_green",
-            "bright_white", "bold cyan", "bold white", "bright_black",
-        ]
-        color_map = {k: color_pool[i % len(color_pool)] for i, k in enumerate(highlight_keys)}
-
-        json_str = json.dumps(obj, indent=indent, ensure_ascii=False)
-        lines = json_str.splitlines()
-        key_pattern = re.compile(r'(\s*)"(.*?)":\s*(.*)')
-        list_item_pattern = re.compile(r'(\s*)(".*?"|true|false|null|\d+)(,?)$')
-
-        print()
-        for line in lines:
-            styled = Text()
-            match = key_pattern.match(line)
-            list_item = list_item_pattern.match(line)
-
-            if match:
-                indent_spaces, key, value = match.groups()
-                styled.append(indent_spaces)
-
-                key_style = color_map.get(key, JSON_SKIN["key_default"])
-                styled.append(f'"{key}"', style=key_style)
-                styled.append(": ", style=JSON_SKIN["punctuation"])
-
-                value = value.rstrip(',')
-                comma = "," if line.strip().endswith(',') else ""
-
-                if value.startswith('"') and value.endswith('"'):
-                    styled.append(value, style=JSON_SKIN["value_string"])
-                elif value in ('true', 'false'):
-                    styled.append(value, style=JSON_SKIN["value_bool"])
-                elif value == 'null':
-                    styled.append(value, style=JSON_SKIN["value_null"])
-                else:
-                    styled.append(value, style=JSON_SKIN["value_number"])
-
-                if comma:
-                    styled.append(comma, style=JSON_SKIN["punctuation"])
-
-            elif list_item:
-                indent_spaces, val, comma = list_item.groups()
-                styled.append(indent_spaces)
-
-                if val.startswith('"') and val.endswith('"'):
-                    styled.append(val, style=JSON_SKIN["value_string"])
-                elif val in ('true', 'false'):
-                    styled.append(val, style=JSON_SKIN["value_bool"])
-                elif val == 'null':
-                    styled.append(val, style=JSON_SKIN["value_null"])
-                else:
-                    styled.append(val, style=JSON_SKIN["value_number"])
-
-                if comma:
-                    styled.append(comma, style=JSON_SKIN["punctuation"])
-
-            else:
-                for char in line:
-                    if char in ['{', '}', '[', ']']:
-                        styled.append(char, style=JSON_SKIN["bracket"])
-                    elif char == ':' or char == ',':
-                        styled.append(char, style=JSON_SKIN["punctuation"])
-                    else:
-                        styled.append(char)
-
-            num = str(line_number[0]).rjust(numbering_width)
-            line_number[0] += 1
-            console.print(Text(num + " │ ", style=JSON_SKIN["line_number"]) + styled)
-        print()
-
-
-def cp(pattern: str, dest_dir: str):
-    """
-    Copies files matching a wildcard pattern to the destination directory.\
-    If the destination directory does not exist, it will be created.
-    Metadata such as timestamps and permissions are preserved.
-
-    Args:
-        pattern (str): Wildcard pattern (e.g. 'a/*.txt', 'a/*.*').
-        dest_dir (str): Target directory to copy files into.
-    """
-    # Expand the pattern into a list of matching files
-    matched_files = glob.glob(pattern)
-    if not matched_files:
-        raise FileNotFoundError(f"no files match pattern: {pattern}")
-
-    os.makedirs(dest_dir, exist_ok=True)
-
-    for src_file in matched_files:
-        if os.path.isfile(src_file):
-            base_name = os.path.basename(src_file)
-            dst_path = os.path.join(dest_dir, base_name)
-            shutil.copy2(src_file, dst_path)
+        for src_file in matched_files:
+            if os.path.isfile(src_file):
+                base_name = os.path.basename(src_file)
+                dst_path = os.path.join(dest_dir, base_name)
+                shutil.copy2(src_file, dst_path)

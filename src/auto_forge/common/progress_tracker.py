@@ -26,7 +26,7 @@ from enum import Enum
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (TerminalAnsiGuru, ToolBox)
+from auto_forge import TerminalAnsiGuru, ToolBox
 from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"

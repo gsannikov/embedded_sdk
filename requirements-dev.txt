@@ -1,0 +1,12 @@
+# requirements-dev.txt
+
+# --- Linting and formatting ---
+ruff==0.4.5
+black==24.4.2
+mypy==1.10.0
+types-psutil
+
+# --- Optional: IDE support ---
+toml==0.10.2
+
+# Execute: pip install --force-reinstall --use-pep517 -r requirements-dev.txt

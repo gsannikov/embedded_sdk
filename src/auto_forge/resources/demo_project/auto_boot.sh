@@ -105,19 +105,19 @@ main() {
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-			-w|--workspace)
+			-w | --workspace)
 				workspace_path="$2"
 				shift 2
 				;;
-			-s|--solution)
+			-s | --solution)
 				solution="$2"
 				shift 2
 				;;
-			-t|--token)
+			-t | --token)
 				token="$2"
 				shift 2
 				;;
-			-h|--help)
+			-h | --help)
 				display_help
 				return 0
 				;;
@@ -167,7 +167,7 @@ main() {
 	ret_val=$?
 
 	# Temporary bypass, should be fixed
-	chmod +x "$workspace_path/auto_go.sh" >/dev/null 2>&1 || true
+	chmod +x "$workspace_path/auto_go.sh" > /dev/null 2>&1 || true
 
 	return $ret_val
 }

@@ -21,7 +21,7 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge.settings import (PROJECT_NAME)
+from auto_forge.settings import PROJECT_NAME
 
 AUTO_FORGE_MODULE_NAME = "AutoLogger"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge logging module"
@@ -55,11 +55,11 @@ class _PausableFilter(logging.Filter):
         super().__init__()
         self.enabled = True
 
-    def filter(self, record: logging.LogRecord) -> bool:
+    def filter(self, _record: logging.LogRecord) -> bool:
         """
         Determine whether the specified record is to be logged.
         Args:
-            record (logging.LogRecord): The log record to filter.
+            _record (logging.LogRecord): The log record to filter.
         Returns:
             bool: True if the record should be processed, False to suppress.
         """
@@ -88,7 +88,7 @@ class _ColorFormatter(logging.Formatter):
                 self._auto_logger.is_console_colors_enabled()
         )
 
-    def formatTime(self, record, date_format=None, base_date_format=None):
+    def formatTime(self, record, date_format=None, base_date_format=None):  # noqa: N802
         """
         Format the log timestamp, adding milliseconds to the output.
         """
@@ -105,7 +105,7 @@ class _ColorFormatter(logging.Formatter):
         terminal_width: int = 1024
 
         # Create a dictionary to map log levels to colors using Colorama
-        LOG_LEVEL_COLORS = {
+        log_level_colors = {
             'DEBUG': Fore.LIGHTCYAN_EX,
             'INFO': Fore.LIGHTBLUE_EX,
             'WARNING': Fore.YELLOW,
@@ -125,7 +125,7 @@ class _ColorFormatter(logging.Formatter):
                     terminal_width = os.get_terminal_size().columns
 
                 # This mode is for terminal output; apply color and formatting enhancements for better readability.
-                level_name_color = LOG_LEVEL_COLORS.get(record.levelname, Fore.WHITE)
+                level_name_color = log_level_colors.get(record.levelname, Fore.WHITE)
                 record.levelname = f"{level_name_color}{record.levelname:<8}{Style.RESET_ALL}"
 
                 # Flatten for terminal printouts
@@ -150,10 +150,10 @@ class _ColorFormatter(logging.Formatter):
                 return super().format(record)
             else:
                 # Handle other OS errors
-                return f"logger exception: {str(os_error)}"
+                return f"logger exception: {os_error!s}"
         except Exception as format_exception:
             # Handle any other exception that is not an OSError
-            return f"logger exception {str(format_exception)}"
+            return f"logger exception {format_exception!s}"
 
     @staticmethod
     def _message_format(message: str):
@@ -229,7 +229,7 @@ class AutoLogger:
     _instance: "AutoLogger" = None
     _is_initialized: bool = False
 
-    def __new__(cls, *args, **kwargs) -> "AutoLogger":
+    def __new__(cls, *_args, **_kwargs) -> "AutoLogger":
         """
         Enforces singleton behavior. If an instance already exists, it returns it;
         otherwise, creates a new instance.
@@ -238,7 +238,7 @@ class AutoLogger:
             AutoLogger: The singleton logger instance.
         """
         if cls._instance is None:
-            cls._instance = super(AutoLogger, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
 
         return cls._instance
 
@@ -319,8 +319,8 @@ class AutoLogger:
 
         self._logger.setLevel(self._log_level)
 
-        if LogHandlersTypes.CONSOLE_HANDLER in handlers:
-            if self._stream_console_handler is None:
+        if (LogHandlersTypes.CONSOLE_HANDLER in handlers and
+            self._stream_console_handler is None):
                 # Create dedicated formatter instance
                 formatter: Optional[_ColorFormatter] = (
                     _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
@@ -335,19 +335,18 @@ class AutoLogger:
                 self._logger.addHandler(self._stream_console_handler)
                 self._enabled_handlers |= LogHandlersTypes.CONSOLE_HANDLER
 
-        if LogHandlersTypes.FILE_HANDLER in handlers:
-            if self._stream_file_handler is None:
-                if not self._log_file_name:
-                    raise RuntimeError("log file name is not defined.")
+        if LogHandlersTypes.FILE_HANDLER in handlers and self._stream_file_handler is None:
+            if not self._log_file_name:
+                raise RuntimeError("log file name is not defined.")
 
-                # Create dedicated formatter instance
-                formatter: Optional[_ColorFormatter] = (
-                    _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
-                                    handler=LogHandlersTypes.FILE_HANDLER))
-                self._stream_file_handler = logging.FileHandler(self._log_file_name)
-                self._stream_file_handler.setFormatter(formatter)
-                self._logger.addHandler(self._stream_file_handler)
-                self._enabled_handlers |= LogHandlersTypes.FILE_HANDLER
+            # Create dedicated formatter instance
+            formatter: Optional[_ColorFormatter] = (
+                _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
+                                handler=LogHandlersTypes.FILE_HANDLER))
+            self._stream_file_handler = logging.FileHandler(self._log_file_name)
+            self._stream_file_handler.setFormatter(formatter)
+            self._logger.addHandler(self._stream_file_handler)
+            self._enabled_handlers |= LogHandlersTypes.FILE_HANDLER
 
         self._logger.propagate = True
         self._logger.name = self._name

@@ -15,7 +15,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from types import ModuleType
-from typing import NamedTuple, TextIO, Any, Optional, Dict, Tuple, Callable
+from typing import Any, Callable, NamedTuple, Optional, TextIO
 
 from colorama import Fore
 
@@ -157,7 +157,7 @@ class SignatureSchemaType:
     """
     name: Optional[str] = None
     description: Optional[str] = None
-    dictionary: Dict[str, Any] = field(default_factory=dict)
+    dictionary: dict[str, Any] = field(default_factory=dict)
     size: Optional[int] = None
     search_pattern: Optional[re.Pattern] = None
     format_string: Optional[str] = None
@@ -177,7 +177,7 @@ class SignatureFieldType:
     read_only: Optional[bool] = False  # If True, modifying the field raises an error
     is_integrity: Optional[bool] = None  # True if this field holds a CRC or integrity value
     offset: Optional[int] = None  # Offset relative to the signature start address
-    type_info: Optional[Dict[str, Any]] = None  # Type definition metadata for this field
+    type_info: Optional[dict[str, Any]] = None  # Type definition metadata for this field
 
 
 @dataclass
@@ -192,7 +192,7 @@ class VariableFieldType:
     is_path: Optional[bool] = None
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None
-    kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
+    kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 
 class TerminalTeeStream:
@@ -299,7 +299,7 @@ class TerminalFileIconInfo:
 
 
 # File extension or name to icon metadata mapping
-TERMINAL_ICONS_MAP: Dict[str, TerminalFileIconInfo] = {
+TERMINAL_ICONS_MAP: dict[str, TerminalFileIconInfo] = {
     # Source Code
     ".py": TerminalFileIconInfo("", "Python source file", Fore.YELLOW),
     ".c": TerminalFileIconInfo("", "C source file", Fore.LIGHTBLUE_EX),
@@ -440,7 +440,7 @@ class TerminalAnsiGuru:
         sys.stdout.flush()
 
     @staticmethod
-    def get_cursor_position() -> Optional[Tuple[int, int]]:
+    def get_cursor_position() -> Optional[tuple[int, int]]:
         """
         Attempts to query the terminal for the current cursor position. Requires terminal support.
         Returns the cursor position as zero-based indices or None if undetermined.
@@ -483,7 +483,7 @@ class ExceptionGuru:
             self._store_context()
             self.__class__._context_stored = True
 
-    def get_context(self) -> Tuple[str, int]:
+    def get_context(self) -> tuple[str, int]:
         """
         Retrieves the exception origin information.
         Returns:

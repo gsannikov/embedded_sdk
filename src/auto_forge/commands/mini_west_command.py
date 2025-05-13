@@ -20,14 +20,15 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Any, Optional
 
+# Third-party
 import git
 import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, ToolBox)
+from auto_forge import CLICommandInterface, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "mini_west"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
@@ -80,7 +81,7 @@ class MiniWestCommand(CLICommandInterface):
         self._projects_queue = queue.Queue()  # Message queue for printing status message safely.
         self._ignored_projects_list = set()  # Manifest projects to exclude
         self._automated_mode: Optional[bool] = False  # Indicate if we're allowed to use colors
-        self._projects: List[_WestProject] = []  # List of 'WestProject' class instances
+        self._projects: list[_WestProject] = []  # List of 'WestProject' class instances
         self._toolbox = ToolBox.get_instance()  # Toolbox class instance
 
         # Extract optional parameters
@@ -191,7 +192,7 @@ class MiniWestCommand(CLICommandInterface):
             return True  # The Directory is now clean and ready for cloning
 
         except Exception as general_error:
-            raise RuntimeError(f"could not clean or prepare path '{clone_dir}': {general_error}")
+            raise RuntimeError(f"could not clean or prepare path '{clone_dir}': {general_error}") from general_error
 
     @staticmethod
     def _adjust_git_names(input_string):
@@ -332,7 +333,7 @@ class MiniWestCommand(CLICommandInterface):
         except git.exc.NoSuchPathError:
             project.operation_stderr = f"the specified path {project.clone_dir} does not exist."
         except git.exc.InvalidGitRepositoryError:
-            project.operation_stderr = f"The specified directory is not a git repository."
+            project.operation_stderr = "The specified directory is not a git repository."
         except git.exc.GitCommandError as git_error:
             project.operation_stderr = git_error.stderr.strip()
             operation_status = git_error.status
@@ -398,7 +399,7 @@ class MiniWestCommand(CLICommandInterface):
             self._stop_event.set()
 
         except Exception as job_exception:
-            self._print_error(f"Exception in worker thread: {str(job_exception)}")
+            self._print_error(f"Exception in worker thread: {job_exception!s}")
             self._stop_event.set()
             self._exceptions += 1
             self._close(force_terminate=False)
@@ -427,9 +428,9 @@ class MiniWestCommand(CLICommandInterface):
 
         if force_terminate:
             # Redirect stderr to null to suppress any error messages during forced termination
-            sys.stderr = open(os.devnull, 'w')
-            # Forcibly terminate the current process
-            os.kill(os.getpid(), signal.SIGTERM)
+            with open(os.devnull, 'w') as devnull:
+                sys.stderr = devnull
+                os.kill(os.getpid(), signal.SIGTERM)  # Forcibly terminate the current process
             # Since os.kill will terminate the process, the following return is more for documentation
             return_value = 1
         else:
@@ -471,7 +472,7 @@ class MiniWestCommand(CLICommandInterface):
             # Regular expression pattern to match URLs that start with 'https://' and end with '.git'
             pattern = r'^https:\/\/.*\.git$'
 
-            with open(west_yaml_path, 'r') as file:
+            with open(west_yaml_path) as file:
                 data = yaml.safe_load(file)
                 projects = data.get('manifest', {}).get('projects', [])
                 if not projects:
@@ -489,7 +490,7 @@ class MiniWestCommand(CLICommandInterface):
                         # Make sure the YAML is valid
                         if None in (new_project.name, new_project.description, new_project.url, new_project.revision,
                                     new_project.path):
-                            raise RuntimeError(f"a west project is missing a required field(s)")
+                            raise RuntimeError("a west project is missing a required field(s)")
 
                         # Use re.match to check if the URL matches the pattern
                         if not re.match(pattern, new_project.url):
@@ -508,7 +509,7 @@ class MiniWestCommand(CLICommandInterface):
                     raise RuntimeError(f"no projects found in {west_yaml_path}")
 
         except Exception as parse_exception:
-            raise Exception(f"Failed to read and process {west_yaml_path}: {str(parse_exception)}")
+            raise Exception(f"Failed to read and process {west_yaml_path}: {parse_exception!s}") from parse_exception
 
     def add_ignored_project(self, project_name: str) -> None:
         """
@@ -560,7 +561,7 @@ class MiniWestCommand(CLICommandInterface):
                 for project in self._projects:
                     # If any thread has failed, stop launching new tasks
                     if self._stop_event.is_set():
-                        raise RuntimeError(f"stop event was set, can't spawn more threads")
+                        raise RuntimeError("stop event was set, can't spawn more threads")
 
                     futures[executor.submit(self._clone_repository_job, project)] = project
                     time.sleep(delay_between)
@@ -573,7 +574,7 @@ class MiniWestCommand(CLICommandInterface):
 
                     except Exception as general_exception:
                         executor.shutdown(cancel_futures=True)
-                        raise RuntimeError(str(general_exception))
+                        raise RuntimeError(str(general_exception)) from general_exception
 
             # Mark end operation
             with self._threads_lock:
@@ -583,7 +584,7 @@ class MiniWestCommand(CLICommandInterface):
 
         except Exception as runtime_exception:
             self._stop_event.set()
-            sys.stdout.write(f"{Fore.RED} Error{Style.RESET_ALL}: {str(runtime_exception)}\r")
+            sys.stdout.write(f"{Fore.RED} Error{Style.RESET_ALL}: {runtime_exception!s}\r")
             sys.stdout.flush()
             return 1
 

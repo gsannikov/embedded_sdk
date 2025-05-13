@@ -12,16 +12,23 @@ import importlib.util
 import io
 import os
 import sys
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, Dict, Any
+from typing import Any, Optional
 
 # AutoGorge local imports
-from auto_forge import (CoreModuleInterface, CLICommandInterface,
-                        AutoForgeModuleType, ModuleInfoType, TerminalTeeStream,
-                        Registry, AutoLogger, ToolBox)
+from auto_forge import (
+    AutoForgeModuleType,
+    AutoLogger,
+    CLICommandInterface,
+    CoreModuleInterface,
+    ModuleInfoType,
+    Registry,
+    TerminalTeeStream,
+    ToolBox,
+)
 
 AUTO_FORGE_MODULE_NAME = "Loader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load supported modules"
@@ -101,10 +108,14 @@ class CoreLoader(CoreModuleInterface):
                 for attr_name in dir(python_module_type):
                     attr = getattr(python_module_type, attr_name)
 
-                    if isinstance(attr, type) and issubclass(attr, tuple(self._supported_interfaces.keys())):
-                        if attr not in self._supported_interfaces:
-                            class_object = attr
-                            break
+                    # Find a class object that is a subclass of a supported interface, but not already registered
+                    if (
+                            isinstance(attr, type)
+                            and issubclass(attr, tuple(self._supported_interfaces.keys()))
+                            and attr not in self._supported_interfaces
+                    ):
+                        class_object = attr
+                        break
 
                 # If no compatible class was found, skip this module
                 if not class_object:
@@ -140,7 +151,7 @@ class CoreLoader(CoreModuleInterface):
                 command_description = docstring_description if docstring_description else module_info.description
 
                 # The command should have automatically updated its metadata in the registry; next we validate this.
-                command_record: Optional[Dict[str, Any]] = self._registry.get_module_record_by_name(
+                command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
                     module_name=module_info.name,
                     case_insensitive=False
                 )

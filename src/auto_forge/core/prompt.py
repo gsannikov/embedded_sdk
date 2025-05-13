@@ -12,11 +12,12 @@ import readline
 import subprocess
 import sys
 from contextlib import suppress
-from types import MethodType
-from typing import Optional, Dict
+from types import FrameType, MethodType
+from typing import Optional
 
+# Third-party
 import cmd2
-from cmd2 import ansi, CustomCompletionSettings, Statement
+from cmd2 import CustomCompletionSettings, Statement, ansi
 from colorama import Fore, Style
 from rich import box
 from rich.console import Console
@@ -24,10 +25,19 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface, CoreLoader, CoreEnvironment, CoreVariables, CoreSolution,
-                        AutoForgeModuleType, ExecutionModeType,
-                        Registry, AutoLogger, ToolBox,
-                        PROJECT_NAME)
+from auto_forge import (
+    PROJECT_NAME,
+    AutoForgeModuleType,
+    AutoLogger,
+    CoreEnvironment,
+    CoreLoader,
+    CoreModuleInterface,
+    CoreSolution,
+    CoreVariables,
+    ExecutionModeType,
+    Registry,
+    ToolBox,
+)
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
@@ -60,7 +70,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_base: Optional[str] = None
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
-        self._executable_db: Optional[Dict[str, str]] = None
+        self._executable_db: Optional[dict[str, str]] = None
         self._loaded_commands: int = 0
         self._history_file: Optional[str] = None
         self._max_completion_results = max_completion_results
@@ -160,7 +170,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             description = cmd_summary.description
 
             # Define the function and attach a docstring BEFORE binding
-            def make_cmd(name, doc):
+            def make_cmd(name=cmd_name, doc=description):
                 # noinspection PyShadowingNames
                 def dynamic_cmd(self, arg):
                     try:
@@ -169,7 +179,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                         elif isinstance(arg, str):
                             args = arg.strip()
                         else:
-                            raise RuntimeError(f"command {cmd_name} has an unsupported argumnets type")
+                            raise RuntimeError(f"command {name} has an unsupported arguments type")
 
                         result = self._loader.execute(name, args)
                         self._last_execution_return_code = result
@@ -419,18 +429,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if only_dirs and not is_dir:
                 continue
 
-            if partial and not entry.startswith(partial):
-                continue
-            elif not complete_entire_directory and not partial:
+            if partial and not entry.startswith(partial) or not complete_entire_directory and not partial:
                 continue
 
             suffix = entry[len(partial):] if partial else entry
 
             # Decide what to display
-            if partial:
-                display_entry = text + suffix
-            else:
-                display_entry = suffix
+            display_entry = text + suffix if partial else suffix
 
             if is_dir:
                 display_entry += os.sep
@@ -579,20 +584,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         console = Console()
 
         if arg:
-            if arg:
-                # User typed 'help my_command' --> Show help for that specific command
-                method = getattr(self, f'do_{arg}', None)
-                if method and method.__doc__:
-                    command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
-                    console.print("\n",
-                                  Panel(f"[bold green]{arg}[/bold green]: {method.__doc__}",
-                                        border_style="cyan",
-                                        title=command_help_title,
-                                        padding=(1, 1), width=self._term_width),
-                                  "\n")  # Force panel to fit terminal width
-                else:
-                    console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
-                return None
+            # User typed 'help my_command' --> Show help for that specific command
+            method = getattr(self, f'do_{arg}', None)
+            if method and method.__doc__:
+                command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
+                console.print("\n",
+                              Panel(f"[bold green]{arg}[/bold green]: {method.__doc__}",
+                                    border_style="cyan",
+                                    title=command_help_title,
+                                    padding=(1, 1), width=self._term_width),
+                              "\n")  # Force panel to fit terminal width
+            else:
+                console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
+            return None
 
         # Reserve some space for panel borders/margins
         max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
@@ -659,15 +663,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         except Exception as exception:
             print(f"[{self.who_we_are()}]: {format(exception)}")
 
-    def sigint_handler(self, signum, frame):
+    def sigint_handler(self, _signum: int, _frame: FrameType):
         """
         Handles SIGINT signals (e.g., Ctrl+C or Ctrl+Break) while idling at the command prompt.
         Behavior:
             - If a KeyboardInterrupt is raised (idle interrupt), it is caught and silently ignored.
             - If any other unexpected exception occurs during interrupt handling, it is re-raised to propagate normally.
         Args:
-            signum (int): The signal number received (typically SIGINT).
-            frame (FrameType): The current stack frame when the signal was received.
+            _signum (int): The signal number received (typically SIGINT).
+            _frame (FrameType): The current stack frame when the signal was received.
         Raises:
             Exception: Any non-KeyboardInterrupt exceptions encountered during interrupt handling are re-raised.
         """

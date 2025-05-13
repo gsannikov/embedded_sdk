@@ -10,13 +10,12 @@ import argparse
 from pathlib import Path
 from typing import Any, Optional
 
+# AutoForge imports
+from auto_forge import CLICommandInterface, CoreSolution, CoreVariables
 from rich import box
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
-
-# AutoForge imports
-from auto_forge import (CLICommandInterface, CoreSolution, CoreVariables)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"

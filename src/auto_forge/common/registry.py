@@ -12,11 +12,10 @@ Description:
 import inspect
 from abc import ABCMeta
 from types import ModuleType
-from typing import Any, Dict, Optional, cast, List
+from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import (CoreModuleInterface,
-                        AutoForgeModuleType, ModuleInfoType, ModuleSummaryType)
+from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType, ModuleSummaryType
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
@@ -32,7 +31,7 @@ class Registry(CoreModuleInterface):
         """
         Implements 'CoreModuleInterface' one tine initialization.
         """
-        self._modules_registry: Dict[str, Dict[str, Any]] = {}
+        self._modules_registry: dict[str, dict[str, Any]] = {}
 
         # Register self
         self._module_info: ModuleInfoType = (
@@ -40,7 +39,7 @@ class Registry(CoreModuleInterface):
                                  description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.COMMON))
 
-    def _find_record(self, value: str, key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def _find_record(self, value: str, key: Optional[str] = None) -> Optional[dict[str, Any]]:
         """
         Searches the modules registry for a record matching the given value.
         Args:
@@ -107,7 +106,7 @@ class Registry(CoreModuleInterface):
         )
 
     def get_modules_summary_list(self,
-                                 auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> List[ModuleSummaryType]:
+                                 auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> list[ModuleSummaryType]:
         """
         Returns a list of module summaries (name and description only) that match the specified module type.
         Omits all internal or non-serializable details.
@@ -145,7 +144,7 @@ class Registry(CoreModuleInterface):
         return self._get_module_info(module_name=module_name)
 
     def get_module_record_by_name(self, module_name: str,
-                                  case_insensitive: bool = False) -> Optional[Dict[str, Any]]:
+                                  case_insensitive: bool = False) -> Optional[dict[str, Any]]:
         """
         Retrieves a module record from the registry by its registered name.
         Args:

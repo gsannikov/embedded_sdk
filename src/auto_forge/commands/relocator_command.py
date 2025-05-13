@@ -13,98 +13,117 @@ import argparse
 import logging
 import os
 import shutil
-from typing import Optional, Any, Dict, List
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
+
+# Third-party
+from rich.console import Console
 
 # AutoForge imports
-from auto_forge import (CoreProcessor, CLICommandInterface)
+from auto_forge import PROJECT_COMMANDS_PATH, CLICommandInterface, CoreProcessor, PrettyPrinter, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
+@dataclass
+class _RelocateFolder:
+    """
+    Defines the expected JSON stored list of folders (essentially list of dictionaries)
+    """
+    description: Optional[str]
+    source: str
+    destination: str
+    file_types: list[str]
+
+
+@dataclass
 class _RelocateDefaults:
+    base_source_path: str
+    base_destination_path: str
+    delete_destination_on_start: bool
+    full_debug: bool
+    file_types: list[str]
+    create_grave_yard: bool
+    max_copy_depth: int
+    create_empty_cmake_file: bool
+
+
+class _RelocateDefaultsRead:
     """
-    Private auxiliary class for managing default relocation related attributes
+    Validates and normalizes raw JSON config for 'defaults' and returns a _RelocateDefaults instance.
     """
 
-    def __init__(self, defaults_config: Dict[str, Any]):
-        """
-        Initialize the RelocateDefaults class with configuration settings.
+    @staticmethod
+    def process(defaults_data: dict[str, Any]) -> _RelocateDefaults:
+        if not isinstance(defaults_data, dict):
+            raise TypeError("'defaults_data' must be a dictionary")
 
-        Args:
-            defaults_config (Dict[str, Any]): A dictionary containing configuration settings.
-        """
+        # Expand and resolve base paths
+        base_source_path = os.path.expandvars(os.path.expanduser(defaults_data.get("base_source_path", "")))
+        base_destination_path = os.path.expandvars(os.path.expanduser(defaults_data.get("base_destination_path", "")))
 
-        if not isinstance(defaults_config, dict):
-            raise TypeError("'defaults_config' must be a dictionary")
-
-        self.base_source_path: str = os.path.expandvars(os.path.expanduser(defaults_config.get('base_source_path', "")))
-        self.base_destination_path: str = os.path.expandvars(
-            os.path.expanduser(defaults_config.get('base_destination_path', "")))
-
-        if not self.base_source_path or not self.base_destination_path:
+        if not base_source_path or not base_destination_path:
             raise ValueError("'base_source_path' and 'base_destination_path' must be defined and non-empty")
 
-        # Check if the source path is a real directory
-        if not os.path.isdir(self.base_source_path):
-            # Try to see if 'base_source_path' is located in our current path
-            relative_path = os.path.join(os.getcwd(), self.base_source_path)
+        if not os.path.isdir(base_source_path):
+            relative_path = os.path.join(os.getcwd(), base_source_path)
             if not os.path.isdir(relative_path):
-                raise FileNotFoundError(f"Base source path does not exist: '{self.base_source_path}'")
-            else:
-                # Update base source and base destination paths to the resolved relative path
-                self.base_source_path = relative_path
-                self.base_destination_path = os.path.join(os.getcwd(), self.base_destination_path)
+                raise FileNotFoundError(f"Base source path does not exist: '{base_source_path}'")
+            base_source_path = relative_path
+            base_destination_path = os.path.join(os.getcwd(), base_destination_path)
 
-        # Validate file_types to ensure it is a list
-        file_types = defaults_config.get('file_types', ['*'])
+        # Validate file_types
+        file_types = defaults_data.get("file_types", ["*"])
         if not isinstance(file_types, list):
-            raise ValueError("file_types must be a list")
-        self.file_types: Optional[list] = file_types
+            raise ValueError("'file_types' must be a list")
 
-        # Reset opf the attributes
-        self.delete_destination_on_start: bool = defaults_config.get('delete_destination_on_start', False)
-        self.full_debug: bool = defaults_config.get('full_debug', False)
-        self.create_grave_yard: bool = defaults_config.get('create_grave_yard', False)
-        self.max_copy_depth: int = defaults_config.get('max_copy_depth', -1)
-        self.create_empty_cmake_file: bool = defaults_config.get('create_empty_cmake_file', False)
+        # Construct dataclass instance
+        return _RelocateDefaults(
+            base_source_path=base_source_path,
+            base_destination_path=base_destination_path,
+            file_types=file_types,
+            delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
+            full_debug=defaults_data.get("full_debug", False),
+            create_grave_yard=defaults_data.get("create_grave_yard", False),
+            max_copy_depth=defaults_data.get("max_copy_depth", -1),
+            create_empty_cmake_file=defaults_data.get("create_empty_cmake_file", False),
+        )
 
 
-class _RelocatedFolder:
+class _RelocateFolderRead:
     """
-    Private auxiliary class for managing a single relocated folder.
+    Validates a raw folder entry JSON entry and returns a clean _RelocateFolder.
+    Applies defaults where needed.
     """
 
-    def __init__(self, defaults: '_RelocateDefaults', folder_config: Dict[str, Any]):
-        """
-        Initializes a RelocatedFolder instance using default settings and folder-specific overrides.
-        Args:
-            defaults (_RelocateDefaults): An instance of RelocateDefaults providing default settings.
-            folder_config (Dict[str, Any]): A dictionary containing the configuration for a specific folder,
-                                            which may override the defaults.
-        """
-        # Use defaults if keys are not specified in folder_config
-        self.description: Optional[str] = folder_config.get('description', None)
-        self.source: str = os.path.join(defaults.base_source_path, folder_config['source'])
-        self.destination: str = os.path.join(defaults.base_destination_path, folder_config['destination'])
+    @staticmethod
+    def process(
+            defaults: _RelocateDefaults, raw_folder_entry: dict[str, Any]
+    ) -> _RelocateFolder:
+        if not isinstance(raw_folder_entry, dict):
+            raise TypeError("Each folder entry must be a dictionary")
 
-        # Initialize file_types where if we have '*' , it will be converted to the only item
-        file_types = folder_config.get('file_types', defaults.file_types)
-        if '*' in file_types:
-            self.file_types = ['*']
-        else:
-            self.file_types = file_types
+        source = raw_folder_entry.get("source")
+        destination = raw_folder_entry.get("destination")
 
-        # Validate that mandatory fields are provided
-        if 'source' not in folder_config or 'destination' not in folder_config:
-            raise KeyError("Both 'source' and 'destination' fields must be provided in folder_config.")
+        if not isinstance(destination, str) or not isinstance(source, str):
+            raise KeyError("Both 'source' and 'destination' must be provided in each folder entry.")
 
-        # Initialize other properties from defaults if not overridden
-        self.create_grave_yard: bool = folder_config.get('create_grave_yard', defaults.create_grave_yard)
-        self.max_copy_depth: int = folder_config.get('max_copy_depth', defaults.max_copy_depth)
-        self.create_empty_cmake_file: bool = folder_config.get('create_empty_cmake_file',
-                                                               defaults.create_empty_cmake_file)
+        file_types = raw_folder_entry.get("file_types", defaults.file_types)
+        if not isinstance(file_types, list):
+            raise ValueError("'file_types' must be a list if provided")
+
+        file_types = ['*'] if '*' in file_types else file_types
+
+        return _RelocateFolder(
+            description=raw_folder_entry.get("description"),
+            source=source,
+            destination=destination,
+            file_types=file_types,
+        )
 
 
 class RelocatorCommand(CLICommandInterface):
@@ -117,10 +136,18 @@ class RelocatorCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._json_processor: CoreProcessor = CoreProcessor.get_instance()  # Class instance
-        self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
+        self._json_processor: CoreProcessor = CoreProcessor.get_instance()  # JSON preprocessor instance
+        self._toolbox: ToolBox = ToolBox.get_instance()
+
+        # Raw JSON data
+        self._recipe_data: Optional[dict[str, Any]] = None  # Complete JSON raw data
+        self._relocate_defaults_data: Optional[dict[str, Any]] = None  # Defaults raw JSON data
+        self._relocate_folders_data: Optional[list[dict]] = None  # List of folders as raw JSON data
+
+        # Deserialize data
         self._relocate_defaults: Optional[_RelocateDefaults] = None
-        self._relocate_folders_data: Optional[List[str, Any]] = None
+        self._relocated_folders: Optional[list[_RelocateFolder]] = None
+
         self._relocate_folders_count: Optional[int] = 0
 
         # Extract optional parameters
@@ -130,103 +157,111 @@ class RelocatorCommand(CLICommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
-    def _load_recipe(self, recipe_file: str):
+    def _reset(self) -> None:
         """
-        Load parse and validate a relocation recipe from a JSON file using JSONProcessorLib.
+        Resets the internal state of the object to its initial None/default values.
+        """
+        self._recipe_data = None
+        self._relocate_defaults_data = None
+        self._relocate_folders_data = None
+        self._relocate_defaults = None
+        self._relocated_folders = None
+        self._relocate_folders_count = 0
+
+    def _load_recipe(self, recipe_file: str) -> None:
+        """
+        Load, parse, and validate a relocation recipe from a JSON file using JSONProcessorLib.
         Args:
-            recipe_file (str): Path to the JSON recipe file. The file may contain comments, which will be
-                removed prior to parsing.
+            recipe_file (str): Path to the JSON recipe file. The file may contain comments,
+                               which will be removed prior to parsing.
         """
-
         try:
+            # Reset all internal state before loading new data
+            self._reset()
 
-            # Start fresh
-            self._recipe_data: Optional[Dict[str, Any]] = None  # To store processed json data
-            self._relocate_defaults: Optional[_RelocateDefaults] = None
-            self._relocate_folders_data: Optional[List[str, Any]] = None
-            self._relocate_folders_count: Optional[int] = 0
-
-            # JSON preprocess
+            # Preprocess the JSON file (e.g., strip comments)
             self._recipe_data = self._json_processor.preprocess(file_name=recipe_file)
 
-            if 'defaults' not in self._recipe_data:
-                raise KeyError("missing 'defaults' section in JSON recipe.")
-            self._relocate_defaults = _RelocateDefaults(self._recipe_data['defaults'])
+            # Validate and parse 'defaults' section
+            if "defaults" not in self._recipe_data:
+                raise KeyError("missing 'defaults' section in JSON recipe")
 
-            # Sets the logger to debug if specified
+            self._relocate_defaults_data = self._recipe_data["defaults"]
+            self._relocate_defaults = _RelocateDefaultsRead.process(self._relocate_defaults_data)
+
+            # Set logger level if full debug is enabled
             if self._relocate_defaults.full_debug:
                 self._logger.setLevel(logging.DEBUG)
 
-            # Load the folders list and make sure we got something sensible
-            self._relocate_folders_data = self._recipe_data.get('folders', None)
-            if self._relocate_folders_data is None or not isinstance(self._relocate_folders_data, list) or len(
-                    self._relocate_folders_data) < 1:
-                raise KeyError("missing or invalid 'folders' section in JSON recipe.")
+            # Validate and parse 'folders' section
+            self._relocate_folders_data = self._recipe_data.get("folders", [])
+            if not isinstance(self._relocate_folders_data, list) or not self._relocate_folders_data:
+                raise KeyError("missing or invalid 'folders' section in JSON recipe")
 
-            # Create a list of RelocatedFolder instances based on the raw dictionary
-            self._relocated_folders: List[_RelocatedFolder] = [
-                _RelocatedFolder(self._relocate_defaults, folder_config) for folder_config in
-                self._relocate_folders_data
+            self._relocated_folders = [
+                _RelocateFolderRead.process(self._relocate_defaults, entry)
+                for entry in self._relocate_folders_data
             ]
+            self._relocate_folders_count = len(self._relocated_folders)
 
-            self._relocate_folders_count = len(self._relocate_folders_data)
-
-            # Be nice
+            # Inform the user if a feature is not implemented
             if self._relocate_defaults.create_empty_cmake_file:
-                self._logger.warning("Sorry,'create_empty_cmake_file' is not yet coded :)")
+                self._logger.warning("'create_empty_cmake_file' is not implemented")
 
-            self._logger.debug(f"Recipe '{recipe_file}' loaded, total {self._relocate_folders_count} folders defined")
+            self._logger.debug(
+                f"Recipe '{recipe_file}' loaded successfully: {self._relocate_folders_count} folders defined."
+            )
 
-        # Forwarded the exception
-        except Exception:
-            raise
+        except Exception as load_error:
+            # Re-raise the exception explicitly for future extension (e.g., logging or wrapping)
+            raise load_error from load_error
 
     def _relocate(self, **kwargs: Any) -> bool:
         """
-        Follow the loaded recipe file and build a reconstructed tree accordingly.
+        Execute the loaded relocation recipe and reconstruct the destination tree accordingly.
+
         Args:
-            **kwargs (Any): Optional keyword arguments:
-                - recipe_file (str): JSON AutoForge recipe file reqwired for the reconstruction.
+            **kwargs: Optional keyword arguments:
+                - recipe_file (str): Path to the JSON AutoForge recipe file.
+
+        Returns:
+            bool: True if relocation was successful, False otherwise.
         """
-
         try:
-
-            recipe_file: Optional[str] = kwargs.get("recipe_file", None)
+            recipe_file: Optional[str] = kwargs.get("recipe_file")
             if not recipe_file or not isinstance(recipe_file, str):
-                raise KeyError("reqwired argument 'recipe_file' is missing or invalid")
+                raise KeyError("Required argument 'recipe_file' is missing or invalid.")
 
-            # Load and process the
+            # Load and validate recipe; raises on error
             self._load_recipe(recipe_file)
 
             if not self._relocated_folders or not self._relocate_folders_count:
-                raise RuntimeError("relocate' has not been initialized with any folders")
+                raise RuntimeError("No folders found in the recipe to process.")
 
             graveyard_path: Optional[str] = None
+            destination_root = self._relocate_defaults.base_destination_path
 
-            # Check and handle the deletion of the destination directory tree
+            # Handle deletion of existing destination directory
             if self._relocate_defaults.delete_destination_on_start:
-                # Check if the base destination path exists and is a directory
-                if os.path.exists(self._relocate_defaults.base_destination_path):
+                if os.path.exists(destination_root):
                     try:
-                        # Remove the entire directory tree
-                        shutil.rmtree(self._relocate_defaults.base_destination_path)
-                        self._logger.debug(
-                            f"Deleted existing destination directory: '{self._relocate_defaults.base_destination_path}'")
-                    except Exception as clear_path_error:
-                        raise RuntimeError(f"failed to delete the destination directory: {str(clear_path_error)}")
+                        shutil.rmtree(destination_root)
+                        self._logger.debug(f"deleted existing destination directory: '{destination_root}'")
+                    except Exception as exception:
+                        raise RuntimeError(f"failed to delete destination directory: {exception}") from exception
             else:
-                # Check if the base destination path exists and is a directory
-                if os.path.exists(self._relocate_defaults.base_destination_path):
-                    raise RuntimeError(f"destination '{self._relocate_defaults.base_destination_path}' already exists.")
+                if os.path.exists(destination_root):
+                    raise RuntimeError(f"destination '{destination_root}' already exists.")
 
-            # Ensure the base destination directory is recreated
-            os.makedirs(self._relocate_defaults.base_destination_path, exist_ok=True)
+            # Recreate destination root
+            os.makedirs(destination_root, exist_ok=True)
 
+            # Process each folder entry
             for folder in self._relocated_folders:
                 os.makedirs(folder.destination, exist_ok=True)
                 self._logger.debug(f"Processing folder from {folder.source} to {folder.destination}")
 
-                # Prepare 'graveyard' directory if needed
+                # Create graveyard directory if needed
                 if folder.create_grave_yard:
                     graveyard_path = os.path.join(folder.destination, "grave_yard")
                     os.makedirs(graveyard_path, exist_ok=True)
@@ -234,35 +269,97 @@ class RelocatorCommand(CLICommandInterface):
                 max_depth = folder.max_copy_depth
                 base_level = folder.source.count(os.sep)
 
-                for root, dirs, files in os.walk(folder.source):
+                for root, _dirs, files in os.walk(folder.source):
                     current_depth = root.count(os.sep) - base_level
                     if max_depth != -1 and current_depth > max_depth:
                         raise RuntimeError(f"exceeded maximum copy depth ({max_depth}) at '{root}'")
 
                     for file in files:
-
                         src_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(root, folder.source)
 
-                        if '*' in folder.file_types or any(file.endswith(ft) for ft in folder.file_types if ft != '*'):
-                            dest_path = os.path.join(folder.destination, os.path.relpath(root, folder.source), file)
+                        # Determine if file matches allowed file types
+                        if '*' in folder.file_types or any(
+                                file.endswith(ft) for ft in folder.file_types if ft != '*'
+                        ):
+                            dest_path = os.path.join(folder.destination, relative_path, file)
                             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                             shutil.copy2(src_path, dest_path)
                             self._logger.debug(f"{src_path} -> {dest_path}")
 
                         elif folder.create_grave_yard:
-                            # Move files that do not match file types into the graveyard
-                            graveyard_file_path = os.path.join(graveyard_path, os.path.relpath(root, folder.source),
-                                                               file)
+                            # Move unmatched file to graveyard
+                            graveyard_file_path = os.path.join(graveyard_path, relative_path, file)
                             os.makedirs(os.path.dirname(graveyard_file_path), exist_ok=True)
                             shutil.move(src_path, graveyard_file_path)
                             self._logger.debug(f"{src_path} -> {graveyard_file_path}")
 
-            self._logger.debug("All folders processed successfully")
+            self._logger.debug("All folders processed successfully.")
             return True
 
-        # Propagate
-        except Exception:
-            raise
+        except Exception as relocate_error:
+            # Re-raise for upstream error handling; can be enhanced for logging
+            raise relocate_error from relocate_error
+
+    def print_relocation_recipe_help(self) -> None:
+        """
+        Prints dynamic help explaining how to create a .jsonc relocation recipe file,
+        based on an example file located in PROJECT_COMMANDS_PATH/help/relocate_example.jsonc.
+        """
+        console = Console(force_terminal=True, color_system="truecolor")
+        help_dir: Path = PROJECT_COMMANDS_PATH / "help"
+        example_file: Path = help_dir / "relocate_example.jsonc"
+
+        if not help_dir.exists() or not help_dir.is_dir():
+            console.print(f"[bold red][ERROR][/bold red] Help directory not found: {help_dir}")
+            return
+
+        if not example_file.exists() or not example_file.is_file():
+            console.print(f"[bold red][ERROR][/bold red] Example recipe file not found: {example_file}")
+            return
+
+        try:
+            json_data = self._json_processor.preprocess(str(example_file))
+        except Exception as json_error:
+            console.print(f"[bold red][ERROR][/bold red] Failed to load or preprocess example recipe: {json_error}")
+            return
+
+        print()
+        console.print("[bold cyan]RELOCATION RECIPE HELP (.jsonc)[/bold cyan]", style="bold underline")
+        console.print("""
+    This guide explains how to write a relocation recipe file for AutoForge.
+
+    A recipe is a JSONC (JSON with comments) file that defines:
+      - Global settings (in the [bold]defaults[/bold] section)
+      - Folder-specific source/destination mappings (in the [bold]folders[/bold] list)
+
+    [bold]Key Sections[/bold]
+    ────────────────────────────────────────────
+
+    [green]▶ defaults[/green]
+      Global settings applied to all folders unless overridden.
+
+        • base_source_path: str (Required)
+        • base_destination_path: str (Required)
+        • file_types: list[str] (Optional, default = ["*"])
+        • delete_destination_on_start: bool (Optional)
+        • full_debug: bool (Optional)
+        • create_grave_yard: bool (Optional)
+        • max_copy_depth: int (Optional, default = -1)
+        • create_empty_cmake_file: bool (Optional)
+
+    [green]▶ folders[/green]
+      Folder-specific mapping list.
+
+        • source: str (Required)
+        • destination: str (Required)
+        • file_types: list[str] (Optional, overrides global)
+        • description: str (Optional)
+
+    """)
+
+        console.print("\n[bold]Parsed JSON version (after stripping comments):[/bold]\n")
+        PrettyPrinter(indent=4).render(json_data)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -271,6 +368,7 @@ class RelocatorCommand(CLICommandInterface):
             parser (argparse.ArgumentParser): The parser to extend.
         """
         parser.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
+        parser.add_argument("-x", "--recipe_example", action="store_true", help="Show precipice file example.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -285,6 +383,8 @@ class RelocatorCommand(CLICommandInterface):
         # Handle arguments
         if args.recipe:
             self._relocate(recipe_file=args.recipe)
+        elif args.recipe_example:
+            self.print_relocation_recipe_help()
         else:
             return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 

@@ -9,10 +9,10 @@ Description:
 
 import argparse
 from pathlib import Path
-from typing import Optional, Any, cast
+from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface)
+from auto_forge import CLICommandInterface
 
 AUTO_FORGE_MODULE_NAME = "zephyr_sdk"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr SDK utilities"
@@ -47,13 +47,13 @@ class ZephyrSDKCommand(CLICommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
-    def initialize(self, **kwargs: Any) -> bool:
+    def initialize(self, **_kwargs: Any) -> bool:
         """
         Detect the installed Zephyr SDK by examining the CMake user package registry.
         Note: Assumes standard SDK install with 'zephyr-sdk-setup.sh' registration.
 
         Args:
-            **kwargs (Any): Optional keyword arguments:
+            **_kwargs (Any): Optional keyword arguments:
         Returns:
             bool: True if initialization succeeded, False otherwise.
         """
