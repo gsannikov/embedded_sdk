@@ -328,6 +328,55 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 # Correctly bind the completer function to self
                 setattr(self, completer_name, completer_func.__get__(self))
 
+    def _complete_solution_dot_chain(self, _text: str, parts: list[str]) -> list[str]:
+        """
+        Resolves hierarchical tab-completions for 'sln.'-prefixed targets.
+        Example completion flow:
+            Input                          → Completion Output
+            ------------------------------|--------------------------
+            sln.                          → sln.sample, sln.test
+            sln.sample.                   → sln.sample.proj1, sln.sample.proj2
+            sln.sample.proj1.             → sln.sample.proj1.debug, sln.sample.proj1.release
+
+        Args:
+            _text: The full token string being completed (unused here but required for API symmetry).
+            parts: A list of strings obtained by splitting the input token on '.'.
+        Returns:
+            A list of formatted strings representing valid completions at the current hierarchy level.
+        """
+
+        matches = []
+
+        try:
+            if parts[0] != "sln":
+                return []
+
+            if len(parts) == 2:
+                # sln.<partial_solution>
+                partial = parts[1]
+                for sol in self._solution.get_solutions_list() or []:
+                    if not partial or sol.startswith(partial):
+                        matches.append(f"sln.{sol}")
+
+            elif len(parts) == 3:
+                # sln.solution.<partial_project>
+                sol, partial = parts[1], parts[2]
+                for proj in self._solution.get_projects_list(sol) or []:
+                    if not partial or proj.startswith(partial):
+                        matches.append(f"sln.{sol}.{proj}")
+
+            elif len(parts) == 4:
+                # sln.solution.project.<partial_config>
+                sol, proj, partial = parts[1], parts[2], parts[3]
+                for cfg in self._solution.get_configurations_list(sol, proj) or []:
+                    if not partial or cfg.startswith(partial):
+                        matches.append(f"sln.{sol}.{proj}.{cfg}")
+
+        except Exception as exception:
+            self._logger.debug(f"Auto-completion error: {exception}")
+
+        return matches
+
     # noinspection SpellCheckingInspection
     def _complete_for_do_commands(self, text: str, line: str, _begidx: int, _endidx: int,
                                   only_dirs: bool = False) -> list[str]:
@@ -449,6 +498,32 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return matches
 
+    # noinspection SpellCheckingInspection
+    def complete_build(self, text: str, line: str, _begidx: int, _endidx: int) -> list[str]:
+        """
+        Provides tab-completion for the 'build' command.
+        This completion handler supports hierarchical selection of build targets using dot notation:
+            build sln.<solution>[.<project>[.<configuration>]]
+        Args:
+            text: The partial word being completed.
+            line: The full input line typed so far.
+            _begidx: The start index of the word being completed (unused).
+            _endidx: The end index of the word being completed (unused).
+        Returns:
+            A list of matching completion strings.
+        """
+        tokens = line.strip().split()
+        if len(tokens) < 2:
+            return []
+
+        arg = tokens[1]
+        if arg.startswith("sln.") or text.startswith("sln."):
+            dot_parts = arg.split('.')
+            if 1 <= len(dot_parts) <= 4:
+                return self._complete_solution_dot_chain(arg, dot_parts)
+
+        return []
+
     def complete(self, text: str, state: int,
                  custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[str]:
         """
@@ -514,8 +589,24 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     # Default fallback for built-in commands
                     matches = self._gather_path_matches(text, complete_entire_directory=buffer_ends_with_space)
             else:
+                # Check all tokens for one starting with "sln."
+                for token in tokens:
+                    if token.startswith("sln."):
+                        dot_text = token
+                        dot_parts = dot_text.split('.')
+                        if 1 <= len(dot_parts) <= 4:
+                            matches = self._complete_solution_dot_chain(dot_text, dot_parts)
+                            return matches[state] if state < len(matches) else None
+
                 return super().complete(text, state, custom_settings)
 
+        # Inject dot-aware solution hierarchy completion
+        if len(tokens) == 1 and tokens[0].startswith("sln."):
+            dot_text = tokens[0]
+            dot_parts = dot_text.split('.')
+            if 1 <= len(dot_parts) <= 4:
+                matches = self._complete_solution_dot_chain(dot_text, dot_parts)
+                return matches[state] if state < len(matches) else None
         try:
             return matches[state]
         except IndexError:
@@ -635,6 +726,24 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         console.print("\n", panel, "\n")
         return None
 
+    def do_build(self, arg: str):
+        """
+        Build a specific target via dot-notation:
+            build sln.<solution>.<project>.<configuration>
+        """
+        tokens = arg.strip().split()
+        if not tokens or not tokens[0].startswith("sln."):
+            self.perror("Expected: sln.<solution>.<project>.<configuration>")
+            return
+
+        parts = tokens[0].split(".")
+        if len(parts) != 4:
+            self.perror("Expected 4 parts: sln.solution.project.config")
+            return
+
+        _, solution, project, config = parts
+        self.poutput(f"🔨 Building {solution}/{project} [{config}]...")
+
     def default(self, statement: Statement) -> None:
         """
         Fallback handler for unrecognized commands — executes them via the system shell.
@@ -642,8 +751,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Args:
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
-
         try:
+            # noinspection SpellCheckingInspection
             if statement.command in {"htop", "top", "btop", "vim", "less", "nano", "vi", "clear"}:
                 # Full TTY handoff for interactive apps
                 full_command = statement.command_and_args

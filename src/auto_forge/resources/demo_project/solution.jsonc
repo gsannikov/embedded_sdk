@@ -137,8 +137,8 @@
 			"projects": [
 				{
 					"name": "btop",
-					"tool_chain": "<$ref_solutions[sample].tool_chains[x86_64 Linux GCC]>",
 					"description": "Resource monitor that shows usage and stats for processor, memory, disks, network and processes.",
+					"tool_chain": "<$ref_solutions[sample].tool_chains[x86_64 Linux GCC]>",
 					"configurations": [
 						{
 							"name": "debug",

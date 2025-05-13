@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-AUTO_FORGE_MODULE_NAME = "sln"
+AUTO_FORGE_MODULE_NAME = "sl"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
