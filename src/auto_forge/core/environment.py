@@ -195,6 +195,21 @@ class CoreEnvironment(CoreModuleInterface):
         return python_executable
 
     @staticmethod
+    def _parse_version(text: str, max_parts: int = 3) -> tuple[int, ...]:
+        """
+        Extracts up to `max_parts` numerical components of a version string.
+        Non-numeric suffixes (like '1A', 'rc1') are ignored.
+        """
+
+        if not isinstance(text, str):
+            raise ValueError("input is not a string")
+
+        parts = re.findall(r"\d+", text)
+        if not parts:
+            raise ValueError(f"No version number found in: {text}")
+        return tuple(int(p) for p in parts[:max_parts])
+
+    @staticmethod
     def _extract_decimal(text: str, treat_no_decimal_as_zero: bool = True) -> Union[float, int]:
         """
         Extracts the first decimal or integer number from a given string.
@@ -855,8 +870,8 @@ class CoreEnvironment(CoreModuleInterface):
                             f"'{command}' returned no output while expecting '{expected_response}'")
 
                     if allow_greater_decimal:
-                        actual_version = self._extract_decimal(text=command_response)
-                        expected_version = self._extract_decimal(text=expected_response)
+                        actual_version = self._parse_version(text=command_response)
+                        expected_version = self._parse_version(text=expected_response)
                         if actual_version < expected_version:
                             raise Exception(
                                 f"required {command} version is {expected_version} or higher, found {actual_version}")
@@ -1527,7 +1542,7 @@ class CoreEnvironment(CoreModuleInterface):
             # User optional greetings messages
             _expand_and_print(steps_schema.get("status_pre_message"))
 
-            # Move to the workspace path if exisit as early as possible
+            # Move to the workspace path if exist as early as possible
             if os.path.exists(self._workspace_path):
                 os.chdir(self._workspace_path)
 
@@ -1548,7 +1563,7 @@ class CoreEnvironment(CoreModuleInterface):
 
                 # Handle command output capture to a variable
                 store_key = step.get('response_store_key', None)
-                # Store the command response as a value If it's a string and we got the skey name from the JSON
+                # Store the command response as a value If it's a string, and we got the skey name from the JSON
                 if isinstance(response, str) and store_key is not None:
                     self._logger.debug(f"Storing value '{response}' in '{store_key}'")
                     self._toolbox.store_value(key=store_key, value=response)
