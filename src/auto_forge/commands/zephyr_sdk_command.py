@@ -38,6 +38,7 @@ class ZephyrSDKCommand(CLICommandInterface):
         """
         self._path: Optional[str] = None  # Detected Zephyr SDK path
         self._version: Optional[str] = None  # Detected SDK version
+        self._detected: bool = False
 
         # Extract optional parameters from kwargs
         self._cmake_pkg_dir: Optional[Path] = Path(kwargs.get('cmake_pkg_dir', CMAKE_PACKAGE_PATH))
@@ -47,7 +48,7 @@ class ZephyrSDKCommand(CLICommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
-    def initialize(self, **_kwargs: Any) -> bool:
+    def detect(self, **_kwargs: Any) -> bool:
         """
         Detect the installed Zephyr SDK by examining the CMake user package registry.
         Note: Assumes standard SDK install with 'zephyr-sdk-setup.sh' registration.
@@ -58,8 +59,11 @@ class ZephyrSDKCommand(CLICommandInterface):
             bool: True if initialization succeeded, False otherwise.
         """
 
+        if self._detected:
+            return True # SDK Already found
+
         if not self._cmake_pkg_dir or not self._cmake_pkg_dir.is_dir():
-            raise RuntimeError(f"CMake package registry path '{self._cmake_pkg_dir}' does not exist")
+            return False # CMake package registry path does not exist
 
         # Workaround PyCharm's static analyzer quirks
         cmake_pkg_dir = cast(Path, self._cmake_pkg_dir)
@@ -93,6 +97,7 @@ class ZephyrSDKCommand(CLICommandInterface):
 
             self._path = sdk_path.__str__()
             self._version = version
+            self._detected = True
             return True
 
         return False
@@ -117,6 +122,7 @@ class ZephyrSDKCommand(CLICommandInterface):
             int: Exit status (0 for success, non-zero for failure).
         """
         return_value: int = 0
+        self.detect() # Attempt to locate the SDK
 
         # The SDK path should have been discovered when this class was created.
         if not self._path:

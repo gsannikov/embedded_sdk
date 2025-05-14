@@ -38,6 +38,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
+    AddressInfoType,
     AutoForgeModuleType,
     AutoLogger,
     CoreLoader,
@@ -306,10 +307,10 @@ class CoreEnvironment(CoreModuleInterface):
             # Safeguard against deleting important directories
             if delete_existing:
                 self.path_erase(path=self._workspace_path, allow_non_empty=True)
-                # Make sure the base path exisit
+                # Make sure the base path exist
                 os.makedirs(self._workspace_path, exist_ok=True)
 
-            # Create if does not exisit
+            # Create if does not exist
             if create_as_needed:
                 os.makedirs(self._workspace_path, exist_ok=True)
 
@@ -390,7 +391,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             raise ValueError(f"environment variable '{variable_name}' could not be expanded")
 
-        # Convert to absulute path if specified
+        # Convert to absolute path if specified
         if to_absolute_path:
             restored_path = os.path.abspath(os.path.normpath(restored_path))
 
@@ -462,7 +463,7 @@ class CoreEnvironment(CoreModuleInterface):
         if not callable(method):
             raise ValueError(f"method '{method_name}' not found in '{self.__class__.__name__}'")
 
-        # Finetune the argumnets to the executed method based on its signature
+        # Finetune the arguments to the executed method based on its signature
         method_signature = inspect.signature(method)
         method_kwargs, extra_kwargs = self._toolbox.filter_kwargs_for_method(kwargs=arguments, sig=method_signature)
 
@@ -483,8 +484,7 @@ class CoreEnvironment(CoreModuleInterface):
     def execute_cli_command(self, command: str, arguments: str, expected_return_code: int = 0,
                             suppress_output: bool = False) -> Optional[str]:
         """
-        Executes a registered CLI command by name with shell-style arguments.
-
+        Executes a registered CLI command by name with shell-style arguments.=
         Args:
             command (str): The name of the CLI command to execute.
             arguments (str): A shell-style argument string to pass to the command.
@@ -493,9 +493,6 @@ class CoreEnvironment(CoreModuleInterface):
 
         Returns:
             Optional[str]: Captured output from the command, or None if an exception occurs.
-
-        Raises:
-            RuntimeError: If the actual return code does not match the expected one.
         """
 
         self._logger.debug(f"Executing registered command: '{command}'")
@@ -903,7 +900,8 @@ class CoreEnvironment(CoreModuleInterface):
 
         return command_response
 
-    def path_erase(self, path: str, allow_non_empty: bool = False, raise_exception_if_not_exisit: bool = False):
+    def path_erase(self, path: str, allow_non_empty: bool = False,
+                   raise_exception_if_not_exist: bool = False):
         """
         Safely delete a directory with safeguards to prevent accidental removal of critical system or user directories.
         Enforces the following safety checks before performing deletion:
@@ -913,7 +911,7 @@ class CoreEnvironment(CoreModuleInterface):
         Args:
             path (str): The absolute path of the directory to be deleted.
             allow_non_empty (bool): If False and the path is a non-empty directory, the operation is canceled.
-            raise_exception_if_not_exisit (bool): If True, raises an exception if the path does not exist.
+            raise_exception_if_not_exist(bool): If True, raises an exception if the path does not exist.
 
         Returns:
             None, raising exception on error.
@@ -924,7 +922,7 @@ class CoreEnvironment(CoreModuleInterface):
             normalized_path = self.environment_variable_expand(text=path, to_absolute_path=True)
 
             if not os.path.exists(normalized_path):
-                if raise_exception_if_not_exisit:
+                if raise_exception_if_not_exist:
                     raise FileNotFoundError(f"'{normalized_path}' does not exist")
                 return  # Exit without raising exception
 
@@ -1203,7 +1201,7 @@ class CoreEnvironment(CoreModuleInterface):
         Checks out a specific revision in a Git repository.
         Args:
             dest_repo_path (str): The local file system path to the Git repository.
-            revision (str): The branch name, tag, or commit hash to checkout.
+            revision (str): The branch name, tag, or commit hash to check out.
             timeout (float): The maximum time in seconds to allow the git command to run.
                 A timeout of 0 indicates no timeout. Default is 0.
             pull_latest (bool): Whether to perform a git pull to update the repository with the latest changes from
@@ -1240,8 +1238,8 @@ class CoreEnvironment(CoreModuleInterface):
     def git_get_path_from_url(self, url: str,
                               destination_file_name: Optional[str] = None,
                               allowed_extensions: Optional[list[str]] = None,
-                              delete_if_exisit: bool = False,
-                              proxy: Optional[str] = None,
+                              delete_if_exist: bool = False,
+                              proxy_host: Optional[AddressInfoType] = None,
                               token: Optional[str] = None) -> Optional[str]:
         """
         Downloads a GitHub folder (tree URL or API URL) as a .zip archive.
@@ -1250,8 +1248,8 @@ class CoreEnvironment(CoreModuleInterface):
                 This is expected to be a GitHub repository URL which points to path rather than a file.
             destination_file_name (str): The local path/file where the downloaded file should be saved.
             allowed_extensions (Optional[List[str]]): Allowed file extensions. If None, all files are downloaded.
-            delete_if_exisit (bool): Delete local copy of the file if exists.
-            proxy (Optional[str]): The proxy server URL to use for the download.
+            delete_if_exist (bool): Delete local copy of the file if exists.
+            proxy_host (Optional[str]): The proxy server URL to use for the download.
             token (Optional[str]): An authorization token for accessing the file.
 
         Returns:
@@ -1259,6 +1257,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         url = self._toolbox.normalize_text(text=url)
         url = self._toolbox.normalize_to_github_api_url(url=url)
+        proxy: Optional[str] = proxy_host.endpoint if proxy_host else None
 
         if url is None:
             raise RuntimeError(f"URL '{url}' is not a valid URL")
@@ -1282,7 +1281,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Remove destination file if exists
         if os.path.exists(destination_file_name):
-            if not delete_if_exisit:
+            if not delete_if_exist:
                 raise RuntimeError(f"destination '{destination_file_name}' already exisit and "
                                    f"we're nit allowed to delete")
             else:
@@ -1332,7 +1331,7 @@ class CoreEnvironment(CoreModuleInterface):
     def url_get(  # noqa: C901 # Acceptable complexity
             self, url: str,
             destination: Optional[str] = None,
-            delete_if_exisit: Optional[bool] = False,
+            delete_if_exist: Optional[bool] = False,
             proxy: Optional[str] = None,
             token: Optional[str] = None,
             timeout: Optional[float] = None,
@@ -1343,7 +1342,7 @@ class CoreEnvironment(CoreModuleInterface):
         Args:
             url (str): The URL from which to download the file.
             destination (Optional[str]): The local path / file where the downloaded file should be saved.
-            delete_if_exisit (bool): Delete local copy of the file if exists.
+            delete_if_exist (bool): Delete local copy of the file if exists.
             proxy (Optional[str]): The proxy server URL to use for the download.
             token (Optional[str]): An authorization token for accessing the file.
             timeout (Optional[float]): The timeout for the download operation, in seconds.
@@ -1387,7 +1386,7 @@ class CoreEnvironment(CoreModuleInterface):
                     destination_file = destination
 
                 if os.path.exists(destination_file):
-                    if not delete_if_exisit:
+                    if not delete_if_exist:
                         raise FileExistsError(f"destination file '{os.path.basename(destination)}' already exists")
                     else:
                         os.remove(destination_file)
@@ -1497,7 +1496,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._variables = CoreVariables.get_instance()
 
         def _expand_and_print(msg: Optional[Any]) -> None:
-            """ Expands an input if its a string, resolve inner variables and finally print thed results."""
+            """ Expands an input if it's a string, resolve inner variables and finally print thed results."""
             if not isinstance(msg, str) or msg == "":
                 return None
 

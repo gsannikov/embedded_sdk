@@ -135,7 +135,7 @@ class AutoForge(CoreModuleInterface):
             (no logging or print statements should be used here).
         """
 
-        # Get all argumnets from kwargs
+        # Get all arguments from kwargs
         def _init_arguments():
             self._workspace_path = kwargs.get("workspace_path")
             self._automation_macro = kwargs.get("automation_macro")
@@ -183,7 +183,7 @@ class AutoForge(CoreModuleInterface):
             AutoForge allows flexible input for the 'solution_package' argument:
             - The user can specify a path to a solution archive (.zip file), or
             - A path to an existing directory containing the solution files.
-            - A Github URL pointing to git path which contains the solution files.
+            - A GitHub URL pointing to git path which contains the solution files.
             Validation ensures that the provided path exists and matches one of the acc
             """
             if not isinstance(solution_package, str):
@@ -277,8 +277,8 @@ class AutoForge(CoreModuleInterface):
             if self._solution_url:
                 # Download all files in a given remote git path to a local zip file
                 self._solution_package_file = (
-                    self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exisit=True,
-                                                            proxy=self._proxy_server.endpoint,
+                    self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True,
+                                                            proxy_host=self._proxy_server,
                                                             token=self._git_token))
 
             if self._solution_package_file is not None and self._solution_package_path is None:
@@ -286,7 +286,7 @@ class AutoForge(CoreModuleInterface):
 
             self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
 
-            # At this point we expect that self._solution_package_path sill point to valid path
+            # At this point we expect that self._solution_package_path still point to valid path
             # where all the solution files could be found
             if self._solution_package_path is None:
                 raise RuntimeError("Package path is invalid or could not be created")
@@ -374,7 +374,7 @@ def auto_forge_main() -> Optional[int]:
 
         # Normal arguments handling
         parser = argparse.ArgumentParser(prog="autoforge",
-                                         description=f"\033c{AutoForge.who_we_are()} BuildSystem Argumnets:")
+                                         description=f"\033c{AutoForge.who_we_are()} BuildSystem Arguments:")
 
         # Required argument specifying the workspace path. This can point to an existing workspace
         # or a new one to be created by AutoForge, depending on the solution definition.
@@ -433,7 +433,7 @@ def auto_forge_main() -> Optional[int]:
         # Spread the news
         print(f"{TerminalAnsiCodes.CLS_SB}{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
-        # Instantiate AutoForge, pass all argumnets
+        # Instantiate AutoForge, pass all arguments
         auto_forge: AutoForge = AutoForge(**vars(args))
         return auto_forge.forge()
 

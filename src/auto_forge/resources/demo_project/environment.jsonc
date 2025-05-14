@@ -46,15 +46,6 @@
 			}
 		},
 		{
-			"description": "Looking for 'dt'",
-			"method": "validate_prerequisite",
-			"arguments": {
-				"command": "dt",
-				"arguments": "version",
-				"cwd": "$HOME/bin"
-			}
-		},
-		{
 			"description": "Looking for 'python' 3.8.0 or grater",
 			"method": "validate_prerequisite",
 			"arguments": {
