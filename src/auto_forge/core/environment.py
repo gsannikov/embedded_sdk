@@ -1036,7 +1036,9 @@ class CoreEnvironment(CoreModuleInterface):
                 python_binary = f"python{python_version}"
 
             if not os.path.exists(python_binary):
-                raise RuntimeError(f"Python binary '{python_binary}' could not be found")
+                python_binary = shutil.which(python_binary)
+                if not python_binary:
+                    raise RuntimeError(f"Python binary '{python_binary}' could not be found")
 
             full_py_venv_path = self.path_create(expanded_path, erase_if_exist=True, project_path=True)
 
