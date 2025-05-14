@@ -136,7 +136,7 @@
 			"arguments": {
 				"venv_path": ".venv",
 				"python_version": "3.9",
-				"python_binary_path": "$HOME/.pyenv/shims"
+				// "python_binary_path": "$HOME/.pyenv/shims"
 			}
 		},
 		{
