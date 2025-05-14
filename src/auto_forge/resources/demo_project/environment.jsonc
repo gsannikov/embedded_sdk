@@ -137,7 +137,7 @@
 			"method": "python_virtualenv_create",
 			"arguments": {
 				"venv_path": ".venv",
-				"python_version": "3.9",
+				"python_version": "3.9"
 				// "python_binary_path": "$HOME/.pyenv/shims"
 			}
 		},
