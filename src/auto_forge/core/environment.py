@@ -859,7 +859,7 @@ class CoreEnvironment(CoreModuleInterface):
                         expected_version = self._extract_decimal(text=expected_response)
                         if actual_version < expected_version:
                             raise Exception(
-                                f"required version is {expected_version} or higher, found {actual_version}")
+                                f"required {command} version is {expected_version} or higher, found {actual_version}")
                     else:
                         if expected_response.lower() not in command_response.lower():
                             raise Exception(f"expected response '{expected_response}' not found in output")
