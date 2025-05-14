@@ -51,7 +51,6 @@
 			"arguments": {
 				"command": "python",
 				"arguments": "--version",
-				"cwd": "$HOME/.pyenv/shims",
 				"expected_response": "Python 3.8.0",
 				"allow_greater_decimal": true
 			}
