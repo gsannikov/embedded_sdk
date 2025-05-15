@@ -7,15 +7,11 @@
 
     1. Configure required proxy environment variables — these are essential for any
        subsequently launched shell tools that access online resources (e.g., pip, curl, etc.).
-    2. Validate the presence of required prerequisite binaries such as Python, CMake, Git,
-       Ninja, and others.
+    2. Validate the presence of required prerequisite binaries such as Python, CMake, Git and others.
     3. Create the workspace skeleton directory structure.
     4. Set up a dedicated Python 3.9 virtual environment for the project, update pip,
        and install required Python packages.
     5. Install AutoForge into the newly created virtual environment.
-    6. Use the dynamically loaded CLI command 'zephyr_sdk' to detect any existing
-       Zephyr SDK installation.
-    7. Download the Zephyr SDK to a temporary directory if not already present.
 
     Note:
     This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
@@ -25,9 +21,8 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
-	"status_pre_message": "\nHello, welcome to the $SOLUTION_NAME setup..",
+	"status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup..",
 	"status_post_message": "\n\nSetup is completed.\n",
-	// Steps:
 	"steps": [
 		{
 			"description": "Setting HTTP PROXY environment",
@@ -138,7 +133,6 @@
 			"arguments": {
 				"venv_path": ".venv",
 				"python_version": "3.9"
-				// "python_binary_path": "$HOME/.pyenv/shims"
 			}
 		},
 		{
