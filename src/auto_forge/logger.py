@@ -16,7 +16,7 @@ from contextlib import suppress
 from datetime import datetime
 from enum import IntFlag, auto
 from html import unescape
-from typing import Optional
+from typing import Optional, Any, ClassVar
 
 from colorama import Fore, Style
 
@@ -75,18 +75,49 @@ class _ColorFormatter(logging.Formatter):
     - Supporting consistent timestamp and message formatting
     """
 
+    # Dictionary to map log levels to colors using Colorama
+    LOG_LEVEL_COLORS: ClassVar[dict[str, str]] = {
+        'DEBUG': Fore.LIGHTCYAN_EX,
+        'INFO': Fore.LIGHTBLUE_EX,
+        'WARNING': Fore.YELLOW,
+        'ERROR': Fore.RED,
+        'CRITICAL': Fore.MAGENTA,
+    }
+
     def __init__(self, fmt=None, datefmt=None, style='%', handler: LogHandlersTypes = LogHandlersTypes.NO_HANDLERS):
         super().__init__(fmt, datefmt, style)
 
         # Store the associated handler with this class
         self._handler: Optional[LogHandlersTypes] = handler
         self._auto_logger: Optional[AutoLogger] = AutoLogger.get_instance()
+        self._clean_tokens = self._auto_logger.cleanup_patterns_list
 
         # Enable colors only when used with a console handler and the logger allows it
         self._enable_colors = (
                 LogHandlersTypes.CONSOLE_HANDLER in self._handler and
                 self._auto_logger.is_console_colors_enabled()
         )
+
+    def clean_log_line(self, line: str) -> str:
+        """
+        Applies cleanup patterns to a log line using regular expressions.
+        For each pattern in self._clean_tokens (if set), attempts to remove matching parts
+        from the line. All exceptions are suppressed to ensure robustness. If a pattern fails,
+        the line is returned as-is for that case.
+
+        Args:
+            line (str): The input log line.
+
+        Returns:
+            str: The cleaned log line.
+        """
+        if not self._clean_tokens:
+            return line
+
+        for pattern in self._clean_tokens:
+            with suppress(Exception):
+                line = re.sub(pattern, "", line).lstrip()
+        return line
 
     def formatTime(self, record, date_format=None, base_date_format=None):  # noqa: N802
         """
@@ -104,16 +135,11 @@ class _ColorFormatter(logging.Formatter):
         """
         terminal_width: int = 1024
 
-        # Create a dictionary to map log levels to colors using Colorama
-        log_level_colors = {
-            'DEBUG': Fore.LIGHTCYAN_EX,
-            'INFO': Fore.LIGHTBLUE_EX,
-            'WARNING': Fore.YELLOW,
-            'ERROR': Fore.RED,
-            'CRITICAL': Fore.MAGENTA,
-        }
-
         try:
+
+            # Apply tokens list regex cleanup
+            record.msg = self.clean_log_line(record.msg)
+
             if not self._enable_colors:
                 # Bare text mode: remove any ANSI color codes leftovers and maintain clear text
                 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -125,7 +151,7 @@ class _ColorFormatter(logging.Formatter):
                     terminal_width = os.get_terminal_size().columns
 
                 # This mode is for terminal output; apply color and formatting enhancements for better readability.
-                level_name_color = log_level_colors.get(record.levelname, Fore.WHITE)
+                level_name_color = self.LOG_LEVEL_COLORS.get(record.levelname, Fore.WHITE)
                 record.levelname = f"{level_name_color}{record.levelname:<8}{Style.RESET_ALL}"
 
                 # Flatten for terminal printouts
@@ -246,7 +272,9 @@ class AutoLogger:
                  console_enable_colors: bool = True,
                  console_output_state: bool = True,
                  erase_exiting_file: bool = True,
-                 exclusive: bool = True) -> None:
+                 exclusive: bool = True,
+                 configuration_data: Optional[dict[str, Any]] = None) -> None:
+
         """
         Initializes the AutoLogger with default logging level and handler configuration.
 
@@ -256,6 +284,7 @@ class AutoLogger:
             console_output_state (bool): Controls whether console output is enabled.
             erase_exiting_file (bool): If True, na exiting log file will be erased.
             exclusive (bool): If True, disables all other non-AutoLogger loggers.
+            configuration_data (dict, optional): Global AutoForge JSON configuration data.
         """
         if not AutoLogger._is_initialized:
 
@@ -269,6 +298,11 @@ class AutoLogger:
             self._enable_console_colors: bool = console_enable_colors
             self._output_console_state: bool = console_output_state
             self._exclusive: bool = exclusive
+
+            # Attempt to get the cleanup regex pattern from the configuration object
+            self.cleanup_patterns_list: Optional[list] = None
+            if configuration_data is not None:
+                self.cleanup_patterns_list = configuration_data.get('log_cleanup_patterns', [])
 
             self._log_format: str = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
             self._date_format: str = '%d-%m %H:%M:%S'
@@ -320,20 +354,20 @@ class AutoLogger:
         self._logger.setLevel(self._log_level)
 
         if (LogHandlersTypes.CONSOLE_HANDLER in handlers and
-            self._stream_console_handler is None):
-                # Create dedicated formatter instance
-                formatter: Optional[_ColorFormatter] = (
-                    _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
-                                    handler=LogHandlersTypes.CONSOLE_HANDLER))
+                self._stream_console_handler is None):
+            # Create dedicated formatter instance
+            formatter: Optional[_ColorFormatter] = (
+                _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
+                                handler=LogHandlersTypes.CONSOLE_HANDLER))
 
-                pause_filer = _PausableFilter()
-                pause_filer.enabled = self._output_console_state
+            pause_filer = _PausableFilter()
+            pause_filer.enabled = self._output_console_state
 
-                self._stream_console_handler = logging.StreamHandler(sys.stdout)
-                self._stream_console_handler.setFormatter(formatter)
-                self._stream_console_handler.addFilter(pause_filer)
-                self._logger.addHandler(self._stream_console_handler)
-                self._enabled_handlers |= LogHandlersTypes.CONSOLE_HANDLER
+            self._stream_console_handler = logging.StreamHandler(sys.stdout)
+            self._stream_console_handler.setFormatter(formatter)
+            self._stream_console_handler.addFilter(pause_filer)
+            self._logger.addHandler(self._stream_console_handler)
+            self._enabled_handlers |= LogHandlersTypes.CONSOLE_HANDLER
 
         if LogHandlersTypes.FILE_HANDLER in handlers and self._stream_file_handler is None:
             if not self._log_file_name:

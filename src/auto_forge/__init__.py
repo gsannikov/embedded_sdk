@@ -9,53 +9,9 @@ Description:
     dependencies and initialization order required by certain components.
 
 Note:
-    This file must not be optimized and sorted by PyCharm, order does matter here!
+    This file must not be optimized and sorted by PyCharm,
+    >> Order does matter here! <<
 """
-
-import sys
-import platform
-
-
-def check_critical_third_party_libraries() -> None:
-    """
-    Checks for required third-party or system-bound libraries like 'tkinter'.
-    If not found, provides OS-specific installation instructions and exits.
-    """
-    try:
-        import tkinter  # noqa: F401
-    except ImportError:
-        message = ["\nError: 'tkinter' is required but not installed."]
-
-        system = platform.system()
-
-        if system == "Linux":
-            try:
-                with open("/etc/os-release") as f:
-                    os_release = f.read().lower()
-                if "fedora" in os_release:
-                    message.append("On Fedora, install it with: sudo dnf install python3-tkinter")
-                elif "ubuntu" in os_release or "debian" in os_release:
-                    message.append("On Ubuntu or Debian, install it with: sudo apt install python3-tk")
-                else:
-                    message.append("Please install 'tkinter' using your Linux distribution's package manager.")
-            except Exception as exception:
-                message.append(f"Exception: {exception}")
-        elif system == "Darwin":
-            message.append(
-                "On macOS, ensure Python was installed via python.org or Homebrew with Tcl/Tk support."
-            )
-        elif system == "Windows":
-            message.append(
-                "On Windows, ensure you are using the official Python installer from python.org, which includes 'tkinter' by default."
-            )
-        else:
-            message.append("Please ensure 'tkinter' is available in your Python environment.")
-
-        sys.stderr.write("\n".join(message) + "\n\n")
-        sys.exit(1)
-
-
-check_critical_third_party_libraries()
 
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SHARED_PATH,
                        PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,

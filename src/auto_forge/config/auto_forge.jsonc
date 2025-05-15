@@ -1,14 +1,9 @@
-/*
-    AutoForge configuration file
-    ----------------------------------
-
-    Note: This JSON-structured file supports non-standard inline comments,
-    but these comments are removed upon file loading.
-
-*/
-
 {
 	"configurations": {
 		"key": "value"
-	}
+	},
+	"log_cleanup_patterns": [
+		"^remote: Counting objects:\\s*",
+		"^━+.*?━+\\s*"
+	]
 }

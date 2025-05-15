@@ -11,12 +11,17 @@ Description:
 """
 
 import atexit
+import platform
 import queue
+import sys
 import threading
 import time
-import tkinter as tk
-from tkinter import messagebox, ttk
-from typing import Any, Optional
+from contextlib import suppress
+
+with suppress(ImportError):
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+    from typing import Any, Optional
 
 # AutoGorge local imports
 from auto_forge import (
@@ -40,6 +45,10 @@ class CoreGUI(CoreModuleInterface):
 
         self._alive = True
         self._gui_thread = None  # Optional joinable thread
+
+        # This will terminate AutoForge if tkinter is not installed.
+        # This is required because tkinter must be installed as a system package and cannot be installed via 'pip install'.
+        self._validate_tkinter_libraries()
 
         super().__init__(*args, **kwargs)
 
@@ -69,6 +78,45 @@ class CoreGUI(CoreModuleInterface):
             auto_forge_module_type=AutoForgeModuleType.CORE)
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
+
+    @staticmethod
+    def _validate_tkinter_libraries() -> None:
+        """
+        Checks for required third-party or system-bound libraries like 'tkinter'.
+        If not found, provides OS-specific installation instructions and exits.
+        """
+        try:
+            import tkinter  # noqa: F401
+        except ImportError:
+            message = ["\nError: 'tkinter' is required but not installed."]
+
+            system = platform.system()
+
+            if system == "Linux":
+                try:
+                    with open("/etc/os-release") as f:
+                        os_release = f.read().lower()
+                    if "fedora" in os_release:
+                        message.append("On Fedora, install it with: sudo dnf install python3-tkinter")
+                    elif "ubuntu" in os_release or "debian" in os_release:
+                        message.append("On Ubuntu or Debian, install it with: sudo apt install python3-tk")
+                    else:
+                        message.append("Please install 'tkinter' using your Linux distribution's package manager.")
+                except Exception as exception:
+                    message.append(f"Exception: {exception}")
+            elif system == "Darwin":
+                message.append(
+                    "On macOS, ensure Python was installed via python.org or Homebrew with Tcl/Tk support."
+                )
+            elif system == "Windows":
+                message.append(
+                    "On Windows, ensure you are using the official Python installer from python.org, which includes 'tkinter' by default."
+                )
+            else:
+                message.append("Please ensure 'tkinter' is available in your Python environment.")
+
+            sys.stderr.write("\n".join(message) + "\n\n")
+            sys.exit(1)
 
     def _process_queue(self):
         """

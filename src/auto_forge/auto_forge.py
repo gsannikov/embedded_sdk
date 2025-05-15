@@ -14,16 +14,21 @@ import argparse
 import builtins
 import contextlib
 import io
+import json
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
+
+# Third-party imports
+from colorama import Fore, Style
 
 # Local application imports
 from auto_forge import (
     PROJECT_COMMANDS_PATH,
     PROJECT_SHARED_PATH,
+    PROJECT_CONFIG_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
     AddressInfoType,
@@ -42,8 +47,6 @@ from auto_forge import (
     TerminalAnsiCodes,
     ToolBox,
 )
-# Third-party imports
-from colorama import Fore, Style
 
 
 class AutoForge(CoreModuleInterface):
@@ -66,6 +69,8 @@ class AutoForge(CoreModuleInterface):
 
         # Startup argumnets
         self._automated_mode: bool = False
+        self._config_data: Optional[dict[str, Any]] = None
+        self._config_file_path: Optional[Path] = PROJECT_CONFIG_PATH / 'auto_forge.jsonc'
         self._workspace_path: Optional[str] = None
         self._automation_macro: Optional[str] = None
         self._solution_package_path: Optional[str] = None
@@ -100,8 +105,13 @@ class AutoForge(CoreModuleInterface):
         if self._remote_debugging is not None:
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
+        # Attempt to load configuration
+        if self._config_file_path and self._config_file_path.exists():
+            with contextlib.suppress(Exception), self._config_file_path.open("r", encoding="utf-8") as f:
+                self._config_data = json.load(f)
+
         # Initializes the logger
-        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG)
+        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG, configuration_data=self._config_data)
         self._auto_logger.set_log_file_name("auto_forge.log")
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
