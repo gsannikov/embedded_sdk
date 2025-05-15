@@ -17,14 +17,13 @@ import io
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Optional
-
-# Third-party imports
-from colorama import Fore, Style
 
 # Local application imports
 from auto_forge import (
     PROJECT_COMMANDS_PATH,
+    PROJECT_SHARED_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
     AddressInfoType,
@@ -43,6 +42,8 @@ from auto_forge import (
     TerminalAnsiCodes,
     ToolBox,
 )
+# Third-party imports
+from colorama import Fore, Style
 
 
 class AutoForge(CoreModuleInterface):
@@ -339,9 +340,13 @@ class AutoForge(CoreModuleInterface):
                 scripts_path = self._variables.get(variable_name="PROJ_SCRIPTS")
                 if scripts_path is not None:
                     solution_destination_path = os.path.join(scripts_path, 'solution')
-                    self._toolbox.cp(pattern=f'{self._solution_package_path}/*.*',
+                    env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
+
+                    self._toolbox.cp(pattern=f'{self._solution_package_path}/*.jsonc',
                                      dest_dir=f'{solution_destination_path}')
-                    self._toolbox.cp(pattern=f'{solution_destination_path}/auto_go.sh',
+
+                    # Place the build system default initiator script
+                    self._toolbox.cp(pattern=f'{env_starter_file.__str__()}',
                                      dest_dir=f'{self._workspace_path}')
 
                     # Finally, create a hidden '.config' file in the solution directory with essential metadata.
