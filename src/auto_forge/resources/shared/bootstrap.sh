@@ -144,7 +144,8 @@ main() {
 	setup_proxy_environment
 
 	# Install AutoForge
-	printf "\nDownloading and installing AutoForge...\r"
+	cls
+	printf "\nPlease wait while AutoForge is being downloaded and installed...\r"
 	install_autoforge || return 1
 
 	# Run AutoForge
@@ -161,12 +162,12 @@ main() {
 		autoforge_cmd+=(--git-token "$token")
 	fi
 
-	printf "Running AutoForge using solution: '%s'...\n" "$solution"
+	# Running AutoForge using the specified solution
 	"${autoforge_cmd[@]}"
 	ret_val=$?
 
 	# Temporary bypass, should be fixed
-	chmod +x "$workspace_path/auto_go.sh" > /dev/null 2>&1 || true
+	# chmod +x "$workspace_path/env.sh" > /dev/null 2>&1 || true
 
 	return $ret_val
 }
