@@ -132,6 +132,9 @@ main() {
 	"${autoforge_cmd[@]}"
 	ret_val=$?
 
+	# Quietly uninstall auto_forge from the user environment, suppressing all output
+	pip3 uninstall -y auto_forge &> /dev/null
+
 	return $ret_val
 }
 
