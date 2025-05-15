@@ -352,7 +352,7 @@ class AutoForge(CoreModuleInterface):
                     # Finally, create a hidden '.config' file in the solution directory with essential metadata.
                     self._environment.create_config_file(
                         solution_name=self._solution_name,
-                        config_path=solution_destination_path
+                        config_path=self._workspace_path
                     )
 
                 return ret_val
