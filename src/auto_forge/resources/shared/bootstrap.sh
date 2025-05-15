@@ -1,5 +1,4 @@
 #!/bin/bash
-#shellcheck disable=SC2034  # Variable appears unused.
 
 # ------------------------------------------------------------------------------
 #
@@ -8,36 +7,7 @@
 #
 # ------------------------------------------------------------------------------
 
-# Define HTTP and HTTPS proxy servers. These are optional and, if specified,
-# will override any proxy settings exported in the shell environment.
-HTTP_PROXY_SERVER="http://proxy-dmz.intel.com:911"
-HTTPS_PROXY_SERVER="http://proxy-dmz.intel.com:911"
-
 AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
-
-#
-# @brief Update the environment with proxy settings if we have them defined in this scriprt.
-# @return Returns 0 on overall success, else failure.
-#
-
-setup_proxy_environment() {
-
-	# Check if HTTP_PROXY_SERVER is set and not empty
-	if [ -n "$HTTP_PROXY_SERVER" ]; then
-		export http_proxy=$HTTP_PROXY_SERVER
-		export HTTP_PROXY=$HTTP_PROXY_SERVER
-	else
-		echo "HTTP proxy not set."
-	fi
-
-	# Check if HTTPS_PROXY_SERVER is set and not empty
-	if [ -n "$HTTPS_PROXY_SERVER" ]; then
-		export https_proxy=$HTTPS_PROXY_SERVER
-		export HTTPS_PROXY=$HTTPS_PROXY_SERVER
-	else
-		echo "HTTPS proxy not set."
-	fi
-}
 
 #
 # @brief Install AutoForge python object.
@@ -84,7 +54,6 @@ install_autoforge() {
 main() {
 
 	local ret_val=0
-	local verbose=0
 	local workspace_path=""
 	local solution=""
 	local token=""
@@ -104,27 +73,27 @@ main() {
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-			-w | --workspace)
-				workspace_path="$2"
-				shift 2
-				;;
-			-s | --solution)
-				solution="$2"
-				shift 2
-				;;
-			-t | --token)
-				token="$2"
-				shift 2
-				;;
-			-h | --help)
-				display_help
-				return 0
-				;;
-			*)
-				printf "\nError: Unknown option: %s\n\n" "$1"
-				display_help
-				return 1
-				;;
+		-w | --workspace)
+			workspace_path="$2"
+			shift 2
+			;;
+		-s | --solution)
+			solution="$2"
+			shift 2
+			;;
+		-t | --token)
+			token="$2"
+			shift 2
+			;;
+		-h | --help)
+			display_help
+			return 0
+			;;
+		*)
+			printf "\nError: Unknown option: %s\n\n" "$1"
+			display_help
+			return 1
+			;;
 		esac
 	done
 
@@ -140,15 +109,12 @@ main() {
 		return 1
 	fi
 
-	# Set proxy if needed
-	setup_proxy_environment
-
-	# Install AutoForge
-	cls
+	# Install AutoForge using pip
+	clear
 	printf "\nPlease wait while AutoForge is being downloaded and installed...\r"
 	install_autoforge || return 1
 
-	# Run AutoForge
+	# Execute AutoForge build system
 	autoforge_cmd=(
 		python3 -m auto_forge
 		-w "$workspace_path"
@@ -165,9 +131,6 @@ main() {
 	# Running AutoForge using the specified solution
 	"${autoforge_cmd[@]}"
 	ret_val=$?
-
-	# Temporary bypass, should be fixed
-	# chmod +x "$workspace_path/env.sh" > /dev/null 2>&1 || true
 
 	return $ret_val
 }
