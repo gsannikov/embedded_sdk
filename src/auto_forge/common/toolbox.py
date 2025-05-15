@@ -1034,7 +1034,7 @@ class ToolBox(CoreModuleInterface):
         """
 
         # Demo ASCII Art file
-        demo_file = str(PROJECT_RESOURCES_PATH / "demo_project" / "teamlogo.txt")
+        demo_file = str(PROJECT_RESOURCES_PATH / "demo_project" / "team_logo.txt")
 
         # Use to the demo file if not provided
         if not ascii_art_file or not os.path.isfile(ascii_art_file):
@@ -1049,7 +1049,7 @@ class ToolBox(CoreModuleInterface):
 
         with open(ascii_art_file, encoding='utf-8') as f:
             for i, line in enumerate(f):
-                color = Fore.LIGHTBLUE_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
+                color = Fore.LIGHTBLACK_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
                 sys.stdout.write(f"{color}{line}")
 
         sys.stdout.write('\n')  # Final newlines

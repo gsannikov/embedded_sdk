@@ -3,9 +3,8 @@
 
 # ------------------------------------------------------------------------------
 #
-# Script Name:    auto_boot.sh
-# Description:    AutoForge bootstrap - onliner script.
-# Author:         AutoForge team.
+# Script Name:    bootstrap.sh
+# Description:    AutoForge bootstrap installer.
 #
 # ------------------------------------------------------------------------------
 

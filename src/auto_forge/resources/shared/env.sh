@@ -2,8 +2,8 @@
 
 # ------------------------------------------------------------------------------
 #
-# Script Name:    auto_go.sh
-# Description:    AutoForge shell starter.
+# Script Name:    env.sh
+# Description:    AutoForge shell environment initiator.
 #
 # ------------------------------------------------------------------------------
 
@@ -69,7 +69,6 @@ get_config_value() {
 #
 
 main() {
-
 	local solution_name
 	local solution_path
 	local script_dir
