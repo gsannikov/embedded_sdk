@@ -1,6 +1,6 @@
 # AutoForge
 
-Welcome to **AutoForge**, the SDK companion Bob the Builder.
+Welcome to **AutoForge**.
 
 **AutoForge** is a flexible and extensible Python framework designed to streamline and enhance modern build workflows. It provides a powerful set of tools to define and manage complete build systems — from initial setup and environment preparation, through compilation and deployment, all the way to logging, error handling, and reporting.
 
@@ -18,19 +18,19 @@ AutoForge was built with scalability in mind — whether you're managing a small
 
 ### Setup Instructions.
 
-The following is a sample link that installs the demo solution.
-To use it, make sure you have exported your GitHub token to the environment as GITHUB_TOKEN.
+The following link installs a demo solution that builds the top command.
+To use it, copy and paste the command below into your terminal.
 
 ```bash
 curl -sSL \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Cache-Control: no-store" \
-  "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/demo_project/auto_boot.sh" \
-  | bash -s -- -w ./ws -s https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/demo_project -t $GITHUB_TOKEN
+  "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh" \
+  | bash -s -- -w ./ws -s https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/top
 ```
 
 ### Installing the package.
 
+To  install the latest AutoForge packge use the following command:
 ```bash
 pip install git+https://github.com/emichael72/auto_forge.git --force-reinstall
 ```

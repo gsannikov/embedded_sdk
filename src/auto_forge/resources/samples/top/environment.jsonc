@@ -25,24 +25,6 @@
 	"status_post_message": "\n\nSetup is completed.\n",
 	"steps": [
 		{
-			"description": "Setting HTTP PROXY environment",
-			"method": "environment_variable_set",
-			"step_disabled": true,
-			"arguments": {
-				"name": "http_proxy",
-				"value": "http://proxy-dmz.intel.com:911"
-			}
-		},
-		{
-			"description": "Setting HTTPS PROXY environment",
-			"method": "environment_variable_set",
-			"step_disabled": true,
-			"arguments": {
-				"name": "https_proxy",
-				"value": "http://proxy-dmz.intel.com:911"
-			}
-		},
-		{
 			"description": "Looking for 'dt'",
 			"method": "validate_prerequisite",
 			"step_disabled": true,
