@@ -70,7 +70,7 @@ class AutoForge(CoreModuleInterface):
         # Startup argumnets
         self._automated_mode: bool = False
         self._config_data: Optional[dict[str, Any]] = None
-        self._config_file_path: Optional[Path] = PROJECT_CONFIG_PATH / 'auto_forge.jsonc'
+        self._config_file_path: Optional[Path] = PROJECT_CONFIG_PATH / 'auto_forge.json'
         self._workspace_path: Optional[str] = None
         self._automation_macro: Optional[str] = None
         self._solution_package_path: Optional[str] = None
@@ -115,8 +115,7 @@ class AutoForge(CoreModuleInterface):
         self._auto_logger.set_log_file_name("auto_forge.log")
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
-
-        self._logger.debug(f"Workspace path: {self._workspace_path}")
+        self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
 
         # Initialize core modules, registry must come first.
         self._registry: Registry = Registry()
