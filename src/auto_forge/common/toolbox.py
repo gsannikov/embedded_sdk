@@ -27,11 +27,12 @@ from typing import Any, Optional, SupportsInt, Union
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
+from colorama import Fore
 
 # Retrieve our package base path from settings
 from auto_forge import (
     PROJECT_BASE_PATH,
-    PROJECT_RESOURCES_PATH,
+    PROJECT_SHARED_PATH,
     AddressInfoType,
     AutoForgeModuleType,
     AutoLogger,
@@ -39,7 +40,6 @@ from auto_forge import (
     TerminalAnsiCodes,
 )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
-from colorama import Fore
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -1023,23 +1023,23 @@ class ToolBox(CoreModuleInterface):
         return ansi_escape_pattern.sub('', text)
 
     @staticmethod
-    def print_logo(ascii_art_file: Optional[str] = None, clear_screen: bool = False,
+    def print_logo(banner_file: Optional[str] = None, clear_screen: bool = False,
                    terminal_title: Optional[str] = None) -> None:
         """
         Displays an ASCII logo from a file with alternating colors per line.
         Args:
-            ascii_art_file (str): Path to the logo file.
+            banner_file (str): Path to an ASCI art banner text file.
             clear_screen (bool): Whether to clear the screen before printing.
             terminal_title (Optional[str]): Optional text to use as the terminal title.
         """
 
         # Demo ASCII Art file
-        demo_file = str(PROJECT_RESOURCES_PATH / "demo_project" / "team_logo.txt")
+        demo_file = str(PROJECT_SHARED_PATH / "banner.txt")
 
         # Use to the demo file if not provided
-        if not ascii_art_file or not os.path.isfile(ascii_art_file):
-            ascii_art_file = demo_file
-            if not os.path.isfile(ascii_art_file):
+        if not banner_file or not os.path.isfile(banner_file):
+            banner_file = demo_file
+            if not os.path.isfile(banner_file):
                 return None
 
         # Clear screen and move cursor to top-left
@@ -1047,7 +1047,7 @@ class ToolBox(CoreModuleInterface):
             sys.stdout.write(TerminalAnsiCodes.CLS_SB)
         sys.stdout.write('\n')
 
-        with open(ascii_art_file, encoding='utf-8') as f:
+        with open(banner_file, encoding='utf-8') as f:
             for i, line in enumerate(f):
                 color = Fore.LIGHTBLACK_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
                 sys.stdout.write(f"{color}{line}")

@@ -15,6 +15,7 @@ Note:
 import sys
 import platform
 
+
 def check_critical_third_party_libraries() -> None:
     """
     Checks for required third-party or system-bound libraries like 'tkinter'.
@@ -37,8 +38,8 @@ def check_critical_third_party_libraries() -> None:
                     message.append("On Ubuntu or Debian, install it with: sudo apt install python3-tk")
                 else:
                     message.append("Please install 'tkinter' using your Linux distribution's package manager.")
-            except Exception:
-                message.append("Please install 'tkinter' using your Linux distribution's package manager.")
+            except Exception as exception:
+                message.append(f"Exception: {exception}")
         elif system == "Darwin":
             message.append(
                 "On macOS, ensure Python was installed via python.org or Homebrew with Tcl/Tk support."
@@ -53,9 +54,11 @@ def check_critical_third_party_libraries() -> None:
         sys.stderr.write("\n".join(message) + "\n\n")
         sys.exit(1)
 
+
 check_critical_third_party_libraries()
 
-from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_COMMANDS_PATH,
+from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SHARED_PATH,
+                       PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,
                        PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
@@ -105,8 +108,8 @@ __all__ = [
     "SignatureFileHandler", "Signature",
     "TERMINAL_ICONS_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
-    "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SCHEMAS_PATH",
-    "PROJECT_VERSION", "PROJECT_NAME", "PROJECT_REPO", "PROJECT_PACKAGE",
+    "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",
+    "PROJECT_SCHEMAS_PATH", "PROJECT_VERSION", "PROJECT_NAME", "PROJECT_REPO", "PROJECT_PACKAGE",
     "AutoLogger", "LogHandlersTypes",
     "main"
 ]
