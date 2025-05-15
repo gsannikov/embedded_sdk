@@ -752,16 +752,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
         try:
-            # noinspection SpellCheckingInspection
-            if statement.command in {"htop", "top", "btop", "vim", "less", "nano", "vi", "clear"}:
-                # Full TTY handoff for interactive apps
-                full_command = statement.command_and_args
-                self._environment.execute_fullscreen_shell_command(command_and_args=full_command)
-            else:
-                self._environment.execute_shell_command(
-                    command_and_args=statement.command_and_args,
-                    terminal_echo=True,
-                    expand_command=True)
+            self._environment.execute_shell_command(
+                command_and_args=statement.command_and_args,
+                terminal_echo=True,
+                expand_command=True)
         except KeyboardInterrupt:
             pass
 

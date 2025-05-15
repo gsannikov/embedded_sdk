@@ -33,6 +33,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
+# Third-party
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import (
     AddressInfoType,
@@ -48,8 +51,6 @@ from auto_forge import (
     ValidationMethodType,
 )
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
-# Third-party
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -76,12 +77,14 @@ class CoreEnvironment(CoreModuleInterface):
         super().__init__(*args, **kwargs)
 
     def _initialize(self, workspace_path: str,
-                    automated_mode: Optional[bool] = False) -> None:
+                    automated_mode: Optional[bool] = False,
+                    configuration_data: Optional[dict[str, Any]] = None) -> None:
         """
         Initialize the 'Environment' class, collect few system properties and prepare for execution a 'steps' file.
         Args:
             workspace_path(str): The workspace path.
-            automated_mode(boo, Optional): Specify if we're running in automation mode
+            automated_mode(boo, Optional): Specify if we're running in automation mode.
+            configuration_data (dict, optional): Global AutoForge JSON configuration data.
         """
 
         # Create a logger instance
@@ -93,6 +96,11 @@ class CoreEnvironment(CoreModuleInterface):
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._toolbox: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
+
+        # Use project config list for the interactive commands if available, else fallback to default list
+        self._interactive_commands = configuration_data.get('interactive_commands') if configuration_data else None
+        if not self._interactive_commands:
+            self._interactive_commands = ["cat", "htop", "top", "btop", "vim", "less", "nano", "vi", "clear"]
 
         # Determine which package manager is available on the system.
         if shutil.which("apt"):
@@ -659,6 +667,10 @@ class CoreEnvironment(CoreModuleInterface):
         command_and_arguments_list = shlex.split(command_and_args)
         full_command = command_and_arguments_list[0]  # The command
         command = os.path.basename(full_command)
+
+        # Full TTY handoff for interactive apps
+        if command in self._interactive_commands:
+            return self.execute_fullscreen_shell_command(command_and_args=command_and_args)
 
         # Expand current work directory if specified
         if cwd:

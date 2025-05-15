@@ -5,5 +5,16 @@
 	"log_cleanup_patterns": [
 		"^remote: Counting objects:\\s*",
 		"^━+.*?━+\\s*"
+	],
+	"interactive_commands": [
+		"cat",
+		"htop",
+		"top",
+		"btop",
+		"vim",
+		"less",
+		"nano",
+		"vi",
+		"clear"
 	]
 }

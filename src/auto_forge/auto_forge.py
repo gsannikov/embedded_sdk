@@ -126,7 +126,8 @@ class AutoForge(CoreModuleInterface):
         self._loader: Optional[CoreLoader] = CoreLoader()
         self._loader.probe(path=PROJECT_COMMANDS_PATH)
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
-                                                             automated_mode=self._automated_mode)
+                                                             automated_mode=self._automated_mode,
+                                                             configuration_data=self._config_data)
 
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
             self,
