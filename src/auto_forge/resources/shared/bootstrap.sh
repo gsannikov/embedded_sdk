@@ -111,6 +111,7 @@ main() {
 
 	# Install AutoForge using pip
 	clear
+	echo -ne '\e[?25l' # Hide cursor
 	printf "\nPlease wait while AutoForge is being downloaded and installed...\r"
 	install_autoforge || return 1
 
@@ -135,6 +136,7 @@ main() {
 	# Quietly uninstall auto_forge from the user environment, suppressing all output
 	pip3 uninstall -y auto_forge &> /dev/null
 
+	echo -ne '\e[?25h' # Restore cursor
 	return $ret_val
 }
 
