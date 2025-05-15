@@ -165,13 +165,6 @@
 			}
 		},
 		{
-			"description": "Removing AutoForge from non virtual environment",
-			"method": "python_package_uninstall",
-			"arguments": {
-				"package": "auto_forge"
-			}
-		},
-		{
 			"description": "Cloning 'btop'",
 			"method": "git_clone_repo",
 			"arguments": {
