@@ -670,6 +670,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Full TTY handoff for interactive apps
         if command in self._interactive_commands:
+            self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
             return self.execute_fullscreen_shell_command(command_and_args=command_and_args)
 
         # Expand current work directory if specified

@@ -13,7 +13,7 @@ import subprocess
 import sys
 from contextlib import suppress
 from types import FrameType, MethodType
-from typing import Optional
+from typing import Optional, Any
 
 # Third-party
 import cmd2
@@ -676,11 +676,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         if arg:
             # User typed 'help my_command' --> Show help for that specific command
+
+            # Get the stored help from tye registry
+            command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
+                module_name=arg,
+                case_insensitive=False
+            )
+
             method = getattr(self, f'do_{arg}', None)
+            method_description = (command_record.get(
+                'description') if command_record and 'description' in command_record else None
+                                  ) or method.__doc__ or "Description not provided."
+
             if method and method.__doc__:
                 command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
                 console.print("\n",
-                              Panel(f"[bold green]{arg}[/bold green]: {method.__doc__}",
+                              Panel(f"[bold green]{arg}[/bold green]:\n    {method_description}",
                                     border_style="cyan",
                                     title=command_help_title,
                                     padding=(1, 1), width=self._term_width),
