@@ -84,6 +84,7 @@ class _ColorFormatter(logging.Formatter):
         'CRITICAL': Fore.MAGENTA,
     }
 
+    # noinspection SpellCheckingInspection
     def __init__(self, fmt=None, datefmt=None, style='%', handler: LogHandlersTypes = LogHandlersTypes.NO_HANDLERS):
         super().__init__(fmt, datefmt, style)
 
@@ -152,6 +153,7 @@ class _ColorFormatter(logging.Formatter):
 
                 # This mode is for terminal output; apply color and formatting enhancements for better readability.
                 level_name_color = self.LOG_LEVEL_COLORS.get(record.levelname, Fore.WHITE)
+                # noinspection SpellCheckingInspection
                 record.levelname = f"{level_name_color}{record.levelname:<8}{Style.RESET_ALL}"
 
                 # Flatten for terminal printouts
@@ -304,6 +306,7 @@ class AutoLogger:
             if configuration_data is not None:
                 self.cleanup_patterns_list = configuration_data.get('log_cleanup_patterns', [])
 
+            # noinspection SpellCheckingInspection
             self._log_format: str = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
             self._date_format: str = '%d-%m %H:%M:%S'
 

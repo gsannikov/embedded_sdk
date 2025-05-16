@@ -51,7 +51,7 @@ class SigToolCommand(CLICommandInterface):
 
     def _create_sig_tool(self, **kwargs: Any) -> bool:
         """
-        Validate reqwired arguments and create an instance of the Signatures class.
+        Validate required arguments and create an instance of the Signatures class.
         """
 
         # Already created?
@@ -103,7 +103,7 @@ class SigToolCommand(CLICommandInterface):
             pad_to_size(Optional[int], optional): Resize the file to the specified size. Defaults to None.
 
         Returns:
-            int: 0 if the CRC check or update succeeded, non zero otherwise.
+            int: 0 if the CRC check or update succeeded, non-zero otherwise.
         """
 
         try:

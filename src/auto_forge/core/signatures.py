@@ -38,7 +38,7 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
 
 class CoreSignatures(CoreModuleInterface):
     """
-    Signatures is the root class which ties all the Auxilery classes to provide a functional
+    Signatures is the root class which ties all the Auxiliary classes to provide a functional
     interface around signatures.
     """
 
@@ -537,7 +537,7 @@ class Signature:
         # The signature offset relative to the start of its firmware
         self.offset_from_image_start: Optional[int] = 0
 
-        # Enhanced signatures with start/end addresess being added at compiled time.
+        # Enhanced signatures with start/end addresses being added at compiled time.
         self.has_boundaries: bool = False
 
         # Optional padding bytes length

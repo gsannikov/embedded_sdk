@@ -90,15 +90,15 @@ class CoreSolution(CoreModuleInterface):
         self._solution_data: Optional[dict[str, Any]] = None  # To store processed solution data
         self._solution_schema: Optional[dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[dict[str, Any]] = None  # To store original, unaltered solution data
-        self._root_solution_name: Optional[str] = None  # The name if the first solution which must exisit
+        self._root_solution_name: Optional[str] = None  # The name if the first solution which must exist
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
         self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
         self._toolbox = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
-        self._workspace_creation_mode: bool = workspace_creation_mode  # Creation argumnets
-        self._workspace_path: str = workspace_path  # Creation argumnets
+        self._workspace_creation_mode: bool = workspace_creation_mode  # Creation arguments
+        self._workspace_path: str = workspace_path  # Creation arguments
 
         # Load the solution
         self._preprocess(solution_config_file_name)
@@ -289,7 +289,7 @@ class CoreSolution(CoreModuleInterface):
                 else:
                     self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
 
-                # Initialize the optional schema used for validating the solution structuire
+                # Initialize the optional schema used for validating the solution structure
                 # If file is specified, attempt to preprocess and load it
                 if os.path.exists(solution_schema_file):
                     self._solution_schema = self._processor.preprocess(file_name=solution_schema_file)
@@ -564,7 +564,7 @@ class CoreSolution(CoreModuleInterface):
 
             # Resolve Local Referencing: Directly refers to keys within the current context (solution, project, or configuration).
             # Example:
-            #   "board": "imc_simics",
+            #   "board": "some_board",
             #   "cmake_top_level_path": "/home/dummy/<$ref_board>",
 
             key = reference_path
@@ -581,7 +581,7 @@ class CoreSolution(CoreModuleInterface):
             # Resolve alternate Local Referencing: Offers the same functionality as local referencing, often used for enhanced
             # readability or specific contextual needs.
             # Example:
-            #   "board": "imc_simics",
+            #   "board": "some_board",
             #   "cmake_top_level_path": "/home/dummy/<$ref_configurations[].board>",
 
             ref_parts = reference_path.split(".")

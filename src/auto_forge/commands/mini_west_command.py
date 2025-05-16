@@ -616,7 +616,7 @@ class MiniWestCommand(CLICommandInterface):
             destination_path = self._toolbox.get_expanded_path(destination_path)
             west_yml_path = self._toolbox.get_expanded_path(args.west_yml) if args.west_yml else None
 
-            # Validate that the destination path is empty (Git will fail if its not)
+            # Validate that the destination path is empty (Git will fail if it's not)
             if os.path.exists(destination_path):
                 self._toolbox.is_directory_empty(path=destination_path, raise_exception=True)
 

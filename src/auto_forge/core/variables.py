@@ -208,7 +208,7 @@ class CoreVariables(CoreModuleInterface):
 
     def _load_from_file(self, config_file_name: str, solution_name: str, rebuild: bool = False) -> Optional[int]:
         """
-        Constructs or rebuilds the configuration data based on an variables JSONc file.
+        Constructs or rebuilds the configuration data based on a JSONc file.
 
         If `rebuild` is True, any existing configuration is discarded before rebuilding,
         ensuring that the list is refreshed entirely from the raw data. If `rebuild` is False
@@ -242,7 +242,7 @@ class CoreVariables(CoreModuleInterface):
                 self._base_file_name = os.path.basename(config_file_name)
                 self._variables_defaults = raw_data.get('defaults', {})
 
-                #  If auto prefix is enabled, use the solution name (upper cased) as prefix
+                #  If auto prefix is enabled, use the solution name (upper-cased) as prefix
                 self._variable_auto_prefix = raw_data.get('auto_prefix', self._variable_auto_prefix)
                 if self._variable_auto_prefix:
                     self._variable_prefix: Optional[str] = f"{solution_name.upper()}_"
@@ -285,7 +285,7 @@ class CoreVariables(CoreModuleInterface):
     def _expand_variable_value(self, value: Any) -> Any:
         """
         Expands a given value by replacing placeholders with actual values from a dictionary
-        and by expanding variables variables and user home directories.
+        and by expanding variables and user home directories.
         Args:
             value (Any): The input value which may contain placeholders. If `value` is not a string, it is
                          returned as-is without modification.
@@ -331,7 +331,7 @@ class CoreVariables(CoreModuleInterface):
 
     def get(self, variable_name: str, flexible: bool = False, quiet: bool = False) -> Optional[str]:
         """
-        Gets a Variable value by its name. If not found, attempts to expand as an variable.
+        Gets a Variable value by its name. If not found, attempts to expand as a variable.
         Args:
             variable_name (str): The name of the Variable to find.
             flexible (bool): If True, allows partial matching of a variable prefix.
@@ -458,7 +458,7 @@ class CoreVariables(CoreModuleInterface):
                     if not path_exist:
                         if not new_var.create_path_if_not_exist:
                             raise RuntimeError(
-                                f"path '{new_var.value}' reqwired by '{variable_name}' does not exist and marked as must exist")
+                                f"path '{new_var.value}' required by '{variable_name}' does not exist and marked as must exist")
                         else:
                             self._logger.warning(
                                 f"Specified path: '{new_var.value}' does not exist and needs be created ")

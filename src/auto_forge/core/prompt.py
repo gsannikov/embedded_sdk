@@ -86,7 +86,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.argv = [sys.argv[0]]
         ansi.allow_ansi = True
 
-        # Get a lis for the dynamically lodaed AutoForge commands and inject them to cmd2
+        # Get a lis for the dynamically loaded AutoForge commands and inject them to cmd2
         self._dynamic_cli_commands_list = (
             self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
         if len(self._dynamic_cli_commands_list) > 0:
@@ -245,7 +245,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def _update_prompt(self, active_name: Optional[str] = None):
         """
-        Dynamically update the cmd2 prompt to mimic a modern Zsh-style shell prompt.
+        Dynamically update the cmd2 prompt to mimic a modern Zsh-style prompt.
         The prompt includes:
             - The active virtual environment if provided.
             - The current working directory, using `~` when within the home folder.

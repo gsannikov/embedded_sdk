@@ -331,8 +331,6 @@ class CoreEnvironment(CoreModuleInterface):
                 self.path_erase(path=self._workspace_path, allow_non_empty=True)
                 # Make sure the base path exist
                 os.makedirs(self._workspace_path, exist_ok=True)
-
-            # Create if does not exist
             if create_as_needed:
                 os.makedirs(self._workspace_path, exist_ok=True)
 
@@ -340,7 +338,7 @@ class CoreEnvironment(CoreModuleInterface):
             if must_be_empty:
                 self._toolbox.is_directory_empty(path=self._workspace_path, raise_exception=True)
 
-            # Set the workspace as a working directory, may raise an exception if does not exist
+            # Set the workspace as a working directory, may raise an exception if it does not exist
             if change_dir:
                 os.chdir(self._workspace_path)
 
@@ -1311,7 +1309,7 @@ class CoreEnvironment(CoreModuleInterface):
         # Remove destination file if exists
         if os.path.exists(destination_file_name):
             if not delete_if_exist:
-                raise RuntimeError(f"destination '{destination_file_name}' already exisit and "
+                raise RuntimeError(f"destination '{destination_file_name}' already exist and "
                                    f"we're nit allowed to delete")
             else:
                 os.remove(destination_file_name)

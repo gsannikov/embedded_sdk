@@ -65,7 +65,7 @@ class ValidationMethodType(Enum):
     Attributes:
         EXECUTE_PROCESS (int): Run a shell command and validate based on its return code and/or output.
         READ_FILE (int): Read specific lines from a file and validate expected content.
-        SYS_PACKAGE (int): Checks if a specific packge ('apt', 'dnf' is installed)
+        SYS_PACKAGE (int): Checks if a specific package ('apt', 'dnf' is installed)
     """
     EXECUTE_PROCESS = 1
     READ_FILE = 2

@@ -859,7 +859,7 @@ class ToolBox(CoreModuleInterface):
         Normalize the input string by stripping leading and trailing whitespace.
         Args:
             text (Optional[str]): The string to be normalized.
-            allow_empty (Optional[bool]): No exception of the output is an empty string
+            allow_empty (Optional[bool]): No exception to the output is an empty string
 
         Returns:
             str: A normalized string with no leading or trailing whitespace.
@@ -880,7 +880,7 @@ class ToolBox(CoreModuleInterface):
         """
         Validates and normalizes a GitHub URL to its corresponding GitHub API URL.
         Args:
-            url (str): The input GitHub URL, either a 'tree' URL or an 'api.github.com' contents URL.
+            url (str): The input GitHub URL, either a 'tree' URL or GitHub.com contents URL.
         Returns:
             Optional[str]: The GitHub API URL if valid and successfully converted, otherwise None.
         """

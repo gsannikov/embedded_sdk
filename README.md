@@ -30,7 +30,7 @@ curl -sSL \
 
 ### Installing the package.
 
-To  install the latest AutoForge packge use the following command:
+To  install the latest AutoForge package use the following command:
 ```bash
 pip install git+https://github.com/emichael72/auto_forge.git --force-reinstall
 ```

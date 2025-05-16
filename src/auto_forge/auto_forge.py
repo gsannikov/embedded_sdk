@@ -67,7 +67,7 @@ class AutoForge(CoreModuleInterface):
         self._gui: Optional[CoreGUI] = None
         self._prompt: Optional[CorePrompt] = None
 
-        # Startup argumnets
+        # Startup arguments
         self._automated_mode: bool = False
         self._config_data: Optional[dict[str, Any]] = None
         self._config_file_path: Optional[Path] = PROJECT_CONFIG_PATH / 'auto_forge.json'
@@ -175,7 +175,7 @@ class AutoForge(CoreModuleInterface):
             if not self._create_workspace and not os.path.exists(self._workspace_path):
                 raise RuntimeError(f"Workspace path '{self._workspace_path}' does not exist and creation is disabled.")
 
-            # If we ware requested to create a workspace, the destination path must be empty
+            # If we were requested to create a workspace, the destination path must be empty
             if (self._create_workspace and os.path.exists(self._workspace_path)
                     and not ToolBox.is_directory_empty(self._workspace_path)):
                 raise RuntimeError(f"Path '{self._workspace_path}' is not empty while workspace creation is enabled.")

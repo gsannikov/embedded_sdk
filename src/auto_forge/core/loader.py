@@ -68,7 +68,7 @@ class CoreLoader(CoreModuleInterface):
 
     def probe(self, path: str) -> int:
         """
-        Scans the a path for Python modules, search for classes that are derived from familiar base classes,
+        Scans the path for Python modules, search for classes that are derived from familiar base classes,
         instantiate them and register them.
         Args:
             path (str): Path to search for modules.

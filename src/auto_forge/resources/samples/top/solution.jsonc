@@ -26,13 +26,13 @@
 
     - Local Referencing: Directly refers to keys within the current context (solution, project, or configuration).
       Example:
-      "board": "imc_simics",
+      "board": "some_board",
       "cmake_top_level_path": "/home/dummy/<$ref_board>",
 
     - Alternate Local Referencing: Offers the same functionality as local referencing, often used for enhanced
       readability or specific contextual needs.
       Example:
-      "board": "imc_simics",
+      "board": "some_board",
       "cmake_top_level_path": "/home/dummy/<$ref_configurations[].board>",
 
     - Explicit Referencing: Enables the use of keys from different scopes, either locally or globally within
