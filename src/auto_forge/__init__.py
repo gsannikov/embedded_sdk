@@ -24,12 +24,13 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
-                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru,
+                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru, BuildProfileType,
                                            TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalFileIconInfo, TERMINAL_ICONS_MAP, COMMAND_COMPLETION_MAP)
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
+from auto_forge.core.interfaces.builder_interfcae import BuilderInterface
 
 # Common modules
 from auto_forge.common.registry import Registry
@@ -55,12 +56,12 @@ __all__ = [
     "Registry", "ToolBox", "ProgressTracker", "PrettyPrinter",
     "CoreProcessor", "CoreVariables", "CoreSolution", "CoreEnvironment",
     "CoreSignatures", "CoreLoader", "CorePrompt", "CoreGUI",
-    "ExceptionGuru", "ThreadGuru", "TerminalAnsiGuru",
+    "ExceptionGuru", "ThreadGuru", "BuildProfileType", "TerminalAnsiGuru",
     "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo",
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "ValidationMethodType", "ExecutionModeType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
-    "CLICommandInterface", "CoreModuleInterface",
+    "CLICommandInterface", "CoreModuleInterface", "BuilderInterface",
     "SignatureFileHandler", "Signature",
     "TERMINAL_ICONS_MAP", "COMMAND_COMPLETION_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",

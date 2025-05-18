@@ -34,6 +34,7 @@ from auto_forge import (
     COMMAND_COMPLETION_MAP,
     AutoForgeModuleType,
     AutoLogger,
+    BuildProfileType,
     CoreEnvironment,
     CoreLoader,
     CoreModuleInterface,
@@ -753,7 +754,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         and toolchain data, the solution is queried to retrieve the relevant configuration.
         """
 
-        too_chain_data: Optional[dict[str, Any]] = None
+        build_profile = BuildProfileType()
         target = arg.strip()
 
         if not target or "." not in target:
@@ -765,21 +766,25 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self.perror("Expected exactly 3 parts: <solution>.<project>.<configuration>")
             return
 
-        solution, project, config = parts
+        build_profile.solution_name, build_profile.project_name, build_profile.config_name = parts
+        build_profile.build_dot_notation = (f"{build_profile.solution_name}."
+                                            f"{build_profile.project_name}.{build_profile.config_name}")
 
         # Fetch build configuration data from the solution
-        config_data: Optional[dict[str, Any]] = self._solution.query_configurations(
-            solution_name=solution, project_name=project, configuration_name=config)
-        if config_data:
-            project_data: Optional[dict[str, Any]] = self._solution.query_projects(solution_name=solution,
-                                                                                   project_name=project)
+        build_profile.config_data = self._solution.query_configurations(
+            solution_name=build_profile.solution_name, project_name=build_profile.project_name,
+            configuration_name=build_profile.config_name)
+        if build_profile.config_data:
+            project_data: Optional[dict[str, Any]] = (
+                self._solution.query_projects(solution_name=build_profile.solution_name,
+                                              project_name=build_profile.project_name))
             if project_data:
-                too_chain_data = project_data.get("tool_chain")
+                build_profile.too_chain_data = project_data.get("tool_chain")
 
-        if too_chain_data:
-            print(f"Building {solution}.{project}.{config}...")
+        if build_profile.too_chain_data:
+            print(f"Building {build_profile.build_dot_notation}...")
         else:
-            self.perror(f"Configuration not found for {solution}.{project}.{config}")
+            self.perror(f"Configuration not found for '{build_profile.build_dot_notation};")
 
     def default(self, statement: Statement) -> None:
         """

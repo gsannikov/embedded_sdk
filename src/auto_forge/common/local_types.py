@@ -34,6 +34,7 @@ class AutoForgeModuleType(Enum):
     CORE = 1
     COMMON = 2
     CLI_COMMAND = 3
+    BUILDER = 4
 
 
 class ModuleInfoType(NamedTuple):
@@ -638,3 +639,17 @@ COMMAND_COMPLETION_MAP = {
     # Git
     "git": {"path_completion": False},  # handled via subcommands
 }
+
+@dataclass
+class BuildProfileType:
+    """
+    A data class to facilitate reading and writing specific fields from
+    signature binary data.
+    """
+    solution_name:Optional[str] = None
+    project_name:Optional[str] = None
+    config_name:Optional[str] = None
+    build_dot_notation:Optional[str] = None
+    required_builder:Optional[str] = None
+    config_data:Optional[dict[str, Any]]  = None
+    tool_chain_data: Optional[dict[str, Any]] = None
