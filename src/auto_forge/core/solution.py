@@ -109,6 +109,14 @@ class CoreSolution(CoreModuleInterface):
                                  description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
+    def get_arbitrary_item(self, key: str) -> Optional[Union[list[Any], dict[str, Any]]]:
+        """Returns a list or dictionary from the solution JSON by key, or None if not found or invalid type."""
+        if self._solution_data is not None:
+            value = self._solution_data.get(key)
+            if isinstance(value, (list, dict)):
+                return value
+        return None
+
     def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific solution or the solutions list.
@@ -120,31 +128,11 @@ class CoreSolution(CoreModuleInterface):
         path = f"$.solutions[?(@.name=='{solution_name}')]" if solution_name else "$.solutions[*]"
         return self._query_json_path(path)
 
-    def get_included_file(self, include_name: str) -> Optional[str]:
-        """ Return an included file name based on its key within the 'includes' cluster"""
-
-        include_file = self._includes.get(include_name)
-        if include_file and self._config_file_path:
-            include_file_path: str = os.path.join(str(self._config_file_path), str(include_file))
-            return include_file_path
-        return None
-
-    def get_arbitrary_item(self, key: str) -> Optional[Union[list[Any], dict[str, Any]]]:
-        """Returns a list or dictionary from the solution JSON by key, or None if not found or invalid type."""
-        if self._solution_data is not None:
-            value = self._solution_data.get(key)
-            if isinstance(value, (list, dict)):
-                return value
-        return None
-
-    def get_solutions_list(self) -> Optional[Union[list, dict]]:
+    def get_solutions_list(self) -> Optional[list]:
         """
-        Returns the solutions list.
-        Returns:
-            List, Dict: List of solutions names
+        Returns the list of solution names, or None if no solutions exist.
         """
-        path = "$.solutions[*].name"
-        return self._query_json_path(path)
+        return self._query_json_path("$.solutions[*].name")
 
     def query_projects(self, solution_name: str, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
@@ -181,12 +169,15 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             List, Dict:  List of configurations dictionaries or a single configuration
         """
+
         if configuration_name:
             path = (f"$.solutions[?(@.name=='{solution_name}')]."
                     f"projects[?(@.name=='{project_name}')].configurations[?(@.name=='{configuration_name}')]")
         else:
             path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*]"
-        return self._query_json_path(path)
+
+        data = self._query_json_path(path)
+        return data
 
     def get_configurations_list(self, solution_name: Optional[str],
                                 project_name: Optional[str]) -> Optional[Union[list, dict]]:
@@ -208,6 +199,15 @@ class CoreSolution(CoreModuleInterface):
             return solutions[0]
         else:
             raise Exception("no solutions found")
+
+    def get_included_file(self, include_name: str) -> Optional[str]:
+        """ Return an included file name based on its key within the 'includes' cluster"""
+
+        include_file = self._includes.get(include_name)
+        if include_file and self._config_file_path:
+            include_file_path: str = os.path.join(str(self._config_file_path), str(include_file))
+            return include_file_path
+        return None
 
     def show(self, pretty: bool = False):
         """
@@ -832,35 +832,29 @@ class CoreSolution(CoreModuleInterface):
         except (json.JSONDecodeError, TypeError) as json_error:
             raise RuntimeError(f"error during data refresh: {json_error!s}") from json_error
 
-    def _query_json_path(self, path: str) -> Optional[Union[list, dict]]:
+    def _query_json_path(self, path: str) -> Optional[list[Union[str, dict]]]:
         """
-        Generic method to execute a JSONPath query on the solution data.
+        Executes a JSONPath query against the loaded solution data and returns the results as a list.
+        NoeL we always returns either a list of matched values (e.g., strings, dictionaries)
+        or None if no matches were found. The type of elements in the list depends on the query.
+
         Args:
-            path (str): The JSONPath query string.
+            path (str): The JSONPath query string to execute.
+
         Returns:
-            Any: A list of dictionaries or a singe dictionary
+            Optional[list]: A list of matched values (such as str or dict), or None if no matches were found.
         """
         try:
-
             if not self._solution_loaded:
-                raise RuntimeError(
-                    "no solution is currently loaded")
+                raise RuntimeError("no solution is presently loaded into the system")
 
             expr = parse(path)
-            elements = [match.value for match in expr.find(self._solution_data)]
+            matches = [match.value for match in expr.find(self._solution_data)]
 
-            if not isinstance(elements, (list, dict)):
-                raise ValueError(f"unsupported JSONPath return type: {type(elements)}")
+            return matches if matches else None
 
-            # If we got a single dictionary in the lisr, return that dictionary
-            if len(elements) == 1 and isinstance(elements[0], dict):
-                return elements[0]
-
-            # Return a list of dictionaries
-            return elements
-
-        except Exception as jsonpath_exception:
-            raise RuntimeError(jsonpath_exception) from Exception
+        except Exception as json_query:
+            raise RuntimeError(f"JSONPath query failed for path '{path}': {json_query}") from json_query
 
 
 # -----------------------------------------------------------------------------
