@@ -13,12 +13,8 @@ Note:
     >> Order does matter here! <<
 """
 
-from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SHARED_PATH,
-                       PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,
-                       PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
-
-from auto_forge.logger import (AutoLogger, LogHandlersTypes)
-
+# AutoForg main
+from auto_forge.auto_forge import auto_forge_main as main
 # Basic types
 from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType,
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
@@ -26,29 +22,28 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
                                            ExceptionGuru, ThreadGuru, TerminalAnsiGuru,
                                            TerminalTeeStream, TerminalAnsiCodes,
-                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP)
-# Interfaces
-from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
-
+                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP, COMMAND_COMPLETION_MAP)
+from auto_forge.common.pretty_printer import PrettyPrinter
+from auto_forge.common.progress_tracker import ProgressTracker
 # Common modules
 from auto_forge.common.registry import Registry
 from auto_forge.common.toolbox import ToolBox
-from auto_forge.common.progress_tracker import ProgressTracker
-from auto_forge.common.pretty_printer import PrettyPrinter
-
+from auto_forge.core.environment import CoreEnvironment
+from auto_forge.core.gui import CoreGUI
+from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
+# Interfaces
+from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
+from auto_forge.core.loader import CoreLoader
 # Core / common modules
 from auto_forge.core.processor import CoreProcessor
-from auto_forge.core.loader import CoreLoader
-from auto_forge.core.environment import CoreEnvironment
-from auto_forge.core.variables import CoreVariables
-from auto_forge.core.gui import CoreGUI
+from auto_forge.core.prompt import CorePrompt
 from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
 from auto_forge.core.solution import CoreSolution
-from auto_forge.core.prompt import CorePrompt
-
-# AutoForg main
-from auto_forge.auto_forge import auto_forge_main as main
+from auto_forge.core.variables import CoreVariables
+from auto_forge.logger import (AutoLogger, LogHandlersTypes)
+from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SHARED_PATH,
+                       PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,
+                       PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
 
 # Exported symbols
 __all__ = [
@@ -62,7 +57,7 @@ __all__ = [
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
     "CLICommandInterface", "CoreModuleInterface",
     "SignatureFileHandler", "Signature",
-    "TERMINAL_ICONS_MAP",
+    "TERMINAL_ICONS_MAP", "COMMAND_COMPLETION_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",
     "PROJECT_SCHEMAS_PATH", "PROJECT_VERSION", "PROJECT_NAME", "PROJECT_REPO", "PROJECT_PACKAGE",
