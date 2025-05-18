@@ -151,11 +151,19 @@ class CoreSolution(CoreModuleInterface):
             solution_name (str): The name of the solution.
             project_name (Optional[str]): The name of the project to retrieve. If None, all projects are retrieved.
         Returns:
-            List, Dict:  List of project dictionaries or a single project
+            Union[list, dict, None]: List of project dictionaries, a single project dict if only one is found,
+            or None if nothing is found.
         """
         path = (f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')]"
                 if project_name else f"$.solutions[?(@.name=='{solution_name}')].projects[*]")
-        return self._query_json_path(path)
+        data = self._query_json_path(path)
+
+        if isinstance(data, list):
+            if len(data) == 1:
+                return data[0]
+            elif len(data) == 0:
+                return None
+        return data
 
     def get_projects_list(self, solution_name: Optional[str]) -> Optional[Union[list, dict]]:
         """
@@ -177,7 +185,8 @@ class CoreSolution(CoreModuleInterface):
             project_name (Optional[str]): The name of the project.
             configuration_name (Optional[str]): The name of the configuration to retrieve. If None, all configurations are retrieved.
         Returns:
-            List, Dict:  List of configurations dictionaries or a single configuration
+            Union[list, dict, None]: List of configuration dictionaries, a single configuration dict if only one is found,
+            or None if nothing is found.
         """
 
         if configuration_name:
@@ -187,6 +196,12 @@ class CoreSolution(CoreModuleInterface):
             path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*]"
 
         data = self._query_json_path(path)
+
+        if isinstance(data, list):
+            if len(data) == 1:
+                return data[0]
+            elif len(data) == 0:
+                return None
         return data
 
     def get_configurations_list(self, solution_name: Optional[str],

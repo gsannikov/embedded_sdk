@@ -16,6 +16,7 @@ import inspect
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -1238,3 +1239,43 @@ class ToolBox(CoreModuleInterface):
                 base_name = os.path.basename(src_file)
                 dst_path = os.path.join(dest_dir, base_name)
                 shutil.copy2(src_file, dst_path)
+
+    def get_man_description(self, command: str) -> Optional[str]:
+        """
+        Retrieve the first paragraph from the DESCRIPTION section of a man page.
+        TInternally we runs `man <command>` through `col -bx` to clean formatting, extracts
+        the DESCRIPTION section, and returns the first paragraph. If no DESCRIPTION
+        section is found or an error occurs, None is returned.
+
+        Args:
+            command (str): The name of the command to query.
+        Returns:
+            Optional[str]: The first paragraph of the DESCRIPTION section, or None if unavailable.
+        """
+        with suppress(Exception):
+            # Run `man <command>` and clean formatting
+            man_proc = subprocess.run(
+                ["man", command],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True
+            )
+
+            # Remove overs trike formatting using `col -bx`
+            col_proc = subprocess.run(
+                ["col", "-bx"],
+                input=man_proc.stdout,
+                stdout=subprocess.PIPE,
+                text=True
+            )
+            man_text = col_proc.stdout
+
+            # Find the DESCRIPTION section
+            desc_match = re.search(r'\nDESCRIPTION\n(.*?)(\n\n|\Z)', man_text, re.DOTALL)
+            if desc_match:
+                # Extract the first paragraph (up to first blank line)
+                description = desc_match.group(1).strip()
+                first_paragraph = description.split("\n\n", 1)[0].strip()
+                return self.flatten_text(text=first_paragraph)
+
+        return None

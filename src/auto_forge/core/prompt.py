@@ -528,8 +528,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             only_dirs=True
         )
 
-    # noinspection SpellCheckingInspection
-    def complete_build(self, text: str, line: str, begin_idx: int, _endidx: int) -> list[Completion]:
+    def complete_build(self, text: str, line: str, begin_idx: int, _end_idx: int) -> list[Completion]:
         """
         Completes the 'build' command in progressive dot-separated segments:
         build <solution>.<project>.<config>
@@ -634,7 +633,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         except Exception as exception:
             self.perror(f"ls: {exception}")
 
-    def do_help(self, arg) -> None:
+    def do_help(self, arg: Any) -> None:
         """
         Displays a custom, panel-based CLI help screen for AutoForge commands.
 
@@ -645,21 +644,57 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         console = Console()
 
-        if arg:
-            # User typed 'help my_command' --> Show help for that specific command
+        def _format_description_blocks(text: str) -> str:
+            """
+            Formats a block of text by splitting on periods, trimming each fragment,
+            and appending a period and newline. The first sentence is unindented;
+            all subsequent lines are indented by 4 spaces.
+            Args:
+                text (str): The raw input text, typically a man page paragraph.
 
+            Returns:
+                str: The formatted block of sentences with proper indentation.
+            """
+            lines = []
+            for i, fragment in enumerate(text.split(".")):
+                fragment = fragment.strip()
+                if fragment:
+                    line = f"{fragment}." if i == 0 else f"    {fragment}."
+                    lines.append(line + "\n")
+            return ''.join(lines)
+
+        if arg:
+
+            if isinstance(arg, Statement):
+                command_name = str(arg.arg_list[0])
+            else:
+                command_name = str(arg)
+
+            # User typed 'help my_command' --> Show help for that specific command
             # Get the stored help from tye registry
             command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
-                module_name=arg,
+                module_name=command_name,
                 case_insensitive=False
             )
 
-            method = getattr(self, f'do_{arg}', None)
-            method_description = (command_record.get(
-                'description') if command_record and 'description' in command_record else None
-                                  ) or method.__doc__ or "Description not provided."
+            # Extract man page help
+            man_description: Optional[str] = None
+            if command_record is None:
+                man_description = self._toolbox.get_man_description(command_name)
 
-            if method and method.__doc__:
+            method = getattr(self, f'do_{arg}', None)
+
+            # Try to retrieve help text, either from the command's docstring or by checking if it has a man page entry.
+            if command_record and 'description' in command_record:
+                method_description = command_record['description']
+            elif method and method.__doc__:
+                method_description = method.__doc__
+            elif man_description:
+                method_description = _format_description_blocks(text=man_description)
+            else:
+                method_description = "Description not provided."
+
+            if method_description:
                 command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
                 console.print("\n",
                               Panel(f"[bold green]{arg}[/bold green]:\n    {method_description}",
@@ -710,9 +745,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def do_build(self, arg: str):
         """
-        Build a specific target via dot-notation:
+        Executes a build based on the dot-separated target notation:
             build <solution>.<project>.<configuration>
+
+        This command extracts essential build information by querying the solution structure
+        using the user-specified target. Since a builder instance requires both configuration
+        and toolchain data, the solution is queried to retrieve the relevant configuration.
         """
+
+        too_chain_data: Optional[dict[str, Any]] = None
         target = arg.strip()
 
         if not target or "." not in target:
@@ -726,13 +767,16 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         solution, project, config = parts
 
-        config_data = self._solution.query_configurations(
-            solution_name=solution,
-            project_name=project,
-            configuration_name=config
-        )
-
+        # Fetch build configuration data from the solution
+        config_data: Optional[dict[str, Any]] = self._solution.query_configurations(
+            solution_name=solution, project_name=project, configuration_name=config)
         if config_data:
+            project_data: Optional[dict[str, Any]] = self._solution.query_projects(solution_name=solution,
+                                                                                   project_name=project)
+            if project_data:
+                too_chain_data = project_data.get("tool_chain")
+
+        if too_chain_data:
             print(f"Building {solution}.{project}.{config}...")
         else:
             self.perror(f"Configuration not found for {solution}.{project}.{config}")
