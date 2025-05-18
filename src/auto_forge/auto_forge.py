@@ -316,7 +316,7 @@ class AutoForge(CoreModuleInterface):
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
 
             # Store the primary solution name
-            self._solution_name = self._solution.get_primary_solution_name()
+            self._solution_name = self._solution.get_solutions_list(primary=True)
             self._logger.debug(f"Primary solution: '{self._solution_name}'")
 
             if not self._create_workspace:

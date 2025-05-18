@@ -256,7 +256,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                         falls back to the VIRTUAL_ENV or '(unknown)'.
         """
         # Virtual environment / board name section
-        solution_name = self._solution.get_primary_solution_name()
+        solution_name = self._solution.get_solutions_list(primary=True)  # Gets the primary solution name
 
         venv = os.environ.get("VIRTUAL_ENV")
         venv_prompt = f"[{active_name}]" if active_name else (f"[{solution_name}]" if solution_name else f"[{venv}]")
@@ -450,59 +450,54 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         return matches
 
     # noinspection SpellCheckingInspection
-    def complete_build(self, text: str, line: str, begidx: int, endidx: int) -> list[str]:
+    def complete_build(self, text: str, line: str, begidx: int, _endidx: int) -> list[str]:
         """
         Resolves hierarchical tab-completions for 'build' commands.
         Supports: build <solution>.<project>.<configuration>
 
         Completion flow:
-            build + <TAB> → solution names
-            build sample. + <TAB> → project names under 'sample'
-            build sample.btop. + <TAB> → configurations under 'sample.btop'
-
-        Args:
-            text: The current word being completed.
-            line: The full command line string.
-            begidx: The beginning index of the word.
-            endidx: The ending index of the word.
+            build + <TAB>               → solution names (with trailing dot)
+            build sample. + <TAB>       → project names under 'sample' (with trailing dot)
+            build sample.btop. + <TAB>  → configuration names (no trailing dot)
 
         Returns:
-            A list of valid completion candidates.
+            A list of valid completion candidates for the current input level.
         """
-        matches = []
         try:
-            tokens = line.strip().split()
-            if len(tokens) < 2:
+            import shlex
+            tokens = shlex.split(line[:begidx])
+            if not tokens or tokens[0] != "build":
                 return []
 
-            dot_chain = tokens[1]
-            parts = dot_chain.split(".")
+            dot_parts = text.split(".")
 
-            if len(parts) == 1:
-                # <partial_solution>
-                partial = parts[0]
-                for sol in self._solution.get_solutions_list() or []:
-                    if not partial or sol.startswith(partial):
-                        matches.append(f"{sol}.")
+            if len(tokens) == 1 and not text:
+                return [s + '.' for s in self._solution.get_solutions_list() or []]
 
-            elif len(parts) == 2:
-                # solution.<partial_project>
-                sol, partial = parts[0], parts[1]
-                for proj in self._solution.get_projects_list(sol) or []:
-                    if not partial or proj.startswith(partial):
-                        matches.append(f"{sol}.{proj}.")
+            if len(dot_parts) == 1:
+                return [
+                    s + '.' for s in self._solution.get_solutions_list() or []
+                    if s.startswith(dot_parts[0])
+                ]
 
-            elif len(parts) == 3:
-                # solution.project.<partial_config>
-                sol, proj, partial = parts[0], parts[1], parts[2]
-                for cfg in self._solution.get_configurations_list(sol, proj) or []:
-                    if not partial or cfg.startswith(partial):
-                        matches.append(f"{sol}.{proj}.{cfg}")
+            elif len(dot_parts) == 2:
+                sol, proj_partial = dot_parts
+                return [
+                    f"{sol}.{p}." for p in self._solution.get_projects_list(sol) or []
+                    if p.startswith(proj_partial)
+                ]
+
+            elif len(dot_parts) == 3:
+                sol, proj, cfg_partial = dot_parts
+                return [
+                    f"{sol}.{proj}.{c}" for c in self._solution.get_configurations_list(sol, proj) or []
+                    if c.startswith(cfg_partial)
+                ]
 
         except Exception as e:
-            self._logger.debug(f"Auto-completion error in complete_build: {e}")
+            self._logger.debug(f"Auto-completion error in complete_build(): {e}")
 
-        return matches
+        return []
 
     def complete(self, text: str, state: int,
                  custom_settings: Optional[CustomCompletionSettings] = None) -> Optional[str]:

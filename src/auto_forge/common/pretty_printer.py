@@ -27,7 +27,7 @@ class PrettyPrinter:
 
     def __init__(self,
                  indent: int = 4,
-                 sort_keys:bool = False,
+                 sort_keys: bool = False,
                  console: Optional[Console] = None,
                  numbering_width: int = 4,
                  highlight_keys: Optional[list[str]] = None,
@@ -103,16 +103,28 @@ class PrettyPrinter:
             line_number += 1
         print()
 
+    def _render_value_with_style(self, value: str) -> Text:
+        """
+        Applies appropriate Rich style to a JSON value string and returns a Text object.
+        Args:
+            value (str): The JSON value (maybe a string, number, boolean, or null).
+        Returns:
+            Text: A Rich Text object with the styled value.
+        """
+        styled = Text()
+        if value.startswith('"') and value.endswith('"'):
+            styled.append(value, style=self._json_skin["value_string"])
+        elif value in ('true', 'false'):
+            styled.append(value, style=self._json_skin["value_bool"])
+        elif value == 'null':
+            styled.append(value, style=self._json_skin["value_null"])
+        else:
+            styled.append(value, style=self._json_skin["value_number"])
+        return styled
+
     def _render_key_value_line(self, indent_spaces: str, key: str, value: str, original_line: str) -> Text:
         """
         Constructs a styled Rich Text line for a JSON key-value pair.
-        Args:
-            indent_spaces (str): Leading whitespace indentation for the line.
-            key (str): The JSON key (without quotes).
-            value (str): The raw value portion as a string (may include trailing comma).
-            original_line (str): The original JSON line for comma detection.
-        Returns:
-            Text: A Rich Text object with appropriate styling applied.
         """
         styled = Text()
         styled.append(indent_spaces)
@@ -124,14 +136,7 @@ class PrettyPrinter:
         value = value.rstrip(',')
         comma = "," if original_line.strip().endswith(',') else ""
 
-        if value.startswith('"') and value.endswith('"'):
-            styled.append(value, style=self._json_skin["value_string"])
-        elif value in ('true', 'false'):
-            styled.append(value, style=self._json_skin["value_bool"])
-        elif value == 'null':
-            styled.append(value, style=self._json_skin["value_null"])
-        else:
-            styled.append(value, style=self._json_skin["value_number"])
+        styled += self._render_value_with_style(value)
 
         if comma:
             styled.append(comma, style=self._json_skin["punctuation"])
@@ -141,29 +146,14 @@ class PrettyPrinter:
     def _render_list_item_line(self, indent_spaces: str, val: str, comma: str) -> Text:
         """
         Constructs a styled Rich Text line for a JSON list item.
-        Applies syntax highlighting for values in a list, such as strings, numbers,
-        booleans, or nulls. Handles optional trailing commas.
-        Args:
-            indent_spaces (str): Leading whitespace indentation for the line.
-            val (str): The value string (e.g., "hello", 42, true, null).
-            comma (str): A trailing comma, if present (either ',' or '').
-        Returns:
-            Text: A Rich Text object with appropriate styling applied.
         """
         styled = Text()
         styled.append(indent_spaces)
-
-        if val.startswith('"') and val.endswith('"'):
-            styled.append(val, style=self._json_skin["value_string"])
-        elif val in ('true', 'false'):
-            styled.append(val, style=self._json_skin["value_bool"])
-        elif val == 'null':
-            styled.append(val, style=self._json_skin["value_null"])
-        else:
-            styled.append(val, style=self._json_skin["value_number"])
+        styled += self._render_value_with_style(val)
 
         if comma:
             styled.append(comma, style=self._json_skin["punctuation"])
+
         return styled
 
     def _render_raw_json_line(self, line: str) -> Text:

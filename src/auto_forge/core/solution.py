@@ -128,11 +128,21 @@ class CoreSolution(CoreModuleInterface):
         path = f"$.solutions[?(@.name=='{solution_name}')]" if solution_name else "$.solutions[*]"
         return self._query_json_path(path)
 
-    def get_solutions_list(self) -> Optional[list]:
+    def get_solutions_list(self, primary: bool = False) -> Optional[Union[list[str], str]]:
         """
         Returns the list of solution names, or None if no solutions exist.
+        Args:
+            primary (bool): If True, returns only the first solution name as a string.
+                            If False (default), returns the full list of solution names.
+
+        Returns:
+            list[str] or str or None: The list of solution names, the first solution name
+            if `primary` is True, or None if no solutions are found.
         """
-        return self._query_json_path("$.solutions[*].name")
+        solutions = self._query_json_path("$.solutions[*].name")
+        if solutions:
+            return solutions[0] if primary else solutions
+        return None
 
     def query_projects(self, solution_name: str, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
@@ -191,14 +201,6 @@ class CoreSolution(CoreModuleInterface):
         """
         path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*].name"
         return self._query_json_path(path)
-
-    def get_primary_solution_name(self):
-        """ Gets the name of the first solution """
-        solutions = self.get_solutions_list()
-        if solutions is not None and len(solutions) > 0:
-            return solutions[0]
-        else:
-            raise Exception("no solutions found")
 
     def get_included_file(self, include_name: str) -> Optional[str]:
         """ Return an included file name based on its key within the 'includes' cluster"""

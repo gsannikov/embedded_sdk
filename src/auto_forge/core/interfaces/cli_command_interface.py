@@ -275,6 +275,7 @@ class CLICommandInterface(ABC):
             sys.stdout.flush()
         return return_value
 
+    # noinspection PyMethodMayBeStatic
     def initialize(self, **_kwargs: Any) -> bool:
         """
         Optional interface method for command-specific one-time initialization.

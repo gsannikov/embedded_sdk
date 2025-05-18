@@ -3,7 +3,7 @@ Script:         sln_command.py
 Author:         AutoForge Team
 
 Description:
-    Command line tool to allow for solution related operations.
+    Command line tool to allow for various solution related operations.
 """
 
 import argparse
@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-AUTO_FORGE_MODULE_NAME = "sl"
+AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
@@ -99,7 +99,7 @@ class SolutionCommand(CLICommandInterface):
                 value_text = Text(str(value))
 
             table.add_row(
-                name,value_text,description,
+                name, value_text, description,
                 _bool_emoji(is_path),
                 _bool_emoji(var.get("create_path_if_not_exist"))
             )
