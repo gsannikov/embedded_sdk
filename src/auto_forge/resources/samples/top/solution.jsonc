@@ -114,10 +114,10 @@
 					"architecture": "x86_64",
 					"build_system": "make",
 					"make_version": ">=4.0",
-					"required_tools": [
-						"gcc",
-						"make"
-					]
+					"required_tools": {
+						"gcc": "gcc",
+						"make": "/usr/bin/make"
+					}
 				},
 				{
 					"name": "ARM Cross Toolchain",
@@ -127,11 +127,11 @@
 					"architecture": "arm",
 					"build_system": "cmake",
 					"make_version": ">=3.16",
-					"required_tools": [
-						"arm-none-eabi-gcc",
-						"cmake",
-						"ninja"
-					]
+					"required_tools": {
+						"arm-none-eabi-gcc": "arm-none-eabi-gcc",
+						"cmake": "cmake",
+						"ninja": "ninja"
+					}
 				}
 			],
 			"projects": [
@@ -142,26 +142,24 @@
 					"configurations": [
 						{
 							"name": "debug",
-							"command_name": "bd",
+							"menu_shortcut": "bd",
 							"build_path": "<$ref_solutions[sample].build_path>/<$ref_projects[].name>/<$ref_name>",
 							"execute_from": "$PROJ_SOURCES_BASE/<$ref_projects[].name>",
-							"compiler_command": "make",
-							"expected_result": 0,
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=\",-I<$ref_build_path>\""
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>"
 							],
 							"artifacts": [
-								"<$ref_build_path>/hello"
+								"<$ref_build_path>/btop"
 							]
 						},
 						{
 							"name": "release",
 							"data": "<$derived_from_solutions[sample].projects[btop].configurations[debug]>",
-							"command_name": "br",
+							"menu_shortcut": "br",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=\",-I<$ref_build_path>\""
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>"
 							]
 						}
 					]

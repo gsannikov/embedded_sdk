@@ -20,6 +20,10 @@ from auto_forge.common.toolbox import ToolBox
 AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
 
+class BuilderToolchainValidationError(Exception):
+    """Raised when the toolchain validation fails."""
+class BuilderConfigurationBuildError(Exception):
+    """Raised when a configuration build process fails."""
 
 class BuilderInterface(ABC):
     """

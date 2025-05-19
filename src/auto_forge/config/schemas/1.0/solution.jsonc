@@ -132,9 +132,6 @@
 										"required": [
 											"name",
 											"build_path",
-											"compiler_command",
-											"execute_from",
-											"expected_result",
 											"compiler_options",
 											"artifacts"
 										]

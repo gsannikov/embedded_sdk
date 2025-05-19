@@ -20,7 +20,7 @@ from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
-from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType,
+from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType, CommandResultType,
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
@@ -48,6 +48,10 @@ from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Si
 from auto_forge.core.solution import CoreSolution
 from auto_forge.core.prompt import CorePrompt
 
+# Custom exceptions
+from auto_forge.core.interfaces.builder_interfcae import (
+    BuilderToolchainValidationError , BuilderConfigurationBuildError)
+
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
 # @formatter:on
@@ -59,11 +63,13 @@ __all__ = [
     "CoreSignatures", "CoreLoader", "CorePrompt", "CoreGUI",
     "ExceptionGuru", "ThreadGuru", "BuildProfileType", "TerminalAnsiGuru",
     "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo",
-    "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "ValidationMethodType", "ExecutionModeType",
+    "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "CommandResultType",
+    "ValidationMethodType", "ExecutionModeType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
     "CLICommandInterface", "CoreModuleInterface", "BuilderInterface",
     "SignatureFileHandler", "Signature",
+    "BuilderToolchainValidationError", "BuilderConfigurationBuildError",
     "TERMINAL_ICONS_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",

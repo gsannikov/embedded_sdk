@@ -31,8 +31,8 @@ from rich.table import Table
 # AutoForge imports
 from auto_forge import (
     PROJECT_NAME,
-    AutoForgeModuleType,
     AutoLogger,
+    AutoForgeModuleType,
     BuildProfileType,
     CoreEnvironment,
     CoreLoader,
@@ -272,7 +272,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._load_history()
 
         # Remove unnecessary built-in commands
-        for cmd in ['macro', 'edit', 'run_pyscript']:
+        for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts']:
             self._remove_command(cmd)
 
         # Dynamically add aliases based on a user defined dictionary in the solution file
@@ -296,9 +296,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if command_name not in self.hidden_commands:
             self.hidden_commands.append(command_name)
 
-        # Step 2: Disable functionality
+        # Disable functionality
         def disabled_command(_self, _):
-            _self.perror(f"The '{command_name}' command is disabled in this shell.")
+            _self.perror(f"the '{command_name}' command is disabled in this shell.")
 
         setattr(self, f'do_{command_name}', disabled_command)
 
@@ -653,6 +653,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         console = Console()
+        command_type = AutoForgeModuleType.UNKNOWN
 
         def _format_description_blocks(text: str) -> str:
             """
@@ -687,10 +688,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 case_insensitive=False
             )
 
-            # Extract man page help
+            # Extract man page help if it's not an internal registered command
             man_description: Optional[str] = None
             if command_record is None:
                 man_description = self._toolbox.get_man_description(command_name)
+                command_type = AutoForgeModuleType.UNKNOWN
+            else:
+                command_type = command_record.get("auto_forge_module_type")
 
             method = getattr(self, f'do_{arg}', None)
 
@@ -699,6 +703,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 method_description = command_record['description']
             elif method and method.__doc__:
                 method_description = method.__doc__
+                command_type = AutoForgeModuleType.PROMPT_DO
             elif man_description:
                 method_description = _format_description_blocks(text=man_description)
             else:
@@ -715,6 +720,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             else:
                 console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
             return None
+
+        #
+        # Prints formated help page for all known commands
+        #
 
         # Reserve some space for panel borders/margins
         max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
@@ -788,9 +797,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 self._solution.query_projects(solution_name=build_profile.solution_name,
                                               project_name=build_profile.project_name))
             if project_data:
-                build_profile.too_chain_data = project_data.get("tool_chain")
+                build_profile.tool_chain_data = project_data.get("tool_chain")
                 build_profile.build_system = (
-                    build_profile.too_chain_data.get("build_system")) if build_profile.too_chain_data else None
+                    build_profile.tool_chain_data.get("build_system")) if build_profile.tool_chain_data else None
 
         # The tool china field 'build_system' will be used to pick the registered builder for this specific solution branch.
         if build_profile.build_system:
@@ -807,15 +816,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
         try:
-            self._environment.execute_shell_command(
-                command_and_args=statement.command_and_args,
-                terminal_echo=True,
-                expand_command=True)
+            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args,
+                                                              terminal_echo=True,
+                                                              expand_command=True)
+            self.last_result = results.response
+
         except KeyboardInterrupt:
             pass
 
         except subprocess.CalledProcessError as exception:
             self._logger.warning(f"Command '{exception.cmd}' failed with {exception.returncode}")
+            self.last_result = exception.returncode
             pass
 
         except Exception as exception:

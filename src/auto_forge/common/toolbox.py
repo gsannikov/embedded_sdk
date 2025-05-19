@@ -16,6 +16,7 @@ import inspect
 import os
 import re
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
@@ -999,29 +1000,40 @@ class ToolBox(CoreModuleInterface):
         return True
 
     @staticmethod
-    def strip_ansi(text: str) -> str:
+    def strip_ansi(text: str, bare_text: bool = False) -> str:
         """
-        Remove ANSI escape sequences from a string.
+        Remove ANSI escape sequences and optionally reduce text to readable ASCII only.
         Args:
-            text (str): The text from which ANSI escape sequences should be removed.
+            text (str): The input string containing potential ANSI sequences and symbols.
+            bare_text (bool): If True, retains only readable ASCII characters (plus space, tab, newline).
 
         Returns:
-            str: The cleaned text without ANSI codes.
+            str: The cleaned and optionally simplified text.
         """
-        # ANSI escape sequences regex pattern
-        ansi_escape_pattern = re.compile(r'''
-                \x1B  # ESC
-                (?:   # 7-bit C1 Fe (except CSI)
-                    [@-Z\\-_]
-                |     # or [ for CSI, followed by a control sequence
-                    \[
-                    [0-?]*  # Parameter bytes
-                    [ -/]*  # Intermediate bytes
-                    [@-~]   # Final byte
-                )
-            ''', re.VERBOSE)
 
-        return ansi_escape_pattern.sub('', text)
+        # Avoid strange input
+        if not isinstance(text, str):
+            return text
+
+        # Remove ANSI escape sequences
+        ansi_escape_pattern = re.compile(r'''
+            \x1B
+            (?:
+                [@-Z\\-_]
+                |
+                \[
+                [0-?]* 
+                [ -/]* 
+                [@-~]
+            )
+        ''', re.VERBOSE)
+        cleaned = ansi_escape_pattern.sub('', text)
+
+        if bare_text:
+            allowed = set(string.ascii_letters + string.digits + string.punctuation + ' \t\n')
+            cleaned = ''.join(c for c in cleaned if c in allowed)
+
+        return cleaned.strip()
 
     @staticmethod
     def print_logo(banner_file: Optional[str] = None, clear_screen: bool = False,
