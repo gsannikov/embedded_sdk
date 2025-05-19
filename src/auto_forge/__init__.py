@@ -12,7 +12,7 @@ Note:
     This file must not be optimized and sorted by PyCharm,
     >> Order does matter here! <<
 """
-
+# @formatter:off
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SHARED_PATH,
                        PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,
                        PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
@@ -26,7 +26,7 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
                                            ExceptionGuru, ThreadGuru, TerminalAnsiGuru, BuildProfileType,
                                            TerminalTeeStream, TerminalAnsiCodes,
-                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP, COMMAND_COMPLETION_MAP)
+                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
@@ -50,6 +50,7 @@ from auto_forge.core.prompt import CorePrompt
 
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
+# @formatter:on
 
 # Exported symbols
 __all__ = [
@@ -63,7 +64,7 @@ __all__ = [
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
     "CLICommandInterface", "CoreModuleInterface", "BuilderInterface",
     "SignatureFileHandler", "Signature",
-    "TERMINAL_ICONS_MAP", "COMMAND_COMPLETION_MAP",
+    "TERMINAL_ICONS_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",
     "PROJECT_SCHEMAS_PATH", "PROJECT_VERSION", "PROJECT_NAME", "PROJECT_REPO", "PROJECT_PACKAGE",

@@ -331,7 +331,8 @@ class AutoForge(CoreModuleInterface):
 
                 # Start blocking build system user mode shell
                 self._gui: CoreGUI = CoreGUI()
-                self._prompt = CorePrompt(history_file="~/.auto_forge_history")
+                self._prompt = CorePrompt(history_file="~/.auto_forge_history",
+                                          configuration_data=self._config_data)
                 return self._prompt.cmdloop()
             else:
 

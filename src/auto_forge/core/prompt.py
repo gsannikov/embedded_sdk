@@ -31,7 +31,6 @@ from rich.table import Table
 # AutoForge imports
 from auto_forge import (
     PROJECT_NAME,
-    COMMAND_COMPLETION_MAP,
     AutoForgeModuleType,
     AutoLogger,
     BuildProfileType,
@@ -89,7 +88,10 @@ class _CoreCompleter(Completer):
         if completer_func:
             return False
 
-        meta = COMMAND_COMPLETION_MAP.get(cmd)
+        if self.core_prompt.command_completion_map is None:
+            return True
+
+        meta = self.core_prompt.command_completion_map.get(cmd)
         if meta:
             return meta.get("path_completion", False)  # ← allow even if arg_text is empty
 
@@ -172,14 +174,14 @@ class _CoreCompleter(Completer):
                         self._logger.debug(f"Completer error for '{cmd}': {e}")
                 elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text,
                                                               completer_func=completer_func):
-                    meta = COMMAND_COMPLETION_MAP.get(cmd, {})
+                    meta = self.core_prompt.command_completion_map.get(cmd, {})
                     matches = self.core_prompt.gather_path_matches(
                         text=arg_text,
                         only_dirs=meta.get("only_dirs", False)
                     )
 
             elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
-                meta = COMMAND_COMPLETION_MAP.get(cmd, {})
+                meta = self.core_prompt.command_completion_map.get(cmd, {})
                 matches = self.core_prompt.gather_path_matches(
                     text=arg_text,
                     only_dirs=meta.get("only_dirs", False)
@@ -203,7 +205,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def _initialize(self, prompt: Optional[str] = None,
                     max_completion_results: Optional[int] = 100,
-                    history_file: Optional[str] = None) -> None:
+                    history_file: Optional[str] = None,
+                    configuration_data: Optional[dict[str, Any]] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         Args:
@@ -211,7 +214,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 If not specified, the lowercase project name ('autoforge') will be used
                 as the base prefix for the dynamic prompt.
             max_completion_results (Optional[int]): Maximum number of completion results.
-            history_file (Optional[str]): Optional file to store the prompt history and make it persistent
+            history_file (Optional[str]): Optional file to store the prompt history and make it persistent.
+            configuration_data (dict, optional): Global AutoForge JSON configuration data.
         """
 
         self._toolbox = ToolBox.get_instance()
@@ -221,7 +225,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_base: Optional[str] = None
         self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
-        self.loaded_commands: int = 0
         self._history_file: Optional[str] = None
         self._max_completion_results = max_completion_results
         self._last_execution_return_code: Optional[int] = 0
@@ -237,6 +240,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         ansi.allow_ansi = True
 
         # Get a lis for the dynamically loaded AutoForge commands and inject them to cmd2
+        self.loaded_commands: int = 0
         self.dynamic_cli_commands_list = (
             self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
         if len(self.dynamic_cli_commands_list) > 0:
@@ -251,6 +255,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                                   command_type=ExecutionModeType.PYTHON,
                                                   new_lines=1) != 0:
             raise RuntimeError("could not finish initializing")
+
+        # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
+        self.command_completion_map = configuration_data.get('command_completion_map') if configuration_data else None
+        if self.command_completion_map is None:
+            self._logger.warning("No command completion map loaded")
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
@@ -782,9 +791,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 build_profile.too_chain_data = project_data.get("tool_chain")
 
         if build_profile.too_chain_data:
-            print(f"Building {build_profile.build_dot_notation}...")
+            self._logger.debug(f"Building {build_profile.build_dot_notation}")
         else:
-            self.perror(f"Configuration not found for '{build_profile.build_dot_notation};")
+            self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation};")
 
     def default(self, statement: Statement) -> None:
         """

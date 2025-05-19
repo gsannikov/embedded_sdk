@@ -10,14 +10,9 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (
-    AutoLogger,
-    BuildProfileType,
-    Registry,
-    ToolBox,
-    AutoForgeModuleType,
-    ModuleInfoType,
-)
+from auto_forge import AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType
+from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
+from auto_forge.common.toolbox import ToolBox
 
 AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"

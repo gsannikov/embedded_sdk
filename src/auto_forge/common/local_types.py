@@ -561,95 +561,16 @@ class ThreadGuru:
         return thread
 
 
-# Map of command names to metadata that controls shell completion behavior.
-# This is used by `_should_fallback_to_path_completion()` and related logic
-# to decide whether to offer file/directory path completions after a given command.
-
-# noinspection SpellCheckingInspection
-COMMAND_COMPLETION_MAP = {
-    # Directory navigation
-    "cd": {"path_completion": True, "only_dirs": True},
-    "pushd": {"path_completion": True, "only_dirs": True},
-    "popd": {"path_completion": False},
-
-    # File and directory manipulation
-    "ls": {"path_completion": True, "only_dirs": False},
-    "mkdir": {"path_completion": True, "only_dirs": True},
-    "rmdir": {"path_completion": True, "only_dirs": True},
-    "rm": {"path_completion": True, "only_dirs": False},
-    "cp": {"path_completion": True, "only_dirs": False},
-    "mv": {"path_completion": True, "only_dirs": False},
-    "touch": {"path_completion": True, "only_dirs": False},
-
-    # Editors and viewers
-    "vim": {"path_completion": True, "only_dirs": False},
-    "vi": {"path_completion": True, "only_dirs": False},
-    "nano": {"path_completion": True, "only_dirs": False},
-    "less": {"path_completion": True, "only_dirs": False},
-    "more": {"path_completion": True, "only_dirs": False},
-    "cat": {"path_completion": True, "only_dirs": False},
-
-    # File inspection & redirection
-    "head": {"path_completion": True, "only_dirs": False},
-    "tail": {"path_completion": True, "only_dirs": False},
-    "stat": {"path_completion": True, "only_dirs": False},
-    "wc": {"path_completion": True, "only_dirs": False},
-
-    # Compression tools
-    "tar": {"path_completion": True, "only_dirs": False},
-    "gzip": {"path_completion": True, "only_dirs": False},
-    "gunzip": {"path_completion": True, "only_dirs": False},
-    "zip": {"path_completion": True, "only_dirs": False},
-    "unzip": {"path_completion": True, "only_dirs": False},
-
-    # Shell utilities
-    "alias": {"path_completion": False},
-    "unalias": {"path_completion": False},
-    "exit": {"path_completion": False},
-    "clear": {"path_completion": False},
-    "echo": {"path_completion": False},
-    "set": {"path_completion": False},
-    "export": {"path_completion": False},
-    "history": {"path_completion": False},
-    "help": {"path_completion": False},
-
-    # Networking
-    "ping": {"path_completion": False},
-    "traceroute": {"path_completion": False},
-    "curl": {"path_completion": False},
-    "wget": {"path_completion": False},
-
-    # Package management
-    "apt": {"path_completion": False},
-    "dnf": {"path_completion": False},
-    "yum": {"path_completion": False},
-    "pip": {"path_completion": False},
-    "pip3": {"path_completion": False},
-
-    # Build tools
-    "make": {"path_completion": True, "only_dirs": False},
-    "cmake": {"path_completion": True, "only_dirs": True},
-    "ninja": {"path_completion": True, "only_dirs": False},
-
-    # Python tooling
-    "python": {"path_completion": True, "only_dirs": False},
-    "python3": {"path_completion": True, "only_dirs": False},
-    "pytest": {"path_completion": True, "only_dirs": False},
-
-    # Git
-    "git": {"path_completion": False},  # handled via subcommands
-}
-
 @dataclass
 class BuildProfileType:
     """
     A data class to facilitate reading and writing specific fields from
     signature binary data.
     """
-    solution_name:Optional[str] = None
-    project_name:Optional[str] = None
-    config_name:Optional[str] = None
-    build_dot_notation:Optional[str] = None
-    required_builder:Optional[str] = None
-    config_data:Optional[dict[str, Any]]  = None
+    solution_name: Optional[str] = None
+    project_name: Optional[str] = None
+    config_name: Optional[str] = None
+    build_dot_notation: Optional[str] = None
+    required_builder: Optional[str] = None
+    config_data: Optional[dict[str, Any]] = None
     tool_chain_data: Optional[dict[str, Any]] = None
