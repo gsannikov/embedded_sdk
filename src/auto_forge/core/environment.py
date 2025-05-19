@@ -306,7 +306,7 @@ class CoreEnvironment(CoreModuleInterface):
                 command = f"dnf list --available {package_name}"
                 search_pattern = package_name
 
-            results = self.execute_shell_command(command_and_args=command)
+            results = self.execute_shell_command(command_and_args=command,echo_type=TerminalEchoType.NONE)
             if not results.response or search_pattern not in results.response:
                 raise OSError(f"system package '{package_name}' not validated using {self._package_manager}")
 
@@ -588,6 +588,7 @@ class CoreEnvironment(CoreModuleInterface):
                     self.execute_shell_command(
                         command_and_args=self._flatten_command(command=command, arguments=arguments),
                         expand_command=False,
+                        echo_type=TerminalEchoType.NONE,
                         timeout=timeout
                     )
                     result_container['code'] = 0
@@ -939,6 +940,7 @@ class CoreEnvironment(CoreModuleInterface):
             if validation_method == ValidationMethodType.EXECUTE_PROCESS:
                 results = self.execute_shell_command(
                     command_and_args=self._flatten_command(command=command, arguments=arguments),
+                    echo_type=TerminalEchoType.NONE,
                     cwd=cwd
                 )
 
@@ -1125,6 +1127,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"-m venv {full_py_venv_path}"
             results = self.execute_shell_command(
                 command_and_args=self._flatten_command(command=command, arguments=arguments),
+                echo_type=TerminalEchoType.NONE,
                 cwd=expanded_python_binary_path)
 
             return results
@@ -1149,7 +1152,8 @@ class CoreEnvironment(CoreModuleInterface):
             # Construct the command to update pip
             arguments = "-m pip install --upgrade pip"
             results = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments))
+                command_and_args=self._flatten_command(command=command, arguments=arguments),
+                echo_type=TerminalEchoType.NONE)
 
             return results
 
@@ -1185,7 +1189,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Execute the command
             results = (self.execute_shell_command(command_and_args=
                                                   self._flatten_command(command=command, arguments=arguments),
-                                                  shell=False))
+                                                  echo_type=TerminalEchoType.NONE, shell=False))
             return results
 
         except Exception as python_pip_error:
@@ -1216,7 +1220,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Execute the command
             results = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments), shell=False)
+                command_and_args=self._flatten_command(command=command, arguments=arguments), shell=False,
+                echo_type=TerminalEchoType.NONE)
 
             return results
 
@@ -1246,7 +1251,8 @@ class CoreEnvironment(CoreModuleInterface):
             # Construct and execute the command
             arguments = f"-m pip show {package}"
             results = (self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments)))
+                command_and_args=self._flatten_command(command=command, arguments=arguments),
+                echo_type=TerminalEchoType.NONE))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1292,7 +1298,8 @@ class CoreEnvironment(CoreModuleInterface):
             command = "git"
             arguments = f"clone --progress {repo_url} {dest_repo_path}"
             command_result = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments), timeout=timeout)
+                command_and_args=self._flatten_command(command=command, arguments=arguments), timeout=timeout,
+                echo_type=TerminalEchoType.NONE)
 
             return command_result
 
@@ -1329,7 +1336,7 @@ class CoreEnvironment(CoreModuleInterface):
                 arguments = "pull"
                 results = self.execute_shell_command(command_and_args=
                                                      self._flatten_command(command=command, arguments=arguments),
-                                                     cwd=dest_repo_path, timeout=timeout)
+                                                     cwd=dest_repo_path, timeout=timeout,echo_type=TerminalEchoType.NONE)
                 if results.return_code != 0:
                     raise RuntimeError(f"git 'pull'' failed with exit code {results.return_code}")
 
@@ -1337,7 +1344,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"checkout {revision}"
             results = self.execute_shell_command(command_and_args=
                                                  self._flatten_command(command=command, arguments=arguments),
-                                                 cwd=dest_repo_path, timeout=timeout)
+                                                 cwd=dest_repo_path, timeout=timeout,echo_type=TerminalEchoType.NONE)
             return results
 
         except Exception as py_git_error:
