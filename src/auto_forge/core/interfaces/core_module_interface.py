@@ -40,11 +40,11 @@ import time
 from abc import ABCMeta
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, cast
 
-# Import AutoForge only during static type checking to avoid circular import issues at runtime
-from auto_forge import ExceptionGuru
-
 # Third-party
 from colorama import Fore, Style
+
+# Import AutoForge only during static type checking to avoid circular import issues at runtime
+from auto_forge import ExceptionGuru
 
 if TYPE_CHECKING:
     from auto_forge.auto_forge import AutoForge
