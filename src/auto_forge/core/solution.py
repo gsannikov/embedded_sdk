@@ -33,6 +33,7 @@ from collections import deque
 from enum import Enum
 from typing import Any, Optional, Union
 
+import jmespath
 # JSONPath support ('XPath' for JSON)
 from jsonpath_ng.ext import parse
 # JSON Schema validation
@@ -111,7 +112,7 @@ class CoreSolution(CoreModuleInterface):
 
     def get_arbitrary_item(self, key: str) -> Optional[Union[list[Any], dict[str, Any]]]:
         """Returns a list or dictionary from the solution JSON by key, or None if not found or invalid type."""
-        if self._solution_data is not None:
+        if self._solution_loaded:
             value = self._solution_data.get(key)
             if isinstance(value, (list, dict)):
                 return value
@@ -125,8 +126,10 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             List, Dict: List of solutions dictionaries or a single solutions
         """
-        path = f"$.solutions[?(@.name=='{solution_name}')]" if solution_name else "$.solutions[*]"
-        return self._query_json_path(path)
+        if self._solution_loaded:
+            path = f"$.solutions[?(@.name=='{solution_name}')]" if solution_name else "$.solutions[*]"
+            return self._query_json_path(path)
+        return None
 
     def get_solutions_list(self, primary: bool = False) -> Optional[Union[list[str], str]]:
         """
@@ -139,9 +142,10 @@ class CoreSolution(CoreModuleInterface):
             list[str] or str or None: The list of solution names, the first solution name
             if `primary` is True, or None if no solutions are found.
         """
-        solutions = self._query_json_path("$.solutions[*].name")
-        if solutions:
-            return solutions[0] if primary else solutions
+        if self._solution_loaded:
+            solutions = self._query_json_path("$.solutions[*].name")
+            if solutions:
+                return solutions[0] if primary else solutions
         return None
 
     def query_projects(self, solution_name: str, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
@@ -154,16 +158,18 @@ class CoreSolution(CoreModuleInterface):
             Union[list, dict, None]: List of project dictionaries, a single project dict if only one is found,
             or None if nothing is found.
         """
-        path = (f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')]"
-                if project_name else f"$.solutions[?(@.name=='{solution_name}')].projects[*]")
-        data = self._query_json_path(path)
+        if self._solution_loaded:
+            path = (f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')]"
+                    if project_name else f"$.solutions[?(@.name=='{solution_name}')].projects[*]")
+            data = self._query_json_path(path)
 
-        if isinstance(data, list):
-            if len(data) == 1:
-                return data[0]
-            elif len(data) == 0:
-                return None
-        return data
+            if isinstance(data, list):
+                if len(data) == 1:
+                    return data[0]
+                elif len(data) == 0:
+                    return None
+            return data
+        return None
 
     def get_projects_list(self, solution_name: Optional[str]) -> Optional[Union[list, dict]]:
         """
@@ -173,8 +179,10 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             List, Dict: List of project names matching the criteria.
         """
-        path = f"$.solutions[?(@.name=='{solution_name}')].projects[*].name"
-        return self._query_json_path(path)
+        if self._solution_loaded:
+            path = f"$.solutions[?(@.name=='{solution_name}')].projects[*].name"
+            return self._query_json_path(path)
+        return None
 
     def query_configurations(self, solution_name: Optional[str] = None, project_name: Optional[str] = None,
                              configuration_name: Optional[str] = None) -> Optional[Union[list, dict]]:
@@ -189,20 +197,22 @@ class CoreSolution(CoreModuleInterface):
             or None if nothing is found.
         """
 
-        if configuration_name:
-            path = (f"$.solutions[?(@.name=='{solution_name}')]."
-                    f"projects[?(@.name=='{project_name}')].configurations[?(@.name=='{configuration_name}')]")
-        else:
-            path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*]"
+        if self._solution_loaded:
+            if configuration_name:
+                path = (f"$.solutions[?(@.name=='{solution_name}')]."
+                        f"projects[?(@.name=='{project_name}')].configurations[?(@.name=='{configuration_name}')]")
+            else:
+                path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*]"
 
-        data = self._query_json_path(path)
+            data = self._query_json_path(path)
 
-        if isinstance(data, list):
-            if len(data) == 1:
-                return data[0]
-            elif len(data) == 0:
-                return None
-        return data
+            if isinstance(data, list):
+                if len(data) == 1:
+                    return data[0]
+                elif len(data) == 0:
+                    return None
+            return data
+        return None
 
     def get_configurations_list(self, solution_name: Optional[str],
                                 project_name: Optional[str]) -> Optional[Union[list, dict]]:
@@ -214,16 +224,19 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             List[Any]: List of configuration names matching the criteria.
         """
-        path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*].name"
-        return self._query_json_path(path)
+        if self._solution_loaded:
+            path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*].name"
+            return self._query_json_path(path)
+        return None
 
     def get_included_file(self, include_name: str) -> Optional[str]:
         """ Return an included file name based on its key within the 'includes' cluster"""
 
-        include_file = self._includes.get(include_name)
-        if include_file and self._config_file_path:
-            include_file_path: str = os.path.join(str(self._config_file_path), str(include_file))
-            return include_file_path
+        if self._solution_loaded:
+            include_file = self._includes.get(include_name)
+            if include_file and self._config_file_path:
+                include_file_path: str = os.path.join(str(self._config_file_path), str(include_file))
+                return include_file_path
         return None
 
     def show(self, pretty: bool = False):
@@ -233,10 +246,9 @@ class CoreSolution(CoreModuleInterface):
             pretty (bool): If True, prints pretty formatted JSON string with colors.
         """
         if not self._solution_loaded:
-            raise RuntimeError(
-                "no solution is currently loaded")
+            raise RuntimeError("no solution is currently loaded")
         if not pretty:
-            print(json.dumps(self._solution_data, sort_keys=True, indent=4))
+            print(json.dumps(self._solution_data, indent=4))
         else:
             json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path"])
             json_print.render(self._solution_data)
@@ -249,8 +261,7 @@ class CoreSolution(CoreModuleInterface):
             Optional[Dict[str, Any]]: A deep copy of the solution data if loaded.
         """
         if not self._solution_loaded:
-            raise RuntimeError(
-                "no solution is currently loaded")
+            raise RuntimeError("no solution is currently loaded")
         # Rerunning a copy rather than the inner solution data structure
         solution_copy = copy.deepcopy(self._solution_data)
         return solution_copy
@@ -365,6 +376,7 @@ class CoreSolution(CoreModuleInterface):
             print(f"Message: {validation_error.message}")
             print("Path to the error:", " -> ".join(map(str, validation_error.path)))
             raise RuntimeError("validation Error") from validation_error
+
         except Exception as exception:
             raise RuntimeError(exception) from exception
 
@@ -568,8 +580,7 @@ class CoreSolution(CoreModuleInterface):
         """
         Resolves a single reference path `<$ref_???>` by retrieving the corresponding value
         from the current context, project, or solution.
-
-        Supported reference formats:
+        Examples for reference formats:
             - `<$ref.key>`: Retrieves `key` from `state.current_context`.
             - `<$ref_solutions[].key>`: Retrieves `key` from `state.solution`.
             - `<$ref_projects[].key>`: Retrieves `key` from `state.project`.
@@ -595,19 +606,13 @@ class CoreSolution(CoreModuleInterface):
         if "." not in reference_path:
 
             # Resolve Local Referencing: Directly refers to keys within the current context (solution, project, or configuration).
-            # Example:
-            #   "board": "some_board",
-            #   "cmake_top_level_path": "/home/dummy/<$ref_board>",
-
             key = reference_path
-            context = self._scope.current_context.node_data
-            if context and key in context:
-                resolved_reference = context[key]
-            else:
-                raise KeyError(
-                    f"reference: `{key}` not found in "
-                    f"'{self._scope.current_context.type_name}[{self._scope.current_context.name_value}]'")
 
+            context = self._scope.current_context.node_data
+            resolved_reference = jmespath.search(key, context)
+            if resolved_reference is None:
+                raise KeyError(f"reference: `{key}` not found in "
+                               f"'{self._scope.current_context.type_name}[{self._scope.current_context.name_value}]'")
         else:
 
             # Resolve alternate Local Referencing: Offers the same functionality as local referencing, often used for enhanced

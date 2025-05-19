@@ -52,8 +52,8 @@ class PrettyPrinter:
         self._json_skin = {
             "line_number": "dim",
             "line_separator": "dim",
-            "key_default": "bold yellow",
-            "value_string": "green",
+            "key_default": "bold cyan",
+            "value_string": "bold white",
             "value_number": "cyan",
             "value_bool": "magenta",
             "value_null": "dim",
@@ -62,7 +62,7 @@ class PrettyPrinter:
         }
 
         color_pool = [
-            "bold red", "bold blue", "bold magenta", "bold green",
+            "bold green", "bold blue", "bold magenta", "bold green",
             "bright_blue", "bright_cyan", "bright_magenta", "bright_green",
             "bright_white", "bold cyan", "bold white", "bright_black",
         ]

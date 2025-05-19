@@ -222,8 +222,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._solution: CoreSolution = CoreSolution.get_instance()
-        self._prompt_base: Optional[str] = None
-        self._prompt_base = prompt if prompt else PROJECT_NAME.lower()
+        self._prompt_base: Optional[str] = prompt
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
         self._history_file: Optional[str] = None
         self._max_completion_results = max_completion_results
@@ -263,7 +262,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
-        self.default_to_shell = True
+        # self.default_to_shell = True
 
         # Create persistent history object
         if history_file is not None:
@@ -399,10 +398,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Return an HTML-formatted prompt string for prompt_toolkit.
         """
-        # Virtual environment / board name section
-        solution_name = self._solution.get_solutions_list(primary=True)
+        # Virtual environment / prompt base name section
+        prompt_base = self._solution.get_solutions_list(
+            primary=True) if self._prompt_base is None else self._prompt_base
         venv = os.environ.get("VIRTUAL_ENV")
-        venv_prompt = f"[{active_name}]" if active_name else (f"[{solution_name}]" if solution_name else f"[{venv}]")
+        venv_prompt = f"[{active_name}]" if active_name else (f"[{prompt_base}]" if prompt_base else f"[{venv}]")
 
         # Current working directory
         cwd = os.getcwd()
@@ -653,7 +653,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         console = Console()
-        command_type = AutoForgeModuleType.UNKNOWN
 
         def _format_description_blocks(text: str) -> str:
             """
@@ -692,9 +691,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             man_description: Optional[str] = None
             if command_record is None:
                 man_description = self._toolbox.get_man_description(command_name)
-                command_type = AutoForgeModuleType.UNKNOWN
-            else:
-                command_type = command_record.get("auto_forge_module_type")
 
             method = getattr(self, f'do_{arg}', None)
 
@@ -703,7 +699,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 method_description = command_record['description']
             elif method and method.__doc__:
                 method_description = method.__doc__
-                command_type = AutoForgeModuleType.PROMPT_DO
             elif man_description:
                 method_description = _format_description_blocks(text=man_description)
             else:

@@ -24,6 +24,7 @@ from auto_forge import (
     BuilderConfigurationBuildError,
     CoreEnvironment,
 )
+from auto_forge.core.prompt import CorePrompt
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
@@ -42,6 +43,7 @@ class MakeBuilder(BuilderInterface):
             **_kwargs (Any): Optional keyword arguments.
         """
         self._environment: Optional[CoreEnvironment] = None
+        self._prompt: Optional[CorePrompt] = None
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
@@ -165,6 +167,11 @@ class MakeBuilder(BuilderInterface):
 
             raise BuilderConfigurationBuildError(f"Build returned unexpected result code")
 
+        # Process post build steps if specified
+        post_build_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
+        if post_build_data:
+            self._process_build_steps(steps=post_build_data)
+
         # Check for all expected artifacts
         missing_artifacts = []
         for artifact_path in artifacts:
@@ -177,6 +184,31 @@ class MakeBuilder(BuilderInterface):
 
         self._logger.info(f"Build succeeded")
         return 0
+
+    def _process_build_steps(self, steps: dict[str, str]) -> None:
+        """
+        Execute a dictionary of build steps where values prefixed with '!' are run as cmd2 shell commands.
+        Args:
+            steps (dict[str, str]): A dictionary of named build steps to execute.
+        """
+
+        self._prompt = CorePrompt().get_instance()
+        if self._prompt is None:
+            raise BuilderConfigurationBuildError("could attach to the prompt class instance")
+
+        for step_name, command in steps.items():
+            self._logger.debug(f"Running build step: '{step_name}'")
+
+            command = command.strip()
+
+            if command.startswith("!"):
+                cmd_text = command[1:].lstrip()
+                try:
+                    self._prompt.onecmd_plus_hooks(cmd_text)
+                except Exception as execution_error:
+                    self._prompt.perror(f"Failed to execute '{step_name}': {execution_error}")
+            else:
+                self._prompt.pwarning(f"Step '{step_name}' ignored: no '!' prefix")
 
     def build(self, build_profile: BuildProfileType) -> Optional[int]:
         """
