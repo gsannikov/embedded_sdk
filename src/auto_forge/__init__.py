@@ -24,8 +24,8 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,
-                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru, BuildProfileType,
-                                           TerminalTeeStream, TerminalAnsiCodes,
+                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru, TerminalEchoType,
+                                           BuildProfileType, TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -62,7 +62,7 @@ __all__ = [
     "CoreProcessor", "CoreVariables", "CoreSolution", "CoreEnvironment",
     "CoreSignatures", "CoreLoader", "CorePrompt", "CoreGUI",
     "ExceptionGuru", "ThreadGuru", "BuildProfileType", "TerminalAnsiGuru",
-    "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo",
+    "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo", "TerminalEchoType",
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "CommandResultType",
     "ValidationMethodType", "ExecutionModeType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",

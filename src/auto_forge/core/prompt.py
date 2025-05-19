@@ -634,11 +634,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         try:
             self._environment.execute_shell_command(
                 command_and_args=f"ls {args} --color=auto -F",
-                shell=True,
-                terminal_echo=True,
                 expand_command=True,
                 check=False,
-                use_pty=True
             )
         except Exception as exception:
             self.perror(f"ls: {exception}")
@@ -812,7 +809,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         try:
             results = self._environment.execute_shell_command(command_and_args=statement.command_and_args,
-                                                              terminal_echo=True,
                                                               expand_command=True)
             self.last_result = results.response
 

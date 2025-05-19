@@ -10,6 +10,7 @@ Description:
     - Probing the user environment to ensure prerequisites are met.
 """
 import codecs
+import fcntl
 import inspect
 import json
 import logging
@@ -50,6 +51,7 @@ from auto_forge import (
     Registry,
     ToolBox,
     ValidationMethodType,
+    TerminalEchoType,
 )
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
 
@@ -579,8 +581,6 @@ class CoreEnvironment(CoreModuleInterface):
                 if command_type == ExecutionModeType.SHELL:
                     self.execute_shell_command(
                         command_and_args=self._flatten_command(command=command, arguments=arguments),
-                        shell=True,
-                        terminal_echo=True,
                         expand_command=False,
                         timeout=timeout
                     )
@@ -627,7 +627,7 @@ class CoreEnvironment(CoreModuleInterface):
             self,
             command_and_args: Union[str, list[str]],
             timeout: Optional[float] = None,
-            terminal_echo: bool = False,
+            echo_type: TerminalEchoType = TerminalEchoType.LINE,
             expand_command: bool = True,
             use_pty: bool = True,
             searched_token: Optional[str] = None,
@@ -640,7 +640,7 @@ class CoreEnvironment(CoreModuleInterface):
         Args:
             command_and_args (Union[str, list): a single string for the command along its arguments or a list.
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
-            terminal_echo (bool): If True, the command response will be immediately echoed to the terminal. Defaults to False.
+            echo_type (TerminalEchoType): Defines how data is being echoed to the terminal from a forked process.
             expand_command (bool): If True, the command will be expanded to resolve any input similar to '$EXAMPLE'.
             use_pty (bool): If True, the command will be executed in a PTY environment. Defaults to False.
             searched_token (Optional[str]): A token to search for in the command output.
@@ -723,13 +723,40 @@ class CoreEnvironment(CoreModuleInterface):
             try:
                 if not isinstance(byte_data, bytes):
                     raise TypeError("byte_data must be of type 'bytes'")
+
                 decoded = decoder.decode(byte_data)
-                if terminal_echo:
-                    sys.stdout.write(decoded)
-                    sys.stdout.flush()
+                sys.stdout.write(decoded)
+                sys.stdout.flush()
+
             except (UnicodeDecodeError, OSError, TypeError) as decode_exception:
                 if not suppress_errors:
                     raise decode_exception
+
+        def _print_line(line: str, same_line: bool = True) -> None:
+            """
+            Prints a line to stdout, either overwriting the current line or printing a new line.
+            Args:
+                line (str): The text to print.
+                same_line (bool): If True, overwrites the current line (useful for progress/status updates).
+                                  If False, prints the line on a new line.
+            """
+
+            if "warning:" in line:
+                line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
+                same_line = False
+            if "error:" in line:
+                line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
+                same_line = False
+
+            if line:
+                if same_line:
+                    sys.stdout.write('\r\033[K\r')
+                    # ANSI sequence: move cursor to beginning of line and clear it
+                    sys.stdout.write(line)
+                else:
+                    sys.stdout.write(line + '\n')
+
+            sys.stdout.flush()
 
         def _bytes_to_message_queue(input_buffer: bytearray, message_queue: deque) -> str:
             """
@@ -760,6 +787,8 @@ class CoreEnvironment(CoreModuleInterface):
             master_fd, slave_fd = pty.openpty()
             process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
                                        bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
+            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         else:  # Normal flow
             self._logger.debug(f"Executing: {command_and_args}")
@@ -781,7 +810,7 @@ class CoreEnvironment(CoreModuleInterface):
                 if use_pty:
                     readable, _, _ = select.select([master_fd], [], [], polling_interval)
                 else:
-                    readable, _, _ = select.select([process.stdout], [], [], polling_interval)
+                    readable, _, _ = select.select([process.stdout, process.stderr], [], [], polling_interval)
 
                 if readable:
                     received_byte = os.read(master_fd, 1) if use_pty else process.stdout.read(1)
@@ -793,7 +822,7 @@ class CoreEnvironment(CoreModuleInterface):
                         break
                     else:
                         # Immediately echo to the byte to the terminal if set
-                        if terminal_echo:
+                        if echo_type == TerminalEchoType.BYTE:
                             _print_bytes_safely(received_byte)
 
                         # Aggregate bytes into complete single lines for logging
@@ -802,6 +831,9 @@ class CoreEnvironment(CoreModuleInterface):
                         if received_byte in (b'\n', b'\r'):
                             # Clear the line and aggravate into a queue
                             text_line = _bytes_to_message_queue(line_buffer, lines_queue)
+
+                            if echo_type == TerminalEchoType.LINE:
+                                _print_line(text_line)
 
                             # Track it if we have a tracker instate
                             if text_line and self._tracker is not None:
@@ -826,7 +858,7 @@ class CoreEnvironment(CoreModuleInterface):
             return_code = process.returncode
 
             # Add additional clear line at the end
-            if terminal_echo:
+            if echo_type != TerminalEchoType.NONE:
                 print()
 
             # Optionally raise exception non-zero return code

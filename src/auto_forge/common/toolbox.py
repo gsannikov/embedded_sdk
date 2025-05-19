@@ -1002,38 +1002,58 @@ class ToolBox(CoreModuleInterface):
     @staticmethod
     def strip_ansi(text: str, bare_text: bool = False) -> str:
         """
-        Remove ANSI escape sequences and optionally reduce text to readable ASCII only.
+        Removes ANSI escape sequences and broken hyperlink wrappers,
+        but retains useful text such as GCC warning flags.
+
         Args:
-            text (str): The input string containing potential ANSI sequences and symbols.
-            bare_text (bool): If True, retains only readable ASCII characters (plus space, tab, newline).
+            text (str): The input string possibly containing ANSI and broken links.
+            bare_text (bool): If True, reduce to printable ASCII only.
 
         Returns:
-            str: The cleaned and optionally simplified text.
+            str: Cleaned text, preserving meaningful info like [-W...]
         """
 
-        # Avoid strange input
         if not isinstance(text, str):
             return text
 
-        # Remove ANSI escape sequences
-        ansi_escape_pattern = re.compile(r'''
+        # Strip and see if we got anything to process
+        text = text.strip()
+        if not text:
+            return text
+
+        # Strip ANSI escape sequences (CSI, OSC, etc.)
+        ansi_escape = re.compile(r'''
             \x1B
             (?:
-                [@-Z\\-_]
-                |
-                \[
-                [0-?]* 
-                [ -/]* 
-                [@-~]
+                [@-Z\\-_] |
+                \[ [0-?]* [ -/]* [@-~]
             )
         ''', re.VERBOSE)
-        cleaned = ansi_escape_pattern.sub('', text)
+        text = ansi_escape.sub('', text)
 
+        # Remove "8;;" artifacts from malformed OSC 8 hyperlinks.
+        text = text.replace("8;;", "")
+        # Remove GCC Source code references
+        text = re.sub(r'^\|\s*[~^]+\s*$', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^\s*\d+\s*\|.*$', '', text, flags=re.MULTILINE)
+
+        if not text:
+            return text
+
+        # Extract and preserve [-W...warning...] from broken [https://...] blocks
+        def recover_warning_flag(match):
+            url = match.group(1)
+            warning_match = re.search(r'(-W[\w\-]+)', url)
+            return f"[{warning_match.group(1)}]" if warning_match else ""
+
+        text = re.sub(r'\[(https?://[^]]+)]', recover_warning_flag, text).strip()
+
+        # Step 4: Optionally reduce to printable ASCII
         if bare_text:
             allowed = set(string.ascii_letters + string.digits + string.punctuation + ' \t\n')
-            cleaned = ''.join(c for c in cleaned if c in allowed)
+            text = ''.join(c for c in text if c in allowed)
 
-        return cleaned.strip()
+        return text.strip()
 
     @staticmethod
     def print_logo(banner_file: Optional[str] = None, clear_screen: bool = False,

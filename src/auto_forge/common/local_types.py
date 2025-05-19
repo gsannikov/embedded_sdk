@@ -203,6 +203,18 @@ class VariableFieldType:
     kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 
+class TerminalEchoType(Enum):
+    """
+    Defines how data is being echoed to the terminal from a forked process.
+        NONE: No echo.
+        BYTE: echo one byte at a time.
+        LINE: accumulate complete line before echoing.
+    """
+    NONE = auto()
+    BYTE = auto()
+    LINE = auto()
+
+
 class TerminalTeeStream:
     """
     A simple output stream duplicator that writes data to multiple target streams.

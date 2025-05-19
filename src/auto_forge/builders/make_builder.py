@@ -126,6 +126,11 @@ class MakeBuilder(BuilderInterface):
             if not execute_from.is_dir():
                 raise BuilderConfigurationBuildError(f"Invalid source directory: '{execute_from}'")
 
+        # Process pre-build steps if specified
+        steps_data: Optional[dict[str, str]] = config.get("pre_build_steps", {})
+        if steps_data:
+            self._process_build_steps(steps=steps_data)
+
         # Validate or create build_path
         build_path = Path(config["build_path"]).expanduser().resolve()
         if not build_path.exists():
@@ -152,7 +157,6 @@ class MakeBuilder(BuilderInterface):
             self._logger.debug(f"Executing build in '{execute_from}'")
             results = self._environment.execute_shell_command(
                 command_and_args=command_line,
-                terminal_echo=True,
                 cwd=str(execute_from),
                 expand_command=True)
 
@@ -168,9 +172,9 @@ class MakeBuilder(BuilderInterface):
             raise BuilderConfigurationBuildError(f"Build returned unexpected result code")
 
         # Process post build steps if specified
-        post_build_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
-        if post_build_data:
-            self._process_build_steps(steps=post_build_data)
+        steps_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
+        if steps_data:
+            self._process_build_steps(steps=steps_data)
 
         # Check for all expected artifacts
         missing_artifacts = []
