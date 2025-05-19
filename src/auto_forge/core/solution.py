@@ -485,11 +485,13 @@ class CoreSolution(CoreModuleInterface):
 
         if isinstance(node, dict):
             for key, value in list(node.items()):  # Copy keys for safe iteration
+
                 if key == "name" and parent_key in ('solutions', 'projects', 'configurations'):
                     self._scope.update(parent_key, node)
                     current_context = node  # Update current context
 
                 if isinstance(value, str) and "<$ref_" in value:
+
                     resolved_value = self._resolve_variable_in_string(value, PreProcessType.REFERENCE)
                     if resolved_value is None:
                         raise ValueError(f"Unable to resolve reference '{value}' in '{parent_key or 'root'}'.")
@@ -511,31 +513,37 @@ class CoreSolution(CoreModuleInterface):
 
     def _resolve_variable_in_string(self, text: str, variable_type: "PreProcessType") -> Any:
         """
-        Resolves environment variables or references in a string based on the specified variable type.
+        Resolves environment variables or reference tokens in a string based on the specified variable type.
+
         Args:
-            text (str): The input string containing variables to be resolved.
-            variable_type (PreProcessType): The type of variables to resolve (environment or reference).
+            text (str): The input string containing variable references.
+            variable_type (PreProcessType): The type of variables to resolve — either environment variables or references.
 
         Returns:
-            Any: The resolved variable, currently string or dictionary.
+            Any: The resolved result, which can be a string or a dictionary depending on the match.
         """
 
-        # Bypass regrex substitute method signature and allow us to return the original matched type
-        matched_json_object: Optional[Any] = None
-
         if variable_type == PreProcessType.ENVIRONMENT:
-            # Should not match when $ is followed by 'ref_' or surrounded by '<' and '>'
-            return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._variables.get(m.group(0)), text)
+            # Replace $VAR or ${VAR} — but skip $ref_ and <$ref_> patterns
+            return re.sub(
+                r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}',
+                lambda m: self._variables.get(m.group(0)),
+                text
+            )
 
         elif variable_type == PreProcessType.REFERENCE:
             def _replace_match(match: re.Match) -> str:
+                nonlocal matched_dictionary_data
 
-                nonlocal matched_json_object
-
-                # Extract the content directly needed for resolving the reference
-                ref_content = match.group(1)  # Adjusted to capture correctly
+                # Extract reference target from inside <$ref_...>
+                ref_content = match.group(1)
                 resolved_value = self._resolve_reference(ref_content)
-                matched_json_object = resolved_value
+
+                # Handle both dictionary and string resolutions:
+                # - If a dictionary is returned, and it's the first match, store it (used as the actual return value)
+                # - If it's a string, let re.sub() continue substituting normally
+                if isinstance(resolved_value, dict) and matched_dictionary_data is None:
+                    matched_dictionary_data = resolved_value
 
                 if resolved_value is None:
                     self._logger.debug(f"'{ref_content}' could not be resolved")
@@ -543,11 +551,18 @@ class CoreSolution(CoreModuleInterface):
                 return str(resolved_value) if resolved_value is not None else match.group(0)
 
             regex_pattern = r"<\$ref_([^>]+)>"
-            re.sub(regex_pattern, _replace_match, text)  # Actual returned type is in 'matched_json_object'
 
-            return matched_json_object
+            # Initialize the dictionary result placeholder
+            matched_dictionary_data: Optional[dict[str, Any]] = None
+
+            # re.sub will trigger _replace_match for each match, but only the first dict (if any) is preserved
+            matched_data = re.sub(regex_pattern, _replace_match, text)
+
+            # Return the dict if found, otherwise return the fully resolved string
+            return matched_dictionary_data if matched_dictionary_data else matched_data
+
         else:
-            raise ValueError(f"unknown variable type: {variable_type}")
+            raise ValueError(f"Unknown variable type: {variable_type}")
 
     def _resolve_reference(self, reference_path: str) -> Union[str, dict]:
         """
