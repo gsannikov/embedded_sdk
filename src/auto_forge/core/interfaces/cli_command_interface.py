@@ -32,9 +32,9 @@ from auto_forge.common.toolbox import ToolBox
 
 class _CLICapturingArgumentParser(argparse.ArgumentParser):
     """
-        A custom ArgumentParser that captures error messages into an internal string buffer
-        instead of printing to stderr and exiting immediately.e.
-        """
+    A custom ArgumentParser that captures error messages into an internal string buffer
+    instead of printing to stderr and exiting immediately.e.
+    """
 
     def __init__(self, *args, **kwargs):
         """
@@ -190,7 +190,6 @@ class CLICommandInterface(ABC):
     def get_info(self) -> ModuleInfoType:
         """
         Retrievers information about the implemented command line tool.
-        Note: Implementation class must call _set_info().
         Returns:
             ModuleInfoType: a named tuple containing the implemented command id
         """

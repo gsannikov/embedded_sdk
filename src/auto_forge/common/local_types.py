@@ -567,6 +567,7 @@ class BuildProfileType:
     A data class to facilitate reading and writing specific fields from
     signature binary data.
     """
+    build_system: Optional[str] = None # 'make', 'camke' and others must be unique across all builders
     solution_name: Optional[str] = None
     project_name: Optional[str] = None
     config_name: Optional[str] = None

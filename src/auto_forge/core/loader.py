@@ -16,14 +16,16 @@ from contextlib import redirect_stderr, redirect_stdout
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional
+from typing import Any, Optional, Union, Sequence
 
 # AutoGorge local imports
 from auto_forge import (
     AutoForgeModuleType,
     AutoLogger,
+    BuildProfileType,
     CLICommandInterface,
     CoreModuleInterface,
+    BuilderInterface,
     ModuleInfoType,
     Registry,
     TerminalTeeStream,
@@ -58,7 +60,8 @@ class CoreLoader(CoreModuleInterface):
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {
-            CLICommandInterface: "CLICommandInterface"
+            CLICommandInterface: "CLICommandInterface",
+            BuilderInterface: "BuilderInterface",
         }
 
         # Persist this module instance in the global registry for centralized access
@@ -66,128 +69,170 @@ class CoreLoader(CoreModuleInterface):
                                        description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def probe(self, path: str) -> int:
+    def _resolve_registered_instance(self, name: str, expected_type: AutoForgeModuleType, required_method: str) -> Any:
         """
-        Scans the path for Python modules, search for classes that are derived from familiar base classes,
-        instantiate them and register them.
+        Common logic for resolving and validating a registered module instance.
         Args:
-            path (str): Path to search for modules.
+            name (str): The name of the registered module.
+            expected_type (AutoForgeModuleType): The expected module type (e.g., BUILDER, CLI_COMMAND).
+            required_method (str): The method the instance must implement (e.g., 'build', 'execute').
+
+        Returns:
+            Any: The validated class instance.
+
+        Raises:
+            RuntimeError: If lookup fails, type mismatch, or method is missing.
+        """
+        self._logger.debug(f"Locating registered module for: '{name}'")
+
+        module_record = self._registry.get_module_record_by_name(module_name=name.strip())
+        if module_record is None:
+            raise RuntimeError(f"module '{name}' is not recognized")
+
+        module_type = module_record.get("auto_forge_module_type", AutoForgeModuleType.UNKNOWN)
+        if module_type is not expected_type:
+            raise RuntimeError(f"module '{name}' is registered, but not marked as a {expected_type.name.lower()}")
+
+        class_instance: Any = module_record.get("class_instance")
+        if class_instance is None:
+            raise RuntimeError(f"could not find an instance of '{name}' in the registry")
+
+        if not self._toolbox.has_method(class_instance, required_method):
+            raise RuntimeError(f"module '{name}' does not implement '{required_method}'")
+
+        return class_instance
+
+    def probe(self, paths: Union[str, Sequence[str]]) -> int:
+        """
+        Scans one or more paths for Python modules, searches for classes derived from known base classes,
+        instantiates them, and registers them.
+
+        Args:
+            paths (str or list of str): A single path or a list of paths to search for modules.
+
         Returns:
             int: Number of successfully instantiated classes.
         """
 
-        commands_path = Path(path)
-        if not commands_path.exists():
-            self._logger.warning(f"Specified commands path not found: {path}")
-            return 0
+        if isinstance(paths, str):
+            paths = [paths]
+        for path in paths:
 
-        for file in glob.glob(str(commands_path / "*.py")):
+            commands_path = Path(path)
+            if not commands_path.exists():
+                self._logger.warning(f"Specified commands path not found: {path}")
+                return 0
 
-            file_base_name: str = os.path.basename(file)
-            file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
-            python_module_type: Optional[ModuleType] = None
-            class_object: Optional[object] = None
+            for file in glob.glob(str(commands_path / "*.py")):
 
-            try:
-                # Attempt to dynamically import the file
-                python_module_spec: Optional[ModuleSpec] = importlib.util.spec_from_file_location(file_stem_name, file)
-                if python_module_spec is None:
-                    self._logger.warning(f"Unable to import '{file_base_name}'. Skipping")
-                    continue
+                file_base_name: str = os.path.basename(file)
+                file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
+                python_module_type: Optional[ModuleType] = None
+                class_object: Optional[object] = None
 
-                if python_module_spec:
-                    python_module_type: Optional[ModuleType] = importlib.util.module_from_spec(python_module_spec)
-                    python_module_spec.loader.exec_module(python_module_type)
+                try:
+                    # Attempt to dynamically import the file
+                    python_module_spec: Optional[ModuleSpec] = importlib.util.spec_from_file_location(file_stem_name,
+                                                                                                      file)
+                    if python_module_spec is None:
+                        self._logger.warning(f"Unable to import '{file_base_name}'. Skipping")
+                        continue
 
-                if python_module_type is None:
-                    self._logger.warning(f"File '{file_base_name}' found, but dynamic import returned None. Skipping")
-                    continue
+                    if python_module_spec:
+                        python_module_type: Optional[ModuleType] = importlib.util.module_from_spec(python_module_spec)
+                        python_module_spec.loader.exec_module(python_module_type)
 
-                # Now that the file is imported, inspect its contents and find the first class
-                # that inherits from one of the supported interfaces defined in 'self._supported_interfaces'.
-                for attr_name in dir(python_module_type):
-                    attr = getattr(python_module_type, attr_name)
+                    if python_module_type is None:
+                        self._logger.warning(
+                            f"File '{file_base_name}' found, but dynamic import returned None. Skipping")
+                        continue
 
-                    # Find a class object that is a subclass of a supported interface, but not already registered
-                    if (
-                            isinstance(attr, type)
-                            and issubclass(attr, tuple(self._supported_interfaces.keys()))
-                            and attr not in self._supported_interfaces
-                    ):
-                        class_object = attr
-                        break
+                    # Now that the file is imported, inspect its contents and find the first class
+                    # that inherits from one of the supported interfaces defined in 'self._supported_interfaces'.
+                    for attr_name in dir(python_module_type):
+                        attr = getattr(python_module_type, attr_name)
 
-                # If no compatible class was found, skip this module
-                if not class_object:
-                    self._logger.warning(f"No supported class found in module '{file_stem_name}'. Skipping")
-                    continue
+                        # Find a class object that is a subclass of a supported interface, but not already registered
+                        if (
+                                isinstance(attr, type)
+                                and issubclass(attr, tuple(self._supported_interfaces.keys()))
+                                and attr not in self._supported_interfaces
+                        ):
+                            class_object = attr
+                            break
 
-                interface_name: str = next(
-                    (name for base, name in self._supported_interfaces.items() if issubclass(class_object, base)),
-                    None
-                )
+                    # If no compatible class was found, skip this module
+                    if not class_object:
+                        self._logger.warning(f"No supported class found in module '{file_stem_name}'. Skipping")
+                        continue
 
-                if not interface_name:
-                    self._logger.warning(f"Unsupported command interface in module '{file_stem_name}'. Skipping")
-                    continue
+                    interface_name: str = next(
+                        (name for base, name in self._supported_interfaces.items() if issubclass(class_object, base)),
+                        None
+                    )
 
-                # Instantiate the class (command), this will auto update the command properties in the registry.
-                command_instance = class_object()
+                    if not interface_name:
+                        self._logger.warning(f"Unsupported command interface in module '{file_stem_name}'. Skipping")
+                        continue
 
-                # Invoke 'get_info()', which is defined by the interface. Since this class was loaded dynamically,
-                # we explicitly pass the Python 'ModuleType' to the implementation so it can update its own metadata.
-                # This type is known to us but cannot be inferred automatically by the loaded class.
-                module_info: ModuleInfoType = command_instance.get_info()
-                if not module_info:
-                    self._logger.warning(f"Loaded class '{command_instance.__class__.__name__}' "
-                                         f"did not return module info. Skipping")
-                    continue
+                    # Instantiate the class (command), this will auto update the command properties in the registry.
+                    command_instance = class_object()
 
-                # Gets extended command description from the module's docstring, which typically provides more
-                # detailed information than the default description.
+                    # Invoke 'get_info()', which is defined by the interface. Since this class was loaded dynamically,
+                    # we explicitly pass the Python 'ModuleType' to the implementation so it can update its own metadata.
+                    # This type is known to us but cannot be inferred automatically by the loaded class.
+                    module_info: ModuleInfoType = command_instance.get_info()
+                    if not module_info:
+                        self._logger.warning(f"Loaded class '{command_instance.__class__.__name__}' "
+                                             f"did not return module info. Skipping")
+                        continue
 
-                command_name = module_info.name
-                docstring_description = self._toolbox.get_module_docstring(python_module_type=python_module_type)
-                command_description = docstring_description if docstring_description else module_info.description
+                    # Gets extended command description from the module's docstring, which typically provides more
+                    # detailed information than the default description.
 
-                # The command should have automatically updated its metadata in the registry; next we validate this.
-                command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
-                    module_name=module_info.name,
-                    case_insensitive=False
-                )
+                    command_name = module_info.name
+                    docstring_description = self._toolbox.get_module_docstring(python_module_type=python_module_type)
+                    command_description = docstring_description if docstring_description else module_info.description
 
-                if not command_record:
-                    self._logger.warning(f"Command '{module_info.name}' could not be found in the registry. Skipping")
-                    continue
+                    # The command should have automatically updated its metadata in the registry; next we validate this.
+                    command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
+                        module_name=module_info.name,
+                        case_insensitive=False
+                    )
 
-                # Update the registry record and get an updated 'ModuleInfoType' type
-                module_info = self._registry.update_module_record(module_name=module_info.name,
-                                                                  description=command_description,
-                                                                  class_instance=command_instance,
-                                                                  class_interface_name=interface_name,
-                                                                  python_module_type=python_module_type,
-                                                                  file_name=file)
+                    if not command_record:
+                        self._logger.warning(
+                            f"Command '{module_info.name}' could not be found in the registry. Skipping")
+                        continue
 
-                if module_info is None:
-                    self._logger.warning(f"Command '{command_name}' could not be update in the registry. Skipping")
-                    continue
+                    # Update the registry record and get an updated 'ModuleInfoType' type
+                    module_info = self._registry.update_module_record(module_name=module_info.name,
+                                                                      description=command_description,
+                                                                      class_instance=command_instance,
+                                                                      class_interface_name=interface_name,
+                                                                      python_module_type=python_module_type,
+                                                                      file_name=file)
 
-                # Refresh the command with  updated info
-                command_instance.update_info(command_info=module_info)
+                    if module_info is None:
+                        self._logger.warning(f"Command '{command_name}' could not be update in the registry. Skipping")
+                        continue
 
-                # Ensure the dynamically loaded module is accessible via sys.modules,
-                # allowing standard import mechanisms and references to resolve it by name.
-                sys.modules[python_module_spec.name] = python_module_type
+                    # Refresh the command with  updated info
+                    command_instance.update_info(command_info=module_info)
 
-                self._loaded_commands += 1
-                self._logger.debug(f"Command '{module_info.name}' loaded from module '{file_stem_name}'")
+                    # Ensure the dynamically loaded module is accessible via sys.modules,
+                    # allowing standard import mechanisms and references to resolve it by name.
+                    sys.modules[python_module_spec.name] = python_module_type
 
-            # Propagate exceptions
-            except Exception:
-                raise
+                    self._loaded_commands += 1
+                    self._logger.debug(f"Module '{module_info.name}' dynamically loaded from '{file_stem_name}'")
 
-        if self._loaded_commands == 0:
-            raise RuntimeError("no commands were successfully loaded")
+                # Propagate exceptions
+                except Exception:
+                    raise
+
+            if not self._loaded_commands:
+                raise RuntimeError("no modules were successfully loaded")
 
         return self._loaded_commands
 
@@ -198,46 +243,48 @@ class CoreLoader(CoreModuleInterface):
         """
         return self._execution_output
 
-    def execute(self, name: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[int]:
+    def execute_build(self, build_profile: BuildProfileType) -> Optional[int]:
         """
-        Invokes the 'execute' method of a registered module, if the method is available.
+        Executes the 'build' method of a registered builder module.
         Args:
-            name (str): The name of the registered module to use.
-            arguments (Optional[str]): A shell-style argument string (e.g., "-p --verbose").
-                                       If None, the command will run with default or no arguments.
-            suppress_output (bool): suppress_output (bool): If True, suppress terminal output.
+            build_profile (BuildProfileType): The build profile to use.
+
         Returns:
-            Optional[int]: The result code returned by the `execute()` method, typically 0 for success, else error.
+            Optional[int]: The result of the build process.
         """
-        self._execution_output = None  # Invalidate last command output
-        self._logger.debug(f"Executing: '{name}'")
+        class_instance = self._resolve_registered_instance(
+            name=build_profile.build_system,
+            expected_type=AutoForgeModuleType.BUILDER,
+            required_method='build'
+        )
 
-        # Registry lookup
-        module_record = self._registry.get_module_record_by_name(module_name=name.strip())
-        if module_record is None:
-            raise RuntimeError(f"command '{name}' is not recognized")
+        return class_instance.build(build_profile=build_profile)
 
-        # Making sure the record belongs to an AutoForge dynamically loaded CLI command
-        auto_forge_module_type = module_record.get("auto_forge_module_type", AutoForgeModuleType.UNKNOWN)
-        if auto_forge_module_type == AutoForgeModuleType.UNKNOWN:
-            raise RuntimeError(f"module '{name}' is registered, but is not marked as unknown")
+    def execute_command(self, name: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[
+        int]:
+        """
+        Executes the 'execute' method of a registered CLI command module.
+        Args:
+            name (str): The name of the registered CLI command.
+            arguments (Optional[str]): Shell-style argument string.
+            suppress_output (bool): If True, suppress stdout/stderr during execution.
 
-        # Get the stored class instance, cast it 'Any' to silence PyCharm 'Unresolved ref' warning
-        class_instance: Any = module_record.get("class_instance", None)
-        if class_instance is None:
-            raise RuntimeError(f"could not find an instance of '{name}' in the registry")
+        Returns:
+            Optional[int]: The result of the command execution.
+        """
+        self._execution_output = None
 
-        # Making sure the method implements 'execute'
-        if not self._toolbox.has_method(class_instance, 'execute'):
-            raise RuntimeError(f"module '{name}' does not implement 'execute'")
+        class_instance = self._resolve_registered_instance(
+            name=name,
+            expected_type=AutoForgeModuleType.CLI_COMMAND,
+            required_method='execute'
+        )
 
-        # Finally execute, optionally with or without terminal output.
         buffer = io.StringIO()
         output_stream = buffer if suppress_output else TerminalTeeStream(sys.stdout, buffer)
 
         with redirect_stdout(output_stream), redirect_stderr(output_stream):
             result = class_instance.execute(flat_args=arguments)
 
-        # Store the command output in the class - lsat execution output
         self._execution_output = buffer.getvalue()
         return result

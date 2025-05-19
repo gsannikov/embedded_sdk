@@ -516,8 +516,8 @@ class CoreEnvironment(CoreModuleInterface):
         """
 
         self._logger.debug(f"Executing registered command: '{command}'")
-        return_code = self._loader.execute(name=command, arguments=arguments,
-                                           suppress_output=suppress_output)
+        return_code = self._loader.execute_command(name=command, arguments=arguments,
+                                                   suppress_output=suppress_output)
         # Get the command output
         command_response = self._loader.get_last_output().strip()
 

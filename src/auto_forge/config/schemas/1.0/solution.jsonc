@@ -56,10 +56,14 @@
 							"properties": {
 								"name": {
 									"type": "string"
+								},
+								"build_system": {
+									"type": "string"
 								}
 							},
 							"required": [
-								"name"
+								"name",
+								"build_system"
 							],
 							"additionalProperties": true
 						}

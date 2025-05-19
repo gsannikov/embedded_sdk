@@ -27,6 +27,7 @@ from colorama import Fore, Style
 # Local application imports
 from auto_forge import (
     PROJECT_COMMANDS_PATH,
+    PROJECT_BUILDERS_PATH,
     PROJECT_SHARED_PATH,
     PROJECT_CONFIG_PATH,
     PROJECT_NAME,
@@ -124,7 +125,7 @@ class AutoForge(CoreModuleInterface):
 
         # Load all the builtin commands
         self._loader: Optional[CoreLoader] = CoreLoader()
-        self._loader.probe(path=PROJECT_COMMANDS_PATH)
+        self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
                                                              automated_mode=self._automated_mode,
                                                              configuration_data=self._config_data)

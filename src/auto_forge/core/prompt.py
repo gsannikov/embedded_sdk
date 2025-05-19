@@ -332,7 +332,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                         else:
                             raise RuntimeError(f"command {name} has an unsupported arguments type")
 
-                        result = self._loader.execute(name, args)
+                        result = self._loader.execute_command(name, args)
                         self._last_execution_return_code = result
                         return 0
                     except Exception as e:
@@ -789,9 +789,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                               project_name=build_profile.project_name))
             if project_data:
                 build_profile.too_chain_data = project_data.get("tool_chain")
+                build_profile.build_system = (
+                    build_profile.too_chain_data.get("build_system")) if build_profile.too_chain_data else None
 
-        if build_profile.too_chain_data:
-            self._logger.debug(f"Building {build_profile.build_dot_notation}")
+        # The tool china field 'build_system' will be used to pick the registered builder for this specific solution branch.
+        if build_profile.build_system:
+            self._logger.debug(f"Building {build_profile.build_dot_notation}, using '{build_profile.build_system}'")
+            self._loader.execute_build(build_profile=build_profile)
         else:
             self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation};")
 
