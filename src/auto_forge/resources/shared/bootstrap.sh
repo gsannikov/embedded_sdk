@@ -23,18 +23,18 @@ install_autoforge() {
 	fi
 
 	# Check if pip is installed
-	if ! command -v pip3 &> /dev/null; then
+	if ! command -v pip3 &>/dev/null; then
 		echo "pip is not installed."
 		return 1
 	fi
 
 	# Uninstall auto_forge if it exists, without any output
-	pip3 uninstall -y auto_forge &> /dev/null
+	pip3 uninstall -y auto_forge &>/dev/null
 
 	# Install auto_forge from the provided URL, without any output
-	if pip3 install git+$AUTO_FORGE_URL -q --force-reinstall > /dev/null 2>&1; then
+	if pip3 install git+$AUTO_FORGE_URL -q --force-reinstall >/dev/null 2>&1; then
 		# Check if installation was successful
-		if pip3 list 2> /dev/null | grep -q 'auto_forge'; then
+		if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
 			return 0
 		else
 			echo "Failed to install auto_forge."
@@ -60,6 +60,7 @@ main() {
 
 	# Help message function
 	display_help() {
+
 		echo
 		echo "Usage: $0 [options]"
 		echo
@@ -73,27 +74,27 @@ main() {
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-		-w | --workspace)
-			workspace_path="$2"
-			shift 2
-			;;
-		-s | --solution)
-			solution="$2"
-			shift 2
-			;;
-		-t | --token)
-			token="$2"
-			shift 2
-			;;
-		-h | --help)
-			display_help
-			return 0
-			;;
-		*)
-			printf "\nError: Unknown option: %s\n\n" "$1"
-			display_help
-			return 1
-			;;
+			-w | --workspace)
+				workspace_path="$2"
+				shift 2
+				;;
+			-s | --solution)
+				solution="$2"
+				shift 2
+				;;
+			-t | --token)
+				token="$2"
+				shift 2
+				;;
+			-h | --help)
+				display_help
+				return 0
+				;;
+			*)
+				printf "\nError: Unknown option: %s\n\n" "$1"
+				display_help
+				return 1
+				;;
 		esac
 	done
 
@@ -134,7 +135,7 @@ main() {
 	ret_val=$?
 
 	# Quietly uninstall auto_forge from the user environment, suppressing all output
-	pip3 uninstall -y auto_forge &> /dev/null
+	pip3 uninstall -y auto_forge &>/dev/null
 
 	echo -ne '\e[?25h' # Restore cursor
 	return $ret_val
