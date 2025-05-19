@@ -24,6 +24,7 @@ from auto_forge import (
     BuilderConfigurationBuildError,
     CoreEnvironment,
 )
+from auto_forge.common.local_types import TerminalEchoType
 from auto_forge.core.prompt import CorePrompt
 
 AUTO_FORGE_MODULE_NAME = "make"
@@ -157,6 +158,7 @@ class MakeBuilder(BuilderInterface):
             self._logger.debug(f"Executing build in '{execute_from}'")
             results = self._environment.execute_shell_command(
                 command_and_args=command_line,
+                echo_type=TerminalEchoType.SINGLE_LINE,
                 cwd=str(execute_from),
                 expand_command=True)
 

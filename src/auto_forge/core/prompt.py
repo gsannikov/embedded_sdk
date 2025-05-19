@@ -23,6 +23,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.styles import Style
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -123,9 +124,19 @@ class _CoreCompleter(Completer):
         if not tokens or (len(tokens) == 1 and not buffer_ends_with_space):
             partial = tokens[0] if tokens else ""
 
-            # System executables
+            # First-token path completion support
+            if partial.startswith(("/", "./", "../")):
+                matches = self.core_prompt.gather_path_matches(
+                    text=os.path.expanduser(partial),
+                    only_dirs=False
+                )
+                for m in matches:
+                    yield m
+                return
+
+            # System executables (styled if executable)
             matches += [
-                Completion(cmd, start_position=-len(partial))
+                Completion(cmd, start_position=-len(partial), style='class:executable')
                 for cmd in self.core_prompt.executable_db
                 if cmd.startswith(partial)
             ]
@@ -259,6 +270,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.command_completion_map = configuration_data.get('command_completion_map') if configuration_data else None
         if self.command_completion_map is None:
             self._logger.warning("No command completion map loaded")
+
+        # Use the primary solution name as the path base text
+        if self._prompt_base is None:
+            self._prompt_base = self._solution.get_solutions_list(primary=True)
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
@@ -398,15 +413,32 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Return an HTML-formatted prompt string for prompt_toolkit.
         """
+
+        # Function attribute (sort of C-style static variable)
+        func = type(self)._get_colored_prompt_toolkit
+        if not hasattr(func, "_last_cwd"):
+            func._last_cwd = self._toolbox.get_expanded_path("~")
+
         # Virtual environment / prompt base name section
-        prompt_base = self._solution.get_solutions_list(
-            primary=True) if self._prompt_base is None else self._prompt_base
+        prompt_base = self._prompt_base
         venv = os.environ.get("VIRTUAL_ENV")
         venv_prompt = f"[{active_name}]" if active_name else (f"[{prompt_base}]" if prompt_base else f"[{venv}]")
 
         # Current working directory
-        cwd = os.getcwd()
-        home = os.path.expanduser("~")
+        try:
+            cwd = os.getcwd()
+            func._last_cwd = cwd
+        except FileNotFoundError:
+            if os.path.exists(func._last_cwd):
+                os.chdir(func._last_cwd)
+            else:
+                os.chdir(self._toolbox.get_expanded_path("~"))
+            cwd = os.getcwd()
+            func._last_cwd = cwd
+
+            # cwd = func._last_cwd  # Fallback to last known good path
+
+        home = self._toolbox.get_expanded_path("~")
         cwd_display = "~" + cwd[len(home):] if cwd.startswith(home) else cwd
 
         # Git branch name (optional)
@@ -502,7 +534,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         completions = []
         for entry in entries:
             full_path = os.path.join(os.path.expanduser(dirname), entry)
-            is_dir = os.path.isdir(full_path)
+
+            try:
+                is_dir = os.path.isdir(full_path)
+                is_exec = os.path.isfile(full_path) and os.access(full_path, os.X_OK)
+            except FileNotFoundError:
+                continue
 
             if only_dirs and not is_dir:
                 continue
@@ -511,19 +548,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if not partial and not (raw_text.endswith(os.sep) or raw_text == ""):
                 continue
 
-            # Avoid suggesting the same directory again
-            with suppress(Exception):
+            try:
                 if os.path.samefile(os.path.normpath(full_path), normalized_input_path):
                     continue
+            except FileNotFoundError:
+                continue
 
             insertion = entry + (os.sep if is_dir else "")
             display = insertion
+            style = "class:executable" if is_exec else ("class:directory" if is_dir else "class:file")
 
             completions.append(
                 Completion(
                     text=insertion,
                     start_position=-len(partial),
-                    display=display
+                    display=display,
+                    style=style
                 )
             )
 
@@ -875,13 +915,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.insert_text('.')
             buffer.start_completion(select_first=True)
 
+        style = Style.from_dict({
+            'executable': 'fg:green bold',
+            'file': 'fg:gray'
+        })
+
         # Create session with completer and key bindings
         completer = _CoreCompleter(self, logger=self._logger)
         history_path = self._history_file or os.path.expanduser(self._history_file)
         session = PromptSession(
             completer=completer,
             history=FileHistory(history_path),
-            key_bindings=kb
+            key_bindings=kb,
+            style=style,
         )
 
         while True:

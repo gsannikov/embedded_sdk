@@ -1036,6 +1036,7 @@ class ToolBox(CoreModuleInterface):
         # Remove GCC Source code references
         text = re.sub(r'^\|\s*[~^]+\s*$', '', text, flags=re.MULTILINE)
         text = re.sub(r'^\s*\d+\s*\|.*$', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\s*\|', '', text)
 
         if not text:
             return text

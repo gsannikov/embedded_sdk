@@ -25,9 +25,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import TerminalAnsiGuru, ToolBox
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"

@@ -100,6 +100,12 @@ class CoreEnvironment(CoreModuleInterface):
         self._toolbox: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
 
+        # Determine the terminal width
+        try:
+            self._term_width = shutil.get_terminal_size().columns
+        except OSError:
+            self._term_width = 100  # fallback default if terminal size can't be determined
+
         # Use project config list for the interactive commands if available, else fallback to default list
         self._interactive_commands = configuration_data.get('interactive_commands') if configuration_data else None
         if not self._interactive_commands:
@@ -732,27 +738,24 @@ class CoreEnvironment(CoreModuleInterface):
                 if not suppress_errors:
                     raise decode_exception
 
-        def _print_line(line: str, same_line: bool = True) -> None:
+        def _print_line(line: str) -> None:
             """
             Prints a line to stdout, either overwriting the current line or printing a new line.
             Args:
                 line (str): The text to print.
-                same_line (bool): If True, overwrites the current line (useful for progress/status updates).
-                                  If False, prints the line on a new line.
             """
 
-            if "warning:" in line:
-                line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
-                same_line = False
-            if "error:" in line:
-                line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
-                same_line = False
-
             if line:
-                if same_line:
-                    sys.stdout.write('\r\033[K\r')
-                    # ANSI sequence: move cursor to beginning of line and clear it
-                    sys.stdout.write(line)
+                if "warning:" in line:
+                    line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
+                elif "error:" in line:
+                    line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
+                else:
+                    max_len = max(10, self._term_width - 10)
+                    line = line[:max_len]
+
+                if echo_type == TerminalEchoType.SINGLE_LINE:
+                    sys.stdout.write(f'\033[K{line}\r')
                 else:
                     sys.stdout.write(line + '\n')
 
@@ -832,7 +835,7 @@ class CoreEnvironment(CoreModuleInterface):
                             # Clear the line and aggravate into a queue
                             text_line = _bytes_to_message_queue(line_buffer, lines_queue)
 
-                            if echo_type == TerminalEchoType.LINE:
+                            if echo_type in [TerminalEchoType.LINE, TerminalEchoType.SINGLE_LINE]:
                                 _print_line(text_line)
 
                             # Track it if we have a tracker instate
@@ -848,7 +851,10 @@ class CoreEnvironment(CoreModuleInterface):
                     process.kill()
                     raise TimeoutError(f"'{command}' timed out after {timeout} seconds")
 
+                time.sleep(polling_interval)
+
             process.wait()
+            time.sleep(polling_interval)
 
             # Add any remaining bytes
             if line_buffer:

@@ -152,6 +152,9 @@
 							"artifacts": [
 								"<$ref_build_path>/btop"
 							],
+							"pre_build_steps": {
+								"cleanup": "!rm -rf <$ref_build_path>"
+							},
 							"post_build_steps": {
 								"move artefacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
 							}

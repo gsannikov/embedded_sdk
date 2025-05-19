@@ -35,7 +35,7 @@ class AutoForgeModuleType(Enum):
     COMMON = 2
     CLI_COMMAND = 3
     BUILDER = 4
-    PROMPT_DO = 5 # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
+    PROMPT_DO = 5  # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
 
 
 class ModuleInfoType(NamedTuple):
@@ -88,7 +88,7 @@ class ExecutionModeType(Enum):
 class CommandResultType(NamedTuple):
     """ Generic type for executed command results """
     response: Optional[str] = None  # Command output
-    return_code: int = 1 # Command returned integer value, initialized to error.
+    return_code: int = 1  # Command returned integer value, initialized to error.
 
 
 class MessageBoxType(Enum):
@@ -213,6 +213,7 @@ class TerminalEchoType(Enum):
     NONE = auto()
     BYTE = auto()
     LINE = auto()
+    SINGLE_LINE = auto()
 
 
 class TerminalTeeStream:
