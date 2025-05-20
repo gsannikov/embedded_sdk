@@ -12,11 +12,12 @@ import importlib.util
 import io
 import os
 import sys
+from collections.abc import Sequence
 from contextlib import redirect_stderr, redirect_stdout
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional, Union, Sequence
+from typing import Any, Optional, Union
 
 # AutoGorge local imports
 from auto_forge import (
@@ -102,16 +103,20 @@ class CoreLoader(CoreModuleInterface):
 
         return class_instance
 
-    def probe(self, paths: Union[str, Sequence[str]]) -> int:
+    def probe(  # noqa: C901
+            self,
+            paths: Union[str, Sequence[str]]) -> int:
         """
         Scans one or more paths for Python modules, searches for classes derived from known base classes,
         instantiates them, and registers them.
-
         Args:
             paths (str or list of str): A single path or a list of paths to search for modules.
-
         Returns:
             int: Number of successfully instantiated classes.
+        NOTE:
+            This function exceeds typical complexity limits (C901) by design.
+            It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
+            for clarity, atomicity, and maintainability. Refactoring would obscure the execution flo
         """
 
         if isinstance(paths, str):

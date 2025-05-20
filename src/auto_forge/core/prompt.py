@@ -11,15 +11,17 @@ import os
 import readline
 import subprocess
 import sys
+from collections.abc import Iterable
 from contextlib import suppress
 from types import MethodType
-from typing import Iterable
 from typing import Optional, Any
 
 # Third-party
 import cmd2
 from cmd2 import Statement, ansi
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion, CompleteEvent
+from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
@@ -47,9 +49,6 @@ from auto_forge import (
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
-
-from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.document import Document
 
 
 class _CoreCompleter(Completer):
@@ -104,7 +103,10 @@ class _CoreCompleter(Completer):
 
         return is_known_command and bool(arg_text.strip())
 
-    def get_completions(self, document: Document, complete_event) -> Iterable[Completion]:
+    def get_completions(  # noqa: C901
+            self,
+            document: Document,
+            _complete_event: CompleteEvent) -> Iterable[Completion]:
         """
         Return completions for the current cursor position and buffer state.
 
@@ -113,6 +115,10 @@ class _CoreCompleter(Completer):
         - Per-command argument completion via `complete_<cmd>()`
         - Fallback to path completion for external commands
         - Prevents fallback on known non-path commands like `alias`, `help`, etc.
+
+        NOTE: This function exceeds typical complexity limits (C901) by design.
+        It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
+        for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
         text = document.text_before_cursor
         buffer_ends_with_space = text.endswith(" ")
@@ -458,14 +464,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Final HTML-formatted string
         return (
-            f"<ansigreen>{venv_prompt}</ansigreen> "
+            f"<ansibrightcyan>{venv_prompt}</ansibrightcyan> "
             f"<ansiblue>{cwd_display}</ansiblue>"
             f"{git_branch} <ansiyellow>{arrow}</ansiyellow> "
         )
 
     def _register_generic_complete(self):
         """
-        Registers default path completer for all do_* commands that don’t have a custom completer.
+        Registers default path completer for all do_* commands that don't have a custom completer.
         Used by CoreCompleter in prompt_toolkit.
         """
         special_behavior = {
@@ -712,10 +718,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         if arg:
 
-            if isinstance(arg, Statement):
-                command_name = str(arg.arg_list[0])
-            else:
-                command_name = str(arg)
+            command_name = str(arg.arg_list[0]) if isinstance(arg, Statement) else str(arg)
 
             # User typed 'help my_command' --> Show help for that specific command
             # Get the stored help from tye registry
@@ -835,6 +838,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # The tool china field 'build_system' will be used to pick the registered builder for this specific solution branch.
         if build_profile.build_system:
+
             self._logger.debug(f"Building {build_profile.build_dot_notation}, using '{build_profile.build_system}'")
             self._loader.execute_build(build_profile=build_profile)
         else:

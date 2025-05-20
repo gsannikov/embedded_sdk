@@ -306,7 +306,7 @@ class CoreEnvironment(CoreModuleInterface):
                 command = f"dnf list --available {package_name}"
                 search_pattern = package_name
 
-            results = self.execute_shell_command(command_and_args=command,echo_type=TerminalEchoType.NONE)
+            results = self.execute_shell_command(command_and_args=command, echo_type=TerminalEchoType.NONE)
             if not results.response or search_pattern not in results.response:
                 raise OSError(f"system package '{package_name}' not validated using {self._package_manager}")
 
@@ -635,6 +635,7 @@ class CoreEnvironment(CoreModuleInterface):
             command_and_args: Union[str, list[str]],
             timeout: Optional[float] = None,
             echo_type: TerminalEchoType = TerminalEchoType.LINE,
+            leading_text: Optional[str] = None,
             expand_command: bool = True,
             use_pty: bool = True,
             searched_token: Optional[str] = None,
@@ -648,6 +649,7 @@ class CoreEnvironment(CoreModuleInterface):
             command_and_args (Union[str, list): a single string for the command along its arguments or a list.
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
             echo_type (TerminalEchoType): Defines how data is being echoed to the terminal from a forked process.
+            leading_text (Optional[str]): Leading text to be printed before each logged line.
             expand_command (bool): If True, the command will be expanded to resolve any input similar to '$EXAMPLE'.
             use_pty (bool): If True, the command will be executed in a PTY environment. Defaults to False.
             searched_token (Optional[str]): A token to search for in the command output.
@@ -661,7 +663,7 @@ class CoreEnvironment(CoreModuleInterface):
             or None if an exception was raised.
         """
 
-        polling_interval: float = 0.0001
+        polling_interval: float = 0.000001
         kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
@@ -747,6 +749,9 @@ class CoreEnvironment(CoreModuleInterface):
             """
 
             if line:
+                if leading_text is not None:
+                    line = leading_text + line  # Prefix with optional leading text
+
                 if "warning:" in line:
                     line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
                 elif "error:" in line:
@@ -852,21 +857,14 @@ class CoreEnvironment(CoreModuleInterface):
                     process.kill()
                     raise TimeoutError(f"'{command}' timed out after {timeout} seconds")
 
-                time.sleep(polling_interval)
-
-            process.wait()
-            time.sleep(polling_interval)
-
+            process.wait(timeout=10.0)
+         
             # Add any remaining bytes
             if line_buffer:
                 _bytes_to_message_queue(line_buffer, lines_queue)
 
             # Done executing
             return_code = process.returncode
-
-            # Add additional clear line at the end
-            if echo_type != TerminalEchoType.NONE:
-                print()
 
             # Optionally raise exception non-zero return code
             if check and return_code != 0:
@@ -1336,7 +1334,8 @@ class CoreEnvironment(CoreModuleInterface):
                 arguments = "pull"
                 results = self.execute_shell_command(command_and_args=
                                                      self._flatten_command(command=command, arguments=arguments),
-                                                     cwd=dest_repo_path, timeout=timeout,echo_type=TerminalEchoType.NONE)
+                                                     cwd=dest_repo_path, timeout=timeout,
+                                                     echo_type=TerminalEchoType.NONE)
                 if results.return_code != 0:
                     raise RuntimeError(f"git 'pull'' failed with exit code {results.return_code}")
 
@@ -1344,7 +1343,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"checkout {revision}"
             results = self.execute_shell_command(command_and_args=
                                                  self._flatten_command(command=command, arguments=arguments),
-                                                 cwd=dest_repo_path, timeout=timeout,echo_type=TerminalEchoType.NONE)
+                                                 cwd=dest_repo_path, timeout=timeout, echo_type=TerminalEchoType.NONE)
             return results
 
         except Exception as py_git_error:

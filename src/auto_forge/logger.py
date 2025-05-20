@@ -13,13 +13,15 @@ import re
 import shutil
 import sys
 import tempfile
+from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
 from enum import IntFlag, auto
 from html import unescape
-from typing import Any, Sequence
+from typing import Any
 from typing import Optional, ClassVar
 
+# Third-party
 from colorama import Fore, Style
 
 from auto_forge.common.local_types import FieldColorType
@@ -484,15 +486,20 @@ class AutoLogger:
         level_pattern = re.compile(r"\[(.*?)\s+(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+] (\S+\s*): (.*)")
         print()
 
-        with open(self._log_file_name, 'r') as f:
+        with open(self._log_file_name) as f:
             for line in f:
                 line = line.rstrip('\n')
 
                 if not cheerful:
+                    # Adjust to the terminal width formal
                     if len(line) > max_width:
                         line = line[:max_width - 3] + '...'
                     print(line)
                     continue
+
+                # Adjust to the terminal width (cheerfully)
+                if len(line) > max_width:
+                    line = line[:max_width - 3] + f"{Fore.LIGHTYELLOW_EX}...{Style.RESET_ALL}"
 
                 match = level_pattern.match(line)
                 if not match:

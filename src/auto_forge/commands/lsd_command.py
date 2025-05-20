@@ -31,6 +31,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Optional
 
+# Third-party
 from colorama import Fore, Style
 
 # AutoForge imports

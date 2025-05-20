@@ -9,8 +9,11 @@ Description:
 """
 
 import inspect
+import logging
 from abc import ABC, abstractmethod
 from typing import Optional
+
+from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType
@@ -34,7 +37,7 @@ class BuilderInterface(ABC):
     Abstract base class for builder instances that can be dynamically registered and executed by AutoForge.
     """
 
-    def __init__(self, build_system: Optional[str] = None):
+    def __init__(self, build_system: Optional[str] = None, build_label: Optional[str] = None):
         """
         Initializes the builder and registers it with the AutoForge registry.
 
@@ -42,6 +45,7 @@ class BuilderInterface(ABC):
             build_system (str, optional): The unique name of the builder instance build system to use, for ex.
                 make, cmake and so on. If not provided, the value of the
                 class field 'AUTO_FORGE_MODULE_NAME' will be used.
+            build_label (str, optional): The unique name of the builder instance build label to use.
         """
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
@@ -56,8 +60,8 @@ class BuilderInterface(ABC):
 
         # Create a builder dedicated logger instance
         self._logger = AutoLogger().get_logger(name=self._build_system)
-
-        self._build_profile: Optional[BuildProfileType] = None
+        # Set optional build label
+        self._build_label: str = build_label if build_label is not None else "AutoForge"
         self._tool_box = ToolBox().get_instance()
 
         # Persist this builder instance in the global registry for centralized access
@@ -71,14 +75,12 @@ class BuilderInterface(ABC):
         super().__init__()
 
     @abstractmethod
-    def build(self, build_profile: BuildProfileType, leading_text:Optional[str] = None) -> Optional[int]:
+    def build(self, build_profile: BuildProfileType) -> Optional[int]:
         """
         Validates the provided build configuration and executes the corresponding build flow.
         Args:
             build_profile (BuildProfileType): The build profile containing solution, project, configuration,
                 and toolchain information required for the build process.
-            leading_text (text, optional): If specified will be shown when the builder is running.
-
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.
         """
@@ -95,6 +97,37 @@ class BuilderInterface(ABC):
             raise RuntimeError('command info not initialized, make sure call set_info() first')
 
         return self._module_info
+
+    def print_message(self, message: str, bare_text: bool = False, log_level: Optional[int] = logging.DEBUG) -> None:
+        """
+        Prints a build-time message prefixed with an AutoForge label.
+        Args:
+            message (str): The text to print.
+            bare_text (bool, optional): If True, prints without ANSI color formatting.
+            log_level (int, optional): Logging level to use (e.g., logging.INFO).
+                                       If None, the message is not logged.
+        """
+        if not bare_text:
+            # Map log levels to distinct label colors
+            level_color_map = {
+                logging.CRITICAL: Fore.LIGHTRED_EX,
+                logging.ERROR: Fore.RED,
+                logging.WARNING: Fore.YELLOW,
+                logging.INFO: Fore.CYAN,
+                logging.DEBUG: Fore.LIGHTGREEN_EX,
+            }
+            color = level_color_map.get(log_level, Fore.WHITE)
+            leading_text = f"{color}-- {self._build_label}:{Style.RESET_ALL} "
+
+        else:
+            leading_text = f"-- {self._build_label}: "
+            message = self._tool_box.strip_ansi(text=message, bare_text=True)
+
+        # Optionally log the message
+        if log_level is not None:
+            self._logger.log(log_level, message)
+
+        print(leading_text + message)
 
     def update_info(self, command_info: ModuleInfoType):
         """

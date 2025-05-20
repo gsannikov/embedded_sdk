@@ -14,6 +14,7 @@ import importlib.metadata
 import importlib.util
 import inspect
 import os
+import random
 import re
 import shutil
 import string
@@ -29,7 +30,7 @@ from typing import Any, Optional, SupportsInt, Union
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
-from colorama import Fore
+from colorama import Fore, Style
 
 # Retrieve our package base path from settings
 from auto_forge import (
@@ -1078,15 +1079,26 @@ class ToolBox(CoreModuleInterface):
             if not os.path.isfile(banner_file):
                 return None
 
+        # Available safe foreground colors
+        available_colors = [
+            Fore.LIGHTCYAN_EX, Fore.LIGHTBLUE_EX,
+            Fore.LIGHTGREEN_EX, Fore.LIGHTYELLOW_EX, Fore.CYAN, Fore.MAGENTA,
+            Fore.BLUE, Fore.GREEN, Fore.YELLOW
+        ]
+
+        # Pick 2 distinct random colors
+        colors = random.sample(available_colors, 2)
+
         # Clear screen and move cursor to top-left
         if clear_screen:
             sys.stdout.write(TerminalAnsiCodes.CLS_SB)
         sys.stdout.write('\n')
 
+        # Print each line with alternating color
         with open(banner_file, encoding='utf-8') as f:
             for i, line in enumerate(f):
-                color = Fore.LIGHTBLACK_EX if i % 2 == 0 else Fore.LIGHTWHITE_EX
-                sys.stdout.write(f"{color}{line}")
+                color = colors[i % 2]
+                sys.stdout.write(f"{color}{line.rstrip()}{Style.RESET_ALL}\n")
 
         sys.stdout.write('\n')  # Final newlines
         sys.stdout.flush()
@@ -1094,6 +1106,29 @@ class ToolBox(CoreModuleInterface):
         if terminal_title is not None:
             ToolBox.set_terminal_title(terminal_title)
         return None
+
+    @staticmethod
+    def get_formatted_size(num_bytes: int, precision: int = 1) -> str:
+        """
+        Convert a byte count into a human-readable string.
+        Args:
+            num_bytes (int): The number of bytes. Must be >= 0.
+            precision (int): Number of decimal places. Must be >= 0.
+        Returns:
+            str: Human-readable size string (e.g. '2.0 MB').
+        """
+        if not isinstance(num_bytes, (int, float)) or num_bytes < 0:
+            raise ValueError("num_bytes must be a non-negative number.")
+        if not isinstance(precision, int) or precision < 0:
+            raise ValueError("precision must be a non-negative integer.")
+
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        size = float(num_bytes)
+        for unit in units:
+            if size < 1024.0:
+                return f"{size:.{precision}f} {unit}"
+            size /= 1024.0
+        return f"{size:.{precision}f} PB"
 
     @staticmethod
     def get_module_docstring(python_module_type: Optional[ModuleType] = None) -> Optional[str]:

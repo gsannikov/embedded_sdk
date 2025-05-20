@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 from typing import Any, Optional
 
+# Third-party
 from colorama import Fore
 from rich import box
 from rich.console import Console

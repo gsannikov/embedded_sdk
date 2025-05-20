@@ -480,6 +480,7 @@ class FieldColorType(NamedTuple):
     field_name: str
     color: str
 
+
 class ExceptionGuru:
     """
     A singleton utility class for capturing and exposing the origin (filename and line number)
@@ -598,6 +599,7 @@ class BuildProfileType:
     solution_name: Optional[str] = None
     project_name: Optional[str] = None
     config_name: Optional[str] = None
+    leading_text: Optional[str] = None
     build_dot_notation: Optional[str] = None
     config_data: Optional[dict[str, Any]] = None
     tool_chain_data: Optional[dict[str, Any]] = None
@@ -624,7 +626,7 @@ class BuildTelemetry:
     def load(cls, path: str) -> "BuildTelemetry":
         if not os.path.exists(path):
             return cls()
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
 
         return cls(
