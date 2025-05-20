@@ -871,9 +871,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Save history when the session ends
         self._save_history()
 
-        self.poutput("\nClosing prompt..\n")
+        self.poutput("\nClosing session..")
         self._toolbox.set_terminal_title("Terminal")
         super().postloop()  # Always call the parent
+
+        telemetry = self.auto_forge.get_telemetry()
+        formated_delta = telemetry.format_timedelta(telemetry.get_session_time())
+        print(f"Total time: {formated_delta}\n")
 
     def cmdloop(self, intro: Optional[str] = None) -> None:
         """

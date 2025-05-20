@@ -34,6 +34,7 @@ from auto_forge import (
     PROJECT_VERSION,
     AddressInfoType,
     AutoLogger,
+    BuildTelemetry,
     CoreEnvironment,
     CoreGUI,
     CoreLoader,
@@ -67,6 +68,7 @@ class AutoForge(CoreModuleInterface):
         self._variables: Optional[CoreVariables] = None
         self._gui: Optional[CoreGUI] = None
         self._prompt: Optional[CorePrompt] = None
+        self._telemetry: Optional[BuildTelemetry] = None
 
         # Startup arguments
         self._automated_mode: bool = False
@@ -278,6 +280,10 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
+    def get_telemetry(self) -> Optional[BuildTelemetry]:
+        """ Returns the AutoForge telemetry class instance """
+        return self._telemetry
+
     def forge(self) -> Optional[int]:
         """
         Load a solution and fire the AutoForge shell.
@@ -322,6 +328,10 @@ class AutoForge(CoreModuleInterface):
 
             if not self._create_workspace:
 
+                # Start user telemetry
+                telemetry_path = self._toolbox.get_expanded_path("~/.autoforge_telemetry.json")
+                self._telemetry = BuildTelemetry.load(telemetry_path)
+
                 # ==============================================================
                 # User interactive shell.
                 # Indefinite loop until user exits the shell using 'quit'
@@ -335,6 +345,7 @@ class AutoForge(CoreModuleInterface):
                 self._prompt = CorePrompt(history_file="~/.auto_forge_history",
                                           configuration_data=self._config_data)
                 return self._prompt.cmdloop()
+
             else:
 
                 # ==============================================================

@@ -7,12 +7,14 @@ Description:
     shared across multiple components of the project. Includes reusable structures
     such as icon mappings, CLI data wrappers, and standardized formatting helpers.
 """
-
+import json
 import os
 import re
 import sys
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+from datetime import timedelta
 from enum import Enum, auto
 from types import ModuleType
 from typing import Any, Callable, NamedTuple, Optional, TextIO
@@ -594,3 +596,79 @@ class BuildProfileType:
     build_dot_notation: Optional[str] = None
     config_data: Optional[dict[str, Any]] = None
     tool_chain_data: Optional[dict[str, Any]] = None
+
+
+@dataclass
+class BuildTelemetry:
+    """ AutoForge telemetry container """
+    total_builds: int = 0
+    successful_builds: int = 0
+    failed_builds: int = 0
+    total_build_errors: int = 0
+
+    total_build_time: timedelta = field(default_factory=timedelta)
+    total_dev_time: timedelta = field(default_factory=timedelta)
+
+    longest_build_time: timedelta = field(default_factory=timedelta)
+    shortest_successful_build: Optional[timedelta] = None
+
+    # Auto start session timer
+    session_start_time = datetime.now(timezone.utc)
+
+    @classmethod
+    def load(cls, path: str) -> "BuildTelemetry":
+        if not os.path.exists(path):
+            return cls()
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        return cls(
+            total_builds=data.get("total_builds", 0),
+            successful_builds=data.get("successful_builds", 0),
+            failed_builds=data.get("failed_builds", 0),
+            total_build_errors=data.get("total_build_errors", 0),
+            total_build_time=timedelta(seconds=data.get("total_build_time", 0)),
+            total_dev_time=timedelta(seconds=data.get("total_dev_time", 0)),
+            longest_build_time=timedelta(seconds=data.get("longest_build_time", 0)),
+            shortest_successful_build=(
+                timedelta(seconds=data["shortest_successful_build"])
+                if data.get("shortest_successful_build") is not None else None
+            )
+        )
+
+    def save(self, path: str):
+        data = asdict(self)
+        for key in ["total_build_time", "total_dev_time", "longest_build_time", "shortest_successful_build"]:
+            if data[key] is not None:
+                data[key] = data[key].total_seconds()
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+
+    @staticmethod
+    def format_timedelta(td: timedelta) -> str:
+        total_seconds = int(td.total_seconds())
+        minutes, seconds = divmod(total_seconds, 60)
+        milliseconds = td.microseconds // 1000
+
+        parts = []
+        if minutes > 0:
+            parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+        parts.append(f"{seconds}.{milliseconds:03d} seconds")
+        return " ".join(parts)
+
+    def start_build_timer(self):
+        self.session_start_time = datetime.now(timezone.utc)
+
+    def stop_build_timer(self):
+        if self.session_start_time is not None:
+            elapsed = datetime.now(timezone.utc) - self.session_start_time
+            self.total_build_time += elapsed
+            self.session_start_time = None
+
+    def get_total_build_time(self) -> timedelta:
+        if self.session_start_time is not None:
+            return self.total_build_time + (datetime.now(timezone.utc) - self.session_start_time)
+        return self.total_build_time
+
+    def get_session_time(self) -> timedelta:
+        return datetime.now(timezone.utc) - self.session_start_time

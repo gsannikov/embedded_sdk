@@ -85,7 +85,10 @@
 	"aliases": {
 		"..": "cd ..",
 		"~": "cd $HOME",
-		"gw": "cd $PROJ_WORKSPACE",
+		"gow": "cd $PROJ_WORKSPACE",
+		"gob": "cd $BUILD_OUT",
+		"gofw": "cd $PROJ_SOURCES_BASE",
+		"log": "cat $PROJ_WORKSPACE/auto_forge.log",
 		"ls": "lsd -g",
 		"ll": "lss -la",
 		"l": "ls",
