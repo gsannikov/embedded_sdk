@@ -114,29 +114,37 @@
 			"tool_chains": [
 				{
 					"name": "x86_64 Linux GCC",
-					"compiler": "gcc",
-					"compiler_version": ">=9.0",
 					"platform": "linux",
 					"architecture": "x86_64",
 					"build_system": "make",
-					"make_version": ">=4.0",
 					"required_tools": {
-						"gcc": "gcc",
-						"make": "/usr/bin/make"
+						"make": [
+							"make",
+							">=4.0"
+						],
+						"gcc": [
+							"gcc",
+							">=9.0"
+						]
 					}
 				},
 				{
 					"name": "ARM Cross Toolchain",
-					"compiler": "arm-none-eabi-gcc",
-					"compiler_version": ">=10.0",
 					"platform": "linux",
 					"architecture": "arm",
-					"build_system": "cmake",
+					"build_system": "make",
 					"make_version": ">=3.16",
+					"gcc_version": ">=10.0",
 					"required_tools": {
-						"arm-none-eabi-gcc": "arm-none-eabi-gcc",
-						"cmake": "cmake",
-						"ninja": "ninja"
+						"make": [
+							"/usr/bin/make",
+							">=3.16"
+						],
+						"gcc": [
+							"gcc",
+							"arm-linux-gnueabihf-gcc",
+							">=10.0"
+						]
 					}
 				}
 			],
@@ -144,28 +152,33 @@
 			"projects": [
 				{
 					"name": "btop",
-					"description": "Console resource monitor.",
-					"tool_chain": "<$ref_solutions[sample].tool_chains[x86_64 Linux GCC]>",
+					"description": "Terminal based resource monitor for ARM",
+					"tool_chain": "<$ref_solutions[sample].tool_chains[ARM Cross Toolchain]>",
 					// Per project configuration
 					"configurations": [
 						{
 							"name": "debug",
 							"menu_shortcut": "bd",
-							"build_path": "<$ref_solutions[sample].build_path>/<$ref_projects[].name>/<$ref_name>",
+							"build_path": "<$ref_solutions[sample].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
 							"execute_from": "$PROJ_SOURCES_BASE/<$ref_projects[].name>",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
+								"OPTFLAGS=-O0",
+								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"CC=arm-linux-gnueabihf-gcc",
+								"CXX=arm-linux-gnueabihf-g++",
+								"LD=arm-linux-gnueabihf-ld",
 								"LDFLAGS=-ldl -pthread"
 							],
 							"artifacts": [
 								"<$ref_build_path>/btop"
 							],
 							"pre_build_steps": {
-								"Cleanup": "!rm -rf <$ref_build_path>"
+								"clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
 							},
 							"post_build_steps": {
-								"Move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
+								"move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
 							}
 						},
 						{
@@ -174,7 +187,12 @@
 							"menu_shortcut": "br",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"OPTFLAGS=-O3",
+								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path> -DNDEBUG",
+								"CC=arm-linux-gnueabihf-gcc",
+								"CXX=arm-linux-gnueabihf-g++",
+								"LD=arm-linux-gnueabihf-ld",
 								"LDFLAGS=-ldl -pthread"
 							]
 						}

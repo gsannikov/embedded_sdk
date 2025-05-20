@@ -594,7 +594,6 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             str: The resolved value for the given reference.
         """
-
         resolved_reference: Optional[str] = None
 
         if self._scope.current_context is None or self._scope.current_context.node_data is None:
@@ -617,9 +616,6 @@ class CoreSolution(CoreModuleInterface):
 
             # Resolve alternate Local Referencing: Offers the same functionality as local referencing, often used for enhanced
             # readability or specific contextual needs.
-            # Example:
-            #   "board": "some_board",
-            #   "cmake_top_level_path": "/home/dummy/<$ref_configurations[].board>",
 
             ref_parts = reference_path.split(".")
             if not ref_parts:
@@ -628,12 +624,17 @@ class CoreSolution(CoreModuleInterface):
             match_list = re.match(r"([a-zA-Z]+)\[]", ref_parts[0])
             if match_list:
                 context_type = match_list.group(1)
+
+                fragmented_key = '.'.join(ref_parts[1:]) if len(ref_parts) > 2 else None
                 key = ref_parts[1]
 
                 context = self._scope.get_node(context_type)
                 if context is not None:
-                    if key in context:
-                        resolved_reference = context[key]
+                    if fragmented_key:
+                        resolved_reference = jmespath.search(fragmented_key, context)
+                    else:
+                        if key in context:
+                            resolved_reference = context[key]
                 else:
                     raise KeyError(f"local reference `{reference_path}` not found in `{context_type}` context.")
 
@@ -642,7 +643,7 @@ class CoreSolution(CoreModuleInterface):
             # Explicit Referencing: Enables the use of keys from different scopes, either locally or globally within
             # the document, here we must use the full path to the referenced variable.
             #   Example:
-            #   "dummy": "<$ref_solutions[IMCv2].projects[Zephyr].configurations[debug].board>"
+            #   "dummy": "<$ref_solutions[example].projects[test].configurations[debug].board>"
 
             pattern = r"solutions\[([^\]]+)\](\..+)?"  # Full path always starts with .solutions'
             match = re.search(pattern, reference_path)

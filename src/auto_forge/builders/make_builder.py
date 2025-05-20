@@ -3,95 +3,94 @@ Script:         make_builder.py
 Author:         AutoForge Team
 
 Description:
-    A builder implementation specifically tailored to handle 'make'-based builds,
-    typically by executing the 'make' command directly.
+    A builder implementation tailored for handling Make-based build systems.
+    It provides the `_MakeToolChain` class, a concrete implementation of the `BuilderToolChainInterface`,
+    which validates and resolves tools required for Make-driven workflows.
+
+Classes:
+    - _MakeToolChain: Validates and resolves required tools for Make-based toolchains.
 """
+
 import logging
 import os
-import re
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 from typing import Optional
 
-from colorama import Fore, Style
 # Third-party
-from packaging.version import parse as vparse
+from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
     BuilderInterface,
+    BuilderToolChainInterface,
     BuildProfileType,
-    BuilderToolchainValidationError,
-    BuilderConfigurationBuildError,
     TerminalEchoType,
     CoreEnvironment,
     CorePrompt,
 )
+
+# Third-party
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
+class _MakeToolChain(BuilderToolChainInterface):
+    """
+    Concrete implementation of BuilderToolChainInterface for Make-based build systems.
+    The resolved tool paths are stored and can be queried using `get_tool()`.
+    """
+
+    def validate(self) -> None:
+        """
+        Validates the toolchain structure and required tools specified by the solution where
+        we will attempt to resolve each tool to an available binary using the candidates,
+        and confirms it meets the version requirement.
+        """
+        required_keys = {"name", "platform", "architecture", "build_system", "required_tools"}
+        missing = required_keys - self._toolchain.keys()
+        if missing:
+            raise ValueError(f"missing top-level toolchain keys: {missing}")
+
+        tools = self._toolchain["required_tools"]
+        if not isinstance(tools, dict) or not tools:
+            raise ValueError("toolchain 'required_tools' must be a non-empty dictionary")
+
+        for name, definition in tools.items():
+            if not isinstance(definition, list) or len(definition) < 2:
+                raise ValueError(f"Tool '{name}' must list at least one binary and one version string")
+
+            *candidates, version_expr = definition
+            resolved = self._resolve_tool(candidates, version_expr)
+            if not resolved:
+                raise RuntimeError(f"Tool '{name}' not found or version {version_expr} not satisfied")
+            self._resolved_tools[name] = resolved
+
+
 class MakeBuilder(BuilderInterface):
     """
-    A simple 'hello world' command example for AutoForge CLI.
+    Implementation of the BuilderInterface for Make-based build systems.
+    This builder executes the 'make' command using a validated toolchain and configuration
+    provided by the surrounding build context. It is intended for use with projects that
+    define their build process via Makefiles.
     """
 
     def __init__(self, **_kwargs: Any):
         """
-        Initializes the MakeBuilder class.
+        Initializes the MakeBuilder instance.
         Args:
-            **_kwargs (Any): Optional keyword arguments.
+            **_kwargs (Any): Optional keyword arguments for future extensibility.
+                             Currently unused but accepted for interface compatibility.
         """
         self._environment: Optional[CoreEnvironment] = None
         self._prompt: Optional[CorePrompt] = None
+        self._toolchain: Optional[BuilderToolChainInterface] = None
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
-    @staticmethod
-    def _validate_tool_chain(toolchain: dict[str, Any]) -> None:
-        """
-        Validates that the given toolchain dictionary describes tools and versions
-        that are available on the current system.
-        Args:
-            toolchain (dict): A dictionary describing the toolchain.
-        """
-
-        def check_version(path: str, version: str) -> None:
-            try:
-                output = subprocess.check_output([path, '--version'], text=True, timeout=3)
-            except Exception as check_version_error:
-                raise BuilderToolchainValidationError(f"Failed to invoke '{path} --version':"
-                                                      f" {check_version_error}") from check_version_error
-
-            match = re.search(r"(\d+\.\d+(\.\d+)?)", output)
-            if not match:
-                raise BuilderToolchainValidationError(f"Unable to parse version for tool: {path}")
-
-            current = vparse(match.group(1))
-            expected = vparse(version.lstrip(">="))
-            if current < expected:
-                raise BuilderToolchainValidationError(
-                    f"{path} version {current} does not meet required version {version}"
-                )
-
-        for tool in toolchain.get("required_tools", []):
-            # If tool is a path or binary name
-            tool_path = shutil.which(tool) if not os.path.isabs(tool) else tool
-            if not tool_path or not Path(tool_path).exists():
-                raise BuilderToolchainValidationError(
-                    f"Required tool '{tool}' not found in system path or given location.")
-
-            # Lookup version requirement (e.g., 'make_version', 'gcc_version')
-            key = f"{Path(tool).name}_version"
-            required_version = toolchain.get(key)
-            if required_version:
-                check_version(tool_path, required_version)
-
-    def _make_configuration(  # noqa: C901
+    def _execute_build(  # noqa: C901
             self,
             build_profile: BuildProfileType) -> Optional[int]:
         """
@@ -100,7 +99,6 @@ class MakeBuilder(BuilderInterface):
         - Executes the compiler command with options
         - Verifies the compiler's return code matches the expected result
         - Confirms that all expected artifacts were created
-
         Args:
             build_profile (BuildProfileType): The build profile containing config and toolchain data.
         Returns:
@@ -116,17 +114,10 @@ class MakeBuilder(BuilderInterface):
         # Those are essential properties we must get
         mandatory_required_fields = ["build_path", "compiler_options", "artifacts"]
 
-        # Gets the build system
-        compiler_command = build_profile.tool_chain_data.get("build_system")
-        if not compiler_command:
-            raise BuilderConfigurationBuildError(
-                "toolchain does not specify a 'build_system' (e.g., 'make')"
-            )
-
         # Validate required fields
         for field in mandatory_required_fields:
             if field not in config:
-                raise BuilderConfigurationBuildError(f"missing mandatory field in configuration: '{field}'")
+                raise ValueError(f"missing mandatory field in configuration: '{field}'")
 
         # Get optional 'execute_from' property and validate it
         execute_from = config.get("execute_from", None)
@@ -134,14 +125,21 @@ class MakeBuilder(BuilderInterface):
             execute_from = Path(self._tool_box.get_expanded_path(execute_from))
             # Validate it's a path since we have it.
             if not execute_from.is_dir():
-                raise BuilderConfigurationBuildError(f"invalid source directory: '{execute_from}'")
+                raise ValueError(f"invalid source directory: '{execute_from}'")
 
-        self.print_message(f"Builder '{compiler_command}' starting...")
+        # Get the target architecture from the tool chin object
+        architecture = self._toolchain.get_value("architecture")
+        build_target_string = (f"{Fore.LIGHTBLUE_EX}{build_profile.project_name}"
+                               f"{Style.RESET_ALL}/{build_profile.config_name}")
+
+        # Gets the exact compiler path from the toolchain class
+        build_command = self._toolchain.get_tool('make')
+        self.print_message(f"Build of '{build_target_string}' for {architecture} starting...")
 
         # Process pre-build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("pre_build_steps", {})
         if steps_data:
-            self._process_build_steps(steps=steps_data)
+            self._process_build_steps(steps=steps_data, do_clean=build_profile.do_clean, is_pre=True)
 
         # Validate or create build_path
         build_path = Path(config["build_path"]).expanduser().resolve()
@@ -149,21 +147,17 @@ class MakeBuilder(BuilderInterface):
             try:
                 build_path.mkdir(parents=True)
             except Exception as make_dir_error:
-                raise BuilderConfigurationBuildError(f"failed to create build path: "
-                                                     f"'{build_path}': {make_dir_error}") from make_dir_error
+                raise RuntimeError(f"failed to create build path: "
+                                   f"'{build_path}': {make_dir_error}") from make_dir_error
 
         if not build_path.is_dir():
-            raise BuilderConfigurationBuildError(f"build path is not a directory: '{build_path}'")
+            raise ValueError(f"build path is not a directory: '{build_path}'")
 
         compiler_options = config["compiler_options"]
         artifacts = config["artifacts"]
 
-        # Ensure compiler tool exists
-        if shutil.which(compiler_command) is None:
-            raise BuilderConfigurationBuildError(f"Compiler '{compiler_command}' not found in PATH.")
-
         # Prepare the 'make' command line
-        command_line = [compiler_command, *compiler_options]
+        command_line = [build_command, *compiler_options]
 
         # Execute
         try:
@@ -172,12 +166,11 @@ class MakeBuilder(BuilderInterface):
                 command_and_args=command_line,
                 echo_type=TerminalEchoType.SINGLE_LINE,
                 cwd=str(execute_from),
-                leading_text=build_profile.leading_text,
+                leading_text=build_profile.terminal_leading_text,
                 expand_command=True)
 
         except Exception as execution_error:
-            raise BuilderConfigurationBuildError(
-                f"build process failed to start: {execution_error}") from execution_error
+            raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
 
         # Validate expected return code
         if results.return_code != 0:
@@ -185,12 +178,12 @@ class MakeBuilder(BuilderInterface):
             if results.response:
                 self.print_message(message=f"Build response: {results.response}", log_level=logging.ERROR)
 
-            raise BuilderConfigurationBuildError(f"build returned unexpected result code: {results.return_code}")
+            raise RuntimeError(f"build returned unexpected result code: {results.return_code}")
 
         # Process post build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
         if steps_data:
-            self._process_build_steps(steps=steps_data)
+            self._process_build_steps(steps=steps_data, do_clean=build_profile.do_clean, is_pre=False)
 
         # Check for all expected artifacts
         missing_artifacts = []
@@ -206,31 +199,37 @@ class MakeBuilder(BuilderInterface):
                             f"{Fore.LIGHTYELLOW_EX}{formated_size}{Style.RESET_ALL}")
 
         if missing_artifacts:
-            raise BuilderConfigurationBuildError("missing expected build artifacts:" + "\n".join(missing_artifacts))
+            raise ValueError("missing expected build artifacts:" + "\n".join(missing_artifacts))
 
-        self.print_message(message=f"Building of '{build_profile.project_name}/{build_profile.config_name}' "
-                                   f"was successful", log_level=logging.INFO)
+        self.print_message(message=f"Building of '{build_target_string}' was successful", log_level=logging.INFO)
         return results.return_code
 
-    def _process_build_steps(self, steps: dict[str, str]) -> None:
+    def _process_build_steps(self, steps: dict[str, str], do_clean: bool = False, is_pre: bool = True) -> None:
         """
         Execute a dictionary of build steps where values prefixed with '!' are run as cmd2 shell commands.
         Args:
             steps (dict[str, str]): A dictionary of named build steps to execute.
+            do_clean (bool): Process steps that carries 'clean' label.
+            is_pre (bool): Specifies if those are pre or post build steps.
         """
-        self._prompt = CorePrompt().get_instance()
-        if self._prompt is None:
-            raise BuilderConfigurationBuildError("could not attach to the prompt class instance")
-
         for step_name, command in steps.items():
-            self.print_message(message=f"Running build step: '{step_name}'")
+            prefix = "pre" if is_pre else "post"
+
+            # Skip cleaning steps
+            if not do_clean and step_name == 'clean':
+                continue
+
+            self.print_message(message=f"Running {prefix}-build step: '{step_name}'")
 
             command = command.strip()
 
             if command.startswith("!"):
-                cmd_text = command[1:].lstrip()
+                command_line = command[1:].lstrip()
                 try:
-                    self._prompt.onecmd_plus_hooks(cmd_text)
+                    self._environment.execute_shell_command(
+                        command_and_args=command_line,
+                        echo_type=TerminalEchoType.SINGLE_LINE,
+                        expand_command=True)
                 except Exception as execution_error:
                     self.print_message(message=f"Failed to execute '{step_name}': {execution_error}",
                                        log_level=logging.ERROR)
@@ -250,8 +249,8 @@ class MakeBuilder(BuilderInterface):
         try:
             print()
             self._tool_box.set_cursor(visible=False)
-            self._validate_tool_chain(build_profile.tool_chain_data)
-            build_status = self._make_configuration(build_profile=build_profile)
+            self._toolchain = _MakeToolChain(toolchain=build_profile.tool_chain_data)
+            build_status = self._execute_build(build_profile=build_profile)
 
         except Exception as build_error:
             self.print_message(message=f"{build_error}", log_level=logging.ERROR)

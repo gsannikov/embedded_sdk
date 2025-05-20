@@ -30,7 +30,7 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
-from auto_forge.core.interfaces.builder_interfcae import BuilderInterface
+from auto_forge.core.interfaces.builder_interfcae import (BuilderInterface, BuilderToolChainInterface)
 
 # Common modules
 from auto_forge.common.registry import Registry
@@ -48,10 +48,6 @@ from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Si
 from auto_forge.core.solution import CoreSolution
 from auto_forge.core.prompt import CorePrompt
 
-# Custom exceptions
-from auto_forge.core.interfaces.builder_interfcae import (
-    BuilderToolchainValidationError , BuilderConfigurationBuildError)
-
 # AutoForg main
 from auto_forge.auto_forge import auto_forge_main as main
 # @formatter:on
@@ -67,9 +63,8 @@ __all__ = [
     "ValidationMethodType", "ExecutionModeType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType", "FieldColorType",
-    "CLICommandInterface", "CoreModuleInterface", "BuilderInterface",
+    "CLICommandInterface", "CoreModuleInterface", "BuilderInterface", "BuilderToolChainInterface",
     "SignatureFileHandler", "Signature",
-    "BuilderToolchainValidationError", "BuilderConfigurationBuildError",
     "TERMINAL_ICONS_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",

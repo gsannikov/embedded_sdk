@@ -10,7 +10,11 @@ Description:
 
 import inspect
 import logging
+import re
+import shutil
+import subprocess
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from typing import Optional
 
 from colorama import Fore, Style
@@ -24,12 +28,76 @@ AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
 
 
-class BuilderToolchainValidationError(Exception):
-    """Raised when the toolchain validation fails."""
+class BuilderToolChainInterface(ABC):
+    """
+    Abstract base class for toolchain definitions.
+    Implementing classes must provide 'validate()' to check structural and semantic correctness.
+    Common resolution logic is built-in.
+    """
 
+    def __init__(self, toolchain: dict[str, object]) -> None:
+        self._toolchain = toolchain
+        self._resolved_tools: dict[str, str] = {}
 
-class BuilderConfigurationBuildError(Exception):
-    """Raised when a configuration build process fails."""
+        # Delegate validation to concrete class
+        self.validate()
+
+    @abstractmethod
+    def validate(self) -> None:
+        """
+        Perform structural and semantic validation of the toolchain.
+        Must populate self._resolved_tools with valid tools or raise an exception.
+        """
+        raise NotImplementedError("must implement 'validate'")
+
+    def get_tool(self, tool_name: str) -> Optional[str]:
+        """
+        Returns the resolved absolute path of the specified tool name,
+        or None if not found.
+        """
+        return self._resolved_tools.get(tool_name)
+
+    def get_value(self, key_name: str) -> Optional[str]:
+        """
+        Returns the value of a top-level key in the toolchain dictionary,
+        only if it is a string. Returns None otherwise.
+        """
+        value = self._toolchain.get(key_name)
+        return value if isinstance(value, str) else None
+
+    def _resolve_tool(self, candidates: list[str], version_expr: str) -> Optional[str]:
+        """
+        Attempts to find a binary from the candidates list that meets the version requirement.
+        """
+        for binary in candidates:
+            path = shutil.which(binary) if not binary.startswith("/") else binary
+            if path and self._version_ok(path, version_expr):
+                return path
+        return None
+
+    @staticmethod
+    def _version_ok(binary_path: str, version_expr: str) -> bool:
+        """
+        Checks if the binary at binary_path meets the version constraint (e.g., ">=10.0").
+        Returns False if version can't be parsed or the check fails.
+        """
+        with suppress(Exception):
+            output = subprocess.check_output([binary_path, "--version"], stderr=subprocess.STDOUT, text=True)
+            match = re.search(r"\d+(\.\d+)+", output)
+            if not match:
+                return False
+            current_version = tuple(map(int, match.group(0).split(".")))
+            required_version = tuple(map(int, version_expr[2:].split(".")))
+
+            if version_expr.startswith(">="):
+                return current_version >= required_version
+            elif version_expr.startswith(">"):
+                return current_version > required_version
+            elif version_expr.startswith("=="):
+                return current_version == required_version
+            return False
+
+        return False
 
 
 class BuilderInterface(ABC):
