@@ -71,12 +71,13 @@ class BuilderInterface(ABC):
         super().__init__()
 
     @abstractmethod
-    def build(self, build_profile: BuildProfileType) -> Optional[int]:
+    def build(self, build_profile: BuildProfileType, leading_text:Optional[str] = None) -> Optional[int]:
         """
         Validates the provided build configuration and executes the corresponding build flow.
         Args:
-            build_profile (BuildProfileType): The build profile containing solution, project,
-            configuration, and toolchain information required for the build process.
+            build_profile (BuildProfileType): The build profile containing solution, project, configuration,
+                and toolchain information required for the build process.
+            leading_text (text, optional): If specified will be shown when the builder is running.
 
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.

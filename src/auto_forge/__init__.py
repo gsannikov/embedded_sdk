@@ -23,7 +23,7 @@ from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType, CommandResultType,
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
-                                           SignatureSchemaType, SignatureFieldType, VariableFieldType,
+                                           SignatureSchemaType, SignatureFieldType, VariableFieldType,FieldColorType,
                                            ExceptionGuru, ThreadGuru, TerminalAnsiGuru, TerminalEchoType,
                                            BuildProfileType, BuildTelemetry, TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalFileIconInfo, TERMINAL_ICONS_MAP)
@@ -66,7 +66,7 @@ __all__ = [
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "CommandResultType",
     "ValidationMethodType", "ExecutionModeType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
-    "SignatureFieldType", "SignatureSchemaType", "VariableFieldType",
+    "SignatureFieldType", "SignatureSchemaType", "VariableFieldType", "FieldColorType",
     "CLICommandInterface", "CoreModuleInterface", "BuilderInterface",
     "SignatureFileHandler", "Signature",
     "BuilderToolchainValidationError", "BuilderConfigurationBuildError",

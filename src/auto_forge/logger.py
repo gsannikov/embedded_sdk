@@ -10,17 +10,20 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
 from contextlib import suppress
 from datetime import datetime
 from enum import IntFlag, auto
 from html import unescape
-from typing import Optional, Any, ClassVar
+from typing import Any, Sequence
+from typing import Optional, ClassVar
 
 from colorama import Fore, Style
 
-# AutoForge imports
+from auto_forge.common.local_types import FieldColorType
+# AutoForge imports (using direct import to prevent circular import errors)
 from auto_forge.settings import PROJECT_NAME
 
 AUTO_FORGE_MODULE_NAME = "AutoLogger"
@@ -74,15 +77,6 @@ class _ColorFormatter(logging.Formatter):
     - Displaying level names in fixed-width aligned format
     - Supporting consistent timestamp and message formatting
     """
-
-    # Dictionary to map log levels to colors using Colorama
-    LOG_LEVEL_COLORS: ClassVar[dict[str, str]] = {
-        'DEBUG': Fore.LIGHTCYAN_EX,
-        'INFO': Fore.LIGHTBLUE_EX,
-        'WARNING': Fore.YELLOW,
-        'ERROR': Fore.RED,
-        'CRITICAL': Fore.MAGENTA,
-    }
 
     # noinspection SpellCheckingInspection
     def __init__(self, fmt=None, datefmt=None, style='%', handler: LogHandlersTypes = LogHandlersTypes.NO_HANDLERS):
@@ -152,7 +146,7 @@ class _ColorFormatter(logging.Formatter):
                     terminal_width = os.get_terminal_size().columns
 
                 # This mode is for terminal output; apply color and formatting enhancements for better readability.
-                level_name_color = self.LOG_LEVEL_COLORS.get(record.levelname, Fore.WHITE)
+                level_name_color = self._auto_logger.LOG_LEVEL_COLORS.get(record.levelname, Fore.WHITE)
                 # noinspection SpellCheckingInspection
                 record.levelname = f"{level_name_color}{record.levelname:<8}{Style.RESET_ALL}"
 
@@ -269,6 +263,15 @@ class AutoLogger:
             cls._instance = super().__new__(cls)
 
         return cls._instance
+
+    # Dictionary to map log levels to colors using Colorama
+    LOG_LEVEL_COLORS: ClassVar[dict[str, str]] = {
+        'DEBUG': Fore.LIGHTCYAN_EX,
+        'INFO': Fore.LIGHTBLUE_EX,
+        'WARNING': Fore.YELLOW,
+        'ERROR': Fore.RED,
+        'CRITICAL': Fore.MAGENTA,
+    }
 
     def __init__(self, log_level=logging.ERROR,
                  console_enable_colors: bool = True,
@@ -468,6 +471,67 @@ class AutoLogger:
 
         if to_enable:
             self._enable_handlers(to_enable)
+
+    def show(self, cheerful: bool = False, field_colors: Optional[Sequence[FieldColorType]] = None) -> None:
+        """
+        Display the contents of the log file, either plainly or with colorized formatting.
+        """
+        if not self._log_file_name or not os.path.isfile(self._log_file_name):
+            print(f"{Fore.RED}No log file available.{Style.RESET_ALL}")
+            return
+
+        max_width = shutil.get_terminal_size((80, 20)).columns - 5
+        level_pattern = re.compile(r"\[(.*?)\s+(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+] (\S+\s*): (.*)")
+        print()
+
+        with open(self._log_file_name, 'r') as f:
+            for line in f:
+                line = line.rstrip('\n')
+
+                if not cheerful:
+                    if len(line) > max_width:
+                        line = line[:max_width - 3] + '...'
+                    print(line)
+                    continue
+
+                match = level_pattern.match(line)
+                if not match:
+                    print(line)
+                    continue
+
+                timestamp, level, module, message = match.groups()
+
+                # Apply level color
+                level_color = self.LOG_LEVEL_COLORS.get(level, Fore.WHITE)
+                colored_level = f"{level_color}{level:<8}{Style.RESET_ALL}"
+
+                # Apply module color if matched
+                color = Fore.WHITE
+                clear_module = module.strip()
+                if field_colors:
+                    for fc in field_colors:
+                        if clear_module == fc.field_name:
+                            color = fc.color
+                            break
+                colored_module = f"{color}{module:<14}{Style.RESET_ALL}"
+
+                # Process message
+                if message.startswith("> "):
+                    message = f"{Fore.MAGENTA}> {Fore.LIGHTBLACK_EX}{message[2:]}{Style.RESET_ALL}"
+                else:
+                    # Highlight keywords
+                    def _highlight(word: str) -> str:
+                        if re.search(r"\bwarning\b", word, re.IGNORECASE):
+                            return f"{Fore.YELLOW}{Style.BRIGHT}{word}{Style.RESET_ALL}"
+                        elif re.search(r"\berror\b", word, re.IGNORECASE):
+                            return f"{Fore.RED}{Style.BRIGHT}{word}{Style.RESET_ALL}"
+                        return word
+
+                    message = ''.join(_highlight(w) for w in re.split(r'(\W+)', message))
+
+                # Final line
+                print(f"[{timestamp} {colored_level}] {colored_module}: {message}")
+            print()
 
     @staticmethod
     def get_instance() -> Optional["AutoLogger"]:

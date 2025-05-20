@@ -475,6 +475,11 @@ class TerminalAnsiGuru:
         return (int(match.group(1)) - 1, int(match.group(2)) - 1) if match else None
 
 
+class FieldColorType(NamedTuple):
+    """  Maps arbitrary filed text to a desired color """
+    field_name: str
+    color: str
+
 class ExceptionGuru:
     """
     A singleton utility class for capturing and exposing the origin (filename and line number)

@@ -10,12 +10,14 @@ import argparse
 from pathlib import Path
 from typing import Any, Optional
 
-# AutoForge imports
-from auto_forge import CLICommandInterface, CoreSolution, CoreVariables
+from colorama import Fore
 from rich import box
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
+
+# AutoForge imports
+from auto_forge import CLICommandInterface, CoreSolution, CoreVariables, FieldColorType
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -106,6 +108,22 @@ class SolutionCommand(CLICommandInterface):
 
         self._console.print('\n', table, '\n')
 
+    def _show_log(self, cheerful: bool) -> None:
+        """
+        Doc string..
+        """
+
+        field_colors = [
+            FieldColorType(field_name="AutoForge", color=Fore.GREEN),
+            FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
+            FieldColorType(field_name="Loader", color=Fore.MAGENTA),
+            FieldColorType(field_name="Prompt", color=Fore.LIGHTCYAN_EX),
+            FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
+            FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX),
+        ]
+
+        self._solution.auto_forge.get_root_logger().show(cheerful=cheerful, field_colors=field_colors)
+
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds command-line arguments for the hello command.
@@ -115,6 +133,10 @@ class SolutionCommand(CLICommandInterface):
 
         parser.add_argument('-j', '--print-json', action='store_true',
                             help='Print the processed solution JSON file to the terminal.')
+
+        # Logger printout
+        parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
+        parser.add_argument("-c", "--cheerful", action="store_true", help="Enable colorful log output (only with -l)")
 
         parser.add_argument('-e', '--show-environment-variables', action='store_true',
                             help='Show session environment variables.')
@@ -135,6 +157,8 @@ class SolutionCommand(CLICommandInterface):
             self._solution.show(pretty=True)  # Pretty print the solution processed JSON
         elif args.show_environment_variables:
             self._print_variables_table()
+        elif args.log:
+            self._show_log(args.cheerful)
         else:
             # Error: no arguments
             return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS

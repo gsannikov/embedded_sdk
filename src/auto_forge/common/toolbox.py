@@ -1031,8 +1031,10 @@ class ToolBox(CoreModuleInterface):
         ''', re.VERBOSE)
         text = ansi_escape.sub('', text)
 
-        # Remove "8;;" artifacts from malformed OSC 8 hyperlinks.
+        # GCC junk and do everything possible to get a clear human readable string.
         text = text.replace("8;;", "")
+        text = text.replace("->", "").strip()
+
         # Remove GCC Source code references
         text = re.sub(r'^\|\s*[~^]+\s*$', '', text, flags=re.MULTILINE)
         text = re.sub(r'^\s*\d+\s*\|.*$', '', text, flags=re.MULTILINE)

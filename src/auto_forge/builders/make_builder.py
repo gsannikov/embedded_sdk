@@ -87,7 +87,8 @@ class MakeBuilder(BuilderInterface):
             if required_version:
                 check_version(tool_path, required_version)
 
-    def _make_configuration(self, build_profile: BuildProfileType) -> Optional[int]:
+    def _make_configuration(self, build_profile: BuildProfileType, _leading_text: Optional[str] = None) -> Optional[
+        int]:
         """
         - Compiles a configuration using the provided build profile and validated toolchain.
         - Validates all required paths (build path, execute_from, etc.)
@@ -97,6 +98,7 @@ class MakeBuilder(BuilderInterface):
 
         Args:
             build_profile (BuildProfileType): The build profile containing config and toolchain data.
+            _leading_text (text, optional): If specified will be shown when the builder is running.
         Returns:
             Optional[int]: The compiler's return code if successful.
 
@@ -216,17 +218,20 @@ class MakeBuilder(BuilderInterface):
             else:
                 self._prompt.pwarning(f"Step '{step_name}' ignored: no '!' prefix")
 
-    def build(self, build_profile: BuildProfileType) -> Optional[int]:
+    def build(self, build_profile: BuildProfileType, leading_text: Optional[str] = None) -> Optional[int]:
         """
         Validates the provided build configuration and executes the corresponding build flow.
         Args:
-            build_profile (BuildProfileType): The build profile containing solution, project,
-            configuration, and toolchain information required for the build process.
+            build_profile (BuildProfileType): The build profile containing solution, project, configuration,
+                and toolchain information required for the build process.
+            leading_text (text, optional): If specified will be shown when the builder is running.
 
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.
         """
+        try:
+            self._validate_tool_chain(build_profile.tool_chain_data)
+            return self._make_configuration(build_profile=build_profile, _leading_text=leading_text)
 
-        self._validate_tool_chain(build_profile.tool_chain_data)
-
-        return self._make_configuration(build_profile=build_profile)
+        except Exception as build_error:
+            raise BuilderConfigurationBuildError(f"build failure: {build_error}") from build_error

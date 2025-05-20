@@ -88,7 +88,7 @@
 		"gow": "cd $PROJ_WORKSPACE",
 		"gob": "cd $BUILD_OUT",
 		"gofw": "cd $PROJ_SOURCES_BASE",
-		"log": "cat $PROJ_WORKSPACE/auto_forge.log",
+		"log": "sln -l -c",
 		"ls": "lsd -g",
 		"ll": "lss -la",
 		"l": "ls",
@@ -101,13 +101,14 @@
 		"gc": "git commit -m",
 		"gp": "git push"
 	},
-	// Solutions list
+	// Solutions
 	"solutions": [
 		{
 			"name": "sample",
 			"description": "Sample solution",
 			"build_path": "$BUILD_OUT",
 			"workspace": "$PROJ_WORKSPACE",
+			// Toolchains used by this solution
 			"tool_chains": [
 				{
 					"name": "x86_64 Linux GCC",
@@ -137,11 +138,13 @@
 					}
 				}
 			],
+			// Projects
 			"projects": [
 				{
 					"name": "btop",
 					"description": "Console resource monitor.",
 					"tool_chain": "<$ref_solutions[sample].tool_chains[x86_64 Linux GCC]>",
+					// Per project configuration
 					"configurations": [
 						{
 							"name": "debug",

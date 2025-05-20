@@ -284,6 +284,10 @@ class AutoForge(CoreModuleInterface):
         """ Returns the AutoForge telemetry class instance """
         return self._telemetry
 
+    def get_root_logger(self) -> Optional[AutoLogger]:
+        """ AutoForge root logger instance """
+        return self._auto_logger
+
     def forge(self) -> Optional[int]:
         """
         Load a solution and fire the AutoForge shell.
