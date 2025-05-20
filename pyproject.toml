@@ -20,6 +20,7 @@ classifiers = [
 requires-python = ">=3.9"  # Requires Python 3.9 or later
 # NOTE: tkinter is required but must be installed via system package manager.
 dependencies = [
+    "packaging",
     "wheel==0.43.0",
     "colorama>=0.4.6",
     "rich>=13.7,<14.0",
