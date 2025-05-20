@@ -28,6 +28,8 @@ install_autoforge() {
 		return 1
 	fi
 
+ 	python3 -m pip install --upgrade pip &>/dev/null
+  
 	# Uninstall auto_forge if it exists, without any output
 	pip3 uninstall -y auto_forge &>/dev/null
 
@@ -37,11 +39,13 @@ install_autoforge() {
 		if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
 			return 0
 		else
-			echo "Failed to install auto_forge."
+			echo -ne "\r$(tput el)"
+   			echo "Failed to install auto_forge."
 			return 1
 		fi
 	else
-		echo "Failed to install auto_forge."
+		echo -ne "\r$(tput el)"
+  		echo "Failed to install auto_forge."
 		return
 	fi
 }
