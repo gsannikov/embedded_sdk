@@ -394,6 +394,11 @@ def auto_forge_main() -> Optional[int]:
     """
     result: int = 1  # Default to internal error
 
+    # Force single instance
+    if ToolBox.is_another_autoforge_running():
+        print("\nError: Another instance of AutoForge is already running. Aborting.\n", file=sys.stderr)
+        sys.exit(1)
+
     try:
         # Check early for the version flag before constructing the parser
         if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):

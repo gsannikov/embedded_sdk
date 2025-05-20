@@ -1312,3 +1312,25 @@ class ToolBox(CoreModuleInterface):
                 return self.flatten_text(text=first_paragraph)
 
         return None
+
+    @staticmethod
+    def is_another_autoforge_running() -> bool:
+        """
+            Checks if another instance of AutoForge is currently running on the system.
+            Returns:
+                bool: True if another AutoForge process is detected, False otherwise.
+            """
+        current_pid = os.getpid()
+        for proc in psutil.process_iter(["pid", "exe", "cmdline"]):
+            try:
+                if proc.pid == current_pid:
+                    continue
+                cmdline = proc.info["cmdline"]
+                if not cmdline:
+                    continue
+                # Match typical AutoForge entry call
+                if "autoforge" in cmdline[0] or any("autoforge" in arg for arg in cmdline[1:]):
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return False
