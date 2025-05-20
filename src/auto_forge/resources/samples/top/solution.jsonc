@@ -88,6 +88,8 @@
 		"gow": "cd $PROJ_WORKSPACE",
 		"gob": "cd $BUILD_OUT",
 		"gofw": "cd $PROJ_SOURCES_BASE",
+		"bd": "build sample.btop.debug",
+		"br": "build sample.btop.release",
 		"log": "sln -l -c",
 		"ls": "lsd -g",
 		"ll": "lss -la",
@@ -153,7 +155,8 @@
 							"execute_from": "$PROJ_SOURCES_BASE/<$ref_projects[].name>",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=-I<$ref_build_path>"
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"LDFLAGS=-ldl -pthread"
 							],
 							"artifacts": [
 								"<$ref_build_path>/btop"
@@ -171,7 +174,8 @@
 							"menu_shortcut": "br",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=-I<$ref_build_path>"
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"LDFLAGS=-ldl -pthread"
 							]
 						}
 					]
