@@ -38,6 +38,7 @@ class BuilderToolChainInterface(ABC):
     def __init__(self, toolchain: dict[str, object]) -> None:
         self._toolchain = toolchain
         self._resolved_tools: dict[str, str] = {}
+        self._tool_box = ToolBox().get_instance()
 
         # Delegate validation to concrete class
         self.validate()

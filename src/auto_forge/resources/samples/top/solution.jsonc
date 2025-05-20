@@ -139,13 +139,12 @@
 						"make": [
 							"/usr/bin/make",
 							">=3.16",
-							"help/tool_help/make.txt"
+							"builder/make.txt"
 						],
 						"gcc": [
-							"gcc",
 							"arm-linux-gnueabihf-gcc",
 							">=10.0",
-							"help/tool_help/gcc-arm.txt"
+							"builder/gcc-arm.txt"
 						]
 					}
 				}

@@ -19,6 +19,8 @@ from typing import Optional
 
 # Third-party
 from colorama import Fore, Style
+from rich.console import Console
+from rich.panel import Panel
 
 # AutoForge imports
 from auto_forge import (
@@ -29,8 +31,6 @@ from auto_forge import (
     CoreEnvironment,
     CorePrompt,
 )
-
-# Third-party
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
@@ -45,27 +45,51 @@ class _MakeToolChain(BuilderToolChainInterface):
 
     def validate(self) -> None:
         """
-        Validates the toolchain structure and required tools specified by the solution where
-        we will attempt to resolve each tool to an available binary using the candidates,
-        and confirms it meets the version requirement.
+        Validates the toolchain structure and required tools specified by the solution.
+        For each tool:
+          - Attempts to resolve the binary using the listed candidates.
+          - Confirms the version requirement is met.
+          - Optionally shows help text if the tool is not found or version check fails.
         """
-        required_keys = {"name", "platform", "architecture", "build_system", "required_tools"}
+        console = Console()
+        required_keys = {"name", "platform", "architecture",
+                         "build_system", "required_tools"}
         missing = required_keys - self._toolchain.keys()
         if missing:
-            raise ValueError(f"missing top-level toolchain keys: {missing}")
+            raise ValueError(f"missing top-level tool-chain keys: {missing}")
 
         tools = self._toolchain["required_tools"]
         if not isinstance(tools, dict) or not tools:
-            raise ValueError("toolchain 'required_tools' must be a non-empty dictionary")
+            raise ValueError("'required_tools' must be a non-empty dictionary")
 
         for name, definition in tools.items():
             if not isinstance(definition, list) or len(definition) < 2:
-                raise ValueError(f"Tool '{name}' must list at least one binary and one version string")
+                raise ValueError(
+                    f"tool '{name}' must list at least one binary and a version string"
+                )
 
-            *candidates, version_expr = definition
+            if len(definition) >= 3:
+                *candidates, version_expr, help_path = definition
+            else:  # exactly two items
+                *candidates, version_expr = definition
+                help_path = None
+
             resolved = self._resolve_tool(candidates, version_expr)
             if not resolved:
-                raise RuntimeError(f"Tool '{name}' not found or version {version_expr} not satisfied")
+                base_msg = (f"[red]Tool [yellow]{name} '{candidates[0]}'[/] not found or "
+                            f"version {version_expr} not satisfied[/]")
+                if help_path:
+                    help_text = self._tool_box.get_help(help_path)
+                    if help_text:
+                        help_panel = Panel.fit(help_text, title=f"{name.upper()} INSTALbdL HELP", border_style="blue")
+                        console.print(base_msg)
+                        console.print(help_panel)
+                    else:
+                        console.print(base_msg)
+                else:
+                    console.print(base_msg)
+                raise RuntimeError(f"missing toolchain component: {name}")
+
             self._resolved_tools[name] = resolved
 
 

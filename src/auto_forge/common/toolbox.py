@@ -36,6 +36,7 @@ from colorama import Fore, Style
 from auto_forge import (
     PROJECT_BASE_PATH,
     PROJECT_SHARED_PATH,
+    PROJECT_HELP_PATH,
     AddressInfoType,
     AutoForgeModuleType,
     AutoLogger,
@@ -1371,3 +1372,19 @@ class ToolBox(CoreModuleInterface):
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         return False
+
+    @staticmethod
+    def get_help(path: str) -> Optional[str]:
+        """
+        Attempts to read a help file located at PROJECT_HELP_PATH / path.
+        Returns the file content as a string, or None if any error occurs.
+        Args:
+            path (str): Relative path to the help file under PROJECT_HELP_PATH.
+        Returns:
+            Optional[str]: The content of the help file, or None if an error occurred.
+        """
+        with suppress(Exception):
+            help_file = PROJECT_HELP_PATH / path
+            return help_file.read_text(encoding="utf-8").strip()
+
+        return None
