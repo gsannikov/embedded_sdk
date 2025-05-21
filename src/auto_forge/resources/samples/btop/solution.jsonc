@@ -88,8 +88,6 @@
 		"gow": "cd $PROJ_WORKSPACE",
 		"gob": "cd $BUILD_OUT",
 		"gofw": "cd $PROJ_SOURCES_BASE",
-		"bd": "build demo.btop.debug",
-		"br": "build demo.btop.release",
 		"log": "sln -l -c",
 		"ls": "lsd -g",
 		"ll": "lss -la",
@@ -167,9 +165,12 @@
 					"configurations": [
 						{
 							"name": "debug",
-							"menu_shortcut": "bd",
+							"menu_command": {
+								"name": "bd",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
 							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-							"execute_from": "$PROJ_SOURCES_BASE/<$ref_projects[].name>",
+							"execute_from": "$PROJ_SOURCES_BASE/btop",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
 								"OPTFLAGS=-O0",
@@ -193,7 +194,10 @@
 						{
 							"name": "release",
 							"data": "<$derived_from_solutions[demo].projects[btop].configurations[debug]>",
-							"menu_shortcut": "br",
+							"menu_command": {
+								"name": "br",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
 								"OPTFLAGS=-O3",
@@ -202,6 +206,50 @@
 								"CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
 								"CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
 								"LD=<$ref_projects[].tool_chain.tool_prefix>ld",
+								"LDFLAGS=-ldl -pthread"
+							]
+						}
+					]
+				},
+				{
+					"name": "btop86",
+					"description": "Terminal based resource monitor for x86",
+					"tool_chain": "<$ref_solutions[demo].tool_chains[x86 x64 Linux GCC Toolchain]>",
+					// Per project configuration
+					"configurations": [
+						{
+							"name": "debug",
+							"menu_command": {
+								"name": "bd86",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
+							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
+							"execute_from": "$PROJ_SOURCES_BASE/btop",
+							"compiler_options": [
+								"BUILDDIR=<$ref_build_path>",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"LDFLAGS=-ldl -pthread"
+							],
+							"artifacts": [
+								"<$ref_build_path>/btop"
+							],
+							"pre_build_steps": {
+								"clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
+							},
+							"post_build_steps": {
+								"move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
+							}
+						},
+						{
+							"name": "release",
+							"data": "<$derived_from_solutions[demo].projects[btop].configurations[debug]>",
+							"menu_command": {
+								"name": "br86",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
+							"compiler_options": [
+								"BUILDDIR=<$ref_build_path>",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
 								"LDFLAGS=-ldl -pthread"
 							]
 						}

@@ -56,15 +56,15 @@ class AutoForgCommandType(Enum):
 
 # Color map per command type
 COMMAND_TYPE_COLOR_MAP = {
-    AutoForgCommandType.BUILD: Fore.LIGHTGREEN_EX,
-    AutoForgCommandType.NAVIGATE: Fore.CYAN,
-    AutoForgCommandType.EMULATION: Fore.LIGHTBLUE_EX,
-    AutoForgCommandType.AUTOMATION: Fore.MAGENTA,
-    AutoForgCommandType.GIT: Fore.LIGHTRED_EX,
-    AutoForgCommandType.UTILITY: Fore.LIGHTYELLOW_EX,
-    AutoForgCommandType.SYSTEM: Fore.WHITE,
-    AutoForgCommandType.INSTALLER: Fore.LIGHTCYAN_EX,
-    AutoForgCommandType.MISCELLANEOUS: Fore.RESET,
+    AutoForgCommandType.BUILD: "bright_cyan",
+    AutoForgCommandType.NAVIGATE: "cyan",
+    AutoForgCommandType.EMULATION: "blue",
+    AutoForgCommandType.AUTOMATION: "magenta",
+    AutoForgCommandType.GIT: "red",
+    AutoForgCommandType.UTILITY: "yellow",
+    AutoForgCommandType.SYSTEM: "white",
+    AutoForgCommandType.INSTALLER: "green",
+    AutoForgCommandType.MISCELLANEOUS: "white",
 }
 
 

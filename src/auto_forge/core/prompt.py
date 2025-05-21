@@ -31,6 +31,7 @@ from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 # AutoForge imports
 from auto_forge import (
@@ -39,6 +40,7 @@ from auto_forge import (
     AutoForgCommandType,
     AutoForgeModuleType,
     BuildProfileType,
+    COMMAND_TYPE_COLOR_MAP,
     CoreEnvironment,
     CoreLoader,
     CoreModuleInterface,
@@ -762,8 +764,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     lines.append(line + "\n")
             return ''.join(lines)
 
-        if arg:
-
+        def _show_command_help():
+            """
+            Retrieve command description or mman page text and construct a command specific help
+            within a rectangle.
+            """
             command_name = str(arg.arg_list[0]) if isinstance(arg, Statement) else str(arg)
 
             # User typed 'help my_command' --> Show help for that specific command
@@ -778,69 +783,90 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if command_record is None:
                 man_description = self._toolbox.get_man_description(command_name)
 
-            method = getattr(self, f'do_{arg}', None)
+            command_method = getattr(self, f'do_{arg}', None)
 
             # Try to retrieve help text, either from the command's docstring or by checking if it has a man page entry.
             if command_record and 'description' in command_record:
-                method_description = command_record['description']
-            elif method and method.__doc__:
-                method_description = method.__doc__
+                command_method_description = command_record['description']
+            elif command_method and command_method.__doc__:
+                command_method_description = command_method.__doc__
             elif man_description:
-                method_description = _format_description_blocks(text=man_description)
+                command_method_description = _format_description_blocks(text=man_description)
             else:
-                method_description = "Description not provided."
+                command_method_description = "Description not provided."
 
-            if method_description:
+            if command_method_description:
                 command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
                 console.print("\n",
-                              Panel(f"[bold green]{arg}[/bold green]:\n    {method_description}",
+                              Panel(f"[bold green]{arg}[/bold green]:\n    {command_method_description}",
                                     border_style="cyan",
                                     title=command_help_title,
                                     padding=(1, 1), width=self._term_width),
                               "\n")  # Force panel to fit terminal width
             else:
                 console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
-            return None
 
-        #
-        # Prints formated help page for all known commands
-        #
+        def _show_commands_table():
+            """"
+            Construct a table with all commands having distict color based on their metdata.
+            """
+            # Reserve some space for panel borders/margins
+            max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
 
-        # Reserve some space for panel borders/margins
-        max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
+            # Build the commands table
+            table = Table(box=box.ROUNDED, highlight=True, expand=True)
+            table.add_column("Command", style=None, no_wrap=True)
+            table.add_column("Description", style="dim", overflow="fold", no_wrap=False)
 
-        # Build the commands table
-        table = Table(box=box.ROUNDED, highlight=True, expand=True)
-        table.add_column("Command", style="bold green", no_wrap=True)
-        table.add_column("Description", style="dim", overflow="fold", no_wrap=False)
+            # Collect and sort commands by type group
+            commands_by_type = {}
+            type_colors = COMMAND_TYPE_COLOR_MAP
 
-        commands = sorted(self.get_all_commands())
-        for cmd in commands:
-            if cmd in self.hidden_commands:
-                continue
+            for name, meta in self._alias_metadata.items():
+                cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
+                if cmd_type not in commands_by_type:
+                    commands_by_type[cmd_type] = []
+                commands_by_type[cmd_type].append((name, meta.get("description", "No help available")))
 
-            method = getattr(self, f'do_{cmd}', None)
-            doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
+            # Also include built-in commands with docstrings
+            for cmd in sorted(self.get_all_commands()):
+                if cmd in self.hidden_commands or cmd in self._alias_metadata:
+                    continue
+                method = getattr(self, f'do_{cmd}', None)
+                doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
+                commands_by_type.setdefault(AutoForgCommandType.MISCELLANEOUS, []).append((cmd, doc))
 
-            # Truncate description if necessary
-            if len(doc) > max_desc_width:
-                if max_desc_width > 3:
-                    doc = doc[:max_desc_width - 3] + "..."
-                else:
-                    doc = doc[:max_desc_width]
+            # Sort types and build table
+            for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
+                color = type_colors.get(cmd_type, "white")
 
-            table.add_row(cmd, doc)
+                # Section header row
+                header = Text(f"{cmd_type.name.title()} Commands", style=f"{color} bold")
+                table.add_row(Text(""), Text(""))  # Spacer row
+                table.add_row(header, Text(""))
 
-        # Wrap the table in a Panel
-        master_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Available Commands"
-        panel = Panel(
-            table,
-            title=master_help_title,
-            border_style="cyan",
-            padding=(1, 1), width=self._term_width  # Force panel to fit terminal width
-        )
+                for cmd, desc in sorted(commands_by_type[cmd_type]):
+                    if len(desc) > max_desc_width:
+                        desc = desc[:max_desc_width - 3] + "..."
+                    cmd_cell = Text(cmd, style=f"bold {color}")
+                    desc_cell = Text(desc)
+                    table.add_row(cmd_cell, desc_cell)
 
-        console.print("\n", panel, "\n")
+            # Wrap the table in a Panel
+            master_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Available Commands"
+            panel = Panel(
+                table,
+                title=master_help_title,
+                border_style="cyan",
+                padding=(1, 1), width=self._term_width  # Force panel to fit terminal width
+            )
+
+            console.print("\n", panel, "\n")
+
+        if arg:
+            _show_command_help()
+        else:
+            _show_commands_table()
         return None
 
     def add_build_command(self, solution: str,
@@ -983,7 +1009,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if cursor_pos == 0 or text[cursor_pos - 1] != '/':
                 buffer.insert_text('/')
             else:
-                # 🩹 Force a "change" so prompt_toolkit updates completions
+                # Force a "change" so prompt_toolkit updates completions
                 buffer.insert_text(' ')  # insert temp space
                 buffer.delete_before_cursor(1)  # immediately remove it
 
