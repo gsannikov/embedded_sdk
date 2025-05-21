@@ -17,6 +17,7 @@ Requirements:
 
 import sys
 from contextlib import suppress
+from pathlib import Path
 
 # Safely check for textual availability
 with suppress(ImportError):
@@ -29,28 +30,20 @@ with suppress(ImportError):
         """Textual application to render a Markdown file in the terminal."""
 
         def __init__(self, markdown_path: str):
-            """
-            Initialize the MarkdownApp with the given file path.
-            Args:
-                markdown_path (str): Path to the Markdown file to display.
-            """
             super().__init__()
             self.markdown_path = markdown_path
 
+        def compose(self) -> ComposeResult:
+            # Load Markdown content immediately
+            content = Path(self.markdown_path).read_text(encoding="utf-8")
+            viewer = MarkdownViewer(content)
+            viewer.styles.height = "100%"
+            viewer.styles.width = "100%"
+            yield viewer
+
         async def on_key(self, event: events.Key) -> None:
-            """ Register 'q' as exit key """
             if event.key.lower() == "q":
                 await self.action_quit()
-
-        def compose(self) -> ComposeResult:
-            """
-            Read the Markdown content from file and return a MarkdownViewer widget.
-            Returns:
-                ComposeResult: A generator yielding the MarkdownViewer widget.
-            """
-            with open(self.markdown_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            yield MarkdownViewer(content, )
 
 
     if __name__ == "__main__":
@@ -61,6 +54,7 @@ with suppress(ImportError):
 
         try:
             MarkdownApp(path).run()
+            sys.argv = [sys.argv[0]]
             sys.exit(0)
         except Exception as e:
             print(f"Error running viewer: {e}")
