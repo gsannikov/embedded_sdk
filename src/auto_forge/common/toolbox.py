@@ -30,7 +30,6 @@ from typing import Any, Optional, SupportsInt, Union, Tuple
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
-from colorama import Fore, Style
 
 # Retrieve our package base path from settings
 from auto_forge import (
@@ -1033,7 +1032,7 @@ class ToolBox(CoreModuleInterface):
         ''', re.VERBOSE)
         text = ansi_escape.sub('', text)
 
-        # GCC junk and do everything possible to get a clear human readable string.
+        # GCC junk and do everything possible to get a clear human-readable string.
         text = text.replace("8;;", "")
         text = text.replace("->", "").strip()
 
@@ -1064,49 +1063,49 @@ class ToolBox(CoreModuleInterface):
     def print_logo(banner_file: Optional[str] = None, clear_screen: bool = False,
                    terminal_title: Optional[str] = None) -> None:
         """
-        Displays an ASCII logo from a file with alternating colors per line.
-        Args:
-            banner_file (str): Path to an ASCI art banner text file.
-            clear_screen (bool): Whether to clear the screen before printing.
-            terminal_title (Optional[str]): Optional text to use as the terminal title.
+        Displays an ASCII logo from a file using a consistent horizontal RGB gradient
+        (same for every line, from dark to bright).
         """
-
-        # Demo ASCII Art file
         demo_file = str(PROJECT_SHARED_PATH / "banner.txt")
+        banner_file = banner_file or demo_file
+        if not os.path.isfile(banner_file):
+            return
 
-        # Use to the demo file if not provided
-        if not banner_file or not os.path.isfile(banner_file):
-            banner_file = demo_file
-            if not os.path.isfile(banner_file):
-                return None
-
-        # Available safe foreground colors
-        available_colors = [
-            Fore.LIGHTCYAN_EX, Fore.LIGHTBLUE_EX,
-            Fore.LIGHTGREEN_EX, Fore.LIGHTYELLOW_EX, Fore.CYAN, Fore.MAGENTA,
-            Fore.BLUE, Fore.GREEN, Fore.YELLOW
-        ]
-
-        # Pick 2 distinct random colors
-        colors = random.sample(available_colors, 2)
-
-        # Clear screen and move cursor to top-left
         if clear_screen:
             sys.stdout.write(TerminalAnsiCodes.CLS_SB)
         sys.stdout.write('\n')
 
-        # Print each line with alternating color
         with open(banner_file, encoding='utf-8') as f:
-            for i, line in enumerate(f):
-                color = colors[i % 2]
-                sys.stdout.write(f"{color}{line.rstrip()}{Style.RESET_ALL}\n")
+            lines = [line.rstrip('\n') for line in f]
 
-        sys.stdout.write('\n')  # Final newlines
+        if not lines:
+            return
+
+        # Pick a base color and brighten it across the line width
+        r_base, g_base, b_base = [random.randint(0, 100) for _ in range(3)]
+        r_delta, g_delta, b_delta = [random.randint(80, 155) for _ in range(3)]
+
+        max_line_len = max(len(line) for line in lines)
+
+        def get_rgb_gradient(x, width):
+            t = x / max(1, width - 1)
+            r = int(r_base + r_delta * t)
+            g = int(g_base + g_delta * t)
+            b = int(b_base + b_delta * t)
+            return f"\033[38;2;{r};{g};{b}m"
+
+        for line in lines:
+            colored_line = ""
+            for i, ch in enumerate(line):
+                color_code = get_rgb_gradient(i, max_line_len)
+                colored_line += f"{color_code}{ch}"
+            sys.stdout.write(colored_line + "\033[0m\n")
+
+        sys.stdout.write('\n')
         sys.stdout.flush()
 
         if terminal_title is not None:
             ToolBox.set_terminal_title(terminal_title)
-        return None
 
     @staticmethod
     def get_formatted_size(num_bytes: int, precision: int = 1) -> str:
