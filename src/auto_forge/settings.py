@@ -26,7 +26,7 @@ PROJECT_SCHEMAS_PATH = PROJECT_CONFIG_PATH / "schemas"
 PROJECT_PACKAGE_BASE_PATH = Path(__file__).resolve().parent.parent.parent
 
 # Initialize default values for global variables
-PROJECT_VERSION = "1.1.6"
+PROJECT_VERSION = "1.1.7"
 PROJECT_NAME = "AutoForge"
 PROJECT_REPO = "https://github.com/emichael72/auto_forge.git"
 PROJECT_PACKAGE = "auto_forge"
