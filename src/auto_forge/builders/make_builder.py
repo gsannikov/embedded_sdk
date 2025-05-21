@@ -13,19 +13,19 @@ Classes:
 
 import logging
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 from typing import Optional
 
 # Third-party
 from colorama import Fore, Style
-from rich.console import Console
-from rich.panel import Panel
 
 # AutoForge imports
 from auto_forge import (
     BuilderInterface,
     BuilderToolChainInterface,
+    PROJECT_SHARED_PATH,
     BuildProfileType,
     TerminalEchoType,
     CoreEnvironment,
@@ -35,6 +35,8 @@ from auto_forge import (
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
+
+import sys
 
 
 class _MakeToolChain(BuilderToolChainInterface):
@@ -47,48 +49,57 @@ class _MakeToolChain(BuilderToolChainInterface):
         """
         Validates the toolchain structure and required tools specified by the solution.
         For each tool:
-          - Attempts to resolve the binary using the listed candidates.
+          - Attempts to resolve the binary using the defined path.
           - Confirms the version requirement is met.
-          - Optionally shows help text if the tool is not found or version check fails.
+          - Optionally shows help (Markdown-rendered) if validation fails.
         """
-        console = Console()
-        required_keys = {"name", "platform", "architecture",
-                         "build_system", "required_tools"}
+
+        required_keys = {"name", "platform", "architecture", "build_system", "required_tools"}
         missing = required_keys - self._toolchain.keys()
         if missing:
-            raise ValueError(f"missing top-level tool-chain keys: {missing}")
+            raise ValueError(f"Missing top-level toolchain keys: {missing}")
 
         tools = self._toolchain["required_tools"]
         if not isinstance(tools, dict) or not tools:
             raise ValueError("'required_tools' must be a non-empty dictionary")
 
         for name, definition in tools.items():
-            if not isinstance(definition, list) or len(definition) < 2:
-                raise ValueError(
-                    f"tool '{name}' must list at least one binary and a version string"
-                )
+            if not isinstance(definition, dict):
+                raise ValueError(f"Tool '{name}' definition must be a dictionary")
 
-            if len(definition) >= 3:
-                *candidates, version_expr, help_path = definition
-            else:  # exactly two items
-                *candidates, version_expr = definition
-                help_path = None
+            path = definition.get("path")
+            version_expr = definition.get("version")
+            help_path = definition.get("help")
 
-            resolved = self._resolve_tool(candidates, version_expr)
+            if not path or not version_expr:
+                raise ValueError(f"Tool '{name}' must define 'path' and 'version' fields")
+
+            resolved = self._resolve_tool([path], version_expr)
             if not resolved:
-                base_msg = (f"[red]Tool [yellow]{name} '{candidates[0]}'[/] not found or "
-                            f"version {version_expr} not satisfied[/]")
+
+                self._builder_instance.print_message(
+                    message=f"Tool {name} '{path}' not found or not satisfied", log_level=logging.WARNING)
+
                 if help_path:
-                    help_text = self._tool_box.get_help(help_path)
-                    if help_text:
-                        help_panel = Panel.fit(help_text, title=f"{name.upper()} INSTALbdL HELP", border_style="blue")
-                        console.print(base_msg)
-                        console.print(help_panel)
-                    else:
-                        console.print(base_msg)
-                else:
-                    console.print(base_msg)
-                raise RuntimeError(f"missing toolchain component: {name}")
+                    help_file, help_text = self._tool_box.get_help(help_path)
+                    if help_file:
+                        if help_path.endswith(".md"):
+                            try:
+                                md_path = Path(help_file)
+                                if md_path.exists():
+                                    textual_viewer_path = PROJECT_SHARED_PATH / "textual_md_viewer.py"
+                                    subprocess.run([sys.executable, str(textual_viewer_path), str(md_path)], check=True)
+                                else:
+                                    self._builder_instance.print_message(
+                                        message=f"Markdown help file not found: {md_path}", log_level=logging.WARNING)
+                            except Exception as exec_error:
+                                self._builder_instance.print_message(
+                                    message=f"Failed to launch Markdown viewer: {exec_error}", log_level=logging.ERROR)
+                        else:
+                            self._builder_instance.print_message(
+                                message=f"Help file '{help_path}' is not a Markdown file. Only .md help is supported",
+                                log_level=logging.WARNING)
+                    raise RuntimeError(f"Missing toolchain component: {name}")
 
             self._resolved_tools[name] = resolved
 
@@ -234,7 +245,7 @@ class MakeBuilder(BuilderInterface):
         Args:
             steps (dict[str, str]): A dictionary of named build steps to execute.
             do_clean (bool): Process steps that carries 'clean' label.
-            is_pre (bool): Specifies if those are pre or post build steps.
+            is_pre (bool): Specifies if those are pre- or post-build steps.
         """
         for step_name, command in steps.items():
             prefix = "pre" if is_pre else "post"
@@ -273,7 +284,7 @@ class MakeBuilder(BuilderInterface):
         try:
             print()
             self._tool_box.set_cursor(visible=False)
-            self._toolchain = _MakeToolChain(toolchain=build_profile.tool_chain_data)
+            self._toolchain = _MakeToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
             build_status = self._execute_build(build_profile=build_profile)
 
         except Exception as build_error:

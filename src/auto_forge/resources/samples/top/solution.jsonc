@@ -113,39 +113,45 @@
 			// Toolchains used by this solution
 			"tool_chains": [
 				{
-					"name": "x86_64 Linux GCC",
+					"name": "x86 x64 Linux GCC Toolchain",
 					"platform": "linux",
 					"architecture": "x86_64",
-					"build_system": "make",
-					"required_tools": {
-						"make": [
-							"make",
-							">=4.0"
-						],
-						"gcc": [
-							"gcc",
-							">=9.0"
-						]
-					}
-				},
-				{
-					"name": "ARM Cross Toolchain",
-					"platform": "linux",
-					"architecture": "arm",
 					"build_system": "make",
 					"make_version": ">=3.16",
 					"gcc_version": ">=10.0",
 					"required_tools": {
-						"make": [
-							"/usr/bin/make",
-							">=3.16",
-							"builder/make.txt"
-						],
-						"gcc": [
-							"arm-linux-gnueabihf-gcc",
-							">=10.0",
-							"builder/gcc-arm.txt"
-						]
+						"make": {
+							"path": "make",
+							"version": ">=3.16",
+							"help": "builder/make.md"
+						},
+						"gcc": {
+							"path": "gcc",
+							"version": ">=10.0",
+							"help": "builder/gcc-x64.md"
+						}
+					}
+				},
+				{
+					"name": "AArch64 Cross Toolchain",
+					"platform": "linux",
+					"architecture": "aarch64",
+					"build_system": "make",
+					"make_version": ">=3.16",
+					"gcc_version": ">=14.0",
+					// Adjusted to match the actual Arm toolchain version
+					"required_tools": {
+						"make": {
+							"path": "make",
+							"version": ">=3.16",
+							"help": "builder/make.md"
+						},
+						"gcc": {
+							// NOTE: this is the actual compiler name from Arm toolchain
+							"path": "aarch64-none-linux-gnu-gcc",
+							"version": ">=14.0",
+							"help": "builder/arm_cross_gcc.md"
+						}
 					}
 				}
 			],
@@ -154,7 +160,7 @@
 				{
 					"name": "btop",
 					"description": "Terminal based resource monitor for ARM",
-					"tool_chain": "<$ref_solutions[sample].tool_chains[ARM Cross Toolchain]>",
+					"tool_chain": "<$ref_solutions[sample].tool_chains[AArch64 Cross Toolchain]>",
 					// Per project configuration
 					"configurations": [
 						{
@@ -167,9 +173,9 @@
 								"OPTFLAGS=-O0",
 								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
-								"CC=arm-linux-gnueabihf-gcc",
-								"CXX=arm-linux-gnueabihf-g++",
-								"LD=arm-linux-gnueabihf-ld",
+								"CC=aarch64-none-linux-gnu-gcc",
+								"CXX=aarch64-none-linux-gnu-g++",
+								"LD=aarch64-none-linux-gnu-ld",
 								"LDFLAGS=-ldl -pthread"
 							],
 							"artifacts": [
@@ -191,9 +197,9 @@
 								"OPTFLAGS=-O3",
 								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path> -DNDEBUG",
-								"CC=arm-linux-gnueabihf-gcc",
-								"CXX=arm-linux-gnueabihf-g++",
-								"LD=arm-linux-gnueabihf-ld",
+								"CC=aarch64-none-linux-gnu-gcc",
+								"CXX=aarch64-none-linux-gnu-g++",
+								"LD=aarch64-none-linux-gnu-ld",
 								"LDFLAGS=-ldl -pthread"
 							]
 						}

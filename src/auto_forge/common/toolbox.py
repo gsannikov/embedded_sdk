@@ -26,7 +26,7 @@ import zipfile
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional, SupportsInt, Union
+from typing import Any, Optional, SupportsInt, Union, Tuple
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
@@ -1374,17 +1374,20 @@ class ToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
-    def get_help(path: str) -> Optional[str]:
+    def get_help(path: str) -> Optional[Tuple[str, str]]:
         """
         Attempts to read a help file located at PROJECT_HELP_PATH / path.
-        Returns the file content as a string, or None if any error occurs.
+
         Args:
             path (str): Relative path to the help file under PROJECT_HELP_PATH.
+
         Returns:
-            Optional[str]: The content of the help file, or None if an error occurred.
+            Optional[Tuple[str, str]]: A tuple of (file_name, file_content),
+            or None if any error occurs.
         """
         with suppress(Exception):
             help_file = PROJECT_HELP_PATH / path
-            return help_file.read_text(encoding="utf-8").strip()
+            content = help_file.read_text(encoding="utf-8").strip()
+            return str(help_file), content
 
         return None
