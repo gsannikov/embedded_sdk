@@ -21,12 +21,12 @@ from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
 from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType, CommandResultType,
-                                           ValidationMethodType, ExecutionModeType, MessageBoxType,
+                                           ValidationMethodType, ExecutionModeType, MessageBoxType, AutoForgCommandType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,FieldColorType,
                                            ExceptionGuru, ThreadGuru, TerminalAnsiGuru, TerminalEchoType, XYType,
                                            BuildProfileType, BuildTelemetry, TerminalTeeStream, TerminalAnsiCodes,
-                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP)
+                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP, COMMAND_TYPE_COLOR_MAP)
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
@@ -64,8 +64,8 @@ __all__ = [
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType", "FieldColorType",
     "CLICommandInterface", "CoreModuleInterface", "BuilderInterface", "BuilderToolChainInterface",
-    "SignatureFileHandler", "Signature",
-    "TERMINAL_ICONS_MAP",
+    "SignatureFileHandler", "Signature", "AutoForgCommandType",
+    "TERMINAL_ICONS_MAP", "COMMAND_TYPE_COLOR_MAP",
     "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
     "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",
     "PROJECT_BUILDERS_PATH", "PROJECT_HELP_PATH",

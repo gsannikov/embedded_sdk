@@ -858,7 +858,6 @@ class CoreEnvironment(CoreModuleInterface):
                     raise TimeoutError(f"'{command}' timed out after {timeout} seconds")
 
             process.wait(timeout=10.0)
-         
             # Add any remaining bytes
             if line_buffer:
                 _bytes_to_message_queue(line_buffer, lines_queue)

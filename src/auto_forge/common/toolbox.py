@@ -26,7 +26,7 @@ import zipfile
 from contextlib import suppress
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional, SupportsInt, Union, Tuple
+from typing import Any, Optional, SupportsInt, Union
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
@@ -1084,13 +1084,13 @@ class ToolBox(CoreModuleInterface):
             return
 
         # Pick a base color and brighten it across the line width
-        r_base, g_base, b_base = [random.randint(0, 100) for _ in range(3)]
-        r_delta, g_delta, b_delta = [random.randint(80, 155) for _ in range(3)]
+        r_base, g_base, b_base = (random.randint(0, 100) for _ in range(3))
+        r_delta, g_delta, b_delta = (random.randint(80, 155) for _ in range(3))
 
         max_line_len = max(len(line) for line in lines)
 
-        def get_rgb_gradient(x, width):
-            t = x / max(1, width - 1)
+        def get_rgb_gradient(height, width):
+            t = height / max(1, width - 1)
             r = int(r_base + r_delta * t)
             g = int(g_base + g_delta * t)
             b = int(b_base + b_delta * t)

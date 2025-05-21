@@ -40,6 +40,34 @@ class AutoForgeModuleType(Enum):
     PROMPT_DO = 5  # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
 
 
+class AutoForgCommandType(Enum):
+    """Enumeration of known AutoForge command types."""
+    UNKNOWN = 0
+    BUILD = 1
+    NAVIGATE = 2
+    EMULATION = 3
+    AUTOMATION = 4
+    GIT = 5
+    UTILITY = 6
+    SYSTEM = 7
+    INSTALLER = 8
+    MISCELLANEOUS = 9
+
+
+# Color map per command type
+COMMAND_TYPE_COLOR_MAP = {
+    AutoForgCommandType.BUILD: Fore.LIGHTGREEN_EX,
+    AutoForgCommandType.NAVIGATE: Fore.CYAN,
+    AutoForgCommandType.EMULATION: Fore.LIGHTBLUE_EX,
+    AutoForgCommandType.AUTOMATION: Fore.MAGENTA,
+    AutoForgCommandType.GIT: Fore.LIGHTRED_EX,
+    AutoForgCommandType.UTILITY: Fore.LIGHTYELLOW_EX,
+    AutoForgCommandType.SYSTEM: Fore.WHITE,
+    AutoForgCommandType.INSTALLER: Fore.LIGHTCYAN_EX,
+    AutoForgCommandType.MISCELLANEOUS: Fore.RESET,
+}
+
+
 class ModuleInfoType(NamedTuple):
     """
     Define a named tuple type for AutoForge registered modules.

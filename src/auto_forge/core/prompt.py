@@ -19,6 +19,7 @@ from typing import Optional, Any
 # Third-party
 import cmd2
 from cmd2 import Statement, ansi
+from cmd2 import with_argument_list
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion, CompleteEvent
 from prompt_toolkit.document import Document
@@ -35,6 +36,7 @@ from rich.table import Table
 from auto_forge import (
     PROJECT_NAME,
     AutoLogger,
+    AutoForgCommandType,
     AutoForgeModuleType,
     BuildProfileType,
     CoreEnvironment,
@@ -116,9 +118,10 @@ class _CoreCompleter(Completer):
         - Fallback to path completion for external commands
         - Prevents fallback on known non-path commands like `alias`, `help`, etc.
 
-        NOTE: This function exceeds typical complexity limits (C901) by design.
-        It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
-        for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
+        NOTE:
+            This function exceeds typical complexity limits (C901) by design.
+            It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
+            for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
         text = document.text_before_cursor
         buffer_ends_with_space = text.endswith(" ")
@@ -283,7 +286,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
-        # self.default_to_shell = True
+        self.default_to_shell = True
+
+        for sol, proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
+            self.add_build_command(solution=sol, project=proj,
+                                   configuration=cfg, command_description=cmd['description'],
+                                   command_name=cmd['name'])
 
         # Create persistent history object
         if history_file is not None:
@@ -325,6 +333,44 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Optionally disable help and completer too
         setattr(self, f'help_{command_name}', lambda _self: None)
         setattr(self, f'complete_{command_name}', lambda *_: [])
+
+    def _add_alias_with_description(self, entry: dict,
+                                    command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN) -> None:
+        """
+        Adds an alias to the cmd2 app with a visible description.
+        Args:
+            entry (dict): Dictionary with keys:
+                - name: alias name
+                - description: help description
+                - target_command: the real command this alias invokes
+            command_type (AutoForgCommandType): Type of command to store in ter alias metadata.
+        """
+        alias_name = entry["name"]
+        description = entry["description"]
+        target_command = entry["target_command"]
+        command_type = entry.get("command_type", command_type)
+
+        if not hasattr(self, "_alias_metadata"):
+            self._alias_metadata = {}
+
+        # Store the command metadata
+        self._alias_metadata[alias_name] = {
+            "description": description,
+            "type": command_type,
+            "target_command": target_command,
+        }
+
+        # Create the function
+        @with_argument_list
+        def alias_func(cmd_instance, args):
+            cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
+
+        # Set the name and doc BEFORE assigning to class
+        alias_func.__name__ = f"do_{alias_name}"
+        alias_func.__doc__ = description
+
+        # Add to the class so cmd2 discovers it
+        setattr(self.__class__, alias_func.__name__, alias_func)
 
     def _add_dynamic_cli_commands(self) -> int:
 
@@ -796,6 +842,35 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         console.print("\n", panel, "\n")
         return None
+
+    def add_build_command(self, solution: str,
+                          project: str, configuration: str, command_name: str,
+                          command_description: Optional[str] = None):
+        """
+        Registers a user-friendly build command alias.
+        Here we create a new cmd2 command alias that triggers a specific build configuration
+        for the given solution, project, and configuration name.
+
+        Args:
+            solution (str): The solution name.
+            project (str): The project name within the solution.
+            configuration (str): The specific build configuration.
+            command_name (str): The alias command name to be added.
+            command_description (Optional[str]): A description of the command to be shown in help.
+                                                 Defaults to a generated description if not provided.
+        """
+        target_command = f"build {solution}.{project}.{configuration}"
+
+        if not command_description:
+            command_description = f"Build {solution}/{project}/{configuration}"
+
+        command_entry: dict = {
+            "name": command_name,
+            "description": command_description,
+            "target_command": target_command
+        }
+        self._add_alias_with_description(entry=command_entry,
+                                         command_type=AutoForgCommandType.BUILD)
 
     def do_build(self, arg: str):
         """

@@ -30,6 +30,7 @@ import json
 import os
 import re
 from collections import deque
+from collections.abc import Iterator
 from enum import Enum
 from typing import Any, Optional, Union
 
@@ -228,6 +229,28 @@ class CoreSolution(CoreModuleInterface):
             path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*].name"
             return self._query_json_path(path)
         return None
+
+    def iter_menu_commands_with_context(self) -> Optional[Iterator[tuple[str, str, str, dict]]]:
+        """
+        Iterates over all 'menu_command' entries and yields their full context.
+        Yields:
+            Tuple of (solution_name, project_name, configuration_name, menu_command_dict)
+        """
+        if not self._solution_loaded:
+            return None
+
+        def generator():
+            for solution in self._solution_data.get("solutions", []):
+                sol_name = solution.get("name", "<unknown-solution>")
+                for project in solution.get("projects", []):
+                    proj_name = project.get("name", "<unknown-project>")
+                    for config in project.get("configurations", []):
+                        cfg_name = config.get("name", "<unknown-config>")
+                        menu_cmd = config.get("menu_command")
+                        if isinstance(menu_cmd, dict):
+                            yield sol_name, proj_name, cfg_name, menu_cmd
+
+        return generator()
 
     def get_included_file(self, include_name: str) -> Optional[str]:
         """ Return an included file name based on its key within the 'includes' cluster"""
@@ -579,7 +602,9 @@ class CoreSolution(CoreModuleInterface):
         else:
             raise ValueError(f"unknown variable type: {variable_type}")
 
-    def _resolve_reference(self, reference_path: str) -> Union[str, dict]:
+    def _resolve_reference(  # noqa: C901,
+            self,
+            reference_path: str) -> Union[str, dict]:
         """
         Resolves a single reference path `<$ref_???>` by retrieving the corresponding value
         from the current context, project, or solution.
@@ -593,9 +618,12 @@ class CoreSolution(CoreModuleInterface):
               within the current project.
         Args:
             reference_path (str): The reference path to be resolved.
-
         Returns:
             str: The resolved value for the given reference.
+        NOTE:
+            This function exceeds typical complexity limits (C901) by design.
+            It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
+            for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
         resolved_reference: Optional[str] = None
 
