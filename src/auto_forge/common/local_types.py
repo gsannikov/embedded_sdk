@@ -93,6 +93,12 @@ class CommandResultType(NamedTuple):
     return_code: int = 1  # Command returned integer value, initialized to error.
 
 
+class XYType(NamedTuple):
+    """ Generic type for X,Y coordinates """
+    x: int = 0
+    y: int = 0
+
+
 class MessageBoxType(Enum):
     """
     Enum representing supported message box types.

@@ -41,6 +41,7 @@ from auto_forge import (
     AutoLogger,
     CoreModuleInterface,
     TerminalAnsiCodes,
+    XYType,
 )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
@@ -1061,7 +1062,8 @@ class ToolBox(CoreModuleInterface):
 
     @staticmethod
     def print_logo(banner_file: Optional[str] = None, clear_screen: bool = False,
-                   terminal_title: Optional[str] = None) -> None:
+                   terminal_title: Optional[str] = None,
+                   blink_pixel: Optional[XYType] = None) -> None:
         """
         Displays an ASCII logo from a file using a consistent horizontal RGB gradient
         (same for every line, from dark to bright).
@@ -1094,11 +1096,18 @@ class ToolBox(CoreModuleInterface):
             b = int(b_base + b_delta * t)
             return f"\033[38;2;{r};{g};{b}m"
 
-        for line in lines:
+        for y, line in enumerate(lines):
             colored_line = ""
-            for i, ch in enumerate(line):
-                color_code = get_rgb_gradient(i, max_line_len)
-                colored_line += f"{color_code}{ch}"
+            for x, ch in enumerate(line):
+                color_code = get_rgb_gradient(x, max_line_len)
+
+                # Check for blink position
+                if blink_pixel:
+                    if blink_pixel.x == x and blink_pixel.y == y:
+                        colored_line += f"\033[5m{color_code}{ch}\033[25m"
+                    else:
+                        colored_line += f"{color_code}{ch}"
+
             sys.stdout.write(colored_line + "\033[0m\n")
 
         sys.stdout.write('\n')

@@ -45,6 +45,7 @@ from auto_forge import (
     CoreVariables,
     ExceptionGuru,
     LogHandlersTypes,
+    XYType,
     Registry,
     TerminalAnsiCodes,
     ToolBox,
@@ -100,6 +101,9 @@ class AutoForge(CoreModuleInterface):
         Args:
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
+
+        # Greetings
+        print(f"{TerminalAnsiCodes.CLS_SB}\n\n{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Pass all received arguments down to _validate_arguments
         self._validate_arguments(*args, **kwargs)
@@ -342,7 +346,8 @@ class AutoForge(CoreModuleInterface):
                 # ==============================================================
 
                 # Greetings earthlings, we're here!
-                self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}")
+                self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}",
+                                         blink_pixel=XYType(x=6,y=2))
 
                 # Start blocking build system user mode shell
                 self._gui: CoreGUI = CoreGUI()
@@ -466,9 +471,6 @@ def auto_forge_main() -> Optional[int]:
         )
 
         args = parser.parse_args()
-
-        # Spread the news
-        print(f"\n\n{TerminalAnsiCodes.CLS_SB}{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Instantiate AutoForge, pass all arguments
         auto_forge: AutoForge = AutoForge(**vars(args))

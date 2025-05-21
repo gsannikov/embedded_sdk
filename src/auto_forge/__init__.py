@@ -24,7 +24,7 @@ from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, 
                                            ValidationMethodType, ExecutionModeType, MessageBoxType,
                                            InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
                                            SignatureSchemaType, SignatureFieldType, VariableFieldType,FieldColorType,
-                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru, TerminalEchoType,
+                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru, TerminalEchoType, XYType,
                                            BuildProfileType, BuildTelemetry, TerminalTeeStream, TerminalAnsiCodes,
                                            TerminalFileIconInfo, TERMINAL_ICONS_MAP)
 # Interfaces
@@ -60,7 +60,7 @@ __all__ = [
     "ExceptionGuru", "ThreadGuru", "BuildProfileType", "BuildTelemetry", "TerminalAnsiGuru",
     "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo", "TerminalEchoType",
     "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "CommandResultType",
-    "ValidationMethodType", "ExecutionModeType",
+    "ValidationMethodType", "ExecutionModeType", "XYType",
     "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
     "SignatureFieldType", "SignatureSchemaType", "VariableFieldType", "FieldColorType",
     "CLICommandInterface", "CoreModuleInterface", "BuilderInterface", "BuilderToolChainInterface",
