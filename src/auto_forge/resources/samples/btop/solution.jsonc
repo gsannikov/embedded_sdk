@@ -108,7 +108,7 @@
 	"solutions": [
 		{
 			"name": "demo",
-			"description": "Sample solution",
+			"description": "Demo solution",
 			"build_path": "$BUILD_OUT",
 			"workspace": "$PROJ_WORKSPACE",
 			// Toolchains used by this solution
@@ -162,13 +162,13 @@
 				{
 					"name": "btop",
 					"description": "Terminal based resource monitor for ARM",
-					"tool_chain": "<$ref_solutions[sample].tool_chains[AArch64 Cross Toolchain]>",
+					"tool_chain": "<$ref_solutions[demo].tool_chains[AArch64 Cross Toolchain]>",
 					// Per project configuration
 					"configurations": [
 						{
 							"name": "debug",
 							"menu_shortcut": "bd",
-							"build_path": "<$ref_solutions[sample].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
+							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
 							"execute_from": "$PROJ_SOURCES_BASE/<$ref_projects[].name>",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
@@ -192,7 +192,7 @@
 						},
 						{
 							"name": "release",
-							"data": "<$derived_from_solutions[sample].projects[btop].configurations[debug]>",
+							"data": "<$derived_from_solutions[demo].projects[btop].configurations[debug]>",
 							"menu_shortcut": "br",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",

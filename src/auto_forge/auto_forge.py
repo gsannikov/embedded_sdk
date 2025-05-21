@@ -468,7 +468,7 @@ def auto_forge_main() -> Optional[int]:
         args = parser.parse_args()
 
         # Spread the news
-        print(f"{TerminalAnsiCodes.CLS_SB}{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
+        print(f"\n\n{TerminalAnsiCodes.CLS_SB}{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Instantiate AutoForge, pass all arguments
         auto_forge: AutoForge = AutoForge(**vars(args))
