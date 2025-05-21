@@ -21,7 +21,7 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
-	"status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup..",
+	"status_pre_message": "\n\nHello, welcome to the '$SOLUTION_NAME' solution setup..",
 	"status_post_message": "\n\nSetup is completed.\n",
 	"steps": [
 		{

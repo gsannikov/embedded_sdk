@@ -107,7 +107,7 @@
 	// Solutions
 	"solutions": [
 		{
-			"name": "sample",
+			"name": "demo",
 			"description": "Sample solution",
 			"build_path": "$BUILD_OUT",
 			"workspace": "$PROJ_WORKSPACE",
@@ -199,9 +199,9 @@
 								"OPTFLAGS=-O3",
 								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path> -DNDEBUG",
-								"CC=<$ref_projects[].tool_chain.tool_prefix>linux-gnu-gcc",
-								"CXX=<$ref_projects[].tool_chain.tool_prefix>linux-gnu-g++",
-								"LD=<$ref_projects[].tool_chain.tool_prefix>linux-gnu-ld",
+								"CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
+								"CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
+								"LD=<$ref_projects[].tool_chain.tool_prefix>ld",
 								"LDFLAGS=-ldl -pthread"
 							]
 						}
