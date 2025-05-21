@@ -97,6 +97,7 @@
 		"exit": "quit",
 		"x": "quit",
 		"q": "quit",
+		"cls": "clear",
 		"cln": "clear",
 		"gs": "git status",
 		"ga": "git add .",
@@ -139,16 +140,17 @@
 					"build_system": "make",
 					"make_version": ">=3.16",
 					"gcc_version": ">=14.0",
+					"tool_prefix": "aarch64-linux-gnu-",
 					// Adjusted to match the actual Arm toolchain version
 					"required_tools": {
 						"make": {
 							"path": "make",
 							"version": ">=3.16",
-							"help": "builder/make.md"
+							"help": "make.md"
 						},
 						"gcc": {
 							// NOTE: this is the actual compiler name from Arm toolchain
-							"path": "aarch64-none-linux-gnu-gcc",
+							"path": "<$ref_tool_prefix>gcc",
 							"version": ">=14.0",
 							"help": "builder/arm_cross_gcc.md"
 						}
@@ -173,9 +175,9 @@
 								"OPTFLAGS=-O0",
 								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
-								"CC=aarch64-none-linux-gnu-gcc",
-								"CXX=aarch64-none-linux-gnu-g++",
-								"LD=aarch64-none-linux-gnu-ld",
+								"CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
+								"CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
+								"LD=<$ref_projects[].tool_chain.tool_prefix>ld",
 								"LDFLAGS=-ldl -pthread"
 							],
 							"artifacts": [
@@ -197,9 +199,9 @@
 								"OPTFLAGS=-O3",
 								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path> -DNDEBUG",
-								"CC=aarch64-none-linux-gnu-gcc",
-								"CXX=aarch64-none-linux-gnu-g++",
-								"LD=aarch64-none-linux-gnu-ld",
+								"CC=<$ref_projects[].tool_chain.tool_prefix>linux-gnu-gcc",
+								"CXX=<$ref_projects[].tool_chain.tool_prefix>linux-gnu-g++",
+								"LD=<$ref_projects[].tool_chain.tool_prefix>linux-gnu-ld",
 								"LDFLAGS=-ldl -pthread"
 							]
 						}

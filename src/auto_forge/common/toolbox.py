@@ -1372,21 +1372,31 @@ class ToolBox(CoreModuleInterface):
                 continue
         return False
 
-    @staticmethod
-    def get_help(path: str) -> Optional[Tuple[str, str]]:
+    def show_help_file(self, help_file_relative_path: str) -> int:
         """
-        Attempts to read a help file located at PROJECT_HELP_PATH / path.
-
+        Displays a markdown help file using the textual viewer tool.
         Args:
-            path (str): Relative path to the help file under PROJECT_HELP_PATH.
-
+            help_file_relative_path (str): Relative path to the help file under PROJECT_HELP_PATH.
         Returns:
-            Optional[Tuple[str, str]]: A tuple of (file_name, file_content),
-            or None if any error occurs.
+            int: 0 on success, 1 on error or suppressed failure.
         """
-        with suppress(Exception):
-            help_file = PROJECT_HELP_PATH / path
-            content = help_file.read_text(encoding="utf-8").strip()
-            return str(help_file), content
+        textual_viewer_tool: Path = PROJECT_SHARED_PATH / "textual_md_viewer.py"
+        help_file_path: Path = PROJECT_HELP_PATH / help_file_relative_path
 
-        return None
+        with suppress(Exception):
+            if not textual_viewer_tool.exists():
+                return 1
+
+            if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
+                self._logger.warning(f"Not showing {help_file_path}, file does not exist or is not a .md file.")
+                return 1
+
+            if help_file_path.stat().st_size > 64 * 1024:
+                self._logger.warning(f"Not showing {help_file_path}, file too large (>64KB).")
+                return 1
+
+            result = subprocess.Popen([sys.executable,
+                                       str(textual_viewer_tool), str(help_file_path)], start_new_session=True)
+            return result.returncode
+
+        return 1  # If anything failed silently

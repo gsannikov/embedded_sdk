@@ -13,7 +13,6 @@ Classes:
 
 import logging
 import os
-import subprocess
 from pathlib import Path
 from typing import Any
 from typing import Optional
@@ -25,7 +24,6 @@ from colorama import Fore, Style
 from auto_forge import (
     BuilderInterface,
     BuilderToolChainInterface,
-    PROJECT_SHARED_PATH,
     BuildProfileType,
     TerminalEchoType,
     CoreEnvironment,
@@ -36,8 +34,6 @@ AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
-import sys
-
 
 class _MakeToolChain(BuilderToolChainInterface):
     """
@@ -45,19 +41,21 @@ class _MakeToolChain(BuilderToolChainInterface):
     The resolved tool paths are stored and can be queried using `get_tool()`.
     """
 
-    def validate(self) -> None:
+    def validate(self, show_help_on_error: bool = False) -> None:
         """
         Validates the toolchain structure and required tools specified by the solution.
         For each tool:
           - Attempts to resolve the binary using the defined path.
           - Confirms the version requirement is met.
           - Optionally shows help (Markdown-rendered) if validation fails.
+        Args:
+            show_help_on_error (bool): Show help message if validation fails.
         """
 
         required_keys = {"name", "platform", "architecture", "build_system", "required_tools"}
         missing = required_keys - self._toolchain.keys()
         if missing:
-            raise ValueError(f"Missing top-level toolchain keys: {missing}")
+            raise ValueError(f"missing top-level toolchain keys: {missing}")
 
         tools = self._toolchain["required_tools"]
         if not isinstance(tools, dict) or not tools:
@@ -67,41 +65,33 @@ class _MakeToolChain(BuilderToolChainInterface):
             if not isinstance(definition, dict):
                 raise ValueError(f"Tool '{name}' definition must be a dictionary")
 
-            path = definition.get("path")
+            tool_path = definition.get("path")
             version_expr = definition.get("version")
             help_path = definition.get("help")
 
-            if not path or not version_expr:
-                raise ValueError(f"Tool '{name}' must define 'path' and 'version' fields")
+            if not tool_path or not version_expr:
+                raise ValueError(f"toolchain element '{tool_path}' must define 'path' and 'version' fields")
 
-            resolved = self._resolve_tool([path], version_expr)
-            if not resolved:
+            resolved_t_tool_path = self._resolve_tool([tool_path], version_expr)
+            if not resolved_t_tool_path:
+
+                # Exit without attempting to locate and the troubleshooting md file.
+                if not show_help_on_error:
+                    return None
 
                 self._builder_instance.print_message(
-                    message=f"Tool {name} '{path}' not found or not satisfied", log_level=logging.WARNING)
+                    message=f"toolchain item '{tool_path}' not found or not satisfied", log_level=logging.ERROR)
 
                 if help_path:
-                    help_file, help_text = self._tool_box.get_help(help_path)
-                    if help_file:
-                        if help_path.endswith(".md"):
-                            try:
-                                md_path = Path(help_file)
-                                if md_path.exists():
-                                    textual_viewer_path = PROJECT_SHARED_PATH / "textual_md_viewer.py"
-                                    subprocess.run([sys.executable, str(textual_viewer_path), str(md_path)], check=True)
-                                else:
-                                    self._builder_instance.print_message(
-                                        message=f"Markdown help file not found: {md_path}", log_level=logging.WARNING)
-                            except Exception as exec_error:
-                                self._builder_instance.print_message(
-                                    message=f"Failed to launch Markdown viewer: {exec_error}", log_level=logging.ERROR)
-                        else:
-                            self._builder_instance.print_message(
-                                message=f"Help file '{help_path}' is not a Markdown file. Only .md help is supported",
-                                log_level=logging.WARNING)
-                    raise RuntimeError(f"Missing toolchain component: {name}")
+                    if self._tool_box.show_help_file(help_path) != 0:
+                        self._builder_instance.print_message(
+                            message=f"Error displaying help file '{help_path}' see log for details",
+                            log_level=logging.WARNING)
 
-            self._resolved_tools[name] = resolved
+                    raise RuntimeError(f"missing toolchain component: {name}")
+
+            self._resolved_tools[name] = resolved_t_tool_path
+        return None
 
 
 class MakeBuilder(BuilderInterface):

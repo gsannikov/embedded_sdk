@@ -496,9 +496,11 @@ class CoreSolution(CoreModuleInterface):
         """
 
         if isinstance(node, dict):
+
             for key, value in list(node.items()):  # Copy keys for safe iteration
 
-                if key == "name" and parent_key in ('solutions', 'projects', 'configurations'):
+                # Store current tool china scope
+                if key == "name" and parent_key in ('solutions', 'tool_chains', 'projects', 'configurations'):
                     self._scope.update(parent_key, node)
                     current_context = node  # Update current context
 
@@ -506,13 +508,14 @@ class CoreSolution(CoreModuleInterface):
 
                     resolved_value = self._resolve_variable_in_string(value, PreProcessType.REFERENCE)
                     if resolved_value is None:
-                        raise ValueError(f"Unable to resolve reference '{value}' in '{parent_key or 'root'}'.")
+                        raise ValueError(f"unable to resolve reference '{value}' in '{parent_key or 'root'}'.")
                     node[key] = resolved_value  # Replace reference with resolved value
 
                 # Recurse into nested structures
                 self._traverse_and_process_references(value, key, current_context)
 
         elif isinstance(node, list):
+
             for index, item in enumerate(node):
                 if isinstance(item, str) and "<$ref_" in item:
                     resolved_item = self._resolve_variable_in_string(item, PreProcessType.REFERENCE)
@@ -574,7 +577,7 @@ class CoreSolution(CoreModuleInterface):
             return matched_dictionary_data if matched_dictionary_data else matched_data
 
         else:
-            raise ValueError(f"Unknown variable type: {variable_type}")
+            raise ValueError(f"unknown variable type: {variable_type}")
 
     def _resolve_reference(self, reference_path: str) -> Union[str, dict]:
         """
@@ -932,13 +935,15 @@ class ScopeInfo:
         Attributes:
             UNDEFINED (int): Default value for uninitialized or unknown scopes.
             SOLUTION (int): Represents a solution-level scope.
+            TOOL_CHAINS (int): Represents tool-chains scope.
             PROJECT (int): Represents a project-level scope.
             CONFIGURATION (int): Represents a configuration-level scope.
         """
         UNDEFINED = 0
         SOLUTION = 1
-        PROJECT = 2
-        CONFIGURATION = 2  # Possible typo: Should this be 3?
+        TOOL_CHAINS = 2
+        PROJECT = 3
+        CONFIGURATION = 4
 
     def __init__(self, type_name: Optional[str] = None):
         """
@@ -957,6 +962,8 @@ class ScopeInfo:
         if self.type_name is not None:
             if self.type_name == "solutions":
                 self.type = ScopeInfo.ScopeType.SOLUTION
+            elif self.type_name == "tool_chains":
+                self.type = ScopeInfo.ScopeType.TOOL_CHAINS
             elif self.type_name == "projects":
                 self.type = ScopeInfo.ScopeType.PROJECT
             elif self.type_name == "configurations":
@@ -1021,6 +1028,10 @@ class _ScopeState:
             self.reset()  # Reset all stored scopes
             self.solution.update(node_data=full_node)
             self.current_context = self.solution
+
+        elif scope_type_name == "tool_chains" and self.solution:
+            self.configuration.update(node_data=full_node)
+            self.current_context = self.configuration
 
         elif scope_type_name == "projects" and self.solution:
             self.configuration.update()  # Reset configuration

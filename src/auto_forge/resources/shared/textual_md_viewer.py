@@ -22,6 +22,7 @@ from contextlib import suppress
 with suppress(ImportError):
     from textual.app import App, ComposeResult
     from textual.widgets import MarkdownViewer
+    from textual import events
 
 
     class MarkdownApp(App):
@@ -36,6 +37,11 @@ with suppress(ImportError):
             super().__init__()
             self.markdown_path = markdown_path
 
+        async def on_key(self, event: events.Key) -> None:
+            """ Register 'q' as exit key """
+            if event.key.lower() == "q":
+                await self.action_quit()
+
         def compose(self) -> ComposeResult:
             """
             Read the Markdown content from file and return a MarkdownViewer widget.
@@ -44,7 +50,7 @@ with suppress(ImportError):
             """
             with open(self.markdown_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            yield MarkdownViewer(content)
+            yield MarkdownViewer(content, )
 
 
     if __name__ == "__main__":

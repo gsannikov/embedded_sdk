@@ -10,6 +10,7 @@ Description:
 
 import json
 import re
+import shutil
 from typing import Any, Optional, Union
 
 from rich.console import Console
@@ -31,6 +32,7 @@ class PrettyPrinter:
                  console: Optional[Console] = None,
                  numbering_width: int = 4,
                  highlight_keys: Optional[list[str]] = None,
+                 auto_width: bool = True
                  ):
         """
         Pretty-prints a JSON-compatible object using native JSON formatting,
@@ -42,11 +44,13 @@ class PrettyPrinter:
             console: Optional Rich Console object. If None, a default is created.
             numbering_width: Width reserved for line numbers.
             highlight_keys: Optional list of JSON key names to highlight using distinctive colors.
+            auto_width (bool): Automatically adjust the output to the terminal width
         """
         self.indent = indent
         self.sort_keys = sort_keys
         self.console = console or Console(force_terminal=True, color_system="truecolor")
         self.numbering_width = numbering_width
+        self.auto_width = auto_width
         self.highlight_keys = highlight_keys or []
 
         self._json_skin = {
@@ -89,6 +93,10 @@ class PrettyPrinter:
         lines = json_str.splitlines()
         line_number = 1
 
+        max_width = None
+        if self.auto_width:
+            max_width = shutil.get_terminal_size((80, 20)).columns - 10  # Leave room for gutter and " │ "
+
         print()
         for line in lines:
             if match := self._key_pattern.match(line):
@@ -97,6 +105,11 @@ class PrettyPrinter:
                 styled = self._render_list_item_line(*match.groups())
             else:
                 styled = self._render_raw_json_line(line)
+
+            # Handle line trimming
+            if self.auto_width and styled.cell_len > max_width:
+                styled.truncate(max_width - 3, overflow="ellipsis")
+                styled.append("...", style="yellow")
 
             num = str(line_number).rjust(self.numbering_width)
             self.console.print(Text(num + " │ ", style=self._json_skin["line_number"]) + styled)

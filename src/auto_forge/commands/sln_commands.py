@@ -18,7 +18,13 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import CLICommandInterface, CoreSolution, CoreVariables, FieldColorType
+from auto_forge import (
+    CLICommandInterface,
+    CoreEnvironment,
+    CoreSolution,
+    CoreVariables,
+    ToolBox,
+    FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -40,7 +46,8 @@ class SolutionCommand(CLICommandInterface):
 
         self._solution: Optional[CoreSolution] = None
         self._variables: Optional[CoreVariables] = None
-        self._console = Console()
+        self._environment: Optional[CoreEnvironment] = None
+        self._tool_box: Optional[ToolBox] = ToolBox.get_instance()
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
@@ -54,6 +61,8 @@ class SolutionCommand(CLICommandInterface):
         Display the list of managed variables in a styled table using Rich.
         This method is fully compatible with cmd2 and does not rely on self.console.
         """
+
+        console = Console()
 
         def _bool_emoji(bool_value: Optional[bool]) -> str:
             if bool_value is True:
@@ -107,7 +116,7 @@ class SolutionCommand(CLICommandInterface):
                 _bool_emoji(var.get("create_path_if_not_exist"))
             )
 
-        self._console.print('\n', table, '\n')
+        console.print('\n', table, '\n')
 
     def _show_log(self, cheerful: bool) -> None:
         """
@@ -137,6 +146,9 @@ class SolutionCommand(CLICommandInterface):
 
         # Logger printout
         parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
+        parser.add_argument('-t', '--tutorial', action='store_true',
+                            help='Show the solution creation  tutorial.')
+
         parser.add_argument("-c", "--cheerful", action="store_true", help="Enable colorful log output (only with -l)")
 
         parser.add_argument('-e', '--show-environment-variables', action='store_true',
@@ -160,6 +172,8 @@ class SolutionCommand(CLICommandInterface):
             self._print_variables_table()
         elif args.log:
             self._show_log(args.cheerful)
+        elif args.tutorial:
+            self._tool_box.show_help_file(help_file_relative_path='solution/guide.md')
         else:
             # Error: no arguments
             return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
