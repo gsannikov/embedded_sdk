@@ -885,6 +885,10 @@ class CoreEnvironment(CoreModuleInterface):
         finally:
             if master_fd is not None:  # Close PTY descriptor
                 os.close(master_fd)
+            # Reset TTY settings
+            os.system("stty sane")
+            sys.stdout.flush()
+            sys.stderr.flush()
 
     @staticmethod
     def execute_fullscreen_shell_command(command_and_args: str) -> Optional[CommandResultType]:

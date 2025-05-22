@@ -14,7 +14,6 @@ Requirements:
     - Python 3.8+
     - textual (install via `pip install textual`)
 """
-
 import sys
 from contextlib import suppress
 from pathlib import Path
@@ -24,17 +23,23 @@ with suppress(ImportError):
     from textual.app import App, ComposeResult
     from textual.widgets import MarkdownViewer
     from textual import events
+    from textual.geometry import Size
 
 
     class MarkdownApp(App):
         """Textual application to render a Markdown file in the terminal."""
 
+        BINDINGS = [("q", "quit", "Quit")]
+
         def __init__(self, markdown_path: str):
             super().__init__()
             self.markdown_path = markdown_path
 
+        async def on_mount(self) -> None:
+            self.screen._current_size = Size(0, 0)
+            self.screen.refresh(layout=True)
+
         def compose(self) -> ComposeResult:
-            # Load Markdown content immediately
             content = Path(self.markdown_path).read_text(encoding="utf-8")
             viewer = MarkdownViewer(content)
             viewer.styles.height = "100%"

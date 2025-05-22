@@ -1376,8 +1376,14 @@ class ToolBox(CoreModuleInterface):
             if help_file_path.stat().st_size > 64 * 1024:
                 return 1
 
-            result = subprocess.Popen([sys.executable,
-                                       str(textual_viewer_tool), str(help_file_path)], start_new_session=True)
-            return result.returncode
+            status = subprocess.run(["python3", str(textual_viewer_tool), str(help_file_path)], env=os.environ.copy())
+            return_code = status.returncode
+
+            # Reset TTY settings
+            os.system("stty sane")
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            return return_code
 
         return 1  # If anything failed silently
