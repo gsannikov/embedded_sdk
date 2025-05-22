@@ -7,7 +7,7 @@
 */
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     "log_cleanup_patterns": [
 
