@@ -39,7 +39,7 @@
 		"sudo",
 		"top",
 		"vi",
-    	"vim"
+		"vim"
 	],
 
 	"ansi_codes": {
