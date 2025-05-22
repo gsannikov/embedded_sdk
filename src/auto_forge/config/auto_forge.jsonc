@@ -1,242 +1,242 @@
 /*
-	AutoForge package internal configuration file.
-	----------------------------------------------
+    AutoForge package internal configuration file.
+    ----------------------------------------------
 
-	Note:
-	This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
+    Note:
+    This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
 */
 
 {
-	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
-	"log_cleanup_patterns": [
+    "log_cleanup_patterns": [
 
-		// log_cleanup_patterns:
-		// This list defines regular expression patterns used to clean or filter noisy lines
-		// from command output logs. Lines matching any of these patterns will be removed
-		// before displaying logs to the user.
+        // log_cleanup_patterns:
+        // This list defines regular expression patterns used to clean or filter noisy lines
+        // from command output logs. Lines matching any of these patterns will be removed
+        // before displaying logs to the user.
 
-		"^remote: Counting objects:\\s*",
-		"^━+.*?━+\\s*"
-	],
+        "^remote: Counting objects:\\s*",
+        "^━+.*?━+\\s*"
+    ],
 
-	"interactive_commands": [
+    "interactive_commands": [
 
-		// List of commands that require interactive terminal behavior.
-		// These commands typically control the terminal screen, use input prompts,
-		// or produce continuous output unsuitable for standard command capture.
+        // List of commands that require interactive terminal behavior.
+        // These commands typically control the terminal screen, use input prompts,
+        // or produce continuous output unsuitable for standard command capture.
 
-		"bash",
-		"zsh",
-		"btop",
-		"bat",
-		"cat",
-		"clear",
-		"dnf",
-		"htop",
-		"less",
-		"nano",
-		"sudo",
-		"top",
-		"vi",
-		"vim"
-	],
+        "bash",
+        "zsh",
+        "btop",
+        "bat",
+        "cat",
+        "clear",
+        "dnf",
+        "htop",
+        "less",
+        "nano",
+        "sudo",
+        "top",
+        "vi",
+        "vim"
+    ],
 
-	"ansi_codes": {
+    "ansi_codes": {
 
-		// ANSI color and style codes following Colorama-style naming.
-		// These codes are useful for CLI rendering, logging, and text decoration.
+        // ANSI color and style codes following Colorama-style naming.
+        // These codes are useful for CLI rendering, logging, and text decoration.
 
-		// Screen control
-		"SCREEN_CLS"   			: "\u001b[H\u001b[2J",
-		"SCREEN_CLS_SB"			: "\u001b[2J\u001b[3J\u001b[H",
+        // Screen control
+        "SCREEN_CLS"               : "\u001b[H\u001b[2J",
+        "SCREEN_CLS_SB"            : "\u001b[2J\u001b[3J\u001b[H",
 
-		// Text style (Colorama: Style)
-		"STYLE_RESET_ALL"   	: "\u001b[0m",
-		"STYLE_BRIGHT"	  		: "\u001b[1m",
-		"STYLE_DIM"		 		: "\u001b[2m",
-		"STYLE_ITALIC"	  		: "\u001b[3m",
-		"STYLE_UNDERLINE"   	: "\u001b[4m",
-		"STYLE_BLINK"	   		: "\u001b[5m",
-		"STYLE_INVERT"	  		: "\u001b[7m",
-		"STYLE_HIDDEN"	  		: "\u001b[8m",
-		"STYLE_STRIKETHROUGH"	: "\u001b[9m",
+        // Text style (Colorama: Style)
+        "STYLE_RESET_ALL"           : "\u001b[0m",
+        "STYLE_BRIGHT"              : "\u001b[1m",
+        "STYLE_DIM"                 : "\u001b[2m",
+        "STYLE_ITALIC"              : "\u001b[3m",
+        "STYLE_UNDERLINE"           : "\u001b[4m",
+        "STYLE_BLINK"               : "\u001b[5m",
+        "STYLE_INVERT"              : "\u001b[7m",
+        "STYLE_HIDDEN"              : "\u001b[8m",
+        "STYLE_STRIKETHROUGH"       : "\u001b[9m",
 
-		// Foreground colors (Colorama: Fore)
-		"FORE_BLACK"   			: "\u001b[30m",
-		"FORE_RED"	 			: "\u001b[31m",
-		"FORE_GREEN"   			: "\u001b[32m",
-		"FORE_YELLOW"  			: "\u001b[33m",
-		"FORE_BLUE"				: "\u001b[34m",
-		"FORE_MAGENTA" 			: "\u001b[35m",
-		"FORE_CYAN"				: "\u001b[36m",
-		"FORE_WHITE"   			: "\u001b[37m",
-		"FORE_RESET"   			: "\u001b[39m",
+        // Foreground colors (Colorama: Fore)
+        "FORE_BLACK"               : "\u001b[30m",
+        "FORE_RED"                 : "\u001b[31m",
+        "FORE_GREEN"               : "\u001b[32m",
+        "FORE_YELLOW"              : "\u001b[33m",
+        "FORE_BLUE"                : "\u001b[34m",
+        "FORE_MAGENTA"             : "\u001b[35m",
+        "FORE_CYAN"                : "\u001b[36m",
+        "FORE_WHITE"               : "\u001b[37m",
+        "FORE_RESET"               : "\u001b[39m",
 
-		// Background colors (Colorama: Back)
-		"BACK_BLACK"   			: "\u001b[40m",
-		"BACK_RED"	 			: "\u001b[41m",
-		"BACK_GREEN"   			: "\u001b[42m",
-		"BACK_YELLOW"  			: "\u001b[43m",
-		"BACK_BLUE"				: "\u001b[44m",
-		"BACK_MAGENTA" 			: "\u001b[45m",
-		"BACK_CYAN"				: "\u001b[46m",
-		"BACK_WHITE"   			: "\u001b[47m",
-		"BACK_RESET"   			: "\u001b[49m",
+        // Background colors (Colorama: Back)
+        "BACK_BLACK"               : "\u001b[40m",
+        "BACK_RED"                 : "\u001b[41m",
+        "BACK_GREEN"               : "\u001b[42m",
+        "BACK_YELLOW"              : "\u001b[43m",
+        "BACK_BLUE"                : "\u001b[44m",
+        "BACK_MAGENTA"             : "\u001b[45m",
+        "BACK_CYAN"                : "\u001b[46m",
+        "BACK_WHITE"               : "\u001b[47m",
+        "BACK_RESET"               : "\u001b[49m",
 
-		// Bright foreground colors
-		"FORE_LIGHTBLACK_EX"  	: "\u001b[90m",
-		"FORE_LIGHTRED_EX"		: "\u001b[91m",
-		"FORE_LIGHTGREEN_EX"  	: "\u001b[92m",
-		"FORE_LIGHTYELLOW_EX" 	: "\u001b[93m",
-		"FORE_LIGHTBLUE_EX"   	: "\u001b[94m",
-		"FORE_LIGHTMAGENTA_EX"	: "\u001b[95m",
-		"FORE_LIGHTCYAN_EX"   	: "\u001b[96m",
-		"FORE_LIGHTWHITE_EX"  	: "\u001b[97m",
+        // Bright foreground colors
+        "FORE_LIGHTBLACK_EX"      : "\u001b[90m",
+        "FORE_LIGHTRED_EX"        : "\u001b[91m",
+        "FORE_LIGHTGREEN_EX"      : "\u001b[92m",
+        "FORE_LIGHTYELLOW_EX"     : "\u001b[93m",
+        "FORE_LIGHTBLUE_EX"       : "\u001b[94m",
+        "FORE_LIGHTMAGENTA_EX"    : "\u001b[95m",
+        "FORE_LIGHTCYAN_EX"       : "\u001b[96m",
+        "FORE_LIGHTWHITE_EX"      : "\u001b[97m",
 
-		// Bright background colors
-		"BACK_LIGHTBLACK_EX"  	: "\u001b[100m",
-		"BACK_LIGHTRED_EX"		: "\u001b[101m",
-		"BACK_LIGHTGREEN_EX"  	: "\u001b[102m",
-		"BACK_LIGHTYELLOW_EX" 	: "\u001b[103m",
-		"BACK_LIGHTBLUE_EX"   	: "\u001b[104m",
-		"BACK_LIGHTMAGENTA_EX"	: "\u001b[105m",
-		"BACK_LIGHTCYAN_EX"   	: "\u001b[106m",
-		"BACK_LIGHTWHITE_EX"  	: "\u001b[107m"
-	},
+        // Bright background colors
+        "BACK_LIGHTBLACK_EX"      : "\u001b[100m",
+        "BACK_LIGHTRED_EX"        : "\u001b[101m",
+        "BACK_LIGHTGREEN_EX"      : "\u001b[102m",
+        "BACK_LIGHTYELLOW_EX"     : "\u001b[103m",
+        "BACK_LIGHTBLUE_EX"       : "\u001b[104m",
+        "BACK_LIGHTMAGENTA_EX"    : "\u001b[105m",
+        "BACK_LIGHTCYAN_EX"       : "\u001b[106m",
+        "BACK_LIGHTWHITE_EX"      : "\u001b[107m"
+    },
 
-	"command_completion": {
+    "command_completion": {
 
-		// Mapping of shell-like commands to their completion behavior.
-		// Commands supporting path completion specify whether only directories
-		// should be suggested when completing arguments.
+        // Mapping of shell-like commands to their completion behavior.
+        // Commands supporting path completion specify whether only directories
+        // should be suggested when completing arguments.
 
-		"alias"	   		: { "path_completion": false						},
-		"apt"		 	: { "path_completion": false						},
-		"cat"		 	: { "path_completion": true , "only_dirs": false 	},
-		"cd"		  	: { "path_completion": true , "only_dirs": true		},
-		"clear"	   		: { "path_completion": false						},
-		"cmake"	   		: { "path_completion": true , "only_dirs": true	  	},
-		"cp"		  	: { "path_completion": true , "only_dirs": false	},
-		"curl"			: { "path_completion": false						},
-		"dnf"		 	: { "path_completion": false						},
-		"echo"			: { "path_completion": false						},
-		"export"	  	: { "path_completion": false						},
-		"git"		 	: { "path_completion": false						},
-		"gunzip"	  	: { "path_completion": true , "only_dirs": false	},
-		"gzip"			: { "path_completion": true , "only_dirs": false	},
-		"head"			: { "path_completion": true , "only_dirs": false	},
-		"help"			: { "path_completion": false						},
-		"history"	 	: { "path_completion": false						},
-		"less"			: { "path_completion": true , "only_dirs": false	},
-		"ls"		  	: { "path_completion": true , "only_dirs": false	},
-		"make"			: { "path_completion": true , "only_dirs": false	},
-		"mkdir"	   		: { "path_completion": true , "only_dirs": true	  	},
-		"more"			: { "path_completion": true , "only_dirs": false	},
-		"mv"		  	: { "path_completion": true , "only_dirs": false	},
-		"nano"			: { "path_completion": true , "only_dirs": false	},
-		"ninja"	   		: { "path_completion": true , "only_dirs": false	},
-		"pip"		 	: { "path_completion": false						},
-		"pip3"			: { "path_completion": false						},
-		"ping"			: { "path_completion": false						},
-		"popd"			: { "path_completion": false						},
-		"prettier"		: { "path_completion": false						},
-		"pushd"	   		: { "path_completion": true , "only_dirs": true	  	},
-		"python"		: { "path_completion": true , "only_dirs": false	},
-		"python3"	 	: { "path_completion": true , "only_dirs": false	},
-		"pytest"	  	: { "path_completion": true , "only_dirs": false	},
-		"rm"		  	: { "path_completion": true , "only_dirs": false	},
-		"rmdir"	   		: { "path_completion": true , "only_dirs": true	  	},
-		"set"		 	: { "path_completion": false					 	},
-		"stat"			: { "path_completion": true , "only_dirs": false	},
-		"tail"			: { "path_completion": true , "only_dirs": false	},
-		"tar"		 	: { "path_completion": true , "only_dirs": false	},
-		"touch"	   		: { "path_completion": true , "only_dirs": false	},
-		"traceroute"  	: { "path_completion": false						},
-		"unzip"	   		: { "path_completion": true , "only_dirs": false	},
-		"unalias"	 	: { "path_completion": false						},
-		"vi"		  	: { "path_completion": true , "only_dirs": false	},
-		"vim"		 	: { "path_completion": true , "only_dirs": false	},
-		"wc"		  	: { "path_completion": true , "only_dirs": false	},
-		"wget"			: { "path_completion": false						},
-		"yum"		 	: { "path_completion": false						},
-		"zip"		 	: { "path_completion": true , "only_dirs": false	}
-	},
+        "alias"           : { "path_completion": false                        },
+        "apt"             : { "path_completion": false                        },
+        "cat"             : { "path_completion": true , "only_dirs": false    },
+        "cd"              : { "path_completion": true , "only_dirs": true     },
+        "clear"           : { "path_completion": false                        },
+        "cmake"           : { "path_completion": true , "only_dirs": true     },
+        "cp"              : { "path_completion": true , "only_dirs": false    },
+        "curl"            : { "path_completion": false                        },
+        "dnf"             : { "path_completion": false                        },
+        "echo"            : { "path_completion": false                        },
+        "export"          : { "path_completion": false                        },
+        "git"             : { "path_completion": false                        },
+        "gunzip"          : { "path_completion": true , "only_dirs": false    },
+        "gzip"            : { "path_completion": true , "only_dirs": false    },
+        "head"            : { "path_completion": true , "only_dirs": false    },
+        "help"            : { "path_completion": false                        },
+        "history"         : { "path_completion": false                        },
+        "less"            : { "path_completion": true , "only_dirs": false    },
+        "ls"              : { "path_completion": true , "only_dirs": false    },
+        "make"            : { "path_completion": true , "only_dirs": false    },
+        "mkdir"           : { "path_completion": true , "only_dirs": true     },
+        "more"            : { "path_completion": true , "only_dirs": false    },
+        "mv"              : { "path_completion": true , "only_dirs": false    },
+        "nano"            : { "path_completion": true , "only_dirs": false    },
+        "ninja"           : { "path_completion": true , "only_dirs": false    },
+        "pip"             : { "path_completion": false                        },
+        "pip3"            : { "path_completion": false                        },
+        "ping"            : { "path_completion": false                        },
+        "popd"            : { "path_completion": false                        },
+        "prettier"        : { "path_completion": false                        },
+        "pushd"           : { "path_completion": true , "only_dirs": true     },
+        "python"          : { "path_completion": true , "only_dirs": false    },
+        "python3"         : { "path_completion": true , "only_dirs": false    },
+        "pytest"          : { "path_completion": true , "only_dirs": false    },
+        "rm"              : { "path_completion": true , "only_dirs": false    },
+        "rmdir"           : { "path_completion": true , "only_dirs": true     },
+        "set"             : { "path_completion": false                        },
+        "stat"            : { "path_completion": true , "only_dirs": false    },
+        "tail"            : { "path_completion": true , "only_dirs": false    },
+        "tar"             : { "path_completion": true , "only_dirs": false    },
+        "touch"           : { "path_completion": true , "only_dirs": false    },
+        "traceroute"      : { "path_completion": false                        },
+        "unzip"           : { "path_completion": true , "only_dirs": false    },
+        "unalias"         : { "path_completion": false                        },
+        "vi"              : { "path_completion": true , "only_dirs": false    },
+        "vim"             : { "path_completion": true , "only_dirs": false    },
+        "wc"              : { "path_completion": true , "only_dirs": false    },
+        "wget"            : { "path_completion": false                        },
+        "yum"             : { "path_completion": false                        },
+        "zip"             : { "path_completion": true , "only_dirs": false    }
+    },
 
-	"terminal_icons": {
+    "terminal_icons": {
 
-		// Source Code
-		".py"				: { "icon": "\ue606", "description": "Python source file",		"color": "FORE_YELLOW"			},
-		".c"	 			: { "icon": "\ue61e", "description": "C source file",			"color": "BACK_LIGHTBLUE_EX"	},
-		".cpp"   			: { "icon": "\ue61d", "description": "C++ source file",			"color": "BACK_LIGHTBLUE_EX"	},
-		".h"	 			: { "icon": "\ue61e", "description": "C/C++ header",			"color": "BACK_LIGHTBLUE_EX" 	},
-		".hpp"   			: { "icon": "\ue61d", "description": "C++ header",				"color": "BACK_LIGHTBLUE_EX" 	},
-		".java"  			: { "icon": "\ue256", "description": "Java source file",		"color": "FORE_RED" 			},
-		".js"				: { "icon": "\ue74e", "description": "JavaScript file",			"color": "FORE_YELLOW"			},
-		".ts"				: { "icon": "\ue628", "description": "TypeScript file",			"color": "FORE_CYAN"			},
-		".go"				: { "icon": "\ue627", "description": "Go source file",			"color": "FORE_CYAN"			},
-		".rs"				: { "icon": "\ue7a8", "description": "Rust source file",		"color": "FORE_RED"				},
-		".swift" 			: { "icon": "\ue755", "description": "Swift source file",		"color": "FORE_MAGENTA"			},
+        // Source Code
+        ".py"                : { "icon": "\ue606", "description": "Python source file",      "color": "FORE_YELLOW"          },
+        ".c"                 : { "icon": "\ue61e", "description": "C source file",           "color": "BACK_LIGHTBLUE_EX"    },
+        ".cpp"               : { "icon": "\ue61d", "description": "C++ source file",         "color": "BACK_LIGHTBLUE_EX"    },
+        ".h"                 : { "icon": "\ue61e", "description": "C/C++ header",            "color": "BACK_LIGHTBLUE_EX"    },
+        ".hpp"               : { "icon": "\ue61d", "description": "C++ header",              "color": "BACK_LIGHTBLUE_EX"    },
+        ".java"              : { "icon": "\ue256", "description": "Java source file",        "color": "FORE_RED"             },
+        ".js"                : { "icon": "\ue74e", "description": "JavaScript file",         "color": "FORE_YELLOW"          },
+        ".ts"                : { "icon": "\ue628", "description": "TypeScript file",         "color": "FORE_CYAN"            },
+        ".go"                : { "icon": "\ue627", "description": "Go source file",          "color": "FORE_CYAN"            },
+        ".rs"                : { "icon": "\ue7a8", "description": "Rust source file",        "color": "FORE_RED"             },
+        ".swift"             : { "icon": "\ue755", "description": "Swift source file",       "color": "FORE_MAGENTA"         },
 
-		// Scripts & Shell
-		".sh"				: { "icon": "\uf489", "description": "Shell script",			"color": "FORE_GREEN"			},
-		".bash"  			: { "icon": "\uf489", "description": "Bash script",				"color": "FORE_GREEN"			},
-		".zsh"   			: { "icon": "\uf489", "description": "Zsh script",				"color": "FORE_GREEN"			},
-		".ps1"   			: { "icon": "\ue795", "description": "PowerShell script",		"color": "FORE_CYAN"			},
+        // Scripts & Shell
+        ".sh"                : { "icon": "\uf489", "description": "Shell script",            "color": "FORE_GREEN"           },
+        ".bash"              : { "icon": "\uf489", "description": "Bash script",             "color": "FORE_GREEN"           },
+        ".zsh"               : { "icon": "\uf489", "description": "Zsh script",              "color": "FORE_GREEN"           },
+        ".ps1"               : { "icon": "\ue795", "description": "PowerShell script",       "color": "FORE_CYAN"            },
 
-		// Config & Markup
-		".json"  			: { "icon": "\ue60b", "description": "JSON file",				"color": "FORE_CYAN"			},
-		".jsonc" 			: { "icon": "\ue60b", "description": "JSON with comments",		"color": "FORE_CYAN"			},
-		".yaml" 	 		: { "icon": "\ue615", "description": "YAML config file",		"color": "FORE_CYAN"			},
-		".yml"   			: { "icon": "\ue615", "description": "YAML config file",		"color": "FORE_CYAN"			},
-		".toml"  			: { "icon": "\ue615", "description": "TOML config file",		"color": "FORE_CYAN"			},
-		".ini"   			: { "icon": "\ue615", "description": "INI config file",		   	"color": "FORE_CYAN"			},
-		".conf" 	 		: { "icon": "\ue615", "description": "Configuration file",		"color": "FORE_CYAN"			},
-		".env"   			: { "icon": "\uf4a2", "description": "Environment settings",	"color": "FORE_GREEN"			},
+        // Config & Markup
+        ".json"              : { "icon": "\ue60b", "description": "JSON file",               "color": "FORE_CYAN"            },
+        ".jsonc"             : { "icon": "\ue60b", "description": "JSON with comments",      "color": "FORE_CYAN"            },
+        ".yaml"              : { "icon": "\ue615", "description": "YAML config file",        "color": "FORE_CYAN"            },
+        ".yml"               : { "icon": "\ue615", "description": "YAML config file",        "color": "FORE_CYAN"            },
+        ".toml"              : { "icon": "\ue615", "description": "TOML config file",        "color": "FORE_CYAN"            },
+        ".ini"               : { "icon": "\ue615", "description": "INI config file",         "color": "FORE_CYAN"            },
+        ".conf"              : { "icon": "\ue615", "description": "Configuration file",      "color": "FORE_CYAN"            },
+        ".env"               : { "icon": "\uf4a2", "description": "Environment settings",    "color": "FORE_GREEN"           },
 
-		// Markup & Docs
-		".md"				: { "icon": "\uf48a", "description": "Markdown file",			"color": "FORE_BLUE"			},
-		".txt"   			: { "icon": "\uf49e", "description": "Text file",				"color": "FORE_LIGHTBLACK_EX"	},
-		".rst"   			: { "icon": "\ue5da", "description": "reStructuredText",		"color": "FORE_BLUE" 			},
-		".html" 	 		: { "icon": "\ue60e", "description": "HTML document",			"color": "FORE_MAGENTA" 		},
-		".xml"   			: { "icon": "\ufabf", "description": "XML document",			"color": "FORE_MAGENTA" 		},
-		".pdf"   			: { "icon": "\uf724", "description": "PDF document",			"color": "FORE_RED" 			},
+        // Markup & Docs
+        ".md"                : { "icon": "\uf48a", "description": "Markdown file",           "color": "FORE_BLUE"            },
+        ".txt"               : { "icon": "\uf49e", "description": "Text file",               "color": "FORE_LIGHTBLACK_EX"   },
+        ".rst"               : { "icon": "\ue5da", "description": "reStructuredText",        "color": "FORE_BLUE"            },
+        ".html"              : { "icon": "\ue60e", "description": "HTML document",           "color": "FORE_MAGENTA"         },
+        ".xml"               : { "icon": "\ufabf", "description": "XML document",            "color": "FORE_MAGENTA"         },
+        ".pdf"               : { "icon": "\uf724", "description": "PDF document",            "color": "FORE_RED"             },
 
-		// Logs
-		".log"   			: { "icon": "\uf4cd", "description": "Log file",				"color": "FORE_LIGHTBLACK_EX" 	},
+        // Logs
+        ".log"               : { "icon": "\uf4cd", "description": "Log file",                "color": "FORE_LIGHTBLACK_EX"   },
 
-		// Archives
-		".zip"   			: { "icon": "\uf490", "description": "ZIP archive",				"color": "FORE_MAGENTA" 		},
-		".tar"   			: { "icon": "\uf490", "description": "TAR archive",				"color": "FORE_MAGENTA" 		},
-		".gz"				: { "icon": "\uf490", "description": "GZ archive",				"color": "FORE_MAGENTA" 		},
-		".bz2"   			: { "icon": "\uf490", "description": "BZIP2 archive",			"color": "FORE_MAGENTA" 		},
-		".7z"				: { "icon": "\uf490", "description": "7-Zip archive",			"color": "FORE_MAGENTA" 		},
+        // Archives
+        ".zip"               : { "icon": "\uf490", "description": "ZIP archive",             "color": "FORE_MAGENTA"         },
+        ".tar"               : { "icon": "\uf490", "description": "TAR archive",             "color": "FORE_MAGENTA"         },
+        ".gz"                : { "icon": "\uf490", "description": "GZ archive",              "color": "FORE_MAGENTA"         },
+        ".bz2"               : { "icon": "\uf490", "description": "BZIP2 archive",           "color": "FORE_MAGENTA"         },
+        ".7z"                : { "icon": "\uf490", "description": "7-Zip archive",           "color": "FORE_MAGENTA"         },
 
-		// Media
-		".jpg"   			: { "icon": "\uf03e", "description": "JPEG image",				"color": "FORE_YELLOW" 			},
-		".jpeg"  			: { "icon": "\uf03e", "description": "JPEG image",				"color": "FORE_YELLOW" 			},
-		".png"   			: { "icon": "\uf03e", "description": "PNG image",				"color": "FORE_YELLOW" 			},
-		".gif"   			: { "icon": "\uf03e", "description": "GIF image",				"color": "FORE_YELLOW" 			},
-		".svg"   			: { "icon": "\uf81f", "description": "SVG vector image",		"color": "FORE_CYAN" 			},
-		".mp3"   			: { "icon": "\uf001", "description": "MP3 audio file",			"color": "FORE_MAGENTA" 		},
-		".wav" 				: { "icon": "\uf001", "description": "WAV audio file",			"color": "FORE_MAGENTA" 		},
-		".mp4"				: { "icon": "\uf03d", "description": "MP4 video file",			"color": "FORE_BLUE" 			},
-		".mkv"				: { "icon": "\uf03d", "description": "MKV video file",			"color": "FORE_BLUE" 			},
+        // Media
+        ".jpg"               : { "icon": "\uf03e", "description": "JPEG image",              "color": "FORE_YELLOW"          },
+        ".jpeg"              : { "icon": "\uf03e", "description": "JPEG image",              "color": "FORE_YELLOW"          },
+        ".png"               : { "icon": "\uf03e", "description": "PNG image",               "color": "FORE_YELLOW"          },
+        ".gif"               : { "icon": "\uf03e", "description": "GIF image",               "color": "FORE_YELLOW"          },
+        ".svg"               : { "icon": "\uf81f", "description": "SVG vector image",        "color": "FORE_CYAN"            },
+        ".mp3"               : { "icon": "\uf001", "description": "MP3 audio file",          "color": "FORE_MAGENTA"         },
+        ".wav"               : { "icon": "\uf001", "description": "WAV audio file",          "color": "FORE_MAGENTA"         },
+        ".mp4"               : { "icon": "\uf03d", "description": "MP4 video file",          "color": "FORE_BLUE"            },
+        ".mkv"               : { "icon": "\uf03d", "description": "MKV video file",          "color": "FORE_BLUE"            },
 
-		// Compiled
-		".exe"				: { "icon": "\ue70f", "description": "Windows executable",		"color": "FORE_RED" 			},
-		".out"  	 		: { "icon": "\ue795", "description": "Compiled binary",			"color": "FORE_RED" 			},
-		".class" 			: { "icon": "\ue256", "description": "Java class file",			"color": "FORE_LIGHTBLACK_EX" 	},
-		".o"	 			: { "icon": "\ue795", "description": "Object file",				"color": "FORE_LIGHTBLACK_EX" 	},
+        // Compiled
+        ".exe"               : { "icon": "\ue70f", "description": "Windows executable",      "color": "FORE_RED"             },
+        ".out"               : { "icon": "\ue795", "description": "Compiled binary",         "color": "FORE_RED"             },
+        ".class"             : { "icon": "\ue256", "description": "Java class file",         "color": "FORE_LIGHTBLACK_EX"   },
+        ".o"                 : { "icon": "\ue795", "description": "Object file",             "color": "FORE_LIGHTBLACK_EX"   },
 
-		// Special filenames
-		"Makefile"   		: { "icon": "\ue761", "description": "Makefile",				"color": "FORE_CYAN" 			},
-		"Dockerfile" 		: { "icon": "\ue790", "description": "Dockerfile",				"color": "FORE_BLUE"	 		},
-		"LICENSE"			: { "icon": "\uf016", "description": "License file",			"color": "white" 				},
-		"README"	 		: { "icon": "\uf7dd", "description": "README file",				"color": "FORE_BLUE" 			},
+        // Special filenames
+        "Makefile"           : { "icon": "\ue761", "description": "Makefile",                "color": "FORE_CYAN"            },
+        "Dockerfile"         : { "icon": "\ue790", "description": "Dockerfile",              "color": "FORE_BLUE"            },
+        "LICENSE"            : { "icon": "\uf016", "description": "License file",            "color": "white"                },
+        "README"             : { "icon": "\uf7dd", "description": "README file",             "color": "FORE_BLUE"            },
 
-		// Fallbacks
-		"default_dir"  		: { "icon": "\uf115", "description": "Directory",				"color": "FORE_BLUE" 			},
-		"default_file"		: { "icon": "\uf016", "description": "Generic file",			"color": "white" 				}
-	}
+        // Fallbacks
+        "default_dir"         : { "icon": "\uf115", "description": "Directory",              "color": "FORE_BLUE"            },
+        "default_file"        : { "icon": "\uf016", "description": "Generic file",           "color": "white"                }
+    }
 }
