@@ -35,7 +35,7 @@ class BuilderToolChainInterface(ABC):
     Common resolution logic is built-in.
     """
 
-    def __init__(self, toolchain: dict[str, object], builder_instance:Optional["BuilderInterface"]) -> None:
+    def __init__(self, toolchain: dict[str, object], builder_instance: Optional["BuilderInterface"]) -> None:
         self._toolchain = toolchain
         self._resolved_tools: dict[str, str] = {}
         self._tool_box = ToolBox().get_instance()

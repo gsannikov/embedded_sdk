@@ -46,6 +46,9 @@ AUTO_FORGE_MODULE_VERSION = "1.0"
 
 @dataclass(frozen=True)
 class _LSDIconInfo:
+    """
+    Utility class to help oin storing file visual properties
+    """
     icon: str
     description: str
     color: str
@@ -147,6 +150,7 @@ class LSDCommand(CLICommandInterface):
             return "0"
 
         if size_bytes == -1:
+            # noinspection SpellCheckingInspection
             return f"{self._ansi_codes.get('FORE_LIGHTRED_EX')}?"
 
         if size_bytes < 1024:
@@ -231,9 +235,6 @@ class LSDCommand(CLICommandInterface):
         output_lines = []
         show_header = len(destination_paths) > 1
 
-        if self._ansi_codes is None:
-            raise RuntimeError("ANSI codes table is not available")
-
         # Fields names
         size_header_text: str = 'Size'
         date_header_text: str = 'Date Modified'
@@ -305,6 +306,7 @@ class LSDCommand(CLICommandInterface):
 
                 except (FileNotFoundError, PermissionError):
                     if is_dir:
+                        # noinspection SpellCheckingInspection
                         size_str = (f"{self._ansi_codes.get('FORE_LIGHTRED_EX')}?{'-':<{max_size_width}}"
                                     f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
                     else:
@@ -382,8 +384,8 @@ class LSDCommand(CLICommandInterface):
         if self._terminal_icons is None:
             self._terminal_icons = self._tool_box.auto_forge.configuration.get("terminal_icons_map")
 
-        if not self._terminal_icons:
-            print("Error: 'terminal_icons_map' could not be loaded from package configuration.")
+        if not self._terminal_icons or not self._ansi_codes:
+            print("Error: Essential terminal resources (icons and ANSI codes) are unavailable.")
             return 1
 
         # Gets the directory listing and print

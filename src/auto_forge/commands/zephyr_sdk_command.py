@@ -60,13 +60,13 @@ class ZephyrSDKCommand(CLICommandInterface):
         """
 
         if self._detected:
-            return True # SDK Already found
+            return True  # SDK Already found
 
         if not self._cmake_pkg_dir or not self._cmake_pkg_dir.is_dir():
-            return False # CMake package registry path does not exist
+            return False  # CMake package registry path does not exist
 
         # Workaround PyCharm's static analyzer quirks
-        cmake_pkg_dir = cast(Path, self._cmake_pkg_dir)
+        cmake_pkg_dir: Path = cast(Path, self._cmake_pkg_dir)
 
         for pkg_file in cmake_pkg_dir.iterdir():
             if not pkg_file.is_file():
@@ -122,7 +122,7 @@ class ZephyrSDKCommand(CLICommandInterface):
             int: Exit status (0 for success, non-zero for failure).
         """
         return_value: int = 0
-        self.detect() # Attempt to locate the SDK
+        self.detect()  # Attempt to locate the SDK
 
         # The SDK path should have been discovered when this class was created.
         if not self._path:

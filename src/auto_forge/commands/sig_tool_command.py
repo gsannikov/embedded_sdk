@@ -13,9 +13,11 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
+# Third-party
+from git import Commit, Repo
+
 # AutoForge imports
 from auto_forge import CLICommandInterface, CoreSignatures, ToolBox
-from git import Commit, Repo
 
 AUTO_FORGE_MODULE_NAME = "sig_tool"
 AUTO_FORGE_MODULE_DESCRIPTION = "Binary file signing tool"

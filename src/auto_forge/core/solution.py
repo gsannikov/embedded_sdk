@@ -20,10 +20,6 @@ Description:
     The accompanying 'config/solution.jsonc' file serves as a reference documentation, detailing the schema and
     setup of solutions as processed by this system.
 
-TODO:
-1. Extend functionality to support enumeration types, enhancing the configuration options available for
-   project setups. This will allow more structured and type-safe configurations.
-
 """
 import copy
 import json

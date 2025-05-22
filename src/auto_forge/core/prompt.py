@@ -3,8 +3,9 @@ Script:         prompt.py
 Author:         AutoForge Team
 
 Description:
-    Core module which defines and manages the PromptEngine class, built on the cmd2 interactive
-    shell, to provide SDK build system commands.
+    Core module that defines and manages the PromptEngine class, which integrates the cmd2
+    interactive shell with prompt_toolkit to provide a rich command-line interface for the
+    AutoForge build system.
 """
 import html
 import logging

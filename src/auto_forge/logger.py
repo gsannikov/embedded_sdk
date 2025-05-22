@@ -3,7 +3,7 @@ Script:         logger.py
 Author:         AutoForge Team
 
 Description:
-    AutoForge logging module allows for console and file logging, with and without ANSI colors.
+    AutoForge logging module which allows for console and file logging, with and without ANSI colors.
 """
 
 import json

@@ -4,7 +4,7 @@ Author:         AutoForge Team
 
 Description:
     Core module which is responsible for dynamically discovering, validating, executing and registering modules
-    that implement supported interfaces types.
+    that implement any of the supported interfaces types.
 """
 
 import glob

@@ -121,7 +121,10 @@ class SolutionCommand(CLICommandInterface):
 
     def _show_log(self, cheerful: bool) -> None:
         """
-        Doc string..
+        Display the AutoForge logger output with color-coded fields.
+        Args:
+            cheerful (bool): If True, display the log with enhanced formatting or emotive tone.
+                             Otherwise, use a more standard presentation.
         """
 
         field_colors = [
