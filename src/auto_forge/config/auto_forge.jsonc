@@ -236,7 +236,7 @@
         "README"             : { "icon": "\uf7dd", "description": "README file",             "color": "FORE_BLUE"            },
 
         // Fallbacks
-        "default_dir"         : { "icon": "\uf115", "description": "Directory",              "color": "FORE_BLUE"            },
-        "default_file"        : { "icon": "\uf016", "description": "Generic file",           "color": "white"                }
+        "default_dir"        : { "icon": "\uf115", "description": "Directory",               "color": "FORE_BLUE"            },
+        "default_file"       : { "icon": "\uf016", "description": "Generic file",            "color": "white"                }
     }
 }
