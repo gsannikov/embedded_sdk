@@ -20,7 +20,6 @@ from types import ModuleType
 from typing import Any, Callable, NamedTuple, Optional, TextIO
 
 # Third-party
-from colorama import Fore
 
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
@@ -298,89 +297,6 @@ class TerminalTeeStream:
         for target in self._targets:
             if hasattr(target, "flush"):
                 target.flush()
-
-
-@dataclass(frozen=True)
-class TerminalFileIconInfo:
-    icon: str
-    description: str
-    color: str
-
-
-# File extension or name to icon metadata mapping
-TERMINAL_ICONS_MAP: dict[str, TerminalFileIconInfo] = {  # Source Code
-    ".py": TerminalFileIconInfo("", "Python source file", Fore.YELLOW),
-    ".c": TerminalFileIconInfo("", "C source file", Fore.LIGHTBLUE_EX),
-    ".cpp": TerminalFileIconInfo("", "C++ source file", Fore.LIGHTBLUE_EX),
-    ".h": TerminalFileIconInfo("", "C/C++ header", Fore.LIGHTBLUE_EX),
-    ".hpp": TerminalFileIconInfo("", "C++ header", Fore.LIGHTBLUE_EX),
-    ".java": TerminalFileIconInfo("", "Java source file", Fore.RED),
-    ".js": TerminalFileIconInfo("", "JavaScript file", Fore.YELLOW),
-    ".ts": TerminalFileIconInfo("", "TypeScript file", Fore.CYAN),
-    ".go": TerminalFileIconInfo("", "Go source file", Fore.CYAN),
-    ".rs": TerminalFileIconInfo("", "Rust source file", Fore.RED),
-    ".swift": TerminalFileIconInfo("", "Swift source file", Fore.MAGENTA),
-
-    # Scripts & Shell
-    ".sh": TerminalFileIconInfo("", "Shell script", Fore.GREEN),
-    ".bash": TerminalFileIconInfo("", "Bash script", Fore.GREEN),
-    ".zsh": TerminalFileIconInfo("", "Zsh script", Fore.GREEN),
-    ".ps1": TerminalFileIconInfo("", "PowerShell script", Fore.CYAN),
-
-    # Config & Markup
-    ".json": TerminalFileIconInfo("", "JSON file", Fore.CYAN),
-    ".jsonc": TerminalFileIconInfo("", "JSON with comments", Fore.CYAN),
-    ".yaml": TerminalFileIconInfo("", "YAML config file", Fore.CYAN),
-    ".yml": TerminalFileIconInfo("", "YAML config file", Fore.CYAN),
-    ".toml": TerminalFileIconInfo("", "TOML config file", Fore.CYAN),
-    ".ini": TerminalFileIconInfo("", "INI config file", Fore.CYAN),
-    ".conf": TerminalFileIconInfo("", "Configuration file", Fore.CYAN),
-    ".env": TerminalFileIconInfo("", "Environment settings", Fore.GREEN),
-
-    # Markup & Docs
-    ".md": TerminalFileIconInfo("", "Markdown file", Fore.BLUE),
-    ".txt": TerminalFileIconInfo("", "Text file", Fore.LIGHTBLACK_EX),
-    ".rst": TerminalFileIconInfo("", "reStructuredText", Fore.BLUE),
-    ".html": TerminalFileIconInfo("", "HTML document", Fore.MAGENTA),
-    ".xml": TerminalFileIconInfo("謹", "XML document", Fore.MAGENTA),
-    ".pdf": TerminalFileIconInfo("", "PDF document", Fore.RED),
-
-    # Logs
-    ".log": TerminalFileIconInfo("", "Log file", Fore.LIGHTBLACK_EX),
-
-    # Archives
-    ".zip": TerminalFileIconInfo("", "ZIP archive", Fore.MAGENTA),
-    ".tar": TerminalFileIconInfo("", "TAR archive", Fore.MAGENTA),
-    ".gz": TerminalFileIconInfo("", "GZ archive", Fore.MAGENTA),
-    ".bz2": TerminalFileIconInfo("", "BZIP2 archive", Fore.MAGENTA),
-    ".7z": TerminalFileIconInfo("", "7-Zip archive", Fore.MAGENTA),
-
-    # Media
-    ".jpg": TerminalFileIconInfo("", "JPEG image", Fore.YELLOW),
-    ".jpeg": TerminalFileIconInfo("", "JPEG image", Fore.YELLOW),
-    ".png": TerminalFileIconInfo("", "PNG image", Fore.YELLOW),
-    ".gif": TerminalFileIconInfo("", "GIF image", Fore.YELLOW),
-    ".svg": TerminalFileIconInfo("ﰟ", "SVG vector image", Fore.CYAN),
-    ".mp3": TerminalFileIconInfo("", "MP3 audio file", Fore.MAGENTA),
-    ".wav": TerminalFileIconInfo("", "WAV audio file", Fore.MAGENTA),
-    ".mp4": TerminalFileIconInfo("", "MP4 video file", Fore.BLUE),
-    ".mkv": TerminalFileIconInfo("", "MKV video file", Fore.BLUE),
-
-    # Compiled
-    ".exe": TerminalFileIconInfo("", "Windows executable", Fore.RED),
-    ".out": TerminalFileIconInfo("", "Compiled binary", Fore.RED),
-    ".class": TerminalFileIconInfo("", "Java class file", Fore.LIGHTBLACK_EX),
-    ".o": TerminalFileIconInfo("", "Object file", Fore.LIGHTBLACK_EX),
-
-    # Special filenames
-    "Makefile": TerminalFileIconInfo("", "Makefile", Fore.CYAN),
-    "Dockerfile": TerminalFileIconInfo("", "Dockerfile", Fore.BLUE),
-    "LICENSE": TerminalFileIconInfo("", "License file", Fore.WHITE),
-    "README": TerminalFileIconInfo("", "README file", Fore.BLUE),
-
-    # Fallbacks
-    "default_dir": TerminalFileIconInfo("", "Directory", Fore.BLUE),
-    "default_file": TerminalFileIconInfo("", "Generic file", Fore.WHITE), }
 
 
 class TerminalAnsiGuru:

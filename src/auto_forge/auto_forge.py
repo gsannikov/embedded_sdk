@@ -87,7 +87,7 @@ class AutoForge(CoreModuleInterface):
         if self._remote_debugging is not None:
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
-        # Load AutoForge configuration
+        # Load AutoForge configuration and several dictionaries we might need later
         self.configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
         self.ansi_codes = self.configuration.get("ansi_codes_map") if "ansi_codes_map" in self.configuration else None
 

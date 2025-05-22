@@ -76,7 +76,7 @@ class SolutionCommand(CLICommandInterface):
         project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
 
         if not isinstance(var_list, list) or not var_list:
-            print("No variables to display.")
+            print("Error: no variables to display.")
             return
 
         table = Table(title="Managed Variables", box=box.ROUNDED)

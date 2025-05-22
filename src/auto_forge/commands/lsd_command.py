@@ -27,21 +27,28 @@ import datetime
 import locale
 import math
 import os
+import sys
 from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
 # AutoForge imports
 from auto_forge import (
-    TERMINAL_ICONS_MAP,
     CLICommandInterface,
-    TerminalFileIconInfo,
     ToolBox,
 )
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
 AUTO_FORGE_MODULE_VERSION = "1.0"
+
+
+@dataclass(frozen=True)
+class _LSDIconInfo:
+    icon: str
+    description: str
+    color: str
 
 
 class LSDCommand(CLICommandInterface):
@@ -58,6 +65,9 @@ class LSDCommand(CLICommandInterface):
         # Retrieve the ANSI codes map from the main AutoForge instance.
         self._ansi_codes: Optional[dict[str, Any]] = self._tool_box.auto_forge.ansi_codes
 
+        # Placeholder for the large icons dictionary
+        self._terminal_icons: Optional[dict[str, Any]] = None
+
         # Helps to get the date formatted to the specific system local settings
         locale.setlocale(locale.LC_TIME, '')
         self._default_date_format = '%m-%d %H:%M'
@@ -69,36 +79,46 @@ class LSDCommand(CLICommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          raise_exceptions=raise_exceptions)
 
-    @staticmethod
-    def _get_icon_info(ext_or_name: Path) -> TerminalFileIconInfo:
+    def _get_icon_info(self, ext_or_name: Path) -> _LSDIconInfo:
         """
         Return a symbolic icon for the given file or directory.
         Args:
             ext_or_name (Path): The file or directory path.
 
         Returns:
-            FileIconInfo: Icon info associated with the given file or directory.
+            TerminalFileIconInfo: Icon info associated with the given file or directory.
         """
+        if self._terminal_icons is None or self._ansi_codes is None:
+            return _LSDIconInfo("?", "Unknown", "")  # Fallback if maps not loaded
+
+        icon_map = self._terminal_icons
+        ansi_map = self._ansi_codes
+
+        # Determine icon entry by name or extension
         if ext_or_name.is_dir():
-            return TERMINAL_ICONS_MAP["default_dir"]
+            entry = icon_map.get("default_dir")
+        else:
+            name = ext_or_name.name
+            entry = icon_map.get(name)
+            if not entry:
+                ext = ext_or_name.suffix.lower()
+                entry = icon_map.get(ext, icon_map["default_file"])
 
-        # Check by filename first (e.g. Makefile, Dockerfile)
-        name = ext_or_name.name
-        if name in TERMINAL_ICONS_MAP:
-            return TERMINAL_ICONS_MAP[name]
+        icon = entry.get("icon", "?")
+        description = entry.get("description", "Unknown file")
+        color_key = entry.get("color", "")
+        color_code = ansi_map.get(color_key, "")  # resolve colorama style color name to the ANSI code.
 
-        # Fallback to extension
-        ext = ext_or_name.suffix.lower()
-        return TERMINAL_ICONS_MAP.get(ext, TERMINAL_ICONS_MAP["default_file"])
+        return _LSDIconInfo(icon=icon, description=description, color=color_code)
 
     def _format_entry_name_with_icon(self, name: str, is_dir: bool,
-                                     icon_info: Optional[TerminalFileIconInfo]) -> str:
+                                     icon_info: Optional[_LSDIconInfo]) -> str:
         """
         Format a file or directory name with an icon and color.
         Args:
             name (str): The filename to format.
             is_dir (bool): Whether this entry is a directory.
-            icon_info (Optional[TerminalFileIconInfo]): Metadata about the icon.
+            icon_info (Optional[_LSDIconInfo]): Metadata about the icon.
         Returns:
             str: Colored and formatted name string.
         """
@@ -122,8 +142,16 @@ class LSDCommand(CLICommandInterface):
         Returns:
             str: A colorized and human-readable size string.
         """
+
         if size_bytes == 0:
             return "0"
+
+        if size_bytes == -1:
+            return f"{self._ansi_codes.get('FORE_LIGHTRED_EX')}?"
+
+        if size_bytes < 1024:
+            return (f"{self._ansi_codes.get('FORE_LIGHTGREEN_EX')}"
+                    f"{size_bytes}{self._ansi_codes.get('FORE_GREEN')}b")
 
         size_name = ("", "k", "M", "G", "T")
         i = int(math.floor(math.log(size_bytes, 1024)))
@@ -185,7 +213,8 @@ class LSDCommand(CLICommandInterface):
         return max_width
 
     def _lsd(self, destination_paths, show_all: bool = False, group_directories_first: bool = False,
-             disable_icons: bool = False, _show_long: Optional[bool] = False) -> str:
+             disable_icons: bool = False, immediate_echo: bool = True, _show_long: Optional[bool] = False) -> Optional[
+        str]:
         """
         The heart of the LSD Command.
         Args:
@@ -193,10 +222,12 @@ class LSDCommand(CLICommandInterface):
             show_all (bool): Show hidden files (starting with '.').
             group_directories_first (bool): Group directories before files.
             disable_icons (bool): Disable icons column.
+            immediate_echo (bool): Immediately echo output to stdout.
             _show_long (bool, optional): Show long description column.
         Returns:
-            str: Formatted directory listing.
+            str: Formatted directory listing or None when immediate_echo is enabled.
         """
+
         output_lines = []
         show_header = len(destination_paths) > 1
 
@@ -234,7 +265,10 @@ class LSDCommand(CLICommandInterface):
                 entries = [path]
 
             if show_header:
-                output_lines.append(f"{path}:")
+                if not immediate_echo:
+                    output_lines.append(f"{path}:")
+                else:
+                    sys.stdout.write(f"{path}:\n")
 
             size_padded_text = size_header_text.ljust(max_size_width)
             header = (
@@ -245,23 +279,39 @@ class LSDCommand(CLICommandInterface):
                 f"{self._ansi_codes.get('STYLE_UNDERLINE')}{name_header_text}"
                 f"{self._ansi_codes.get('STYLE_RESET_ALL')}"
             )
-            output_lines.append(header)
+
+            if not immediate_echo:
+                output_lines.append(header)
+            else:
+                sys.stdout.write(f"{header}\n")
 
             for entry in entries:
+                is_dir = False
                 assert isinstance(entry, Path)
                 if not show_all and entry.name.startswith("."):
                     continue
+                try:
 
-                # Add the file size
-                if entry.is_dir():
-                    size_str = (f"{self._ansi_codes.get('FORE_CYAN')}{'-':<{max_size_width}}"
-                                f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
-                else:
-                    size_bytes = entry.stat().st_size
-                    colored = self._color_size(size_bytes)
-                    plain = self._tool_box.strip_ansi(colored)
-                    padding = max_size_width - len(plain)
-                    size_str = colored + " " * padding if padding > 0 else colored
+                    if entry.is_dir():
+                        is_dir = True
+                        size_str = (f"{self._ansi_codes.get('FORE_CYAN')}{'-':<{max_size_width}}"
+                                    f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
+                    else:
+                        size_bytes = entry.stat().st_size
+                        colored = self._color_size(size_bytes)
+                        plain = self._tool_box.strip_ansi(colored)
+                        padding = max_size_width - len(plain)
+                        size_str = colored + " " * padding if padding > 0 else colored
+
+                except (FileNotFoundError, PermissionError):
+                    if is_dir:
+                        size_str = (f"{self._ansi_codes.get('FORE_LIGHTRED_EX')}?{'-':<{max_size_width}}"
+                                    f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
+                    else:
+                        colored = self._color_size(-1)  # Passing -1 will return "?" in red
+                        plain = self._tool_box.strip_ansi(colored)
+                        padding = max_size_width - len(plain)
+                        size_str = colored + " " * padding if padding > 0 else colored
 
                 # Add the data and time
                 mtime = datetime.datetime.fromtimestamp(entry.lstat().st_mtime)
@@ -270,7 +320,7 @@ class LSDCommand(CLICommandInterface):
                             f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
 
                 # Find a suitable icon for the path / file
-                icon_info: Optional[TerminalFileIconInfo] = None
+                icon_info: Optional[_LSDIconInfo] = None
                 if not disable_icons:
                     icon_info = self._get_icon_info(entry)
 
@@ -287,12 +337,19 @@ class LSDCommand(CLICommandInterface):
                 name_str = self._format_entry_name_with_icon(name, entry.is_dir(), icon_info)
 
                 # Final line composition
-                output_lines.append(f"{size_str} {date_str}  {name_str}")
+                formatted_line = f"{size_str} {date_str}  {name_str}"
 
-            if show_header:
-                output_lines.append("")
+                if not immediate_echo:
+                    output_lines.append(formatted_line)
+                    if show_header:
+                        output_lines.append("")
+                else:
+                    sys.stdout.write(formatted_line + '\n')
+                    sys.stdout.flush()
 
-        return "\n".join(output_lines)
+        if not immediate_echo:
+            return "\n".join(output_lines)
+        return None
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -321,8 +378,18 @@ class LSDCommand(CLICommandInterface):
 
         target_paths = args.paths if args.paths else [os.getcwd()]
 
+        # Load the terminal icons map from the package configuration, if not already loaded.
+        if self._terminal_icons is None:
+            self._terminal_icons = self._tool_box.auto_forge.configuration.get("terminal_icons_map")
+
+        if not self._terminal_icons:
+            print("Error: 'terminal_icons_map' could not be loaded from package configuration.")
+            return 1
+
         # Gets the directory listing and print
-        print('\n' + self._lsd(destination_paths=target_paths, show_all=args.all,
-                               group_directories_first=args.group_directories_first,
-                               disable_icons=args.no_icons) + '\n')
+        print()
+        self._lsd(destination_paths=target_paths, show_all=args.all,
+                  group_directories_first=args.group_directories_first,
+                  disable_icons=args.no_icons)
+        print()
         return 0
