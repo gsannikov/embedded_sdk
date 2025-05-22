@@ -89,7 +89,7 @@ class AutoForge(CoreModuleInterface):
 
         # Load AutoForge configuration and several dictionaries we might need later
         self.configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
-        self.ansi_codes = self.configuration.get("ansi_codes_map") if "ansi_codes_map" in self.configuration else None
+        self.ansi_codes = self.configuration.get("ansi_codes") if "ansi_codes" in self.configuration else None
 
         # Greetings
         print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
@@ -102,7 +102,7 @@ class AutoForge(CoreModuleInterface):
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
 
-        # Load all the builtin commands
+        # Load all builtin commands
         self._loader: Optional[CoreLoader] = CoreLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,

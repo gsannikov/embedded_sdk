@@ -382,7 +382,7 @@ class LSDCommand(CLICommandInterface):
 
         # Load the terminal icons map from the package configuration, if not already loaded.
         if self._terminal_icons is None:
-            self._terminal_icons = self._tool_box.auto_forge.configuration.get("terminal_icons_map")
+            self._terminal_icons = self._tool_box.auto_forge.configuration.get("terminal_icons")
 
         if not self._terminal_icons or not self._ansi_codes:
             print("Error: Essential terminal resources (icons and ANSI codes) are unavailable.")

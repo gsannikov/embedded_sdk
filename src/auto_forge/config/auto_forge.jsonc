@@ -9,11 +9,13 @@
 {
 	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
-	"configurations": {
-		"key": "value"
-	},
-
 	"log_cleanup_patterns": [
+
+		// log_cleanup_patterns:
+		// This list defines regular expression patterns used to clean or filter noisy lines
+		// from command output logs. Lines matching any of these patterns will be removed
+		// before displaying logs to the user.
+
 		"^remote: Counting objects:\\s*",
 		"^━+.*?━+\\s*"
 	],
@@ -24,20 +26,23 @@
 		// These commands typically control the terminal screen, use input prompts,
 		// or produce continuous output unsuitable for standard command capture.
 
-		"cat",
-		"htop",
-		"top",
+		"bash",
+		"zsh",
 		"btop",
-		"vim",
-		"less",
-		"nano",
-		"vi",
+		"bat",
+		"cat",
 		"clear",
 		"dnf",
-		"sudo"
+		"htop",
+		"less",
+		"nano",
+		"sudo",
+		"top",
+		"vi",
+    	"vim"
 	],
 
-	"ansi_codes_map": {
+	"ansi_codes": {
 
 		// ANSI color and style codes following Colorama-style naming.
 		// These codes are useful for CLI rendering, logging, and text decoration.
@@ -100,7 +105,7 @@
 		"BACK_LIGHTWHITE_EX"  	: "\u001b[107m"
 	},
 
-	"command_completion_map": {
+	"command_completion": {
 
 		// Mapping of shell-like commands to their completion behavior.
 		// Commands supporting path completion specify whether only directories
@@ -158,7 +163,7 @@
 		"zip"		 	: { "path_completion": true , "only_dirs": false	}
 	},
 
-	"terminal_icons_map": {
+	"terminal_icons": {
 
 		// Source Code
 		".py"				: { "icon": "\ue606", "description": "Python source file",		"color": "FORE_YELLOW"			},

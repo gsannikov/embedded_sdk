@@ -82,10 +82,10 @@ class _CoreCompleter(Completer):
         if completer_func:
             return False
 
-        if self.core_prompt.command_completion_map is None:
+        if self.core_prompt.command_completion is None:
             return True
 
-        meta = self.core_prompt.command_completion_map.get(cmd)
+        meta = self.core_prompt.command_completion.get(cmd)
         if meta:
             return meta.get("path_completion", False)  # ← allow even if arg_text is empty
 
@@ -174,12 +174,12 @@ class _CoreCompleter(Completer):
                         self._logger.debug(f"Completer error for '{cmd}': {e}")
                 elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text,
                                                               completer_func=completer_func):
-                    meta = self.core_prompt.command_completion_map.get(cmd, {})
+                    meta = self.core_prompt.command_completion.get(cmd, {})
                     matches = self.core_prompt.gather_path_matches(text=arg_text,
                                                                    only_dirs=meta.get("only_dirs", False))
 
             elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
-                meta = self.core_prompt.command_completion_map.get(cmd, {})
+                meta = self.core_prompt.command_completion.get(cmd, {})
                 matches = self.core_prompt.gather_path_matches(text=arg_text, only_dirs=meta.get("only_dirs", False))
 
         # Final filtering: ensure no duplicate completions are yielded
@@ -248,8 +248,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             raise RuntimeError("could not finish initializing")
 
         # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
-        self.command_completion_map = configuration_data.get('command_completion_map') if configuration_data else None
-        if self.command_completion_map is None:
+        self.command_completion = configuration_data.get('command_completion') if configuration_data else None
+        if self.command_completion is None:
             self._logger.warning("No command completion map loaded")
 
         # Use the primary solution name as the path base text
