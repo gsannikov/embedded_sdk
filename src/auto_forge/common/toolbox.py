@@ -29,6 +29,7 @@ from types import ModuleType
 from typing import Any, Optional, SupportsInt, Union
 from urllib.parse import ParseResult, unquote, urlparse
 
+# Third-party
 import psutil
 
 # Retrieve our package base path from settings
@@ -38,9 +39,8 @@ from auto_forge import (
     PROJECT_HELP_PATH,
     AddressInfoType,
     AutoForgeModuleType,
-    AutoLogger,
     CoreModuleInterface,
-    TerminalAnsiCodes,
+    MethodLocationType,
     XYType,
 )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
@@ -52,15 +52,20 @@ AUTO_FORGE_TEMP_PATTERN = "__AUTO_FORGE_"  # Prefix for temporary path names
 
 class ToolBox(CoreModuleInterface):
 
+    def __init__(self, *args, **kwargs):
+        """
+        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
+        See 'CoreModuleInterface' usage.
+        """
+        self._ansi_codes: Optional[dict[str, str]] = None
+        super().__init__(*args, **kwargs)
+
     def _initialize(self, *_args, **_kwargs) -> None:
         """
         Initialize the 'ToolBox' class.
         """
 
-        # Create a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
-        self._test_str: str = "test"
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -73,8 +78,8 @@ class ToolBox(CoreModuleInterface):
         """
         Prints a byte array as hex values formatted in specified number of bytes per line.
         Args:
-        byte_array (bytes): The byte array to be printed.
-        bytes_per_line (int, optional): Number of hex values to print per line. Default is 16.
+            byte_array (bytes): The byte array to be printed.
+            bytes_per_line (int, optional): Number of hex values to print per line. Default is 16.
         """
         if byte_array is None or not isinstance(byte_array, bytes):
             return
@@ -91,7 +96,7 @@ class ToolBox(CoreModuleInterface):
         Sets the real-time scheduling priority for the current process using the FIFO scheduling algorithm.
         Args:
             priority (int): Desired priority level. The effective priority set will be clamped to the
-                            system's allowable range for real-time priorities.
+            system's allowable range for real-time priorities.
         Notes:
             - Real-time priorities require elevated privileges (typically root). Running this without
               sufficient privileges will result in a PermissionError.
@@ -167,8 +172,7 @@ class ToolBox(CoreModuleInterface):
 
         # Check if we have something to do
         if normalized_key in self._dynamic_vars_storage and self._dynamic_vars_storage[normalized_key] == value:
-            self._logger.warning(f"Key '{normalized_key}' is already stored and has the same value '{value}'")
-            return True
+            return True  # Key is already stored and has the same value
 
         # Store the value
         self._dynamic_vars_storage[normalized_key] = value
@@ -222,16 +226,13 @@ class ToolBox(CoreModuleInterface):
         Returns:
             str: A string formatted as 'X hours Y minutes Z seconds W milliseconds', omitting any value
                  that is zero.
-
-        Raises:
-            ValueError: If the input cannot be converted to a float.
         """
         try:
             seconds = float(seconds)
         except ValueError as value_error:
-            raise ValueError(f"Invalid input: {seconds} cannot be converted to a float") from value_error
+            raise ValueError(f"invalid input: {seconds} cannot be converted to a float") from value_error
 
-        def pluralize(time, unit):
+        def _pluralize(time, unit):
             """ Returns a string with the unit correctly pluralized based on the time. """
             if time == 1:
                 return f"{time} {unit}"
@@ -245,41 +246,56 @@ class ToolBox(CoreModuleInterface):
 
         parts = []
         if hours:
-            parts.append(pluralize(hours, "hour"))
+            parts.append(_pluralize(hours, "hour"))
         if minutes:
-            parts.append(pluralize(minutes, "minute"))
+            parts.append(_pluralize(minutes, "minute"))
         if seconds_int:
-            parts.append(pluralize(seconds_int, "second"))
+            parts.append(_pluralize(seconds_int, "second"))
         if milliseconds:
-            parts.append(pluralize(milliseconds, "millisecond"))
+            parts.append(_pluralize(milliseconds, "millisecond"))
 
         return ", ".join(parts) if parts else "0 seconds"
 
     @staticmethod
-    def find_class_property(class_name, property_name):
+    def class_has_property(class_name: str, property_name: str) -> bool:
         """
-        Determines if given properties exist in a given class name
+        Checks whether a specified property exists on a class with the given name.
+        First, looks for the class in the global scope using `globals()`.
+        If not found, it attempts to retrieve the class from the current module using `sys.modules`.
+
+        Args:
+            class_name (str): The name of the class to inspect.
+            property_name (str): The name of the property to check for.
+
+        Returns:
+            bool: True if the class exists and has the given property, False otherwise.
         """
         cls = globals().get(class_name, None)
         if cls is None:
             # If the class is not in globals, check in sys.modules
             cls = getattr(sys.modules[__name__], class_name, None)
 
-        # Check if the class exists and has the specified property
         return hasattr(cls, property_name) if cls else False
 
     @staticmethod
     def class_name_in_file(class_name: str, file_path: str) -> bool:
         """
-        Check if the specified class name is defined in the given Python file.
+        Determines whether the specified class name is defined in the given Python file.
+        Scans the file line by line, looking for a class declaration that matches
+        the given class name. It performs a simple string match and does not parse the file as AST.
+        Args:
+            class_name (str): The name of the class to search for.
+            file_path (str): The full path to the Python source file.
+
+        Returns:
+            bool: True if the class definition is found, False otherwise (including file access errors).
         """
-        try:
+        with suppress(OSError):
             with open(file_path, encoding='utf-8') as file:
                 for line in file:
-                    if line.startswith('class ') and class_name in line:
+                    stripped = line.lstrip()
+                    if stripped.startswith('class ') and class_name in stripped:
                         return True
-        except OSError:
-            return False
         return False
 
     @staticmethod
@@ -288,7 +304,6 @@ class ToolBox(CoreModuleInterface):
         Search for a class by name in all Python files under a specified directory.
         This function dynamically loads each Python file that contains the specified class name,
         attempting to import the module and retrieve the class.
-
         Args:
             class_name (str): The name of the class to search for.
             root_path (str): The base directory from which to start the search.
@@ -315,7 +330,7 @@ class ToolBox(CoreModuleInterface):
 
                         except Exception as exception:
                             raise RuntimeError(
-                                f"Failed to import {module_name} from {file_path}: {exception}") from exception
+                                f"failed to import {module_name} from {file_path}: {exception}") from exception
                         finally:
                             # Ensure the modified path is always cleaned up
                             if subdir in sys.path:
@@ -335,88 +350,74 @@ class ToolBox(CoreModuleInterface):
                     if name == class_name:
                         return obj
             except ImportError as import_error:
-                raise ImportError(f"Module '{module_name}' not found.") from import_error
+                raise ImportError(f"module '{module_name}' not found.") from import_error
         return None
 
-    def find_method_name(self, method_name: str, directory: Optional[str] = None) -> (
-            tuple)[Optional[str], Optional[str], Optional[str]]:
+    @staticmethod
+    def find_method_name(
+            method_name: str,
+            directory: Optional[Union[str, os.PathLike[str]]] = None
+    ) -> Optional[MethodLocationType]:
         """
-         Searches for a specified method within Python files in given directory and returns information about
-         the method's location including its class (if applicable) and module path.
+        Searches for a method definition by name within Python files under the specified directory.
+        Returns a MethodLocationType tuple with the class name (if found), method name, and module path.
+        If the method is found in global scope, class_name will be None.
+        Returns None if the method is not found or if any error occurs during the search.
 
-         Recursively searches through all Python files in the specified directory or, if not specified,
-         in a default 'project_path'. It uses regular expressions to identify class and method definitions that match
-         the given method name.
+        Args:
+            method_name (str): Name of the method to search for.
+            directory (Optional[Union[str, os.PathLike[str]]]): Root directory to search in.
+                Defaults to PROJECT_BASE_PATH if not provided.
 
-         Args:
-             method_name (str): The name of the method to find.
-             directory (Optional[str]): The directory to search in. If None, use a default directory 'project_path'.
-
-         Returns:
-             Tuple[Optional[str], Optional[str], Optional[str]]: A tuple containing the class name (or None if
-             the method is not within a class), the method name, and the module path where the method is defined.
-             If the method is not found, all tuple elements will be None.
-         Notes:
-             - The search is case-sensitive and matches the exact method name.
-             - The method does not support overloaded methods; it returns the first match found.
-             - If file access or regex processing errors occur, they are logged, and the search continues
-               with the next file.
-         """
+        Returns:
+            Optional[MethodLocationType]: A tuple (class_name, method_name, module_path),
+                or None if not found or on error.
+        """
         if directory is None:
             directory = PROJECT_BASE_PATH
 
         base_package_name = os.path.basename(directory)
-
-        # Regular expression to match class and method definitions
         class_regex = re.compile(r'^class\s+(\w+)\s*:', re.MULTILINE)
-        method_regex = re.compile(r'^\s*def\s+(' + re.escape(method_name) + r')\s*\(', re.MULTILINE)
+        method_regex = re.compile(r'^\s*def\s+' + re.escape(method_name) + r'\s*\(', re.MULTILINE)
 
-        # Walk through all files in the given directory
-        for root, _dirs, files in os.walk(directory):
+        for root, _, files in os.walk(directory):
             for file in files:
-                if file.endswith('.py'):  # Check only Python files
-                    file_path = os.path.join(root, file)
-                    try:
-                        # Convert a file path to a module path, safeguard against type and path issues
-                        module_path = os.path.relpath(str(file_path), directory).replace(os.sep, '.')[:-3]
-                        if base_package_name not in module_path:
-                            module_path = f"{base_package_name}.{module_path}"
-                    except Exception as path_error:
-                        self._logger.debug(f"Warning processing path {file_path}: {path_error}")
-                        continue
+                if not file.endswith('.py'):
+                    continue
 
-                    try:
-                        with open(file_path, encoding='utf-8') as f:
-                            content = f.read()
-                    except Exception as open_error:
-                        self._logger.debug(f"Warning could not read file {file_path}: {open_error}")
-                        continue
+                file_path = os.path.join(root, file)
+                content = ""
+                module_path = ""
 
-                    current_class = None
-                    last_pos = 0
+                with suppress(Exception):
+                    module_path = os.path.relpath(str(file_path), str(directory)).replace(os.sep, '.')[:-3]
+                    if base_package_name not in module_path:
+                        module_path = f"{base_package_name}.{module_path}"
 
-                    # Iterate over all classes and methods in the file
-                    try:
-                        for match in class_regex.finditer(content):
-                            class_start = match.start()
-                            # Check methods in the previous class (or global scope if no class yet)
-                            method_match = method_regex.search(content, last_pos, class_start)
-                            if method_match:
-                                return current_class, method_match.group(1), module_path
+                    with open(str(file_path), encoding='utf-8') as f:
+                        content = f.read()
 
-                            current_class = match.group(1)
-                            last_pos = match.end()
+                if not module_path or not content:
+                    return None
 
-                        # Check for the method in the last class or global scope after the last class
-                        method_match = method_regex.search(content, last_pos)
+                current_class = None
+                last_pos = 0
+
+                with suppress(Exception):
+                    for match in class_regex.finditer(content):
+                        class_start = match.start()
+                        method_match = method_regex.search(content, last_pos, class_start)
                         if method_match:
-                            return current_class, method_match.group(1), module_path
-                    except Exception as search_error:
-                        self._logger.debug(f"Warning processing content from {file_path}: {search_error}")
-                        continue
+                            return MethodLocationType(current_class, method_match.group(1), module_path)
 
-        # Return None for class, method, and module path if not found
-        return None, None, None
+                        current_class = match.group(1)
+                        last_pos = match.end()
+
+                    method_match = method_regex.search(content, last_pos)
+                    if method_match:
+                        return MethodLocationType(current_class, method_match.group(1), module_path)
+
+        return None
 
     @staticmethod
     def filter_kwargs_for_method(kwargs: dict[str, Any], sig: inspect.Signature) -> (
@@ -518,15 +519,9 @@ class ToolBox(CoreModuleInterface):
         Args:
             process_name (str): The name of the process to check. This function checks if the process_name
                                 is a substring of the names of currently running processes, allowing partial matches.
-
         Returns:
             int: The number of matching processes running. Returns 0 if no matching processes are found.
                  Returns a negative value to indicate an error.
-
-        Notes:
-            - The function catches exceptions such as psutil.NoSuchProcess, psutil.AccessDenied,
-              and psutil.ZombieProcess which may occur if a process terminates before it can be checked or if the
-              process information is not accessible due to permission issues or because the process is a zombie.
         """
         count = 0
         with suppress(Exception):
@@ -626,33 +621,6 @@ class ToolBox(CoreModuleInterface):
             if raise_exception:
                 raise e
         return False
-
-    @staticmethod
-    def tail(f, n):
-        """
-        Efficiently reads the last n lines from a file object.
-        Args:
-            f (file object): The file object from which to read.
-            n (int): The number of lines to read from the end of the file.
-
-        Returns:
-            list: A list containing the last n lines of the file.
-        """
-        assert n >= 0, "n must be non-negative"
-        if n == 0:
-            return []
-
-        pos, lines = n + 1, []
-        while len(lines) <= n:
-            try:
-                f.seek(-pos, os.SEEK_END)
-            except OSError:  # more general than IOError
-                f.seek(0)
-                lines = f.readlines()
-                break
-            lines = f.readlines()
-            pos *= 2
-        return lines[-n:]
 
     @staticmethod
     def get_temp_filename() -> Optional[str]:
@@ -807,7 +775,6 @@ class ToolBox(CoreModuleInterface):
             destination_path = os.path.dirname(zip_file_name)
         else:
             destination_path = ToolBox.get_expanded_path(destination_path)
-
         try:
             with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
                 zip_ref.extractall(destination_path)
@@ -1060,8 +1027,7 @@ class ToolBox(CoreModuleInterface):
 
         return text.strip()
 
-    @staticmethod
-    def print_logo(banner_file: Optional[str] = None, clear_screen: bool = False,
+    def print_logo(self, banner_file: Optional[str] = None, clear_screen: bool = False,
                    terminal_title: Optional[str] = None,
                    blink_pixel: Optional[XYType] = None) -> None:
         """
@@ -1070,11 +1036,18 @@ class ToolBox(CoreModuleInterface):
         """
         demo_file = str(PROJECT_SHARED_PATH / "banner.txt")
         banner_file = banner_file or demo_file
+
         if not os.path.isfile(banner_file):
             return
 
+        # Retrieve the ANSI codes map from the main AutoForge instance.
+        if self._ansi_codes is None:
+            self._ansi_codes = self.auto_forge.ansi_codes
+        if self._ansi_codes is None:
+            return  # Could not get the ANSI codes tables
+
         if clear_screen:
-            sys.stdout.write(TerminalAnsiCodes.CLS_SB)
+            sys.stdout.write(self._ansi_codes.get('SCREEN_CLS_SB'))
         sys.stdout.write('\n')
 
         with open(banner_file, encoding='utf-8') as f:
@@ -1381,7 +1354,8 @@ class ToolBox(CoreModuleInterface):
                 continue
         return False
 
-    def show_help_file(self, help_file_relative_path: str) -> int:
+    @staticmethod
+    def show_help_file(help_file_relative_path: str) -> int:
         """
         Displays a markdown help file using the textual viewer tool.
         Args:
@@ -1397,11 +1371,9 @@ class ToolBox(CoreModuleInterface):
                 return 1
 
             if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
-                self._logger.warning(f"Not showing {help_file_path}, file does not exist or is not a .md file.")
                 return 1
 
             if help_file_path.stat().st_size > 64 * 1024:
-                self._logger.warning(f"Not showing {help_file_path}, file too large (>64KB).")
                 return 1
 
             result = subprocess.Popen([sys.executable,

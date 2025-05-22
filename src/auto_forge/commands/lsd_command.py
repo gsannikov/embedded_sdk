@@ -3,7 +3,7 @@ Script:         lsd_command.py
 Author:         AutoForge Team
 
 Description:
-    AutoForge command for displaying richly formatted directory listings, inspired by https://github.com/lsd-rs/lsd.
+    Display richly formatted directory listings, inspired by https://github.com/lsd-rs/lsd.
     This enhanced listing tool, 'lsd', provides color-coded output, icon-based file identification,
     and timestamped views, designed to integrate into the AutoForge build system CLI environment.
 
@@ -31,14 +31,10 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any, Optional
 
-# Third-party
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (
     TERMINAL_ICONS_MAP,
     CLICommandInterface,
-    TerminalAnsiCodes,
     TerminalFileIconInfo,
     ToolBox,
 )
@@ -58,14 +54,13 @@ class LSDCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._toolbox = ToolBox.get_instance()  # Gets the toolbox class instance
+        self._tool_box = ToolBox.get_instance()  # Gets the toolbox class instance
+        # Retrieve the ANSI codes map from the main AutoForge instance.
+        self._ansi_codes: Optional[dict[str, Any]] = self._tool_box.auto_forge.ansi_codes
 
         # Helps to get the date formatted to the specific system local settings
         locale.setlocale(locale.LC_TIME, '')
         self._default_date_format = '%m-%d %H:%M'
-
-        # Terminal gadgets
-        self._ansi = TerminalAnsiCodes()
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
@@ -96,8 +91,8 @@ class LSDCommand(CLICommandInterface):
         ext = ext_or_name.suffix.lower()
         return TERMINAL_ICONS_MAP.get(ext, TERMINAL_ICONS_MAP["default_file"])
 
-    @staticmethod
-    def _format_entry_name_with_icon(name: str, is_dir: bool, icon_info: Optional[TerminalFileIconInfo]) -> str:
+    def _format_entry_name_with_icon(self, name: str, is_dir: bool,
+                                     icon_info: Optional[TerminalFileIconInfo]) -> str:
         """
         Format a file or directory name with an icon and color.
         Args:
@@ -112,17 +107,16 @@ class LSDCommand(CLICommandInterface):
             color = icon_info.color
         elif is_dir:
             icon = "  "  # fallback folder glyph
-            color = Fore.LIGHTBLUE_EX
+            color = self._ansi_codes.get('FORE.LIGHTBLUE_EX')
         else:
             icon = "   "  # no icon
-            color = Fore.WHITE + Style.BRIGHT
+            color = self._ansi_codes.get('FORE_WHITE') + self._ansi_codes.get('STYLE_BRIGHT')
 
-        return f"{color}{icon}{name}{Style.RESET_ALL}"
+        return f"{color}{icon}{name}{self._ansi_codes.get('STYLE_RESET_ALL')}"
 
-    @staticmethod
-    def _color_size(size_bytes: int) -> str:
+    def _color_size(self, size_bytes: int) -> str:
         """
-        Convert a size in bytes to a human-readable, colorized string..
+        Convert a size in bytes to a human-readable, colorized string.
         Args:
             size_bytes (int): The size in bytes.
         Returns:
@@ -143,7 +137,8 @@ class LSDCommand(CLICommandInterface):
         num_part = num_str.rstrip("0").rstrip(".") if '.' in num_str else num_str
         unit = size_name[i]
 
-        return f"{Fore.LIGHTGREEN_EX}{num_part}{Fore.GREEN}{unit}"
+        return (f"{self._ansi_codes.get('FORE_LIGHTGREEN_EX')}"
+                f"{num_part}{self._ansi_codes.get('FORE_GREEN')}{unit}")
 
     def _get_max_date_width(self, field_name: str) -> int:
         """
@@ -184,7 +179,7 @@ class LSDCommand(CLICommandInterface):
                 with suppress(Exception):
                     size_bytes = entry.stat().st_size
                     colored = self._color_size(size_bytes)
-                    visible = self._toolbox.strip_ansi(colored)
+                    visible = self._tool_box.strip_ansi(colored)
                     max_width = max(max_width, len(visible))
 
         return max_width
@@ -205,6 +200,9 @@ class LSDCommand(CLICommandInterface):
         output_lines = []
         show_header = len(destination_paths) > 1
 
+        if self._ansi_codes is None:
+            raise RuntimeError("ANSI codes table is not available")
+
         # Fields names
         size_header_text: str = 'Size'
         date_header_text: str = 'Date Modified'
@@ -215,13 +213,14 @@ class LSDCommand(CLICommandInterface):
         date_padded_text = date_header_text.ljust(max_date_width)
 
         for dest in destination_paths:
-            dest = self._toolbox.get_expanded_path(dest)
+            dest = self._tool_box.get_expanded_path(dest)
             path = Path(dest)
             max_size_width = len(size_header_text)
 
             if not path.exists():
                 output_lines.append(
-                    f"{Fore.RED}{self._module_info.name}: {dest}: no such file or directory{Style.RESET_ALL}")
+                    f"{self._ansi_codes.get('FORE_RED')}{self._module_info.name}: "
+                    f"{dest}: no such file or directory{self._ansi_codes.get('STYLE_RESET_ALL')}")
                 continue
 
             if path.is_dir():
@@ -239,9 +238,12 @@ class LSDCommand(CLICommandInterface):
 
             size_padded_text = size_header_text.ljust(max_size_width)
             header = (
-                f"{self._ansi.UNDERLINE}{size_padded_text}{self._ansi.RESET}{size_padded_text[len(size_header_text):]} "
-                f"{self._ansi.UNDERLINE}{date_header_text}{self._ansi.RESET}{date_padded_text[len(date_header_text):]} "
-                f"{self._ansi.UNDERLINE} {name_header_text}{self._ansi.RESET}"
+                f"{self._ansi_codes.get('STYLE_UNDERLINE')}{size_padded_text}"
+                f"{self._ansi_codes.get('STYLE_RESET_ALL')}{size_padded_text[len(size_header_text):]} "
+                f"{self._ansi_codes.get('STYLE_UNDERLINE')}{date_header_text}"
+                f"{self._ansi_codes.get('STYLE_RESET_ALL')}{date_padded_text[len(date_header_text):]} "
+                f"{self._ansi_codes.get('STYLE_UNDERLINE')}{name_header_text}"
+                f"{self._ansi_codes.get('STYLE_RESET_ALL')}"
             )
             output_lines.append(header)
 
@@ -252,18 +254,20 @@ class LSDCommand(CLICommandInterface):
 
                 # Add the file size
                 if entry.is_dir():
-                    size_str = f"{Fore.CYAN}{'-':<{max_size_width}}{Style.RESET_ALL}"
+                    size_str = (f"{self._ansi_codes.get('FORE_CYAN')}{'-':<{max_size_width}}"
+                                f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
                 else:
                     size_bytes = entry.stat().st_size
                     colored = self._color_size(size_bytes)
-                    plain = self._toolbox.strip_ansi(colored)
+                    plain = self._tool_box.strip_ansi(colored)
                     padding = max_size_width - len(plain)
                     size_str = colored + " " * padding if padding > 0 else colored
 
                 # Add the data and time
                 mtime = datetime.datetime.fromtimestamp(entry.lstat().st_mtime)
                 date_raw = mtime.strftime(self._default_date_format)
-                date_str = f"{Fore.BLUE}{date_raw:<{max_date_width}}{Style.RESET_ALL}"
+                date_str = (f"{self._ansi_codes.get('FORE_BLUE')}{date_raw:<{max_date_width}}"
+                            f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
 
                 # Find a suitable icon for the path / file
                 icon_info: Optional[TerminalFileIconInfo] = None

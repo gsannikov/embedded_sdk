@@ -3,7 +3,7 @@ Script:         sig_tool_command.py
 Author:         AutoForge Team
 
 Description:
-    AutoForge command for binary signing operations, leveraging the internal `Signatures` class for implementation.
+    Binary signing operations, leveraging the internal `Signatures` class for implementation.
     Supports signing, padding (expansion), CRC insertion, Git property embedding, and additional related features.
 
 """

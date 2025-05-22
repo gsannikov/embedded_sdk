@@ -3,7 +3,8 @@ Script:         sln_command.py
 Author:         AutoForge Team
 
 Description:
-    Command line tool to allow for various solution related operations.
+    Solution general purpose management utilities.
+
 """
 
 import argparse

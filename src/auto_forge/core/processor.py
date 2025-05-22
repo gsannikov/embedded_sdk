@@ -10,10 +10,11 @@ Description:
 import json
 import os
 import re
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 # AutoForge local imports
-from auto_forge import AutoForgeModuleType, AutoLogger, CoreModuleInterface, Registry, ToolBox
+from auto_forge import AutoForgeModuleType, CoreModuleInterface, Registry, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor"
@@ -29,8 +30,7 @@ class CoreProcessor(CoreModuleInterface):
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
         """
 
-        # Create a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        # Get a toolbox instance reference
         self._toolbox = ToolBox.get_instance()
 
         # Persist this module instance in the global registry for centralized access
@@ -44,7 +44,6 @@ class CoreProcessor(CoreModuleInterface):
 
         # This function needs to be tailored to the specific format of the error message
         # Common JSONDecodeError message format: 'Expecting ',' delimiter: line 4 column 25 char 76'
-        import re
         match = re.search(r"line (\d+)", error_message)
         if match:
             return int(match.group(1))
@@ -62,6 +61,7 @@ class CoreProcessor(CoreModuleInterface):
             line_number (int, optional): The specific line number where the error occurred.
             error_message (str, optional): A description of the error.
         """
+
         lines = json_string.splitlines()
         print(f"Syntax Error:\nA JSON error was detected in '{os.path.basename(file_name)}' "
               f"at line {line_number}.\n")
@@ -73,12 +73,30 @@ class CoreProcessor(CoreModuleInterface):
         for index in range(start_line, end_line + 1):
             current_line = lines[index - 2]  # Adjust for zero-based index
             if index == line_number:
-                # Highlight the error line in red
-                print(f"{index:3}: {current_line} // {error_message}" if error_message else "")
+                highlight = f"\033[43;97m{index:3}: {current_line}\033[0m"
+                if error_message:
+                    print(f"{highlight} \033[91m// {error_message}\033[0m")
+                else:
+                    print(highlight)
             else:
-                # Print other lines in normal color
                 print(f"{index:3}: {current_line}")
-        print("\n")
+
+        print()
+
+    def _remove_formatter_hints(self, obj):
+        """
+
+        """
+        if isinstance(obj, dict):
+            return {
+                k: self._remove_formatter_hints(v)
+                for k, v in obj.items()
+                if not (isinstance(v, str) and "# @formatter:" in v)
+            }
+        elif isinstance(obj, list):
+            return [self._remove_formatter_hints(i) for i in obj]
+        else:
+            return obj
 
     @staticmethod
     def _strip_comments(json_like_str: str) -> str:
@@ -119,15 +137,33 @@ class CoreProcessor(CoreModuleInterface):
         cleaned_str = re.sub(r'\n\s*\n', '\n', cleaned_str)  # Collapse multiple new lines
         return cleaned_str.strip()
 
-    def preprocess(self, file_name: str) -> Optional[dict[str, Any]]:
+    def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
         """
-         Preprocess a JSON file to remove embedded comments.
-         Args:
-             file_name (str): Path to the JSON file.
-         Returns:
-             dict or None: Parsed JSON object with placeholders resolved, or None if an error occurs.
-         """
+        Preprocess a JSON or JSONC file to remove embedded comments.
+
+        If the specified file does not exist but a file with the alternate extension
+        exists (.json ↔ .jsonc), the alternate will be used.
+
+        Args:
+            file_name (str | Path): Path to the JSON or JSONC file.
+
+        Returns:
+            dict or None: Parsed JSON object, or None if an error occurs.
+        """
         clean_json: Optional[str] = None
+        path_obj = Path(file_name)
+        base = path_obj.with_suffix('')  # Remove .json or .jsonc if present
+
+        # Determine the actual file to use
+        if (base.with_suffix('.json')).is_file():
+            resolved_path = base.with_suffix('.json')
+        elif (base.with_suffix('.jsonc')).is_file():
+            resolved_path = base.with_suffix('.jsonc')
+        else:
+            raise FileNotFoundError("Neither .json nor .jsonc file could be found.")
+
+        # Optional: normalize early to str for downstream APIs
+        file_name: str = str(resolved_path)
 
         try:
 
@@ -145,7 +181,11 @@ class CoreProcessor(CoreModuleInterface):
 
             # Load and return as JSON dictionary
             data = json.loads(clean_json)
-            return data
+
+            # Remove keys with formatter strings in values
+            cleaned_data = self._remove_formatter_hints(data)
+
+            return cleaned_data
 
         except (FileNotFoundError, json.JSONDecodeError, ValueError) as json_parsing_error:
             if clean_json is not None:

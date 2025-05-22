@@ -25,6 +25,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+# Third-party
 from colorama import Fore, Style
 
 # AutoForge imports

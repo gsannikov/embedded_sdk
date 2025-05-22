@@ -3,7 +3,7 @@ Script:         zephyr_sdk_command.py
 Author:         AutoForge Team
 
 Description:
-    AutoForge command which attempts to locate a Zephyr SDK installation by scanning
+    Command which attempts to locate a Zephyr SDK installation by scanning
     the CMake user package registry and provides access to the SDK path and version if found.
 """
 

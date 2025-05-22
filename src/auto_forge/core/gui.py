@@ -18,6 +18,7 @@ import threading
 import time
 from contextlib import suppress
 
+# Third-party
 with suppress(ImportError):
     import tkinter as tk
     from tkinter import messagebox, ttk

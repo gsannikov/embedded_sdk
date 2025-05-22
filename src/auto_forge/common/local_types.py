@@ -19,6 +19,7 @@ from enum import Enum, auto
 from types import ModuleType
 from typing import Any, Callable, NamedTuple, Optional, TextIO
 
+# Third-party
 from colorama import Fore
 
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
@@ -52,21 +53,25 @@ class AutoForgCommandType(Enum):
     SYSTEM = 7
     INSTALLER = 8
     MISCELLANEOUS = 9
+    ALIASES = 10
 
 
-# Color map per command type
+# @formatter:off
+# noinspection SpellCheckingInspection
 COMMAND_TYPE_COLOR_MAP = {
-    AutoForgCommandType.BUILD: "bright_cyan",
-    AutoForgCommandType.NAVIGATE: "cyan",
-    AutoForgCommandType.EMULATION: "blue",
-    AutoForgCommandType.AUTOMATION: "magenta",
-    AutoForgCommandType.GIT: "red",
-    AutoForgCommandType.UTILITY: "yellow",
-    AutoForgCommandType.SYSTEM: "white",
-    AutoForgCommandType.INSTALLER: "green",
-    AutoForgCommandType.MISCELLANEOUS: "white",
+    AutoForgCommandType.UNKNOWN: "#444444",
+    AutoForgCommandType.BUILD: "#00c0c0",
+    AutoForgCommandType.NAVIGATE: "#4070ff",
+    AutoForgCommandType.EMULATION: "#8a2be2",
+    AutoForgCommandType.AUTOMATION: "#ffcc00",
+    AutoForgCommandType.GIT: "#d84040",
+    AutoForgCommandType.UTILITY: "#3fd66f",
+    AutoForgCommandType.SYSTEM: "#ababab",
+    AutoForgCommandType.INSTALLER: "#4070ff",
+    AutoForgCommandType.MISCELLANEOUS: "#888888",
+    AutoForgCommandType.ALIASES: "#999999",
 }
-
+# @formatter:on
 
 class ModuleInfoType(NamedTuple):
     """
@@ -224,6 +229,15 @@ class SignatureFieldType:
     type_info: Optional[dict[str, Any]] = None  # Type definition metadata for this field
 
 
+class MethodLocationType(NamedTuple):
+    """
+    A data type to describe a method location.
+    """
+    class_name: Optional[str]
+    method_name: Optional[str]
+    module_path: Optional[str]
+
+
 @dataclass
 class VariableFieldType:
     """
@@ -287,68 +301,6 @@ class TerminalTeeStream:
 
 
 @dataclass(frozen=True)
-class TerminalAnsiCodes:
-    """
-    Provides ANSI color codes.
-    """
-    # Screen
-    CLS: str = "\033[H\033[2J"
-    CLS_SB: str = "\033[2J\033[3J\033[H"  # Including rollback buffer.
-
-    # Style
-    RESET: str = "\033[0m"
-    BOLD: str = "\033[1m"
-    DIM: str = "\033[2m"
-    ITALIC: str = "\033[3m"
-    UNDERLINE: str = "\033[4m"
-    BLINK: str = "\033[5m"
-    INVERT: str = "\033[7m"
-    HIDDEN: str = "\033[8m"
-    STRIKETHROUGH: str = "\033[9m"
-
-    # Foreground colors
-    FG_BLACK: str = "\033[30m"
-    FG_RED: str = "\033[31m"
-    FG_GREEN: str = "\033[32m"
-    FG_YELLOW: str = "\033[33m"
-    FG_BLUE: str = "\033[34m"
-    FG_MAGENTA: str = "\033[35m"
-    FG_CYAN: str = "\033[36m"
-    FG_WHITE: str = "\033[37m"
-    FG_DEFAULT: str = "\033[39m"
-
-    # Background colors
-    BG_BLACK: str = "\033[40m"
-    BG_RED: str = "\033[41m"
-    BG_GREEN: str = "\033[42m"
-    BG_YELLOW: str = "\033[43m"
-    BG_BLUE: str = "\033[44m"
-    BG_MAGENTA: str = "\033[45m"
-    BG_CYAN: str = "\033[46m"
-    BG_WHITE: str = "\033[47m"
-    BG_DEFAULT: str = "\033[49m"
-
-    # Bright variants
-    FG_BRIGHT_BLACK: str = "\033[90m"
-    FG_BRIGHT_RED: str = "\033[91m"
-    FG_BRIGHT_GREEN: str = "\033[92m"
-    FG_BRIGHT_YELLOW: str = "\033[93m"
-    FG_BRIGHT_BLUE: str = "\033[94m"
-    FG_BRIGHT_MAGENTA: str = "\033[95m"
-    FG_BRIGHT_CYAN: str = "\033[96m"
-    FG_BRIGHT_WHITE: str = "\033[97m"
-
-    BG_BRIGHT_BLACK: str = "\033[100m"
-    BG_BRIGHT_RED: str = "\033[101m"
-    BG_BRIGHT_GREEN: str = "\033[102m"
-    BG_BRIGHT_YELLOW: str = "\033[103m"
-    BG_BRIGHT_BLUE: str = "\033[104m"
-    BG_BRIGHT_MAGENTA: str = "\033[105m"
-    BG_BRIGHT_CYAN: str = "\033[106m"
-    BG_BRIGHT_WHITE: str = "\033[107m"
-
-
-@dataclass(frozen=True)
 class TerminalFileIconInfo:
     icon: str
     description: str
@@ -356,8 +308,7 @@ class TerminalFileIconInfo:
 
 
 # File extension or name to icon metadata mapping
-TERMINAL_ICONS_MAP: dict[str, TerminalFileIconInfo] = {
-    # Source Code
+TERMINAL_ICONS_MAP: dict[str, TerminalFileIconInfo] = {  # Source Code
     ".py": TerminalFileIconInfo("", "Python source file", Fore.YELLOW),
     ".c": TerminalFileIconInfo("", "C source file", Fore.LIGHTBLUE_EX),
     ".cpp": TerminalFileIconInfo("", "C++ source file", Fore.LIGHTBLUE_EX),
@@ -429,8 +380,7 @@ TERMINAL_ICONS_MAP: dict[str, TerminalFileIconInfo] = {
 
     # Fallbacks
     "default_dir": TerminalFileIconInfo("", "Directory", Fore.BLUE),
-    "default_file": TerminalFileIconInfo("", "Generic file", Fore.WHITE),
-}
+    "default_file": TerminalFileIconInfo("", "Generic file", Fore.WHITE), }
 
 
 class TerminalAnsiGuru:
@@ -576,13 +526,8 @@ class ExceptionGuru:
 
 class ThreadGuru:
     @staticmethod
-    def create_thread_and_wait_ack(
-            target: Callable[..., None],
-            name: Optional[str] = None,
-            daemon: bool = True,
-            timeout: Optional[float] = 5,
-            *args: Any
-    ) -> threading.Thread:
+    def create_thread_and_wait_ack(target: Callable[..., None], name: Optional[str] = None, daemon: bool = True,
+                                   timeout: Optional[float] = 5, *args: Any) -> threading.Thread:
         """
         Creates and starts a thread, passing an Event object that the target function can use to
         signal it has started. Also passes optional user arguments to the target.
@@ -610,11 +555,7 @@ class ThreadGuru:
                 if not start_ack.is_set():
                     start_ack.set()
 
-        thread = threading.Thread(
-            target=wrapper,
-            name=name,
-            daemon=daemon
-        )
+        thread = threading.Thread(target=wrapper, name=name, daemon=daemon)
         thread.start()
 
         if not start_ack.wait(timeout=timeout):
@@ -664,19 +605,13 @@ class BuildTelemetry:
         with open(path) as f:
             data = json.load(f)
 
-        return cls(
-            total_builds=data.get("total_builds", 0),
-            successful_builds=data.get("successful_builds", 0),
-            failed_builds=data.get("failed_builds", 0),
-            total_build_errors=data.get("total_build_errors", 0),
-            total_build_time=timedelta(seconds=data.get("total_build_time", 0)),
-            total_dev_time=timedelta(seconds=data.get("total_dev_time", 0)),
-            longest_build_time=timedelta(seconds=data.get("longest_build_time", 0)),
-            shortest_successful_build=(
-                timedelta(seconds=data["shortest_successful_build"])
-                if data.get("shortest_successful_build") is not None else None
-            )
-        )
+        return cls(total_builds=data.get("total_builds", 0), successful_builds=data.get("successful_builds", 0),
+                   failed_builds=data.get("failed_builds", 0), total_build_errors=data.get("total_build_errors", 0),
+                   total_build_time=timedelta(seconds=data.get("total_build_time", 0)),
+                   total_dev_time=timedelta(seconds=data.get("total_dev_time", 0)),
+                   longest_build_time=timedelta(seconds=data.get("longest_build_time", 0)), shortest_successful_build=(
+                timedelta(seconds=data["shortest_successful_build"]) if data.get(
+                    "shortest_successful_build") is not None else None))
 
     def save(self, path: str):
         data = asdict(self)

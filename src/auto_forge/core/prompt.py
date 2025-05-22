@@ -6,6 +6,7 @@ Description:
     Core module which defines and manages the PromptEngine class, built on the cmd2 interactive
     shell, to provide SDK build system commands.
 """
+import html
 import logging
 import os
 import readline
@@ -13,8 +14,9 @@ import subprocess
 import sys
 from collections.abc import Iterable
 from contextlib import suppress
+from itertools import cycle
 from types import MethodType
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 # Third-party
 import cmd2
@@ -26,30 +28,17 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.styles import Style
-from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (
-    PROJECT_NAME,
-    AutoLogger,
-    AutoForgCommandType,
-    AutoForgeModuleType,
-    BuildProfileType,
-    COMMAND_TYPE_COLOR_MAP,
-    CoreEnvironment,
-    CoreLoader,
-    CoreModuleInterface,
-    CoreSolution,
-    CoreVariables,
-    ExecutionModeType,
-    Registry,
-    ToolBox,
-)
+from auto_forge import (PROJECT_NAME, AutoLogger, AutoForgCommandType, AutoForgeModuleType, BuildProfileType,
+                        COMMAND_TYPE_COLOR_MAP, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
+                        CoreVariables, ExecutionModeType, Registry, ToolBox, )
+
+# Basic types
 
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
@@ -100,17 +89,13 @@ class _CoreCompleter(Completer):
             return meta.get("path_completion", False)  # ← allow even if arg_text is empty
 
         # Fallback for unlisted known commands
-        is_known_command = (
-                cmd in self.core_prompt.executable_db
-                or cmd in [c.name for c in self.core_prompt.dynamic_cli_commands_list]
-        )
+        is_known_command = (cmd in self.core_prompt.executable_db or cmd in [c.name for c in
+                                                                             self.core_prompt.dynamic_cli_commands_list])
 
         return is_known_command and bool(arg_text.strip())
 
     def get_completions(  # noqa: C901
-            self,
-            document: Document,
-            _complete_event: CompleteEvent) -> Iterable[Completion]:
+            self, document: Document, _complete_event: CompleteEvent) -> Iterable[Completion]:
         """
         Return completions for the current cursor position and buffer state.
 
@@ -137,20 +122,14 @@ class _CoreCompleter(Completer):
 
             # First-token path completion support
             if partial.startswith(("/", "./", "../")):
-                matches = self.core_prompt.gather_path_matches(
-                    text=os.path.expanduser(partial),
-                    only_dirs=False
-                )
+                matches = self.core_prompt.gather_path_matches(text=os.path.expanduser(partial), only_dirs=False)
                 for m in matches:
                     yield m
                 return
 
             # System executables (styled if executable)
-            matches += [
-                Completion(cmd, start_position=-len(partial), style='class:executable')
-                for cmd in self.core_prompt.executable_db
-                if cmd.startswith(partial)
-            ]
+            matches += [Completion(cmd, start_position=-len(partial), style='class:executable') for cmd in
+                        self.core_prompt.executable_db if cmd.startswith(partial)]
 
             # Dynamic CLI commands
             if self.core_prompt.loaded_commands:
@@ -178,11 +157,9 @@ class _CoreCompleter(Completer):
                 # Special case: track build components for coloring prompt
                 if cmd == "build":
                     parts = arg_text.split(".")
-                    self.core_prompt._parsed_build = {
-                        "solution": parts[0] if len(parts) > 0 else None,
-                        "project": parts[1] if len(parts) > 1 else None,
-                        "config": parts[2] if len(parts) > 2 else None
-                    }
+                    self.core_prompt._parsed_build = {"solution": parts[0] if len(parts) > 0 else None,
+                                                      "project": parts[1] if len(parts) > 1 else None,
+                                                      "config": parts[2] if len(parts) > 2 else None}
 
                 if completer_func:
                     try:
@@ -197,17 +174,12 @@ class _CoreCompleter(Completer):
                 elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text,
                                                               completer_func=completer_func):
                     meta = self.core_prompt.command_completion_map.get(cmd, {})
-                    matches = self.core_prompt.gather_path_matches(
-                        text=arg_text,
-                        only_dirs=meta.get("only_dirs", False)
-                    )
+                    matches = self.core_prompt.gather_path_matches(text=arg_text,
+                                                                   only_dirs=meta.get("only_dirs", False))
 
             elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
                 meta = self.core_prompt.command_completion_map.get(cmd, {})
-                matches = self.core_prompt.gather_path_matches(
-                    text=arg_text,
-                    only_dirs=meta.get("only_dirs", False)
-                )
+                matches = self.core_prompt.gather_path_matches(text=arg_text, only_dirs=meta.get("only_dirs", False))
 
         # Final filtering: ensure no duplicate completions are yielded
         seen = set()
@@ -225,10 +197,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def _initialize(self, prompt: Optional[str] = None,
-                    max_completion_results: Optional[int] = 100,
-                    history_file: Optional[str] = None,
-                    configuration_data: Optional[dict[str, Any]] = None) -> None:
+    def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100,
+                    history_file: Optional[str] = None, configuration_data: Optional[dict[str, Any]] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         Args:
@@ -249,7 +219,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._history_file: Optional[str] = None
         self._max_completion_results = max_completion_results
         self._last_execution_return_code: Optional[int] = 0
-        self._term_width = self._toolbox.get_terminal_width(default_width=100)
+        self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
 
         # Get a logger instance
@@ -260,7 +230,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.argv = [sys.argv[0]]
         ansi.allow_ansi = True
 
-        # Get a lis for the dynamically loaded AutoForge commands and inject them to cmd2
+        # Get a lis for the dynamically loaded commands and inject them to cmd2
         self.loaded_commands: int = 0
         self.dynamic_cli_commands_list = (
             self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
@@ -273,8 +243,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.executable_db: Optional[dict[str, str]] = None
         if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
                                                   command=self._build_executable_index,
-                                                  command_type=ExecutionModeType.PYTHON,
-                                                  new_lines=1) != 0:
+                                                  command_type=ExecutionModeType.PYTHON, new_lines=1) != 0:
             raise RuntimeError("could not finish initializing")
 
         # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
@@ -291,8 +260,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.default_to_shell = True
 
         for sol, proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
-            self.add_build_command(solution=sol, project=proj,
-                                   configuration=cfg, command_description=cmd['description'],
+            self.add_build_command(solution=sol, project=proj, configuration=cfg, description=cmd['description'],
                                    command_name=cmd['name'])
 
         # Create persistent history object
@@ -306,16 +274,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._remove_command(cmd)
 
         # Dynamically add aliases based on a user defined dictionary in the solution file
-        aliases = self._solution.get_arbitrary_item(key='aliases')
-        if isinstance(aliases, dict):
-            for alias_name, alias_definition in aliases.items():
-                self.set_alias(alias_name, alias_definition)
-        else:
-            self._logger.warning("'aliases' ware not dynamically loaded from the solution")
+        added_aliases = self._add_dynamic_aliases(self._solution.get_arbitrary_item(key='aliases'))
+        if added_aliases is not None:
+            self._logger.info(f"{added_aliases} dynamic aliases registered.")
 
         # Persist this module instance in the global registry for centralized access
-        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _remove_command(self, command_name: str):
@@ -336,43 +300,198 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         setattr(self, f'help_{command_name}', lambda _self: None)
         setattr(self, f'complete_{command_name}', lambda *_: [])
 
-    def _add_alias_with_description(self, entry: dict,
-                                    command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN) -> None:
+    def _set_command_metadata(self, command_name: str, description: str = None,
+                              command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN) -> None:
         """
-        Adds an alias to the cmd2 app with a visible description.
-        Args:
-            entry (dict): Dictionary with keys:
-                - name: alias name
-                - description: help description
-                - target_command: the real command this alias invokes
-            command_type (AutoForgCommandType): Type of command to store in ter alias metadata.
-        """
-        alias_name = entry["name"]
-        description = entry["description"]
-        target_command = entry["target_command"]
-        command_type = entry.get("command_type", command_type)
+        Sets or updates metadata for any cmd2 command, including dynamic aliases.
 
+        Args:
+            command_name (str): Name of the command (e.g., 'hello', 'build').
+            description (str, optional): Help string or description to associate.
+            command_type (AutoForgCommandType): Type of the command for categorization.
+        """
         if not hasattr(self, "_alias_metadata"):
             self._alias_metadata = {}
 
-        # Store the command metadata
-        self._alias_metadata[alias_name] = {
-            "description": description,
-            "type": command_type,
-            "target_command": target_command,
-        }
+        existing = self._alias_metadata.get(command_name, {})
+        self._alias_metadata[command_name] = {
+            "description": description or existing.get("description", "No help available"), "type": command_type,
+            "target_command": existing.get("target_command")}
 
-        # Create the function
+        # Patch __doc__ only if function exists and is writable
+        func = getattr(self.__class__, f"do_{command_name}", None)
+        if func and description:
+            try:
+                func.__doc__ = description
+            except (AttributeError, TypeError):
+                # Some types (like bound methods or built-ins) may not allow __doc__ updates
+                pass
+
+    def _add_alias_with_description(self, alias_name: str, description: str, target_command: str,
+                                    cmd_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
+                                    hidden: bool = False) -> None:
+        """
+        Adds a dynamically defined alias command to the cmd2 application,
+        with metadata used for help display and categorization.
+
+        If alias maps directly to a known builtin command (e.g., 'q' -> 'quit'), it is registered
+        via the native cmd2 alias system to avoid collisions.
+        """
+        # Extract the root command from the target (first word)
+        target_cmd_root = target_command.split()[0] if target_command else ""
+
+        # If this alias maps 1-to-1 to a builtin command, use cmd2's alias system
+        if (
+                alias_name not in self._builtin_commands and target_command == target_cmd_root and target_cmd_root in self._builtin_commands):
+            self.aliases[alias_name] = target_command
+            return
+
+        # Otherwise, define a custom dynamic command
         @with_argument_list
         def alias_func(cmd_instance, args):
             cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
 
-        # Set the name and doc BEFORE assigning to class
         alias_func.__name__ = f"do_{alias_name}"
         alias_func.__doc__ = description
-
-        # Add to the class so cmd2 discovers it
         setattr(self.__class__, alias_func.__name__, alias_func)
+
+        self._set_command_metadata(alias_name, description=description, command_type=cmd_type)
+        self._alias_metadata[alias_name]["target_command"] = target_command
+        self._alias_metadata[alias_name]["target_command"] = target_command
+
+        # Hide if specified
+        if hidden:
+            if alias_name not in self.hidden_commands:
+                self.hidden_commands.append(alias_name)
+
+    def _show_commands_summary_table(self, filter_type: 'Optional[AutoForgCommandType]' = None):
+        """
+        Print a colorized, zebra-striped summary of available commands using prompt_toolkit.
+
+        Commands are grouped by type and styled using type-specific colors.
+        Zebra striping improves readability, and each row is padded for consistent layout.
+
+        Args:
+            filter_type (Optional[AutoForgCommandType]): If provided, only show commands of this type.
+        """
+        term_width = self._toolbox.get_terminal_width(default_width=100)
+        max_desc_width = term_width - 30
+        cmd_column_width = 24
+        desc_column_width = max(40, max_desc_width)
+        total_row_width = cmd_column_width + desc_column_width + 6  # bullet + spacing
+
+        # noinspection SpellCheckingInspection
+        style_dict = {'header': 'bold underline fg:ansicyan', 'section': 'bold fg:ansiwhite', 'desc': 'fg:ansiwhite',
+                      'zebra-odd': 'bg:#202020', 'zebra-even': 'bg:#303030', 'bullet': 'fg:ansicyan', }
+
+        for cmd_type, color in COMMAND_TYPE_COLOR_MAP.items():
+            style_dict[f'command-{cmd_type.name.lower()}'] = f'bold fg:{color}'
+
+        style = Style.from_dict(style_dict)
+        commands_by_type = {}
+
+        # Collect aliases
+        for name, meta in self._alias_metadata.items():
+            cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
+            if filter_type is None or filter_type == cmd_type:
+                commands_by_type.setdefault(cmd_type, []).append((name, meta.get("description", "No help available")))
+
+        # Collect docstring-based commands
+        for cmd in sorted(self.get_all_commands()):
+            if cmd in self.hidden_commands or cmd in self._alias_metadata:
+                continue
+            method = getattr(self, f'do_{cmd}', None)
+            doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
+            cmd_type = AutoForgCommandType.MISCELLANEOUS
+            if filter_type is None or filter_type == cmd_type:
+                commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
+
+        # If nothing to show
+        if not commands_by_type:
+            print_formatted_text(HTML("<desc>No matching commands found.</desc>"), style=style)
+            return
+
+        print_formatted_text(HTML("<header>\nAuto🛠Forge Commands Overview\n</header>"), style=style)
+        row_stripes = cycle(['zebra-odd', 'zebra-even'])
+
+        for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
+            section_title = f"{cmd_type.name.title()} Commands"
+            print_formatted_text(HTML(f"\n<section>❯ {section_title}</section>"), style=style)
+
+            command_class = f"command-{cmd_type.name.lower()}"
+
+            for cmd, desc in sorted(commands_by_type[cmd_type]):
+                if len(desc) > desc_column_width:
+                    desc = desc[:desc_column_width - 3] + "..."
+
+                safe_cmd = html.escape(cmd)
+                safe_desc = html.escape(desc)
+
+                padded_cmd = f"{safe_cmd:<{cmd_column_width}}"
+                padded_desc = f"{safe_desc:<{desc_column_width}}"
+                row_class = next(row_stripes)
+
+                full_line = (f"<bullet>•</bullet> "
+                             f"<{command_class}>{padded_cmd}</{command_class}> "
+                             f"<desc>{padded_desc}</desc>")
+                full_line = full_line.ljust(total_row_width)
+
+                print_formatted_text(HTML(f"<{row_class}>{full_line}</{row_class}>"), style=style)
+
+        print()
+
+    def _add_dynamic_aliases(self, aliases: Union[dict, list[dict]]) -> Optional[int]:
+        """
+        Registers dynamically defined aliases from a dictionary or list of dictionaries.
+        Args:
+            aliases (Union[dict, list[dict]]): Either a legacy dict of {alias_name: target_command},
+                                               or a list of dictionaries, each with:
+                - alias_name (str): The alias command name (e.g., "gs")
+                - target_command (str): The actual command (e.g., "git status")
+                - description (str, optional): Help text
+                - command_type (str, optional): AutoForgCommandType name (e.g., "GIT", "SYSTEM")
+
+        Returns:
+            Optional[int]: Number of aliases successfully registered, or None on failure.
+        """
+        count = 0
+
+        if isinstance(aliases, dict):  # Legacy support
+            for alias_name, target_command in aliases.items():
+                try:
+                    self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
+                                                     description="No description provided",
+                                                     cmd_type=AutoForgCommandType.ALIASES)
+                    count += 1
+                except Exception as e:
+                    self._logger.warning(f"Failed to add legacy alias '{alias_name}': {e}")
+            return count
+
+        if isinstance(aliases, list):
+            for alias in aliases:
+                try:
+                    alias_name = alias["alias_name"]
+                    target_command = alias["target_command"]
+                    description = alias.get("description", "No description provided")
+                    cmd_type_str = alias.get("command_type", "ALIASES")
+                    hidden = alias.get("hidden", False)
+
+                    try:
+                        cmd_type = AutoForgCommandType[cmd_type_str.upper()]
+                    except KeyError:
+                        self._logger.warning(
+                            f"Unknown command_type '{cmd_type_str}' for alias '{alias_name}', defaulting to ALIASES")
+                        cmd_type = AutoForgCommandType.ALIASES
+
+                    self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
+                                                     description=description, cmd_type=cmd_type, hidden=hidden)
+                    count += 1
+                except Exception as e:
+                    self._logger.warning(f"Failed to add alias from entry {alias}: {e}")
+            return count
+
+        self._logger.warning("'aliases' must be a dictionary or list of dictionaries")
+        return None
 
     def _add_dynamic_cli_commands(self) -> int:
 
@@ -453,11 +572,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             try:
                 with os.scandir(directory) as entries:
                     for entry in entries:
-                        if (
-                                entry.name not in self.executable_db
-                                and entry.is_file()
-                                and os.access(entry.path, os.X_OK)
-                        ):
+                        if (entry.name not in self.executable_db and entry.is_file() and os.access(entry.path,
+                                                                                                   os.X_OK)):
                             self.executable_db[entry.name] = entry.path
             except OSError:
                 continue  # skip unreadable dirs
@@ -498,12 +614,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Git branch name (optional)
         git_branch = ""
         with suppress(Exception):
-            branch = subprocess.check_output(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                stderr=subprocess.DEVNULL,
-                cwd=cwd,
-                text=True
-            ).strip()
+            branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL,
+                                             cwd=cwd, text=True).strip()
             if branch:
                 git_branch = f' <ansired>{branch}</ansired>'
 
@@ -511,28 +623,21 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         arrow = "\u279C"
 
         # Final HTML-formatted string
-        return (
-            f"<ansibrightcyan>{venv_prompt}</ansibrightcyan> "
-            f"<ansiblue>{cwd_display}</ansiblue>"
-            f"{git_branch} <ansiyellow>{arrow}</ansiyellow> "
-        )
+        return (f"<ansibrightcyan>{venv_prompt}</ansibrightcyan> "
+                f"<ansiblue>{cwd_display}</ansiblue>"
+                f"{git_branch} <ansiyellow>{arrow}</ansiyellow> ")
 
     def _register_generic_complete(self):
         """
         Registers default path completer for all do_* commands that don't have a custom completer.
         Used by CoreCompleter in prompt_toolkit.
         """
-        special_behavior = {
-            "cd": {"only_dirs": True},
-        }
+        special_behavior = {"cd": {"only_dirs": True}, }
 
         def make_completer(command_name: str, complete_only_dirs: bool):
             # noinspection PyShadowingNames
             def completer(self, text, _line, _being_idx, _end_idx):
-                return self._complete_path_with_completions(
-                    text=text,
-                    only_dirs=complete_only_dirs
-                )
+                return self._complete_path_with_completions(text=text, only_dirs=complete_only_dirs)
 
             completer.__name__ = f"complete_{command_name}"
             return completer
@@ -557,10 +662,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Return prompt_toolkit Completion objects for filesystem path completions.
         Supports optional filtering for directories only.
         """
-        return self.gather_path_matches(
-            text=text,
-            only_dirs=only_dirs
-        )
+        return self.gather_path_matches(text=text, only_dirs=only_dirs)
 
     def gather_path_matches(self, text: str, only_dirs: bool = False) -> list[Completion]:
         """
@@ -612,14 +714,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             display = insertion
             style = "class:executable" if is_exec else ("class:directory" if is_dir else "class:file")
 
-            completions.append(
-                Completion(
-                    text=insertion,
-                    start_position=-len(partial),
-                    display=display,
-                    style=style
-                )
-            )
+            completions.append(Completion(text=insertion, start_position=-len(partial), display=display, style=style))
 
         return sorted(completions, key=lambda c: c.text.lower())
 
@@ -627,10 +722,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Tab-completion for the `cd` command. Suggests directories only.
         """
-        return self.gather_path_matches(
-            text=text,
-            only_dirs=True
-        )
+        return self.gather_path_matches(text=text, only_dirs=True)
 
     def complete_build(self, text: str, line: str, begin_idx: int, _end_idx: int) -> list[Completion]:
         """
@@ -726,11 +818,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             str: The output of the 'ls' command as a string.
         """
         try:
-            self._environment.execute_shell_command(
-                command_and_args=f"ls {args} --color=auto -F",
-                expand_command=True,
-                check=False,
-            )
+            self._environment.execute_shell_command(command_and_args=f"ls {args} --color=auto -F", expand_command=True,
+                                                    check=False, )
         except Exception as exception:
             self.perror(f"ls: {exception}")
 
@@ -744,6 +833,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         console = Console()
+        term_width = self._toolbox.get_terminal_width(default_width=100)
 
         def _format_description_blocks(text: str) -> str:
             """
@@ -774,9 +864,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # User typed 'help my_command' --> Show help for that specific command
             # Get the stored help from tye registry
             command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
-                module_name=command_name,
-                case_insensitive=False
-            )
+                module_name=command_name, case_insensitive=False)
 
             # Extract man page help if it's not an internal registered command
             man_description: Optional[str] = None
@@ -797,81 +885,20 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             if command_method_description:
                 command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
-                console.print("\n",
-                              Panel(f"[bold green]{arg}[/bold green]:\n    {command_method_description}",
-                                    border_style="cyan",
-                                    title=command_help_title,
-                                    padding=(1, 1), width=self._term_width),
-                              "\n")  # Force panel to fit terminal width
+                console.print("\n", Panel(f"[bold green]{arg}[/bold green]:\n    {command_method_description}",
+                                          border_style="cyan", title=command_help_title, padding=(1, 1),
+                                          width=term_width), "\n")  # Force panel to fit terminal width
             else:
                 console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
-
-        def _show_commands_table():
-            """"
-            Construct a table with all commands having distict color based on their metdata.
-            """
-            # Reserve some space for panel borders/margins
-            max_desc_width = self._term_width - 25  # Approximated value for command column and panel padding
-
-            # Build the commands table
-            table = Table(box=box.ROUNDED, highlight=True, expand=True)
-            table.add_column("Command", style=None, no_wrap=True)
-            table.add_column("Description", style="dim", overflow="fold", no_wrap=False)
-
-            # Collect and sort commands by type group
-            commands_by_type = {}
-            type_colors = COMMAND_TYPE_COLOR_MAP
-
-            for name, meta in self._alias_metadata.items():
-                cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
-                if cmd_type not in commands_by_type:
-                    commands_by_type[cmd_type] = []
-                commands_by_type[cmd_type].append((name, meta.get("description", "No help available")))
-
-            # Also include built-in commands with docstrings
-            for cmd in sorted(self.get_all_commands()):
-                if cmd in self.hidden_commands or cmd in self._alias_metadata:
-                    continue
-                method = getattr(self, f'do_{cmd}', None)
-                doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
-                commands_by_type.setdefault(AutoForgCommandType.MISCELLANEOUS, []).append((cmd, doc))
-
-            # Sort types and build table
-            for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
-                color = type_colors.get(cmd_type, "white")
-
-                # Section header row
-                header = Text(f"{cmd_type.name.title()} Commands", style=f"{color} bold")
-                table.add_row(Text(""), Text(""))  # Spacer row
-                table.add_row(header, Text(""))
-
-                for cmd, desc in sorted(commands_by_type[cmd_type]):
-                    if len(desc) > max_desc_width:
-                        desc = desc[:max_desc_width - 3] + "..."
-                    cmd_cell = Text(cmd, style=f"bold {color}")
-                    desc_cell = Text(desc)
-                    table.add_row(cmd_cell, desc_cell)
-
-            # Wrap the table in a Panel
-            master_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Available Commands"
-            panel = Panel(
-                table,
-                title=master_help_title,
-                border_style="cyan",
-                padding=(1, 1), width=self._term_width  # Force panel to fit terminal width
-            )
-
-            console.print("\n", panel, "\n")
 
         if arg:
             _show_command_help()
         else:
-            _show_commands_table()
+            self._show_commands_summary_table()
         return None
 
-    def add_build_command(self, solution: str,
-                          project: str, configuration: str, command_name: str,
-                          command_description: Optional[str] = None):
+    def add_build_command(self, solution: str, project: str, configuration: str, command_name: str,
+                          description: Optional[str] = None):
         """
         Registers a user-friendly build command alias.
         Here we create a new cmd2 command alias that triggers a specific build configuration
@@ -882,21 +909,16 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             project (str): The project name within the solution.
             configuration (str): The specific build configuration.
             command_name (str): The alias command name to be added.
-            command_description (Optional[str]): A description of the command to be shown in help.
+            description (Optional[str]): A description of the command to be shown in help.
                                                  Defaults to a generated description if not provided.
         """
         target_command = f"build {solution}.{project}.{configuration}"
 
-        if not command_description:
-            command_description = f"Build {solution}/{project}/{configuration}"
+        if not description:
+            description = f"Build {solution}/{project}/{configuration}"
 
-        command_entry: dict = {
-            "name": command_name,
-            "description": command_description,
-            "target_command": target_command
-        }
-        self._add_alias_with_description(entry=command_entry,
-                                         command_type=AutoForgCommandType.BUILD)
+        self._add_alias_with_description(alias_name=command_name, description=description,
+                                         target_command=target_command, cmd_type=AutoForgCommandType.BUILD)
 
     def do_build(self, arg: str):
         """
@@ -925,9 +947,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                             f"{build_profile.project_name}.{build_profile.config_name}")
 
         # Fetch build configuration data from the solution
-        build_profile.config_data = self._solution.query_configurations(
-            solution_name=build_profile.solution_name, project_name=build_profile.project_name,
-            configuration_name=build_profile.config_name)
+        build_profile.config_data = self._solution.query_configurations(solution_name=build_profile.solution_name,
+                                                                        project_name=build_profile.project_name,
+                                                                        configuration_name=build_profile.config_name)
         if build_profile.config_data:
             project_data: Optional[dict[str, Any]] = (
                 self._solution.query_projects(solution_name=build_profile.solution_name,
@@ -1024,20 +1046,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.insert_text('.')
             buffer.start_completion(select_first=True)
 
-        style = Style.from_dict({
-            'executable': 'fg:green bold',
-            'file': 'fg:gray'
-        })
+        style = Style.from_dict({'executable': 'fg:green bold', 'file': 'fg:gray'})
 
         # Create session with completer and key bindings
         completer = _CoreCompleter(self, logger=self._logger)
         history_path = self._history_file or os.path.expanduser(self._history_file)
-        session = PromptSession(
-            completer=completer,
-            history=FileHistory(history_path),
-            key_bindings=kb,
-            style=style,
-        )
+        session = PromptSession(completer=completer, history=FileHistory(history_path), key_bindings=kb, style=style, )
 
         while True:
             try:

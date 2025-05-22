@@ -11,10 +11,8 @@ Description:
 
 # Standard library imports
 import argparse
-import builtins
 import contextlib
 import io
-import json
 import logging
 import os
 import sys
@@ -25,31 +23,11 @@ from typing import Optional, Any
 from colorama import Fore, Style
 
 # Local application imports
-from auto_forge import (
-    PROJECT_COMMANDS_PATH,
-    PROJECT_BUILDERS_PATH,
-    PROJECT_SHARED_PATH,
-    PROJECT_CONFIG_PATH,
-    PROJECT_NAME,
-    PROJECT_VERSION,
-    AddressInfoType,
-    AutoLogger,
-    BuildTelemetry,
-    CoreEnvironment,
-    CoreGUI,
-    CoreLoader,
-    CoreModuleInterface,
-    CoreProcessor,
-    CorePrompt,
-    CoreSolution,
-    CoreVariables,
-    ExceptionGuru,
-    LogHandlersTypes,
-    XYType,
-    Registry,
-    TerminalAnsiCodes,
-    ToolBox,
-)
+from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
+                        PROJECT_NAME, PROJECT_VERSION, AddressInfoType, AutoLogger, BuildTelemetry,
+                        CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor, CorePrompt,
+                        CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType, Registry,
+                        ToolBox, )
 
 
 class AutoForge(CoreModuleInterface):
@@ -73,8 +51,7 @@ class AutoForge(CoreModuleInterface):
 
         # Startup arguments
         self._automated_mode: bool = False
-        self._config_data: Optional[dict[str, Any]] = None
-        self._config_file_path: Optional[Path] = PROJECT_CONFIG_PATH / 'auto_forge.json'
+        self.configuration: Optional[dict[str, Any]] = None
         self._workspace_path: Optional[str] = None
         self._automation_macro: Optional[str] = None
         self._solution_package_path: Optional[str] = None
@@ -84,10 +61,6 @@ class AutoForge(CoreModuleInterface):
         self._remote_debugging: Optional[AddressInfoType] = None
         self._proxy_server: Optional[AddressInfoType] = None
         self._create_workspace: bool = False
-
-        # Save the original print
-        self._original_print = builtins.print
-        self._original_write = sys.stdout.write
 
         super().__init__(*args, **kwargs)
 
@@ -102,8 +75,10 @@ class AutoForge(CoreModuleInterface):
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
 
-        # Greetings
-        print(f"{TerminalAnsiCodes.CLS_SB}\n\n{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
+        # Initialize the most basic and essential core modules, registry must come first.
+        self._registry: Registry = Registry()
+        self._toolbox: Optional[ToolBox] = ToolBox()
+        self._processor: Optional[CoreProcessor] = CoreProcessor()
 
         # Pass all received arguments down to _validate_arguments
         self._validate_arguments(*args, **kwargs)
@@ -112,34 +87,30 @@ class AutoForge(CoreModuleInterface):
         if self._remote_debugging is not None:
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
-        # Attempt to load configuration
-        if self._config_file_path and self._config_file_path.exists():
-            with contextlib.suppress(Exception), self._config_file_path.open("r", encoding="utf-8") as f:
-                self._config_data = json.load(f)
+        # Load AutoForge configuration
+        self.configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
+        self.ansi_codes = self.configuration.get("ansi_codes_map") if "ansi_codes_map" in self.configuration else None
+
+        # Greetings
+        print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
+              f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Initializes the logger
-        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG, configuration_data=self._config_data)
+        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG, configuration_data=self.configuration)
         self._auto_logger.set_log_file_name("auto_forge.log")
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
-
-        # Initialize core modules, registry must come first.
-        self._registry: Registry = Registry()
-        self._toolbox: Optional[ToolBox] = ToolBox()
-        self._processor: Optional[CoreProcessor] = CoreProcessor()
 
         # Load all the builtin commands
         self._loader: Optional[CoreLoader] = CoreLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
                                                              automated_mode=self._automated_mode,
-                                                             configuration_data=self._config_data)
+                                                             configuration_data=self.configuration)
 
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
-            self,
-            *_args,
-            **kwargs) -> None:
+            self, *_args, **kwargs) -> None:
         """
         Validate command-line arguments and set the AutoForge session execution mode.
         Depending on the inputs, AutoForge will either:
@@ -183,8 +154,8 @@ class AutoForge(CoreModuleInterface):
                 raise RuntimeError(f"Workspace path '{self._workspace_path}' does not exist and creation is disabled.")
 
             # If we were requested to create a workspace, the destination path must be empty
-            if (self._create_workspace and os.path.exists(self._workspace_path)
-                    and not ToolBox.is_directory_empty(self._workspace_path)):
+            if (self._create_workspace and os.path.exists(self._workspace_path) and not ToolBox.is_directory_empty(
+                    self._workspace_path)):
                 raise RuntimeError(f"Path '{self._workspace_path}' is not empty while workspace creation is enabled.")
 
         def _validate_macro():
@@ -304,8 +275,7 @@ class AutoForge(CoreModuleInterface):
                 # Download all files in a given remote git path to a local zip file
                 self._solution_package_file = (
                     self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True,
-                                                            proxy_host=self._proxy_server,
-                                                            token=self._git_token))
+                                                            proxy_host=self._proxy_server, token=self._git_token))
 
             if self._solution_package_file is not None and self._solution_package_path is None:
                 self._solution_package_path = ToolBox.unzip_file(self._solution_package_file)
@@ -324,8 +294,7 @@ class AutoForge(CoreModuleInterface):
             # Loads the solution file with multiple parsing passes and comprehensive structural validation.
             # Also initializes the core variables module as part of the process.
 
-            self._solution = CoreSolution(solution_config_file_name=solution_file,
-                                          workspace_path=self._workspace_path,
+            self._solution = CoreSolution(solution_config_file_name=solution_file, workspace_path=self._workspace_path,
                                           workspace_creation_mode=self._create_workspace)
 
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
@@ -347,12 +316,11 @@ class AutoForge(CoreModuleInterface):
 
                 # Greetings earthlings, we're here!
                 self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}",
-                                         blink_pixel=XYType(x=6,y=2))
+                                         blink_pixel=XYType(x=6, y=2))
 
                 # Start blocking build system user mode shell
                 self._gui: CoreGUI = CoreGUI()
-                self._prompt = CorePrompt(history_file="~/.auto_forge_history",
-                                          configuration_data=self._config_data)
+                self._prompt = CorePrompt(history_file="~/.auto_forge_history", configuration_data=self.configuration)
                 return self._prompt.cmdloop()
 
             else:
@@ -378,14 +346,11 @@ class AutoForge(CoreModuleInterface):
                                      dest_dir=f'{solution_destination_path}')
 
                     # Place the build system default initiator script
-                    self._toolbox.cp(pattern=f'{env_starter_file.__str__()}',
-                                     dest_dir=f'{self._workspace_path}')
+                    self._toolbox.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=f'{self._workspace_path}')
 
                     # Finally, create a hidden '.config' file in the solution directory with essential metadata.
-                    self._environment.create_config_file(
-                        solution_name=self._solution_name,
-                        config_path=self._workspace_path
-                    )
+                    self._environment.create_config_file(solution_name=self._solution_name,
+                                                         config_path=self._workspace_path)
 
                 return ret_val
 
@@ -420,55 +385,37 @@ def auto_forge_main() -> Optional[int]:
 
         # Required argument specifying the workspace path. This can point to an existing workspace
         # or a new one to be created by AutoForge, depending on the solution definition.
-        parser.add_argument(
-            "-w", "--workspace-path", required=True,
-            help="Path to an existing or new workspace to be used by AutoForge"
-        )
+        parser.add_argument("-w", "--workspace-path", required=True,
+                            help="Path to an existing or new workspace to be used by AutoForge")
 
         # AutoForge requires a solution to operate. This can be provided either as a pre-existing local ZIP archive,
         # or as a Git URL pointing to a directory containing the necessary solution JSON files.
         group = parser.add_mutually_exclusive_group(required=True)
 
-        group.add_argument(
-            "-p", "--solution-package", required=False,
-            help=(
-                "Path to a local AutoForge solution. This can be either:\n"
-                "- A path to an existing .zip archive file.\n"
-                "- A path to an existing directory containing solution files.\n"
-                "- A Github URL pointing to git path which contains the solution files.\n"
-                "The provided path will be validated at runtime."
-            )
-        )
+        group.add_argument("-p", "--solution-package", required=False,
+                           help=("Path to a local AutoForge solution. This can be either:\n"
+                                 "- A path to an existing .zip archive file.\n"
+                                 "- A path to an existing directory containing solution files.\n"
+                                 "- A Github URL pointing to git path which contains the solution files.\n"
+                                 "The provided path will be validated at runtime."))
 
         # Optional arguments and flags
-        parser.add_argument(
-            "--create-workspace", dest="create_workspace", action="store_true", default=True,
-            help="Create the workspace if it does not exist (default: True)."
-        )
-        parser.add_argument(
-            "--no-create-workspace", dest="create_workspace", action="store_false",
-            help="Do not create the workspace if it does not exist (raises an error instead)."
-        )
+        parser.add_argument("--create-workspace", dest="create_workspace", action="store_true", default=True,
+                            help="Create the workspace if it does not exist (default: True).")
+        parser.add_argument("--no-create-workspace", dest="create_workspace", action="store_false",
+                            help="Do not create the workspace if it does not exist (raises an error instead).")
 
-        parser.add_argument(
-            "--automation-macro", type=str, required=False,
-            help="Path to a JSON file defining an automatic flow to execute after loading the workspace."
-        )
+        parser.add_argument("--automation-macro", type=str, required=False,
+                            help="Path to a JSON file defining an automatic flow to execute after loading the workspace.")
 
-        parser.add_argument(
-            "--remote-debugging", type=str, required=False,
-            help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)"
-        )
+        parser.add_argument("--remote-debugging", type=str, required=False,
+                            help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)")
 
-        parser.add_argument(
-            "--proxy-server", type=str, required=False,
-            help="Optional proxy server endpoint in the format <ip-address>:<port> (e.g., 192.168.1.1:8080)."
-        )
+        parser.add_argument("--proxy-server", type=str, required=False,
+                            help="Optional proxy server endpoint in the format <ip-address>:<port> (e.g., 192.168.1.1:8080).")
 
-        parser.add_argument(
-            "--git-token", type=str, required=False,
-            help="Optional GitHub token to use for authenticating HTTP requests."
-        )
+        parser.add_argument("--git-token", type=str, required=False,
+                            help="Optional GitHub token to use for authenticating HTTP requests.")
 
         args = parser.parse_args()
 

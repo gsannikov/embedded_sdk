@@ -16,6 +16,7 @@ import toml
 # Determine the base directory of the project
 PROJECT_BASE_PATH = Path(__file__).resolve().parent
 PROJECT_CONFIG_PATH = PROJECT_BASE_PATH / "config"
+PROJECT_CONFIG_FILE = PROJECT_CONFIG_PATH / "auto_forge.jsonc"
 PROJECT_COMMANDS_PATH = PROJECT_BASE_PATH / "commands"
 PROJECT_BUILDERS_PATH = PROJECT_BASE_PATH / "builders"
 PROJECT_RESOURCES_PATH = PROJECT_BASE_PATH / "resources"
@@ -51,9 +52,10 @@ def auto_forge_get_info(base_path: Path):
 
         PROJECT_VERSION = importlib.metadata.version(PROJECT_PACKAGE)
 
-        # Export paths so we could use those in our configuration files
+        # Export those basic paths for any sub-process we might spawn
         os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
+        os.environ['AUTO_FORGE_PROJECT_CONFIG_FILE'] = str(PROJECT_CONFIG_FILE)
         os.environ['AUTO_FORGE_PROJECT_COMMANDS_PATH'] = str(PROJECT_COMMANDS_PATH)
         os.environ['AUTO_FORGE_PROJECT_BUILDERS_PATH'] = str(PROJECT_BUILDERS_PATH)
         os.environ['AUTO_FORGE_PROJECT_RESOURCES_PATH'] = str(PROJECT_RESOURCES_PATH)

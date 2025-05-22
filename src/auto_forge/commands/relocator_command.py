@@ -3,7 +3,7 @@ Script:         relocator_command.py
 Author:         AutoForge Team
 
 Description:
-    AutoForge command for automating the process of relocating directories and files from one location to another
+    Automate the process of relocating directories and files from one location to another
     based on specified configuration settings. It supports complex operations like filtering specific file
     types to copy, creating a 'graveyard' for unwanted files, and ensuring directory structure integrity up to a
     defined depth.

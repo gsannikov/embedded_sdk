@@ -34,10 +34,9 @@ from collections.abc import Iterator
 from enum import Enum
 from typing import Any, Optional, Union
 
+# Third-party
 import jmespath
-# JSONPath support ('XPath' for JSON)
 from jsonpath_ng.ext import parse
-# JSON Schema validation
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 

@@ -13,20 +13,23 @@ Note:
     >> Order does matter here! <<
 """
 # @formatter:off
-from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH, PROJECT_SHARED_PATH,
-                       PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,PROJECT_BUILDERS_PATH, PROJECT_HELP_PATH,
-                       PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE)
+from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_FILE, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH,
+                       PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,PROJECT_BUILDERS_PATH,
+                       PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO,
+                       PROJECT_PACKAGE)
 
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
-from auto_forge.common.local_types import (AutoForgeModuleType, ModuleInfoType, ModuleSummaryType, CommandResultType,
-                                           ValidationMethodType, ExecutionModeType, MessageBoxType, AutoForgCommandType,
-                                           InputBoxTextType, InputBoxButtonType, InputBoxLineType, AddressInfoType,
-                                           SignatureSchemaType, SignatureFieldType, VariableFieldType,FieldColorType,
-                                           ExceptionGuru, ThreadGuru, TerminalAnsiGuru, TerminalEchoType, XYType,
-                                           BuildProfileType, BuildTelemetry, TerminalTeeStream, TerminalAnsiCodes,
-                                           TerminalFileIconInfo, TERMINAL_ICONS_MAP, COMMAND_TYPE_COLOR_MAP)
+from auto_forge.common.local_types import (
+    AddressInfoType, AutoForgeModuleType, AutoForgCommandType, BuildProfileType, BuildTelemetry,
+    COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType, ExceptionGuru, FieldColorType,
+    InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, MethodLocationType,
+    ModuleInfoType, ModuleSummaryType, SignatureFieldType, SignatureSchemaType, TERMINAL_ICONS_MAP,
+    TerminalAnsiGuru, TerminalEchoType, TerminalFileIconInfo, TerminalTeeStream,
+    ThreadGuru, ValidationMethodType, VariableFieldType, XYType
+)
+
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
 from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
@@ -54,22 +57,19 @@ from auto_forge.auto_forge import auto_forge_main as main
 
 # Exported symbols
 __all__ = [
-    "Registry", "ToolBox", "ProgressTracker", "PrettyPrinter",
-    "CoreProcessor", "CoreVariables", "CoreSolution", "CoreEnvironment",
-    "CoreSignatures", "CoreLoader", "CorePrompt", "CoreGUI",
-    "ExceptionGuru", "ThreadGuru", "BuildProfileType", "BuildTelemetry", "TerminalAnsiGuru",
-    "TerminalAnsiCodes", "TerminalTeeStream", "TerminalFileIconInfo", "TerminalEchoType",
-    "AutoForgeModuleType", "ModuleInfoType", "ModuleSummaryType", "CommandResultType",
-    "ValidationMethodType", "ExecutionModeType", "XYType",
-    "MessageBoxType", "InputBoxTextType", "InputBoxButtonType", "InputBoxLineType", "AddressInfoType",
-    "SignatureFieldType", "SignatureSchemaType", "VariableFieldType", "FieldColorType",
-    "CLICommandInterface", "CoreModuleInterface", "BuilderInterface", "BuilderToolChainInterface",
-    "SignatureFileHandler", "Signature", "AutoForgCommandType",
-    "TERMINAL_ICONS_MAP", "COMMAND_TYPE_COLOR_MAP",
-    "PROJECT_BASE_PATH", "PROJECT_CONFIG_PATH",
-    "PROJECT_COMMANDS_PATH", "PROJECT_RESOURCES_PATH", "PROJECT_SHARED_PATH", "PROJECT_SAMPLES_PATH",
-    "PROJECT_BUILDERS_PATH", "PROJECT_HELP_PATH",
-    "PROJECT_SCHEMAS_PATH", "PROJECT_VERSION", "PROJECT_NAME", "PROJECT_REPO", "PROJECT_PACKAGE",
-    "AutoLogger", "LogHandlersTypes",
-    "main"
+    "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoLogger",
+    "BuilderInterface", "BuilderToolChainInterface", "BuildProfileType", "BuildTelemetry",
+    "CLICommandInterface", "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment",
+    "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CorePrompt",
+    "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru", "ExecutionModeType",
+    "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
+    "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
+    "ModuleSummaryType", "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH",
+    "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE", "PROJECT_HELP_PATH", "PROJECT_NAME", "PROJECT_PACKAGE",
+    "PROJECT_REPO", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH",
+    "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",
+    "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "SignatureSchemaType", "TERMINAL_ICONS_MAP", "TerminalAnsiGuru",
+    "TerminalEchoType", "TerminalFileIconInfo", "TerminalTeeStream", "ThreadGuru",
+    "ToolBox", "ValidationMethodType", "VariableFieldType", "XYType", "main"
 ]
