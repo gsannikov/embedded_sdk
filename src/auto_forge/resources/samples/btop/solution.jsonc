@@ -81,27 +81,6 @@
 		// Defines schema version be used
 		"schema": "1.0"
 	},
-	// Project command aliases
-	"aliases": {
-		"..": "cd ..",
-		"~": "cd $HOME",
-		"gow": "cd $PROJ_WORKSPACE",
-		"gob": "cd $BUILD_OUT",
-		"gofw": "cd $PROJ_SOURCES_BASE",
-		"log": "sln -l -c",
-		"ls": "lsd -g",
-		"ll": "lss -la",
-		"l": "ls",
-		"exit": "quit",
-		"x": "quit",
-		"q": "quit",
-		"cls": "clear",
-		"cln": "clear",
-		"gs": "git status",
-		"ga": "git add .",
-		"gc": "git commit -m",
-		"gp": "git push"
-	},
 	// Solutions
 	"solutions": [
 		{

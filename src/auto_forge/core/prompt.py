@@ -274,10 +274,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts']:
             self._remove_command(cmd)
 
-        # Dynamically add aliases based on a user defined dictionary in the solution file
-        added_aliases = self._add_dynamic_aliases(self._solution.get_arbitrary_item(key='aliases'))
-        if added_aliases is not None:
-            self._logger.info(f"{added_aliases} dynamic aliases registered.")
+        # Dynamically add built-in aliases based on a dictionary in the package configuration file
+        builtin_aliases = configuration_data.get('builtin_aliases')
+        if builtin_aliases:
+            added_aliases = self._add_dynamic_aliases(builtin_aliases)
+            if added_aliases is not None:
+                self._logger.info(f"{added_aliases} dynamic aliases registered.")
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
