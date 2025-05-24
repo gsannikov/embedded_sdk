@@ -140,18 +140,21 @@ class CLICommandInterface(ABC):
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
     def __init__(self, command_name: Optional[str] = None,
-                 raise_exceptions: bool = False):
+                 raise_exceptions: Optional[bool] = False,
+                 hidden: Optional[bool] = False):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
         Args:.
             command_name (str, optional): The name of the command.
-            raise_exceptions (bool): Whether to raise an exception when parsing errors.
+            raise_exceptions (bool, optional): Whether to raise an exception when parsing errors.
+            hidden (bool, optional): Whether to hide commands from the menu.
         """
 
         self._last_error: Optional[str] = None
         self._last_exception: Optional[Exception] = None
-        self._raise_exceptions = raise_exceptions
+        self._raise_exceptions = raise_exceptions if raise_exceptions else False
+        self._hidden = hidden if hidden else False
         self._command_name: str = command_name
 
         caller_frame = inspect.stack()[1].frame
@@ -171,7 +174,8 @@ class CLICommandInterface(ABC):
             registry.register_module(name=command_name,
                                      description=caller_module_description,
                                      version=caller_module_version,
-                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
+                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND,
+                                     hidden=self._hidden))
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:

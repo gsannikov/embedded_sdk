@@ -49,7 +49,7 @@ class SigToolCommand(CLICommandInterface):
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions)
+                         raise_exceptions=raise_exceptions, hidden=True)
 
     def _create_sig_tool(self, **kwargs: Any) -> bool:
         """

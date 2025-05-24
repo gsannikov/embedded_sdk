@@ -15,7 +15,7 @@ from types import ModuleType
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType, ModuleSummaryType
+from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
@@ -103,22 +103,24 @@ class Registry(CoreModuleInterface):
             version=record.get("version"),
             class_interface_name=record.get("class_interface_name"),
             file_name=record.get("file_name"),
+            hidden=record.get("hidden"),
         )
 
-    def get_modules_summary_list(self,
-                                 auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> list[ModuleSummaryType]:
+    def get_modules_list(
+            self,
+            auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> list[ModuleInfoType]:
         """
-        Returns a list of module summaries (name and description only) that match the specified module type.
-        Omits all internal or non-serializable details.
+        Returns a list of full module info objects that match the specified module type.
         Args:
             auto_forge_module_type (AutoForgeModuleType): The type of modules to filter by.
         Returns:
-            List[ModuleSummaryType]: A list of filtered module summaries.
+            list[ModuleInfoType]: A list of full module info entries.
         """
         return [
-            ModuleSummaryType(name, meta.get("description", "description not provided"))
+            module_info
             for name, meta in self._modules_registry.items()
-            if meta.get("auto_forge_module_type") == auto_forge_module_type
+            if (module_info := self._get_module_info(name)) is not None
+               and module_info.auto_forge_module_type == auto_forge_module_type
         ]
 
     def update_module_record(self, module_name: str, **updates: Any) -> Optional[ModuleInfoType]:
@@ -176,6 +178,7 @@ class Registry(CoreModuleInterface):
                         python_module_type: Optional[ModuleType] = None,
                         version: Optional[str] = None,
                         file_name: Optional[str] = None,
+                        hidden: Optional[bool] = False,
                         auto_inspection: Optional[bool] = True) -> Optional[ModuleInfoType]:
         """
         Registers a module with the AutoForge system using explicit metadata arguments.
@@ -189,6 +192,7 @@ class Registry(CoreModuleInterface):
             python_module_type (Optional[ModuleType], optional): The Python type of the module.
             version (Optional[str], optional): The version of the module.
             file_name (Optional[str]): The file name of the module.
+            hidden (Optional[bool]): OOptional attributes, applicable for CLI commands.
             auto_inspection (Optional[bool]): If True, performs auto inspection to get the r requited info.
         Returns:
             ModuleInfoType: if the module was successfully registered, exception otherwise.
@@ -239,6 +243,7 @@ class Registry(CoreModuleInterface):
             version=version or "0.0.0",
             class_interface_name=class_interface_name or caller_class_interface_name,
             file_name=file_name or caller_module_file_name,
+            hidden=hidden if hidden is not None else False,
         )
 
         return self.register_module_by_info(auto_forge_module_info)
@@ -270,6 +275,7 @@ class Registry(CoreModuleInterface):
             "python_module_type": auto_forge_module_info.python_module_type,
             "version": auto_forge_module_info.version,
             "file_name": auto_forge_module_info.file_name,
+            "hidden": auto_forge_module_info.hidden,
         }
         return auto_forge_module_info
 

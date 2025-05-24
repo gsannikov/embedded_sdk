@@ -85,14 +85,7 @@ class ModuleInfoType(NamedTuple):
     python_module_type: Optional[ModuleType] = None
     file_name: Optional[str] = None
     version: Optional[str] = None
-
-
-class ModuleSummaryType(NamedTuple):
-    """
-    Represents a minimal summary subset of 'ModuleInfo'.
-    """
-    name: str
-    description: str
+    hidden: bool = False  # Applicable for commands
 
 
 class ValidationMethodType(Enum):

@@ -7,8 +7,9 @@
 */
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
+    "hide_cmd2_commands": true,
     "log_cleanup_patterns": [
 
         // log_cleanup_patterns:
@@ -22,20 +23,20 @@
 
     "builtin_aliases": [
 
-        { "alias_name": "..",    "target_command": "cd ..",                 "description": "Go up one directory",       "command_type": "NAVIGATE" },
-        { "alias_name": "~",     "target_command": "cd $HOME",              "description": "Go to home directory",      "command_type": "NAVIGATE" },
+        { "alias_name": "..",    "target_command": "cd ..",                 "description": "Go up one directory",       "command_type": "NAVIGATE", "hidden": true },
+        { "alias_name": "~",     "target_command": "cd $HOME",              "description": "Go to home directory",      "command_type": "NAVIGATE", "hidden": true },
         { "alias_name": "gow",   "target_command": "cd $PROJ_WORKSPACE",    "description": "Go to workspace root",      "command_type": "NAVIGATE" },
         { "alias_name": "gob",   "target_command": "cd $BUILD_OUT",         "description": "Go to build output",        "command_type": "NAVIGATE" },
         { "alias_name": "gofw",  "target_command": "cd $PROJ_SOURCES_BASE", "description": "Go to firmware sources",    "command_type": "NAVIGATE" },
         { "alias_name": "log",   "target_command": "sln -l -c",             "description": "Show recent solution logs", "command_type": "UTILITY"  },
-        { "alias_name": "ls",    "target_command": "lsd -g",                "description": "List files (fancy)",        "command_type": "SYSTEM"   },
-        { "alias_name": "ll",    "target_command": "lss -la",               "description": "List all files (long)",     "command_type": "SYSTEM"   },
-        { "alias_name": "l",     "target_command": "ls",                    "description": "Shortcut for ls",           "command_type": "SYSTEM"   },
-        { "alias_name": "exit",  "target_command": "quit",                  "description": "Exit the shell",            "command_type": "SYSTEM"   },
-        { "alias_name": "x",     "target_command": "quit",                  "description": "Exit shortcut",             "command_type": "SYSTEM"   },
-        { "alias_name": "q",     "target_command": "quit",                  "description": "Exit shortcut",             "command_type": "SYSTEM"   },
-        { "alias_name": "cls",   "target_command": "clear",                 "description": "Clear screen",              "command_type": "SYSTEM"   },
-        { "alias_name": "cln",   "target_command": "clear",                 "description": "Clear screen",              "command_type": "SYSTEM"   },
+        { "alias_name": "ls",    "target_command": "lsd -g",                "description": "List files (fancy)",        "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "ll",    "target_command": "lss -la",               "description": "List all files (long)",     "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "l",     "target_command": "ls",                    "description": "Shortcut for ls",           "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "exit",  "target_command": "quit",                  "description": "Exit the shell",            "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "x",     "target_command": "quit",                  "description": "Exit shortcut",             "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "q",     "target_command": "quit",                  "description": "Exit shortcut",             "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "cls",   "target_command": "clear",                 "description": "Clear screen",              "command_type": "SYSTEM",   "hidden": true },
+        { "alias_name": "cln",   "target_command": "clear",                 "description": "Clear screen",              "command_type": "SYSTEM",   "hidden": true },
         { "alias_name": "gs",    "target_command": "git status",            "description": "Git status",                "command_type": "GIT"      },
         { "alias_name": "ga",    "target_command": "git add .",             "description": "Git add all",               "command_type": "GIT"      },
         { "alias_name": "gc",    "target_command": "git commit -m",         "description": "Git commit",                "command_type": "GIT"      },

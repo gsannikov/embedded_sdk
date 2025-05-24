@@ -1269,6 +1269,39 @@ class ToolBox(CoreModuleInterface):
         return flattened_text
 
     @staticmethod
+    def normalize_docstrings(doc: str) -> str:
+        """
+        Simple docstring formatter for terminal display.
+        Args:
+            doc (str): The raw docstring input.
+        Returns:
+            str: A cleaned, well-formatted, and wrapped docstring.
+        """
+        if not doc:
+            return ""
+
+            # Get current terminal width
+        width = shutil.get_terminal_size((80, 20)).columns
+
+        # 1. Remove newlines/tabs, collapse multiple spaces
+        doc = re.sub(r"[\n\t]+", "", doc)
+        doc = re.sub(r" {2,}", " ", doc).strip()
+        parts = doc.split(".")
+        for i, part in enumerate(parts):
+            if not parts[i].strip():
+                parts.pop(i)
+                continue
+            parts[i] = part.strip() + "."
+            parts[i] = textwrap.fill(parts[i], width=(width - 8))
+            parts[i] = "    " + parts[i].replace("\n", "\n    ") + "\n"
+            parts[i] = parts[i].replace("Args:", "Args:\n        ")
+            parts[i] = parts[i].replace("Returns:", "Returns:\n        ")
+            parts[i] = parts[i].replace("Notes:", "Notes:\n        ")
+
+        doc = "".join(parts)
+        return doc.strip()
+
+    @staticmethod
     def cp(pattern: str, dest_dir: str):
         """
         Copies files matching a wildcard pattern to the destination directory.\

@@ -25,7 +25,7 @@ from auto_forge.common.local_types import (
     AddressInfoType, AutoForgeModuleType, AutoForgCommandType, BuildProfileType, BuildTelemetry,
     COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType, ExceptionGuru, FieldColorType,
     InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, MethodLocationType,
-    ModuleInfoType, ModuleSummaryType, SignatureFieldType, SignatureSchemaType,
+    ModuleInfoType, SignatureFieldType, SignatureSchemaType,
     TerminalAnsiGuru, TerminalEchoType, TerminalTeeStream,
     ThreadGuru, ValidationMethodType, VariableFieldType, XYType
 )
@@ -64,7 +64,7 @@ __all__ = [
     "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru", "ExecutionModeType",
     "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
     "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
-    "ModuleSummaryType", "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH",
+    "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH",
     "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE", "PROJECT_HELP_PATH", "PROJECT_NAME", "PROJECT_PACKAGE",
     "PROJECT_REPO", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH",
     "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",

@@ -35,9 +35,22 @@ from rich.console import Console
 from rich.panel import Panel
 
 # AutoForge imports
-from auto_forge import (PROJECT_NAME, AutoLogger, AutoForgCommandType, AutoForgeModuleType, BuildProfileType,
-                        COMMAND_TYPE_COLOR_MAP, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
-                        CoreVariables, ExecutionModeType, Registry, ToolBox, )
+from auto_forge import (
+    PROJECT_NAME,
+    COMMAND_TYPE_COLOR_MAP,
+    AutoLogger,
+    AutoForgCommandType,
+    AutoForgeModuleType,
+    BuildProfileType,
+    CoreEnvironment,
+    CoreLoader,
+    CoreModuleInterface,
+    CoreSolution,
+    ModuleInfoType,
+    CoreVariables,
+    ExecutionModeType,
+    Registry,
+    ToolBox, )
 
 # Basic types
 
@@ -231,14 +244,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.argv = [sys.argv[0]]
         ansi.allow_ansi = True
 
-        # Get a lis for the dynamically loaded commands and inject them to cmd2
-        self.loaded_commands: int = 0
-        self.dynamic_cli_commands_list = (
-            self._registry.get_modules_summary_list(auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND))
-        if len(self.dynamic_cli_commands_list) > 0:
-            self.loaded_commands = self._add_dynamic_cli_commands()
-        else:
-            self._logger.warning("No dynamic commands loaded")
+        # Dynamically added CLI commands
+        self.dynamic_cli_commands_list: list[ModuleInfoType] = []
+        self.loaded_commands = self._add_dynamic_cli_commands()
 
         # Build executables dictionary for implementation shell style fast auto completion
         self.executable_db: Optional[dict[str, str]] = None
@@ -270,9 +278,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._history_file = history_file
             self._load_history()
 
-        # Remove unnecessary built-in commands
-        for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts']:
-            self._remove_command(cmd)
+        # Exclude built-in cmd2 commands from help display without disabling their functionality
+        if configuration_data.get('hide_cmd2_commands', False):
+            for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
+                        'quit', 'help']:
+                self._remove_command(command_name=cmd)
 
         # Dynamically add built-in aliases based on a dictionary in the package configuration file
         builtin_aliases = configuration_data.get('builtin_aliases')
@@ -285,50 +295,84 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def _remove_command(self, command_name: str):
+    def _remove_command(self, command_name: str,
+                        disable_functionality: bool = False,
+                        disable_help: bool = False) -> None:
         """
-        Hide and disable a built-in cmd2 command by overriding its method.
+        Hides and optionally disables a built-in cmd2 command.
+
+        Args:
+            command_name (str): The name of the command to hide or disable (e.g., 'quit').
+            disable_functionality (bool): If True, replaces the command with a stub that prints an error.
+            disable_help (bool): If True, removes help and completion support for the command.
         """
-        # Hide from help
+        # Mark the command as hidden for custom help menus
+        if not hasattr(self, "hidden_commands"):
+            self.hidden_commands = []
         if command_name not in self.hidden_commands:
             self.hidden_commands.append(command_name)
 
-        # Disable functionality
-        def disabled_command(_self, _):
-            _self.perror(f"the '{command_name}' command is disabled in this shell.")
+        method_name = f"do_{command_name}"
 
-        setattr(self, f'do_{command_name}', disabled_command)
+        # Override the command with a disabled stub if requested
+        if disable_functionality:
+            def disabled_command(_self, _):
+                _self.perror(f"The '{command_name}' command is disabled in this shell.")
 
-        # Optionally disable help and completer too
-        setattr(self, f'help_{command_name}', lambda _self: None)
-        setattr(self, f'complete_{command_name}', lambda *_: [])
+            setattr(self, method_name, disabled_command)
 
-    def _set_command_metadata(self, command_name: str, description: str = None,
-                              command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN) -> None:
+        # Optionally suppress help and tab completion
+        if disable_help:
+            setattr(self, f"help_{command_name}", lambda _self: None)
+            setattr(self, f"complete_{command_name}", lambda *_: [])
+
+    def _set_command_metadata(
+            self,
+            command_name: str,
+            description: str = None,
+            command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
+            hidden: bool = False,
+            patch_doc: bool = False,
+            is_alias: bool = False
+    ) -> None:
         """
         Sets or updates metadata for any cmd2 command, including dynamic aliases.
 
         Args:
             command_name (str): Name of the command (e.g., 'hello', 'build').
-            description (str, optional): Help string or description to associate.
-            command_type (AutoForgCommandType): Type of the command for categorization.
+            description (str, optional): Help text to associate with the command.
+            command_type (AutoForgCommandType): Logical category of the command.
+            hidden (bool): Whether the command should be hidden from help menus.
+            patch_doc (bool): Whether to update the command's __doc__ string.
+            is_alias (bool): Whether this is a dynamically created alias.
         """
-        if not hasattr(self, "_alias_metadata"):
-            self._alias_metadata = {}
 
-        existing = self._alias_metadata.get(command_name, {})
-        self._alias_metadata[command_name] = {
-            "description": description or existing.get("description", "No help available"), "type": command_type,
-            "target_command": existing.get("target_command")}
+        # Try to get the bound method from the instance
+        method = getattr(self, f"do_{command_name}", None)
+        func = None
 
-        # Patch __doc__ only if function exists and is writable
-        func = getattr(self.__class__, f"do_{command_name}", None)
-        if func and description:
-            try:
-                func.__doc__ = description
-            except (AttributeError, TypeError):
-                # Some types (like bound methods or built-ins) may not allow __doc__ updates
-                pass
+        # Get the original function (not the bound method) to attach attributes
+        if method and hasattr(method, "__func__"):
+            func = method.__func__
+        elif hasattr(self.__class__, f"do_{command_name}"):
+            func = getattr(self.__class__, f"do_{command_name}")
+
+        if func:
+            if not hasattr(func, "command_metadata"):
+                func.command_metadata = {}
+
+            func.command_metadata.update({
+                "description": description,
+                "type": command_type,
+                "hidden": hidden,
+                "is_alias": is_alias,
+            })
+
+            if patch_doc and description:
+                try:
+                    func.__doc__ = description
+                except (AttributeError, TypeError):
+                    pass
 
     def _add_alias_with_description(self, alias_name: str, description: str, target_command: str,
                                     cmd_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
@@ -344,8 +388,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         target_cmd_root = target_command.split()[0] if target_command else ""
 
         # If this alias maps 1-to-1 to a builtin command, use cmd2's alias system
-        if (
-                alias_name not in self._builtin_commands and target_command == target_cmd_root and target_cmd_root in self._builtin_commands):
+        if (alias_name not in self._builtin_commands and target_command == target_cmd_root
+                and target_cmd_root in self._builtin_commands):
             self.aliases[alias_name] = target_command
             return
 
@@ -358,16 +402,27 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         alias_func.__doc__ = description
         setattr(self.__class__, alias_func.__name__, alias_func)
 
-        self._set_command_metadata(alias_name, description=description, command_type=cmd_type)
-        self._alias_metadata[alias_name]["target_command"] = target_command
-        self._alias_metadata[alias_name]["target_command"] = target_command
+        # Update alias-specific metadata registry
+        if not hasattr(self, "_alias_metadata"):
+            self._alias_metadata = {}
 
+        existing = self._alias_metadata.get(alias_name, {})
+        self._alias_metadata[alias_name] = {
+            "description": description or existing.get("description", "No help available"),
+            "type": cmd_type,
+            "target_command": existing.get("target_command"),
+            "hidden": hidden,
+        }
+
+        # Set metadata
+        self._set_command_metadata(alias_name, description=description,
+                                   command_type=cmd_type, hidden=hidden, patch_doc=True, is_alias=True)
         # Hide if specified
-        if hidden:
-            if alias_name not in self.hidden_commands:
-                self.hidden_commands.append(alias_name)
+        if hidden and alias_name not in self.hidden_commands:
+            self.hidden_commands.append(alias_name)
 
-    def _show_commands_summary_table(self, filter_type: 'Optional[AutoForgCommandType]' = None):
+    def _show_commands_summary_table(self, show_hidden: bool = False,
+                                     filter_type: 'Optional[AutoForgCommandType]' = None):
         """
         Print a colorized, zebra-striped summary of available commands using prompt_toolkit.
 
@@ -375,6 +430,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Zebra striping improves readability, and each row is padded for consistent layout.
 
         Args:
+            show_hidden(bool, optional): Whether to show hidden commands.
             filter_type (Optional[AutoForgCommandType]): If provided, only show commands of this type.
         """
         term_width = self._toolbox.get_terminal_width(default_width=100)
@@ -394,16 +450,27 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         commands_by_type = {}
 
         # Collect aliases
-        for name, meta in self._alias_metadata.items():
+        for cmd, meta in self._alias_metadata.items():
+            if not show_hidden and cmd in self.hidden_commands:
+                continue
             cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
             if filter_type is None or filter_type == cmd_type:
-                commands_by_type.setdefault(cmd_type, []).append((name, meta.get("description", "No help available")))
+                commands_by_type.setdefault(cmd_type, []).append((cmd, meta.get("description", "No help available")))
 
         # Collect docstring-based commands
         for cmd in sorted(self.get_all_commands()):
-            if cmd in self.hidden_commands or cmd in self._alias_metadata:
-                continue
+
             method = getattr(self, f'do_{cmd}', None)
+
+            # Check if the command has metadata indicating it should be hidden
+            command_metadata = getattr(method, "command_metadata", {}) if method else {}
+            if command_metadata.get("hidden", False) and cmd not in self.hidden_commands:
+                self.hidden_commands.append(cmd)
+
+            # Filter out hidden and alias commands unless show_hidden is True
+            if not show_hidden and (cmd in self.hidden_commands or cmd in self._alias_metadata):
+                continue
+
             doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
             cmd_type = AutoForgCommandType.MISCELLANEOUS
             if filter_type is None or filter_type == cmd_type:
@@ -506,12 +573,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         added_commands: int = 0
 
-        for cmd_summary in self.dynamic_cli_commands_list:
-            cmd_name = cmd_summary.name
-            description = cmd_summary.description
+        # Get the loaded commands list from registry
+        self.dynamic_cli_commands_list = self._registry.get_modules_list(
+            auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND)
+
+        existing_commands = len(self.dynamic_cli_commands_list) if self.dynamic_cli_commands_list else 0
+        if existing_commands == 0:
+            self._logger.warning("No dynamic commands loaded")
+            return 0
+
+        for cmd_info in self.dynamic_cli_commands_list:
+            command_name = cmd_info.name
+            command_type = AutoForgCommandType.UNKNOWN
+            description = "Description not provided" if cmd_info.description is None else cmd_info.description
+            hidden = cmd_info.hidden
 
             # Define the function and attach a docstring BEFORE binding
-            def make_cmd(name=cmd_name, doc=description):
+            def make_cmd(name=command_name, doc=description):
                 # noinspection PyShadowingNames
                 def dynamic_cmd(self, arg):
                     try:
@@ -532,13 +610,20 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 dynamic_cmd.__doc__ = doc
                 return dynamic_cmd
 
-            unbound_func = make_cmd(cmd_name, description)
-            method_name = f"do_{cmd_name}"
+            unbound_func = make_cmd(command_name, description)
+            method_name = f"do_{command_name}"
             bound_method = MethodType(unbound_func, self)
             setattr(self, method_name, bound_method)
-            self._logger.debug(f"Command '{cmd_name}' was added to the prompt")
+
+            self._set_command_metadata(command_name=command_name, description=description,
+                                       command_type=command_type, hidden=hidden)
+            added_commands += 1
+            self._logger.debug(f"Command '{command_name}' was added to the prompt")
+
             added_commands = added_commands + 1
 
+        if added_commands == 0:
+            self._logger.warning("No dynamic commands loaded")
         return added_commands
 
     def _load_history(self):
@@ -816,7 +901,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Display a directory listing using the system '/bin/ls' command.
         Args:
-            args (str): Arguments passed directly to the 'ls' command (e.g., '-la', '--color=auto').
+            args (str): Arguments passed directly to the 'ls' command.
         Returns:
             str: The output of the 'ls' command as a string.
         """
@@ -876,15 +961,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             command_method = getattr(self, f'do_{arg}', None)
 
-            # Try to retrieve help text, either from the command's docstring or by checking if it has a man page entry.
+            # Try to retrieve help either from the command's docstring or by checking if it has a man page entry.
             if command_record and 'description' in command_record:
-                command_method_description = command_record['description']
+                command_method_description = command_record.get('description', None)
             elif command_method and command_method.__doc__:
-                command_method_description = command_method.__doc__
+                command_method_description = self._toolbox.normalize_docstrings(command_method.__doc__)
             elif man_description:
                 command_method_description = _format_description_blocks(text=man_description)
             else:
-                command_method_description = "Description not provided."
+                command_method_description = None
 
             if command_method_description:
                 command_help_title = "[bold cyan]Auto[/bold cyan][bold white]🛠 Forge[/bold white] Command Help"
@@ -892,7 +977,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                           border_style="cyan", title=command_help_title, padding=(1, 1),
                                           width=term_width), "\n")  # Force panel to fit terminal width
             else:
-                console.print(f"[bold red]No help available for '{arg}'.[/bold red]")
+                console.print(f"[bold red]No help available for '{arg}'[/bold red]")
 
         if arg:
             _show_command_help()

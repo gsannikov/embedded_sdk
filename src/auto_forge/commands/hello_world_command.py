@@ -34,7 +34,7 @@ class HelloCommand(CLICommandInterface):
                 - raise_exceptions (bool): If True, raises exceptions on error instead of returning error codes.
         """
 
-        super().__init__(command_name="hello")
+        super().__init__(command_name="hello", hidden=True)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
