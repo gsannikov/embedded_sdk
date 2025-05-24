@@ -52,7 +52,8 @@ class AutoForgCommandType(Enum):
     SYSTEM = 7
     INSTALLER = 8
     MISCELLANEOUS = 9
-    ALIASES = 10
+    SHELL = 10
+    ALIASES = 11
 
 
 # @formatter:off
@@ -68,6 +69,7 @@ COMMAND_TYPE_COLOR_MAP = {
     AutoForgCommandType.SYSTEM: "#ababab",
     AutoForgCommandType.INSTALLER: "#4070ff",
     AutoForgCommandType.MISCELLANEOUS: "#888888",
+    AutoForgCommandType.SHELL: "#1a2b92",
     AutoForgCommandType.ALIASES: "#999999",
 }
 # @formatter:on
