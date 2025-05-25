@@ -27,8 +27,7 @@
 		{
 			"description": "Looking for 'dt'",
 			"method": "validate_prerequisite",
-			"step_disabled": true,
-			"status_on_error": "",
+			"status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
 			"arguments": {
 				"command": "dt",
 				"arguments": "version",
@@ -80,7 +79,7 @@
 		{
 			"description": "Getting git access token using 'dt'",
 			"method": "execute_shell_command",
-			"step_disabled": true,
+			"disabled": true,
 			"arguments": {
 				"command_and_args": "dt github print-token",
 				"cwd": "$HOME/bin"
