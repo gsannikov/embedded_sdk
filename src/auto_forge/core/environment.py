@@ -1627,11 +1627,11 @@ class CoreEnvironment(CoreModuleInterface):
             return 0
 
         except Exception as steps_error:
-            
-            if status_on_error is not None:
+          
+            self._tracker.set_result(text="Error\n", status_code=1)
+              if status_on_error is not None:
                 print(status_on_error)
 
-            self._tracker.set_result(text=error_text, status_code=1)
             raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}") from steps_error
         finally:
             # Restore terminal cursor on exit
