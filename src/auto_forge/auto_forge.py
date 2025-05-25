@@ -253,6 +253,7 @@ class AutoForge(CoreModuleInterface):
         """
         try:
 
+            # noinspection PyUnresolvedReferences
             import pydevd_pycharm
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
