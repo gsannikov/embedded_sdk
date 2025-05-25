@@ -146,24 +146,24 @@ class AutoForge(CoreModuleInterface):
             """
 
             if self._workspace_path is None:
-                raise ValueError("Workspace path must be provided.")
+                raise ValueError("workspace path must be provided.")
             self._workspace_path = ToolBox.get_expanded_path(self._workspace_path)
             if not ToolBox.looks_like_unix_path(self._workspace_path):
-                raise ValueError(f"The specified path '{self._workspace_path}' does not look like a valid Unix path.")
+                raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
             if not self._create_workspace and not os.path.exists(self._workspace_path):
-                raise RuntimeError(f"Workspace path '{self._workspace_path}' does not exist and creation is disabled.")
+                raise RuntimeError(f"workspace path '{self._workspace_path}' does not exist and creation is disabled")
 
             # If we were requested to create a workspace, the destination path must be empty
             if (self._create_workspace and os.path.exists(self._workspace_path) and not ToolBox.is_directory_empty(
                     self._workspace_path)):
-                raise RuntimeError(f"Path '{self._workspace_path}' is not empty while workspace creation is enabled.")
+                raise RuntimeError(f"path '{self._workspace_path}' is not empty while workspace creation is enabled")
 
         def _validate_macro():
             if self._automation_macro is not None:
                 self._automation_macro = ToolBox.get_expanded_path(self._automation_macro)
                 if not os.path.isfile(self._automation_macro):
                     raise ValueError(
-                        f"Automation macro path '{self._automation_macro}' does not exist or is not a file.")
+                        f"automation macro path '{self._automation_macro}' does not exist or is not a file")
                 self._automated_mode = True
 
         def _validate_solution_package():
@@ -190,12 +190,12 @@ class AutoForge(CoreModuleInterface):
                     self._solution_package_file = solution_package_path
                     self._solution_package_path = None
                 else:
-                    raise ValueError(f"Package '{solution_package_path}' must be a directory or a .zip file.")
+                    raise ValueError(f"package '{solution_package_path}' must be a directory or a .zip file")
             elif os.path.isfile(solution_package_path) and solution_package_path.lower().endswith(".zip"):
                 self._solution_package_file = solution_package_path
                 self._solution_package_path = None
             else:
-                raise ValueError(f"Package '{solution_package_path}' is a directory or a .zip file.")
+                raise ValueError(f"package '{solution_package_path}' is a directory or a .zip file")
 
         def _validate_solution_url():
             """
@@ -208,21 +208,21 @@ class AutoForge(CoreModuleInterface):
                 return
             is_url_path = ToolBox.is_url_path(self._solution_url)
             if is_url_path is None:
-                raise RuntimeError(f"The specified URL '{self._solution_url}' is not a valid Git URL.")
+                raise RuntimeError(f"the specified URL '{self._solution_url}' is not a valid Git URL")
             if not is_url_path:
-                raise RuntimeError(f"The specified URL '{self._solution_url}' does not point to a valid path.")
+                raise RuntimeError(f"the specified URL '{self._solution_url}' does not point to a valid path")
 
         def _validate_network_options():
             if remote_debugging:
                 self._remote_debugging = ToolBox.get_address_and_port(remote_debugging)
                 if self._remote_debugging is None:
-                    raise ValueError(f"The specified remote debugging address '{remote_debugging}' is invalid. "
-                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678).")
+                    raise ValueError(f"the specified remote debugging address '{remote_debugging}' is invalid. "
+                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)")
             if proxy_server:
                 self._proxy_server = ToolBox.get_address_and_port(proxy_server)
                 if self._proxy_server is None:
-                    raise ValueError(f"The specified proxy server address '{proxy_server}' is invalid. "
-                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678).")
+                    raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
+                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)")
 
         # Orchestrate
         solution_package = None
@@ -329,7 +329,8 @@ class AutoForge(CoreModuleInterface):
                 # Execute workspace creation script
                 # Follow workspace setup steps as defined by the solution.
                 # ==============================================================
-                env_steps_file: Optional[str] = self._solution.get_included_file('environment')
+
+                env_steps_file: Optional[str] = self._solution.get_arbitrary_item('environment', deep_search=True)
                 if env_steps_file is None:
                     raise RuntimeError("an environment steps file was not specified in the solution")
 

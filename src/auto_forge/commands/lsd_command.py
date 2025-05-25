@@ -216,13 +216,17 @@ class LSDCommand(CLICommandInterface):
 
         return max_width
 
-    def _lsd(self, destination_paths, show_all: bool = False, group_directories_first: bool = False,
-             disable_icons: bool = False, immediate_echo: bool = True, _show_long: Optional[bool] = False) -> Optional[
-        str]:
+    def _lsd(self,  # noqa: C901 # Method is indeed too long, noted thanks.
+             destination_paths: list[Path],
+             show_all: bool = False,
+             group_directories_first: bool = False,
+             disable_icons: bool = False,
+             immediate_echo: bool = True,
+             _show_long: Optional[bool] = False) -> Optional[str]:
         """
-        The heart of the LSD Command.
+        The beating heart of the LSD Command.
         Args:
-            destination_paths (List[Path]): List of paths to list.
+            destination_paths (list[Path]): List of paths to list.
             show_all (bool): Show hidden files (starting with '.').
             group_directories_first (bool): Group directories before files.
             disable_icons (bool): Disable icons column.
@@ -245,7 +249,7 @@ class LSDCommand(CLICommandInterface):
         date_padded_text = date_header_text.ljust(max_date_width)
 
         for dest in destination_paths:
-            dest = self._tool_box.get_expanded_path(dest)
+            dest = self._tool_box.get_expanded_path(str(dest))
             path = Path(dest)
             max_size_width = len(size_header_text)
 
@@ -385,8 +389,7 @@ class LSDCommand(CLICommandInterface):
             self._terminal_icons = self._tool_box.auto_forge.configuration.get("terminal_icons")
 
         if not self._terminal_icons or not self._ansi_codes:
-            print("Error: Essential terminal resources (icons and ANSI codes) are unavailable.")
-            return 1
+            raise RuntimeError("'lsd' can't run, essential terminal resources (icons and ANSI codes) are unavailable")
 
         # Gets the directory listing and print
         print()

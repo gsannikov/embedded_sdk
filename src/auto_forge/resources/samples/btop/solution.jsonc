@@ -72,20 +72,14 @@
 */
 
 {
-	// Required configuration files for other core modules
-	"includes": {
-		// Solution variables - mandatory
-		"variables": "variables.jsonc",
-		// Workspace environment creation steps optional include
-		"environment": "environment.jsonc",
-		// Defines schema version be used
-		"schema": "1.0"
-	},
 	// Solutions
 	"solutions": [
 		{
 			"name": "demo",
 			"description": "Demo solution",
+			"environment": "<$include>environment.jsonc",
+			"variables": "<$include>variables.jsonc",
+			"schema": "1.0",
 			"build_path": "$BUILD_OUT",
 			"workspace": "$PROJ_WORKSPACE",
 			// Toolchains used by this solution

@@ -27,6 +27,7 @@ import os
 import re
 from collections import deque
 from collections.abc import Iterator
+from contextlib import suppress
 from enum import Enum
 from typing import Any, Optional, Union
 
@@ -82,18 +83,19 @@ class CoreSolution(CoreModuleInterface):
         self._config_file_path: Optional[str] = None  # Loaded solution file path
         self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
         self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
-        self._includes: Optional[dict[str, Any]] = None  # Additional included JSONS
         self._scope = _ScopeState()  # Initialize scope state to track processing state and context
         self._solution_data: Optional[dict[str, Any]] = None  # To store processed solution data
         self._solution_schema: Optional[dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[dict[str, Any]] = None  # To store original, unaltered solution data
-        self._root_solution_name: Optional[str] = None  # The name if the first solution which must exist
+        self._root_solution_name: Optional[str] = None  # The name of the first solution which must exist
+        self._root_solution_contex: Optional[
+            dict[str, Any]] = None  # The context of the first solution which must exist
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
         self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
-        self._toolbox = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
+        self._tool_box = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
         self._workspace_creation_mode: bool = workspace_creation_mode  # Creation arguments
         self._workspace_path: str = workspace_path  # Creation arguments
 
@@ -106,12 +108,43 @@ class CoreSolution(CoreModuleInterface):
                                  description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def get_arbitrary_item(self, key: str) -> Optional[Union[list[Any], dict[str, Any]]]:
-        """Returns a list or dictionary from the solution JSON by key, or None if not found or invalid type."""
-        if self._solution_loaded:
+    def get_arbitrary_item(self,
+                           key: str,
+                           deep_search: bool = False) -> Optional[Union[list[Any], dict[str, Any], str]]:
+        """
+        Returns a list, dictionary, or string from the solution JSON by key.
+        If deep_search is True, performs a recursive search through the entire structure.
+        Args:
+            key (str): The key to search for.
+            deep_search (bool): Whether to search deeply through the structure.
+        Returns:
+            Optional[Union[list, dict, str]]: The value found, or None if not found or invalid type.
+        """
+        if not self._solution_loaded:
+            return None
+
+        def recursive_lookup(obj: Any) -> Optional[Union[list[Any], dict[str, Any], str]]:
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k == key and isinstance(v, (list, dict, str)):
+                        return v
+                    result = recursive_lookup(v)
+                    if result is not None:
+                        return result
+            elif isinstance(obj, list):
+                for item in obj:
+                    result = recursive_lookup(item)
+                    if result is not None:
+                        return result
+            return None
+
+        if not deep_search:
             value = self._solution_data.get(key)
-            if isinstance(value, (list, dict)):
+            if isinstance(value, (list, dict, str)):
                 return value
+        else:
+            return recursive_lookup(self._solution_data)
+
         return None
 
     def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[list, dict]]:
@@ -247,14 +280,56 @@ class CoreSolution(CoreModuleInterface):
 
         return generator()
 
-    def get_included_file(self, include_name: str) -> Optional[str]:
-        """ Return an included file name based on its key within the 'includes' cluster"""
+    def _resolve_include(
+            self,
+            element: str,
+            context: Union[dict, list, str],
+            search_path: Optional[str] = None,
+            return_path: bool = False
+    ) -> Optional[Any]:
+        """
+        Searches for the given element in the provided context. If the value is an include directive
+        in the form "<$include>path/to/file", resolves and optionally loads the file contents.
+        Args:
+            element (str): The key or index to look for in the context.
+            context (Union[dict, list, str]): Structure holding the value (dict, list, or str).
+            search_path (Optional[str]): Directory to resolve relative include paths from, if needed.
+            return_path (bool): If True, returns the resolved file path instead of its loaded contents.
+        Returns:
+            Optional[Any]: Parsed file content or the resolved path if return_path is True, else None.
 
-        if self._solution_loaded:
-            include_file = self._includes.get(include_name)
-            if include_file and self._config_file_path:
-                include_file_path: str = os.path.join(str(self._config_file_path), str(include_file))
-                return include_file_path
+        """
+        include_prefix = "<$include>"
+
+        # Extract the candidate value
+        value = None
+        if isinstance(context, dict):
+            value = context.get(element)
+        elif isinstance(context, list):
+            try:
+                index = int(element)
+                value = context[index]
+            except (ValueError, IndexError):
+                return None
+        elif isinstance(context, str) and element == "":
+            value = context
+
+        # If it's a valid include directive
+        if isinstance(value, str) and value.startswith(include_prefix):
+            raw_path = value[len(include_prefix):].strip()
+
+            # First try resolving as is
+            expanded_path = self._tool_box.get_expanded_path(raw_path)
+            if not os.path.isfile(expanded_path) and search_path and not os.path.isabs(raw_path):
+                fallback_path = os.path.join(search_path, raw_path)
+                expanded_path = self._tool_box.get_expanded_path(fallback_path)
+
+            if os.path.isfile(expanded_path):
+                if return_path:
+                    return expanded_path
+                with suppress(Exception):
+                    return self._processor.preprocess(file_name=expanded_path)
+
         return None
 
     def show(self, pretty: bool = False):
@@ -303,22 +378,25 @@ class CoreSolution(CoreModuleInterface):
         solutions = self._root_context.get("solutions", [])
         if isinstance(solutions, list) and solutions:
             self._root_solution_name = solutions[0].get("name")
+            self._root_solution_context = solutions[0]
 
-        if not isinstance(self._root_solution_name, str):
-            raise Exception(f"missing or invalid 'name' in the first solution entry of '{self._config_file_path}'")
+        if not isinstance(self._root_solution_name, str) or not isinstance(self._root_solution_context, dict):
+            raise Exception(
+                f"missing solution context or invalid 'name' in the first solution entry of '{self._config_file_path}'")
 
-        # Get a reference to the include JSON list, we will use them to jump start other core modules
-        self._includes = self._root_context.get("includes", {})
-        if self._includes is None or len(self._includes) == 0:
-            raise RuntimeError(f"no includes defined in '{os.path.basename(self._config_file_name)}'")
+        # Get a reference to mandatory included JSON files, we will use them to jump start other core modules
+        variables_config_file_name = self._resolve_include(element="variables", context=self._root_solution_context,
+                                                           search_path=self._config_file_path, return_path=True)
+        if variables_config_file_name is None:
+            raise RuntimeError("'variables' mandatory include file could not be resolved")
 
         # Initialize the variables core module based on the configuration file we got
-        config_file = f"{self._config_file_path}/{self._includes.get('variables')}"
-        self._variables = CoreVariables(variables_config_file_name=config_file, solution_name=self._root_solution_name,
+        self._variables = CoreVariables(variables_config_file_name=variables_config_file_name,
+                                        solution_name=self._root_solution_name,
                                         workspace_path=self._workspace_path,
                                         workspace_creation_mode=self._workspace_creation_mode)
 
-        schema_version = self._includes.get("schema")
+        schema_version = self._root_solution_context.get("schema")
         if schema_version is not None:
             schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
             if os.path.exists(schema_path):
@@ -368,6 +446,7 @@ class CoreSolution(CoreModuleInterface):
         try:
             # Each major step is processed and immediately refreshed
             self._process_and_refresh(method=self._traverse_and_process_syntax)
+            self._process_and_refresh(method=self._traverse_and_process_includes)
             self._process_and_refresh(method=self._traverse_and_process_derivations)
             self._process_and_refresh(method=self._traverse_and_process_variables)
 
@@ -497,6 +576,40 @@ class CoreSolution(CoreModuleInterface):
             for item in node:
                 self._traverse_and_process_derivations(item, parent_key)
 
+    def _traverse_and_process_includes(self,
+                                       node: Union[dict[str, Any], list[Any]],
+                                       ) -> None:
+        """
+        Recursively traverses a JSON-like structure to process <$include> directives.
+        If a string value in the structure is a valid include directive, it replaces
+        that value with the parsed contents of the referenced file.
+
+        Args:
+            node (Union[dict, list]): The data structure to process.
+        """
+        if isinstance(node, dict):
+            for key, value in list(node.items()):
+                # Case 1: value is a string and might be an include directive
+                if isinstance(value, str) and value.strip().startswith("<$include>"):
+                    resolved = self._resolve_include(key, node, search_path=self._config_file_path, return_path=True)
+                    if resolved is not None:
+                        node[key] = resolved
+                # Case 2: value is nested dict or list
+                elif isinstance(value, (dict, list)):
+                    self._traverse_and_process_includes(value)
+
+        elif isinstance(node, list):
+            for i in range(len(node)):
+                item = node[i]
+                # Case 1: item is a string and might be an include directive
+                if isinstance(item, str) and item.strip().startswith("<$include>"):
+                    resolved = self._resolve_include(str(i), node, search_path=self._config_file_path, return_path=True)
+                    if resolved is not None:
+                        node[i] = resolved
+                # Case 2: item is nested
+                elif isinstance(item, (dict, list)):
+                    self._traverse_and_process_includes(item)
+
     def _traverse_and_process_references(self, node: Union[dict[str, Any], list[Any]], parent_key: Optional[str] = None,
                                          current_context: Optional[dict[str, Any]] = None):
         """
@@ -547,7 +660,6 @@ class CoreSolution(CoreModuleInterface):
     def _resolve_variable_in_string(self, text: str, variable_type: "PreProcessType") -> Any:
         """
         Resolves environment variables or reference tokens in a string based on the specified variable type.
-
         Args:
             text (str): The input string containing variable references.
             variable_type (PreProcessType): The type of variables to resolve — either environment variables or references.

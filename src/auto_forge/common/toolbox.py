@@ -290,12 +290,11 @@ class ToolBox(CoreModuleInterface):
         Returns:
             bool: True if the class definition is found, False otherwise (including file access errors).
         """
-        with suppress(OSError):
-            with open(file_path, encoding='utf-8') as file:
-                for line in file:
-                    stripped = line.lstrip()
-                    if stripped.startswith('class ') and class_name in stripped:
-                        return True
+        with suppress(OSError), open(file_path, encoding='utf-8') as file:
+            for line in file:
+                stripped = line.lstrip()
+                if stripped.startswith('class ') and class_name in stripped:
+                    return True
         return False
 
     @staticmethod
@@ -1269,19 +1268,21 @@ class ToolBox(CoreModuleInterface):
         return flattened_text
 
     @staticmethod
-    def normalize_docstrings(doc: str) -> str:
+    def normalize_docstrings(doc: str, wrap_term_width: int = 0) -> str:
         """
         Simple docstring formatter for terminal display.
         Args:
             doc (str): The raw docstring input.
+            wrap_term_width (int): The terminal width to wrap the docstring into.
         Returns:
             str: A cleaned, well-formatted, and wrapped docstring.
         """
         if not doc:
             return ""
 
-            # Get current terminal width
-        width = shutil.get_terminal_size((80, 20)).columns
+        # Get current terminal width if not specified.
+        if wrap_term_width == 0:
+            wrap_term_width = shutil.get_terminal_size((80, 20)).columns - 8
 
         # 1. Remove newlines/tabs, collapse multiple spaces
         doc = re.sub(r"[\n\t]+", "", doc)
@@ -1292,7 +1293,7 @@ class ToolBox(CoreModuleInterface):
                 parts.pop(i)
                 continue
             parts[i] = part.strip() + "."
-            parts[i] = textwrap.fill(parts[i], width=(width - 8))
+            parts[i] = textwrap.fill(parts[i], width=wrap_term_width)
             parts[i] = "    " + parts[i].replace("\n", "\n    ") + "\n"
             parts[i] = parts[i].replace("Args:", "Args:\n        ")
             parts[i] = parts[i].replace("Returns:", "Returns:\n        ")

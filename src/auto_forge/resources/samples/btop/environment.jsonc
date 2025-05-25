@@ -28,6 +28,7 @@
 			"description": "Looking for 'dt'",
 			"method": "validate_prerequisite",
 			"step_disabled": true,
+			"status_on_error": "",
 			"arguments": {
 				"command": "dt",
 				"arguments": "version",

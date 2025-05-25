@@ -140,13 +140,11 @@ class CoreProcessor(CoreModuleInterface):
     def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
         """
         Preprocess a JSON or JSONC file to remove embedded comments.
-
         If the specified file does not exist but a file with the alternate extension
         exists (.json ↔ .jsonc), the alternate will be used.
 
         Args:
             file_name (str | Path): Path to the JSON or JSONC file.
-
         Returns:
             dict or None: Parsed JSON object, or None if an error occurs.
         """

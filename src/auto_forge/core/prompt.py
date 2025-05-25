@@ -81,8 +81,7 @@ class _CoreCompleter(Completer):
 
     def _should_fallback_to_path_completion(self, cmd: str, arg_text: str, completer_func: Optional[callable]) -> bool:
         """
-        Determines whether path completions should be triggered for a command
-        that has no specific completer.
+        Determines whether path completions should be triggered for a command that has no specific completer.
 
         Args:
             cmd (str): The base command name.
@@ -329,7 +328,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def _set_command_metadata(
             self,
             command_name: str,
-            description: str = None,
+            description: Optional[str] = None,
             command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
             hidden: bool = False,
             patch_doc: bool = False,
@@ -369,10 +368,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             })
 
             if patch_doc and description:
-                try:
+                with suppress(AttributeError, TypeError):
                     func.__doc__ = description
-                except (AttributeError, TypeError):
-                    pass
 
     def _add_alias_with_description(self, alias_name: str, description: str, target_command: str,
                                     cmd_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
@@ -486,7 +483,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
             section_title = f"{cmd_type.name.title()} Commands"
-            print_formatted_text(HTML(f"\n<section>❯ {section_title}</section>"), style=style)
+            print_formatted_text(HTML(f"\n<section>{section_title}</section>"), style=style)
 
             command_class = f"command-{cmd_type.name.lower()}"
 
@@ -923,25 +920,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         console = Console()
         term_width = self._toolbox.get_terminal_width(default_width=100)
 
-        def _format_description_blocks(text: str) -> str:
-            """
-            Formats a block of text by splitting on periods, trimming each fragment,
-            and appending a period and newline. The first sentence is unindented;
-            all subsequent lines are indented by 4 spaces.
-            Args:
-                text (str): The raw input text, typically a man page paragraph.
-
-            Returns:
-                str: The formatted block of sentences with proper indentation.
-            """
-            lines = []
-            for i, fragment in enumerate(text.split(".")):
-                fragment = fragment.strip()
-                if fragment:
-                    line = f"{fragment}." if i == 0 else f"    {fragment}."
-                    lines.append(line + "\n")
-            return ''.join(lines)
-
         def _show_command_help():
             """
             Retrieve command description or mman page text and construct a command specific help
@@ -965,9 +943,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if command_record and 'description' in command_record:
                 command_method_description = command_record.get('description', None)
             elif command_method and command_method.__doc__:
-                command_method_description = self._toolbox.normalize_docstrings(command_method.__doc__)
+                command_method_description = self._toolbox.normalize_docstrings(doc=command_method.__doc__,
+                                                                                wrap_term_width=term_width - 8)
             elif man_description:
-                command_method_description = _format_description_blocks(text=man_description)
+                command_method_description = self._toolbox.normalize_docstrings(doc=man_description,
+                                                                                wrap_term_width=term_width - 8)
             else:
                 command_method_description = None
 

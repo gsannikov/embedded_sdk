@@ -17,6 +17,7 @@ Requirements:
 import sys
 from contextlib import suppress
 from pathlib import Path
+from typing import ClassVar
 
 # Safely check for textual availability
 with suppress(ImportError):
@@ -29,7 +30,7 @@ with suppress(ImportError):
     class MarkdownApp(App):
         """Textual application to render a Markdown file in the terminal."""
 
-        BINDINGS = [("q", "quit", "Quit")]
+        BINDINGS: ClassVar[list[tuple[str, str, str]]] = [("q", "quit", "Quit")]
 
         def __init__(self, markdown_path: str):
             super().__init__()
