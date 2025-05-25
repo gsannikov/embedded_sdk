@@ -51,7 +51,7 @@
 			"description": "Project Documents"
 		},
 		{
-			"name": "PROJ_SCRIPTS",
+			"name": "SCRIPTS_BASE",
 			"value": "$PROJ_BASE/scripts",
 			"description": "Project scripts"
 		},

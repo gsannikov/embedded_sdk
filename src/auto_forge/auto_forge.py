@@ -344,7 +344,7 @@ class AutoForge(CoreModuleInterface):
                 ret_val = self._environment.follow_steps(steps_file=env_steps_file)
 
                 # Lastly store the solution in the newly created workspace
-                scripts_path = self._variables.get(key="PROJ_SCRIPTS")
+                scripts_path = self._variables.get(key="SCRIPTS_BASE")
                 if scripts_path is not None:
                     solution_destination_path = os.path.join(scripts_path, 'solution')
                     env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'

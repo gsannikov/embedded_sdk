@@ -146,7 +146,7 @@
 			"method": "git_clone_repo",
 			"arguments": {
 				"repo_url": "https://github.com/aristocratos/btop.git",
-				"dest_repo_path": "$PROJ_SOURCES_BASE/btop",
+				"dest_repo_path": "$SOURCE_BASE/btop",
 				"revision": "main",
 				"timeout": 360
 			}
