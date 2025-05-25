@@ -48,8 +48,7 @@ class SigToolCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
 
     def _create_sig_tool(self, **kwargs: Any) -> bool:
         """
@@ -204,14 +203,12 @@ class SigToolCommand(CLICommandInterface):
 
             # Check if resizing is necessary or possible
             if source_file_size >= required_size:
-                self._logger.error(
-                    f"Cannot pad file '{source_binary_file}' to {required_size} "
-                    f"bytes as it is already {source_file_size} bytes or larger.")
+                self._logger.error(f"Cannot pad file '{source_binary_file}' to {required_size} "
+                                   f"bytes as it is already {source_file_size} bytes or larger.")
                 return False
 
-            self._logger.debug(
-                f"padding '{os.path.basename(source_binary_file)}' to {required_size} bytes, "
-                f"current size {source_file_size} bytes.")
+            self._logger.debug(f"padding '{os.path.basename(source_binary_file)}' to {required_size} bytes, "
+                               f"current size {source_file_size} bytes.")
 
             # Calculate the number of bytes to add
             bytes_to_add = required_size - source_file_size
@@ -225,9 +222,8 @@ class SigToolCommand(CLICommandInterface):
             return True
 
         except Exception as exception:
-            raise RuntimeError(
-                f"can't resize '{os.path.basename(source_binary_file)}' "
-                f"to {required_size} bytes: {exception}") from exception
+            raise RuntimeError(f"can't resize '{os.path.basename(source_binary_file)}' "
+                               f"to {required_size} bytes: {exception}") from exception
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -245,14 +241,11 @@ class SigToolCommand(CLICommandInterface):
                             help="Path where we can retrieve git related info.")
         parser.add_argument("-r", "--replace", type=str,
                             help="Search and replace a signed section with the one created.")
-        parser.add_argument("-m", "--mini_loader", action="store_true",
-                            help="Updates NVM mini-loader CRC value.")
+        parser.add_argument("-m", "--mini_loader", action="store_true", help="Updates NVM mini-loader CRC value.")
         parser.add_argument("-s", "--show", action="store_true", help="Show signature content.")
-        parser.add_argument("-i", "--signature_id", type=lambda x: int(x) if int(x) > 0
-        else argparse.ArgumentTypeError(f"{x} is not a positive integer"), default=42,
-                            help="Signature Id to use")
-        parser.add_argument('-d', '--descriptor_file', required=True,
-                            help="The path to the signature descriptor file")
+        parser.add_argument("-i", "--signature_id", type=lambda x: int(x) if int(x) > 0 else argparse.ArgumentTypeError(
+            f"{x} is not a positive integer"), default=42, help="Signature Id to use")
+        parser.add_argument('-d', '--descriptor_file', required=True, help="The path to the signature descriptor file")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -265,8 +258,8 @@ class SigToolCommand(CLICommandInterface):
 
         # Create a signature tool instance if we don't have it
         if self._sig_tool is None:
-            self._create_sig_tool(descriptor_file=args.descriptor_file,
-                                  signature_id=args.signature_id, git_repo_path=args.git_path)
+            self._create_sig_tool(descriptor_file=args.descriptor_file, signature_id=args.signature_id,
+                                  git_repo_path=args.git_path)
 
         if args.update_crc:
             return_value = self._update_crc(source_binary_file=args.path, validate_only=False, pad_to_size=args.grow)

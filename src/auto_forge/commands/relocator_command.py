@@ -81,16 +81,12 @@ class _RelocateDefaultsRead:
             raise ValueError("'file_types' must be a list")
 
         # Construct dataclass instance
-        return _RelocateDefaults(
-            base_source_path=base_source_path,
-            base_destination_path=base_destination_path,
-            file_types=file_types,
-            delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
+        return _RelocateDefaults(base_source_path=base_source_path, base_destination_path=base_destination_path,
+            file_types=file_types, delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
             full_debug=defaults_data.get("full_debug", False),
             create_grave_yard=defaults_data.get("create_grave_yard", False),
             max_copy_depth=defaults_data.get("max_copy_depth", -1),
-            create_empty_cmake_file=defaults_data.get("create_empty_cmake_file", False),
-        )
+            create_empty_cmake_file=defaults_data.get("create_empty_cmake_file", False), )
 
 
 class _RelocateFolderRead:
@@ -100,9 +96,7 @@ class _RelocateFolderRead:
     """
 
     @staticmethod
-    def process(
-            defaults: _RelocateDefaults, raw_folder_entry: dict[str, Any]
-    ) -> _RelocateFolder:
+    def process(defaults: _RelocateDefaults, raw_folder_entry: dict[str, Any]) -> _RelocateFolder:
         if not isinstance(raw_folder_entry, dict):
             raise TypeError("Each folder entry must be a dictionary")
 
@@ -118,12 +112,8 @@ class _RelocateFolderRead:
 
         file_types = ['*'] if '*' in file_types else file_types
 
-        return _RelocateFolder(
-            description=raw_folder_entry.get("description"),
-            source=source,
-            destination=destination,
-            file_types=file_types,
-        )
+        return _RelocateFolder(description=raw_folder_entry.get("description"), source=source, destination=destination,
+            file_types=file_types, )
 
 
 class RelocatorCommand(CLICommandInterface):
@@ -154,8 +144,7 @@ class RelocatorCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions)
 
     def _reset(self) -> None:
         """
@@ -198,10 +187,8 @@ class RelocatorCommand(CLICommandInterface):
             if not isinstance(self._relocate_folders_data, list) or not self._relocate_folders_data:
                 raise KeyError("missing or invalid 'folders' section in JSON recipe")
 
-            self._relocated_folders = [
-                _RelocateFolderRead.process(self._relocate_defaults, entry)
-                for entry in self._relocate_folders_data
-            ]
+            self._relocated_folders = [_RelocateFolderRead.process(self._relocate_defaults, entry) for entry in
+                self._relocate_folders_data]
             self._relocate_folders_count = len(self._relocated_folders)
 
             # Inform the user if a feature is not implemented
@@ -209,8 +196,7 @@ class RelocatorCommand(CLICommandInterface):
                 self._logger.warning("'create_empty_cmake_file' is not implemented")
 
             self._logger.debug(
-                f"Recipe '{recipe_file}' loaded successfully: {self._relocate_folders_count} folders defined."
-            )
+                f"Recipe '{recipe_file}' loaded successfully: {self._relocate_folders_count} folders defined.")
 
         except Exception as load_error:
             # Re-raise the exception explicitly for future extension (e.g., logging or wrapping)
@@ -279,9 +265,7 @@ class RelocatorCommand(CLICommandInterface):
                         relative_path = os.path.relpath(root, folder.source)
 
                         # Determine if file matches allowed file types
-                        if '*' in folder.file_types or any(
-                                file.endswith(ft) for ft in folder.file_types if ft != '*'
-                        ):
+                        if '*' in folder.file_types or any(file.endswith(ft) for ft in folder.file_types if ft != '*'):
                             dest_path = os.path.join(folder.destination, relative_path, file)
                             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                             shutil.copy2(src_path, dest_path)

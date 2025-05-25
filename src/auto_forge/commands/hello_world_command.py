@@ -11,14 +11,8 @@ import argparse
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (
-    CLICommandInterface,
-    CoreGUI,
-    InputBoxButtonType,
-    InputBoxLineType,
-    InputBoxTextType,
-    MessageBoxType,
-)
+from auto_forge import (CLICommandInterface, CoreGUI, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
+                        MessageBoxType, )
 
 
 class HelloCommand(CLICommandInterface):
@@ -42,23 +36,13 @@ class HelloCommand(CLICommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
-        parser.add_argument(
-            "-t", "--text",
-            type=str,
-            help="Optional text to print in the console greeting."
-        )
+        parser.add_argument("-t", "--text", type=str, help="Optional text to print in the console greeting.")
 
-        parser.add_argument(
-            "-m", "--message_box_text",
-            type=str,
-            help="Optional text to display using the GUI message box."
-        )
+        parser.add_argument("-m", "--message_box_text", type=str,
+            help="Optional text to display using the GUI message box.")
 
-        parser.add_argument(
-            "-i", "--input_box_text",
-            type=str,
-            help="Optional text to display using the GUI input box."
-        )
+        parser.add_argument("-i", "--input_box_text", type=str,
+            help="Optional text to display using the GUI input box.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -84,19 +68,8 @@ class HelloCommand(CLICommandInterface):
             input_box_text = args.input_box_text or args.text or default_text
             # Prepare the input lines
             input_lines = [
-                InputBoxLineType(
-                    label="Username",
-                    input_text="",
-                    text_type=InputBoxTextType.INPUT_TEXT,
-                    length=30
-                ),
-                InputBoxLineType(
-                    label="Password",
-                    input_text="",
-                    text_type=InputBoxTextType.INPUT_PASSWORD,
-                    length=30
-                )
-            ]
+                InputBoxLineType(label="Username", input_text="", text_type=InputBoxTextType.INPUT_TEXT, length=30),
+                InputBoxLineType(label="Password", input_text="", text_type=InputBoxTextType.INPUT_PASSWORD, length=30)]
 
             response = gui.input_box(caption=input_box_text, lines=input_lines,
                                      button_type=InputBoxButtonType.INPUT_CANCEL)

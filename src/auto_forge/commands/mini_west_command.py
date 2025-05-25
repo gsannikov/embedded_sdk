@@ -88,8 +88,7 @@ class MiniWestCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
 
         self._is_initialized = True
 
@@ -262,8 +261,7 @@ class MiniWestCommand(CLICommandInterface):
             if self._automated_mode:
                 timestamp = f"{datetime.now().strftime('%H:%M:%S')}:"
                 message = 'started cloning' if clone_state else 'cloned!'
-                sys.stdout.write(
-                    f"[{timestamp}] Project '{project.name}, revision {project.revision} : {message}.\n")
+                sys.stdout.write(f"[{timestamp}] Project '{project.name}, revision {project.revision} : {message}.\n")
                 sys.stdout.flush()
 
         if not clone_state:
@@ -517,12 +515,8 @@ class MiniWestCommand(CLICommandInterface):
         """
         self._ignored_projects_list.add(project_name)
 
-    def process_yml(self, west_yml_path: str,
-                    destination_path: str,
-                    status_line_length: int = 80,
-                    max_workers: int = 20,
-                    retry_count: int = 1,
-                    delay_between: int = 2):
+    def process_yml(self, west_yml_path: str, destination_path: str, status_line_length: int = 80,
+                    max_workers: int = 20, retry_count: int = 1, delay_between: int = 2):
         """
         Process the `west.yml` file and clone all specified repositories concurrently.
 
@@ -551,8 +545,7 @@ class MiniWestCommand(CLICommandInterface):
 
             # Build the list of projects
             self._build_projects_list(west_yaml_path=west_yml_path, clone_path=destination_path,
-                                      retry_count=retry_count,
-                                      status_line_length=status_line_length)
+                                      retry_count=retry_count, status_line_length=status_line_length)
 
             self._projects = self._update_top_levels()
 
@@ -627,8 +620,7 @@ class MiniWestCommand(CLICommandInterface):
             self.add_ignored_project("zephyr")
 
             # Process
-            return_value = self.process_yml(west_yml_path=west_yml_path,
-                                            destination_path=destination_path,
+            return_value = self.process_yml(west_yml_path=west_yml_path, destination_path=destination_path,
                                             max_workers=args.workers, retry_count=args.retry_count)
         else:
             return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS

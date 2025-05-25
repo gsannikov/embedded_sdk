@@ -45,8 +45,7 @@ class ZephyrSDKCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
 
     def detect(self, **_kwargs: Any) -> bool:
         """
@@ -90,10 +89,7 @@ class ZephyrSDKCommand(CLICommandInterface):
 
             # Extract version
             version = (
-                sdk_path.name.replace("zephyr-sdk-", "").upper()
-                if sdk_path.name.startswith("zephyr-sdk-")
-                else None
-            )
+                sdk_path.name.replace("zephyr-sdk-", "").upper() if sdk_path.name.startswith("zephyr-sdk-") else None)
 
             self._path = sdk_path.__str__()
             self._version = version

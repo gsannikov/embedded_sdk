@@ -34,10 +34,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (
-    CLICommandInterface,
-    ToolBox,
-)
+from auto_forge import (CLICommandInterface, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
@@ -79,8 +76,7 @@ class LSDCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
 
     def _get_icon_info(self, ext_or_name: Path) -> _LSDIconInfo:
         """
@@ -114,8 +110,7 @@ class LSDCommand(CLICommandInterface):
 
         return _LSDIconInfo(icon=icon, description=description, color=color_code)
 
-    def _format_entry_name_with_icon(self, name: str, is_dir: bool,
-                                     icon_info: Optional[_LSDIconInfo]) -> str:
+    def _format_entry_name_with_icon(self, name: str, is_dir: bool, icon_info: Optional[_LSDIconInfo]) -> str:
         """
         Format a file or directory name with an icon and color.
         Args:
@@ -217,12 +212,9 @@ class LSDCommand(CLICommandInterface):
         return max_width
 
     def _lsd(self,  # noqa: C901 # Method is indeed too long, noted, thanks.
-             destination_paths: list[Path],
-             show_all: bool = False,
-             group_directories_first: bool = False,
-             disable_icons: bool = False,
-             immediate_echo: bool = True,
-             _show_long: Optional[bool] = False) -> Optional[str]:
+             destination_paths: list[Path], show_all: bool = False, group_directories_first: bool = False,
+             disable_icons: bool = False, immediate_echo: bool = True, _show_long: Optional[bool] = False) -> Optional[
+        str]:
         """
         The beating heart of the LSD Command.
         Args:
@@ -254,9 +246,8 @@ class LSDCommand(CLICommandInterface):
             max_size_width = len(size_header_text)
 
             if not path.exists():
-                output_lines.append(
-                    f"{self._ansi_codes.get('FORE_RED')}{self._module_info.name}: "
-                    f"{dest}: no such file or directory{self._ansi_codes.get('STYLE_RESET_ALL')}")
+                output_lines.append(f"{self._ansi_codes.get('FORE_RED')}{self._module_info.name}: "
+                                    f"{dest}: no such file or directory{self._ansi_codes.get('STYLE_RESET_ALL')}")
                 continue
 
             if path.is_dir():
@@ -276,14 +267,12 @@ class LSDCommand(CLICommandInterface):
                     sys.stdout.write(f"{path}:\n")
 
             size_padded_text = size_header_text.ljust(max_size_width)
-            header = (
-                f"{self._ansi_codes.get('STYLE_UNDERLINE')}{size_padded_text}"
-                f"{self._ansi_codes.get('STYLE_RESET_ALL')}{size_padded_text[len(size_header_text):]} "
-                f"{self._ansi_codes.get('STYLE_UNDERLINE')}{date_header_text}"
-                f"{self._ansi_codes.get('STYLE_RESET_ALL')}{date_padded_text[len(date_header_text):]} "
-                f"{self._ansi_codes.get('STYLE_UNDERLINE')}{name_header_text}"
-                f"{self._ansi_codes.get('STYLE_RESET_ALL')}"
-            )
+            header = (f"{self._ansi_codes.get('STYLE_UNDERLINE')}{size_padded_text}"
+                      f"{self._ansi_codes.get('STYLE_RESET_ALL')}{size_padded_text[len(size_header_text):]} "
+                      f"{self._ansi_codes.get('STYLE_UNDERLINE')}{date_header_text}"
+                      f"{self._ansi_codes.get('STYLE_RESET_ALL')}{date_padded_text[len(date_header_text):]} "
+                      f"{self._ansi_codes.get('STYLE_UNDERLINE')}{name_header_text}"
+                      f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
 
             if not immediate_echo:
                 output_lines.append(header)
@@ -394,7 +383,6 @@ class LSDCommand(CLICommandInterface):
         # Gets the directory listing and print
         print()
         self._lsd(destination_paths=target_paths, show_all=args.all,
-                  group_directories_first=args.group_directories_first,
-                  disable_icons=args.no_icons)
+                  group_directories_first=args.group_directories_first, disable_icons=args.no_icons)
         print()
         return 0
