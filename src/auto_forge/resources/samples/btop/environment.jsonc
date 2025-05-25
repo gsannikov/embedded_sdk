@@ -26,6 +26,7 @@
 	"steps": [
 		{
 			"description": "Looking for 'dt'",
+			"disabled": true,
 			"method": "validate_prerequisite",
 			"status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
 			"arguments": {
