@@ -49,6 +49,7 @@
         // These commands typically control the terminal screen, use input prompts,
         // or produce continuous output unsuitable for standard command capture.
 
+        "apt*",
         "bash",
         "zsh",
         "btop",

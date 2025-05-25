@@ -11,6 +11,7 @@ Description:
 """
 import codecs
 import fcntl
+import fnmatch
 import inspect
 import json
 import logging
@@ -692,7 +693,7 @@ class CoreEnvironment(CoreModuleInterface):
         command = os.path.basename(full_command)
 
         # Full TTY handoff for interactive apps
-        if command in self._interactive_commands:
+        if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
             self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
             results = self.execute_fullscreen_shell_command(command_and_args=command_and_args)
             if check and results.return_code != 0:
@@ -760,10 +761,10 @@ class CoreEnvironment(CoreModuleInterface):
                     max_len = max(10, self._term_width - 10)
                     line = line[:max_len]
 
-                if echo_type == TerminalEchoType.SINGLE_LINE:
+                if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
                     sys.stdout.write(f'\033[K{line}\r')
                 else:
-                    sys.stdout.write(line + '\n')
+                    sys.stdout.write(line)
 
             sys.stdout.flush()
 
@@ -788,7 +789,10 @@ class CoreEnvironment(CoreModuleInterface):
                 self._logger.debug(f"> {clear_text}")
 
             input_buffer.clear()
-            return clear_text
+            if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
+                return clear_text
+            else:
+                return text
 
         # Execute the external command
         if use_pty:
@@ -841,7 +845,8 @@ class CoreEnvironment(CoreModuleInterface):
                             # Clear the line and aggravate into a queue
                             text_line = _bytes_to_message_queue(line_buffer, lines_queue)
 
-                            if echo_type in [TerminalEchoType.LINE, TerminalEchoType.SINGLE_LINE]:
+                            if echo_type in [TerminalEchoType.LINE, TerminalEchoType.CLEAR_LINE,
+                                             TerminalEchoType.SINGLE_LINE]:
                                 _print_line(text_line)
 
                             # Track it if we have a tracker instate

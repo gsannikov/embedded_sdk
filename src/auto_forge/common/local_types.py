@@ -257,6 +257,7 @@ class TerminalEchoType(Enum):
     NONE = auto()
     BYTE = auto()
     LINE = auto()
+    CLEAR_LINE = auto()
     SINGLE_LINE = auto()
 
 

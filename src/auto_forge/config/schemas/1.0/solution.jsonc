@@ -37,6 +37,9 @@
 					"name": {
 						"type": "string"
 					},
+					"variables": {
+						"type": "string"
+					},
 					"build_path": {
 						"type": "string"
 					},
@@ -149,6 +152,7 @@
 				},
 				"required": [
 					"name",
+					"variables",
 					"build_path",
 					"workspace",
 					"tool_chains",
