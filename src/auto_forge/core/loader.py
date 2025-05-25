@@ -84,7 +84,6 @@ class CoreLoader(CoreModuleInterface):
         Raises:
             RuntimeError: If lookup fails, type mismatch, or method is missing.
         """
-        self._logger.debug(f"Locating registered module for: '{name}'")
 
         module_record = self._registry.get_module_record_by_name(module_name=name.strip())
         if module_record is None:

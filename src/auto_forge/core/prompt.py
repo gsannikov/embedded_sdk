@@ -210,8 +210,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100,
-                    history_file: Optional[str] = None, configuration_data: Optional[dict[str, Any]] = None) -> None:
+    def _initialize(self,
+                    prompt: Optional[str] = None,
+                    max_completion_results: Optional[int] = 100,
+                    history_file: Optional[str] = None,
+                    configuration_data: Optional[dict[str, Any]] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         Args:
@@ -243,6 +246,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.argv = [sys.argv[0]]
         ansi.allow_ansi = True
 
+        # Get the active loaded solution
+        self._loaded_solution_name = self._solution.get_loaded_solution(name_only=True)
+
         # Dynamically added CLI commands
         self.dynamic_cli_commands_list: list[ModuleInfoType] = []
         self.loaded_commands = self._add_dynamic_cli_commands()
@@ -261,14 +267,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Use the primary solution name as the path base text
         if self._prompt_base is None:
-            self._prompt_base = self._solution.get_solutions_list(primary=True)
+            self._prompt_base = self._loaded_solution_name
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self)
         self.default_to_shell = True
 
-        for sol, proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
-            self.add_build_command(solution=sol, project=proj, configuration=cfg, description=cmd['description'],
+        for proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
+            self.add_build_command(project=proj, configuration=cfg, description=cmd['description'],
                                    command_name=cmd['name'])
 
         # Create persistent history object
@@ -812,7 +818,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def complete_build(self, text: str, line: str, begin_idx: int, _end_idx: int) -> list[Completion]:
         """
         Completes the 'build' command in progressive dot-separated segments:
-        build <solution>.<project>.<config>
+        build <project>.<config>
         The user is expected to type dots manually, not inserted by completions.
         """
         try:
@@ -824,31 +830,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             completions = []
             dot_parts = text.split(".")
 
-            # Case 1: build + SPACE → suggest solutions (no dot inserted)
+            # Case 1: build + SPACE → suggest projects (no dot inserted)
             if len(tokens) == 1 and not text:
-                for sol in self._solution.get_solutions_list() or []:
-                    completions.append(Completion(sol, start_position=0))
+                for proj in self._solution.get_projects_list() or []:
+                    completions.append(Completion(proj, start_position=0))
 
-            # Case 2: build sol → match solutions
+            # Case 2: build sol → match projects
             elif len(dot_parts) == 1:
                 partial = dot_parts[0]
-                for sol in self._solution.get_solutions_list() or []:
-                    if sol.startswith(partial):
-                        suffix = sol[len(partial):]
+                for proj in self._solution.get_projects_list() or []:
+                    if proj.startswith(partial):
+                        suffix = proj[len(partial):]
                         completions.append(Completion(suffix, start_position=-len(partial)))
 
-            # Case 3: build sol.proj → match projects (no dot in completion)
+            # Case 3: build proj → match projects (no dot in completion)
             elif len(dot_parts) == 2:
-                sol, proj_partial = dot_parts
-                for proj in self._solution.get_projects_list(sol) or []:
-                    if proj.startswith(proj_partial):
-                        suffix = proj[len(proj_partial):]
-                        completions.append(Completion(suffix, start_position=-len(proj_partial)))
-
-            # Case 4: build sol.proj.cfg → match configurations (final)
-            elif len(dot_parts) == 3:
-                sol, proj, cfg_partial = dot_parts
-                for cfg in self._solution.get_configurations_list(sol, proj) or []:
+                proj, cfg_partial = dot_parts
+                for cfg in self._solution.get_configurations_list(project_name=proj) or []:
                     if cfg.startswith(cfg_partial):
                         suffix = cfg[len(cfg_partial):]
                         completions.append(Completion(suffix, start_position=-len(cfg_partial)))
@@ -965,7 +963,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._show_commands_summary_table()
         return None
 
-    def add_build_command(self, solution: str, project: str, configuration: str, command_name: str,
+    def add_build_command(self, project: str, configuration: str, command_name: str,
                           description: Optional[str] = None):
         """
         Registers a user-friendly build command alias.
@@ -973,17 +971,16 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         for the given solution, project, and configuration name.
 
         Args:
-            solution (str): The solution name.
             project (str): The project name within the solution.
             configuration (str): The specific build configuration.
             command_name (str): The alias command name to be added.
             description (Optional[str]): A description of the command to be shown in help.
                                                  Defaults to a generated description if not provided.
         """
-        target_command = f"build {solution}.{project}.{configuration}"
+        target_command = f"build {project}.{configuration}"
 
         if not description:
-            description = f"Build {solution}/{project}/{configuration}"
+            description = f"Build {project}/{configuration}"
 
         self._add_alias_with_description(alias_name=command_name, description=description,
                                          target_command=target_command, cmd_type=AutoForgCommandType.BUILD)
@@ -1002,26 +999,24 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         target = arg.strip()
 
         if not target or "." not in target:
-            self.perror("Expected: <solution>.<project>.<configuration>")
+            self.perror("Expected: <project>.<configuration>")
             return
 
         parts = target.split(".")
-        if len(parts) != 3:
-            self.perror("Expected exactly 3 parts: <solution>.<project>.<configuration>")
+        if len(parts) != 2:
+            self.perror("Expected exactly 2 parts: <project>.<configuration>")
             return
-
-        build_profile.solution_name, build_profile.project_name, build_profile.config_name = parts
+        build_profile.solution_name = self._loaded_solution_name
+        build_profile.project_name, build_profile.config_name = parts
         build_profile.build_dot_notation = (f"{build_profile.solution_name}."
                                             f"{build_profile.project_name}.{build_profile.config_name}")
 
         # Fetch build configuration data from the solution
-        build_profile.config_data = self._solution.query_configurations(solution_name=build_profile.solution_name,
-                                                                        project_name=build_profile.project_name,
+        build_profile.config_data = self._solution.query_configurations(project_name=build_profile.project_name,
                                                                         configuration_name=build_profile.config_name)
         if build_profile.config_data:
             project_data: Optional[dict[str, Any]] = (
-                self._solution.query_projects(solution_name=build_profile.solution_name,
-                                              project_name=build_profile.project_name))
+                self._solution.query_projects(project_name=build_profile.project_name))
             if project_data:
                 build_profile.tool_chain_data = project_data.get("tool_chain")
                 build_profile.build_system = (

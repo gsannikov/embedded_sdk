@@ -63,12 +63,14 @@ class CoreSolution(CoreModuleInterface):
     """
 
     def _initialize(self, solution_config_file_name: str,
+                    solution_name: str,
                     workspace_path: str,
                     workspace_creation_mode: bool = False) -> None:
         """
         Initializes the 'Solution' class using a configuration JSON file.
         Args:
             solution_config_file_name (str): The path to the JSON configuration file.
+            solution_name (str): The name of the solution to load.
             workspace_path (str): The workspace path.
             workspace_creation_mode (bool): Specify if the solution is loaded in a workspace initialization mode.
         """
@@ -84,12 +86,10 @@ class CoreSolution(CoreModuleInterface):
         self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
         self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
         self._scope = _ScopeState()  # Initialize scope state to track processing state and context
+        self._solution_name: Optional[str] = None  # The solution name we're using
         self._solution_data: Optional[dict[str, Any]] = None  # To store processed solution data
         self._solution_schema: Optional[dict[str, Any]] = None  # To store solution schema data
         self._root_context: Optional[dict[str, Any]] = None  # To store original, unaltered solution data
-        self._root_solution_name: Optional[str] = None  # The name of the first solution which must exist
-        self._root_solution_contex: Optional[
-            dict[str, Any]] = None  # The context of the first solution which must exist
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
         self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
@@ -100,7 +100,7 @@ class CoreSolution(CoreModuleInterface):
         self._workspace_path: str = workspace_path  # Creation arguments
 
         # Load the solution
-        self._preprocess(solution_config_file_name)
+        self._preprocess(solution_file_name=solution_config_file_name, solution_name=solution_name)
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -147,49 +147,18 @@ class CoreSolution(CoreModuleInterface):
 
         return None
 
-    def query_solutions(self, solution_name: Optional[str] = None) -> Optional[Union[list, dict]]:
-        """
-        Returns a specific solution or the solutions list.
-        Args:
-            solution_name (Optional[str]): The name of the solution to retrieve. If None, all solutions are retrieved.
-        Returns:
-            List, Dict: List of solutions dictionaries or a single solutions
-        """
-        if self._solution_loaded:
-            path = f"$.solutions[?(@.name=='{solution_name}')]" if solution_name else "$.solutions[*]"
-            return self._query_json_path(path)
-        return None
-
-    def get_solutions_list(self, primary: bool = False) -> Optional[Union[list[str], str]]:
-        """
-        Returns the list of solution names, or None if no solutions exist.
-        Args:
-            primary (bool): If True, returns only the first solution name as a string.
-                            If False (default), returns the full list of solution names.
-
-        Returns:
-            list[str] or str or None: The list of solution names, the first solution name
-            if `primary` is True, or None if no solutions are found.
-        """
-        if self._solution_loaded:
-            solutions = self._query_json_path("$.solutions[*].name")
-            if solutions:
-                return solutions[0] if primary else solutions
-        return None
-
-    def query_projects(self, solution_name: str, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
+    def query_projects(self,
+                       project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific project or a list of all projects that belong to a given solution.
         Args:
-            solution_name (str): The name of the solution.
             project_name (Optional[str]): The name of the project to retrieve. If None, all projects are retrieved.
         Returns:
             Union[list, dict, None]: List of project dictionaries, a single project dict if only one is found,
             or None if nothing is found.
         """
         if self._solution_loaded:
-            path = (f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')]"
-                    if project_name else f"$.solutions[?(@.name=='{solution_name}')].projects[*]")
+            path = f"$.projects[?(@.name=='{project_name}')]"
             data = self._query_json_path(path)
 
             if isinstance(data, list):
@@ -200,25 +169,22 @@ class CoreSolution(CoreModuleInterface):
             return data
         return None
 
-    def get_projects_list(self, solution_name: Optional[str]) -> Optional[Union[list, dict]]:
+    def get_projects_list(self) -> Optional[Union[list, dict]]:
         """
-        Returns the projects list of all projects that belong to a given solution.
-        Args:
-            solution_name (str): The name of the solution.
+        Returns the projects list of all projects that belong to the loaded solution.
         Returns:
             List, Dict: List of project names matching the criteria.
         """
         if self._solution_loaded:
-            path = f"$.solutions[?(@.name=='{solution_name}')].projects[*].name"
+            path = f"$.projects[*].name"
             return self._query_json_path(path)
         return None
 
-    def query_configurations(self, solution_name: Optional[str] = None, project_name: Optional[str] = None,
+    def query_configurations(self, project_name: Optional[str] = None,
                              configuration_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
-        Returns a specific configuration or a list of all configurations related to a specific project and solution.
+        Returns a specific configuration or a list of all configurations related to a specific project of the loaded solution.
         Args:
-            solution_name (Optional[str]): The name of the solution.
             project_name (Optional[str]): The name of the project.
             configuration_name (Optional[str]): The name of the configuration to retrieve. If None, all configurations are retrieved.
         Returns:
@@ -228,10 +194,9 @@ class CoreSolution(CoreModuleInterface):
 
         if self._solution_loaded:
             if configuration_name:
-                path = (f"$.solutions[?(@.name=='{solution_name}')]."
-                        f"projects[?(@.name=='{project_name}')].configurations[?(@.name=='{configuration_name}')]")
+                path = f"$.projects[?(@.name=='{project_name}')].configurations[?(@.name=='{configuration_name}')]"
             else:
-                path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*]"
+                path = f"$.projects[?(@.name=='{project_name}')].configurations[*]"
 
             data = self._query_json_path(path)
 
@@ -243,94 +208,38 @@ class CoreSolution(CoreModuleInterface):
             return data
         return None
 
-    def get_configurations_list(self, solution_name: Optional[str],
-                                project_name: Optional[str]) -> Optional[Union[list, dict]]:
+    def get_configurations_list(self, project_name: Optional[str]) -> Optional[Union[list, dict]]:
         """
-        Returns a list of  configuration names related to a specific project and solution.
+        Returns a list of  configuration names related to a specific project under the loaded solution.
         Args:
-            solution_name (Optional[str]): The name of the solution.
             project_name (Optional[str]): The name of the project.
         Returns:
             List[Any]: List of configuration names matching the criteria.
         """
         if self._solution_loaded:
-            path = f"$.solutions[?(@.name=='{solution_name}')].projects[?(@.name=='{project_name}')].configurations[*].name"
+            path = f"$.projects[?(@.name=='{project_name}')].configurations[*].name"
             return self._query_json_path(path)
         return None
 
-    def iter_menu_commands_with_context(self) -> Optional[Iterator[tuple[str, str, str, dict]]]:
+    def iter_menu_commands_with_context(self) -> Optional[Iterator[tuple[str, str, dict]]]:
         """
         Iterates over all 'menu_command' entries and yields their full context.
         Yields:
-            Tuple of (solution_name, project_name, configuration_name, menu_command_dict)
+            Tuple of (project_name, configuration_name, menu_command_dict)
         """
         if not self._solution_loaded:
             return None
 
         def generator():
-            for solution in self._solution_data.get("solutions", []):
-                sol_name = solution.get("name", "<unknown-solution>")
-                for project in solution.get("projects", []):
-                    proj_name = project.get("name", "<unknown-project>")
-                    for config in project.get("configurations", []):
-                        cfg_name = config.get("name", "<unknown-config>")
-                        menu_cmd = config.get("menu_command")
-                        if isinstance(menu_cmd, dict):
-                            yield sol_name, proj_name, cfg_name, menu_cmd
+            for project in self._solution_data.get("projects", []):
+                proj_name = project.get("name", "<unknown-project>")
+                for config in project.get("configurations", []):
+                    cfg_name = config.get("name", "<unknown-config>")
+                    menu_cmd = config.get("menu_command")
+                    if isinstance(menu_cmd, dict):
+                        yield proj_name, cfg_name, menu_cmd
 
         return generator()
-
-    def _resolve_include(
-            self,
-            element: str,
-            context: Union[dict, list, str],
-            search_path: Optional[str] = None,
-            return_path: bool = False
-    ) -> Optional[Any]:
-        """
-        Searches for the given element in the provided context. If the value is an include directive
-        in the form "<$include>path/to/file", resolves and optionally loads the file contents.
-        Args:
-            element (str): The key or index to look for in the context.
-            context (Union[dict, list, str]): Structure holding the value (dict, list, or str).
-            search_path (Optional[str]): Directory to resolve relative include paths from, if needed.
-            return_path (bool): If True, returns the resolved file path instead of its loaded contents.
-        Returns:
-            Optional[Any]: Parsed file content or the resolved path if return_path is True, else None.
-
-        """
-        include_prefix = "<$include>"
-
-        # Extract the candidate value
-        value = None
-        if isinstance(context, dict):
-            value = context.get(element)
-        elif isinstance(context, list):
-            try:
-                index = int(element)
-                value = context[index]
-            except (ValueError, IndexError):
-                return None
-        elif isinstance(context, str) and element == "":
-            value = context
-
-        # If it's a valid include directive
-        if isinstance(value, str) and value.startswith(include_prefix):
-            raw_path = value[len(include_prefix):].strip()
-
-            # First try resolving as is
-            expanded_path = self._tool_box.get_expanded_path(raw_path)
-            if not os.path.isfile(expanded_path) and search_path and not os.path.isabs(raw_path):
-                fallback_path = os.path.join(search_path, raw_path)
-                expanded_path = self._tool_box.get_expanded_path(fallback_path)
-
-            if os.path.isfile(expanded_path):
-                if return_path:
-                    return expanded_path
-                with suppress(Exception):
-                    return self._processor.preprocess(file_name=expanded_path)
-
-        return None
 
     def show(self, pretty: bool = False):
         """
@@ -346,24 +255,30 @@ class CoreSolution(CoreModuleInterface):
             json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path"])
             json_print.render(self._solution_data)
 
-    def get_root(self) -> Optional[dict[str, Any]]:
+    def get_loaded_solution(self, name_only: bool = False) -> Optional[Union[dict[str, Any], str]]:
         """
-        Retrieves a deep copy of the currently loaded solution data to prevent
-        modifications to the original data.
+        Retrieves either a deep copy of the currently loaded solution data
+        or just the solution name, depending on the argument.
+        Args:
+            name_only (bool): If True, returns the name of the loaded solution instead of the full data.
         Returns:
-            Optional[Dict[str, Any]]: A deep copy of the solution data if loaded.
+            Optional[Union[Dict[str, Any], str]]: The solution data copy or its name if loaded.
+
         """
         if not self._solution_loaded:
-            raise RuntimeError("no solution is currently loaded")
-        # Rerunning a copy rather than the inner solution data structure
-        solution_copy = copy.deepcopy(self._solution_data)
-        return solution_copy
+            raise RuntimeError("No solution is currently loaded.")
 
-    def _preprocess(self, solution_file_name: str) -> None:
+        if name_only:
+            return self._solution_name
+
+        return copy.deepcopy(self._solution_data)
+
+    def _preprocess(self, solution_file_name: str, solution_name: str) -> None:
         """
         Process the JSON configuration file to resolve references and variables.
         Args:
             solution_file_name (str): The path to the JSON configuration file.
+            solution_name (str) : The name of the solution to use locate in the configuration file.
         Returns:
             The processed JSON data as a dictionary.
         """
@@ -376,27 +291,28 @@ class CoreSolution(CoreModuleInterface):
         self._config_file_path = os.path.dirname(self._config_file_name)
 
         solutions = self._root_context.get("solutions", [])
-        if isinstance(solutions, list) and solutions:
-            self._root_solution_name = solutions[0].get("name")
-            self._root_solution_context = solutions[0]
+        solution_data: Optional[dict] = None
 
-        if not isinstance(self._root_solution_name, str) or not isinstance(self._root_solution_context, dict):
-            raise Exception(
-                f"missing solution context or invalid 'name' in the first solution entry of '{self._config_file_path}'")
+        if isinstance(solutions, list) and solutions:
+            solution_data = next(
+                (item for item in solutions if isinstance(item, dict) and item.get("name") == solution_name),
+                None)
+            if not solution_data:
+                raise RuntimeError(f"Solution named '{solution_name}' not found.")
 
         # Get a reference to mandatory included JSON files, we will use them to jump start other core modules
-        variables_config_file_name = self._resolve_include(element="variables", context=self._root_solution_context,
+        variables_config_file_name = self._resolve_include(element="variables", context=solution_data,
                                                            search_path=self._config_file_path, return_path=True)
         if variables_config_file_name is None:
             raise RuntimeError("'variables' mandatory include file could not be resolved")
 
         # Initialize the variables core module based on the configuration file we got
         self._variables = CoreVariables(variables_config_file_name=variables_config_file_name,
-                                        solution_name=self._root_solution_name,
+                                        solution_name=solution_name,
                                         workspace_path=self._workspace_path,
                                         workspace_creation_mode=self._workspace_creation_mode)
 
-        schema_version = self._root_solution_context.get("schema")
+        schema_version = solution_data.get("schema")
         if schema_version is not None:
             schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
             if os.path.exists(schema_path):
@@ -423,7 +339,8 @@ class CoreSolution(CoreModuleInterface):
                 self._logger.warning(f"No schema loaded: schemas path '{schema_path}' does not exist")
 
         # Having the solution structure validated we can build the tree
-        self._solution_data = self._root_context
+        self._solution_data = solution_data
+        self._solution_name = solution_name
 
         # Start the heavy lifting
         self._build_solution_tree()
@@ -789,14 +706,13 @@ class CoreSolution(CoreModuleInterface):
                 raise ValueError(f"reference '{reference_path}' format or scope not starting with 'solutions'")
 
             key, path = match.groups()  # Corrected to expect only two groups
-            specific_solution: Optional[dict[str, Any]] = self._get_solution_by_name(solution_name=key.strip(),
-                                                                                     solutions=self._solution_data)
-            if not specific_solution:
-                raise ValueError(f"no solution found for key '{key}'")
+            referenced_solution = key.strip()
+            if referenced_solution != self._solution_name:
+                raise ValueError(f"can't reference foreign solution ('{referenced_solution}')")
 
             if path:
                 # Removing the leading dot on the path if it exists
-                resolved_reference = self._resolve_nested_path(specific_solution, path.strip('.'))
+                resolved_reference = self._resolve_nested_path(element=self._solution_data, path=path.strip('.'))
 
         # Finally, make sure we got something
         if not isinstance(resolved_reference, (str, dict)):
@@ -844,11 +760,6 @@ class CoreSolution(CoreModuleInterface):
         return element
 
     @staticmethod
-    def _get_solution_by_name(solution_name: str, solutions: dict[str, Any]) -> dict[str, Any]:
-        """ Retrieves a specific named solution from the global solutions list. """
-        return next((s for s in solutions.get("solutions", []) if s.get("name") == solution_name), {})
-
-    @staticmethod
     def _get_project_by_name(projects: list, project_name: str) -> dict[str, Any]:
         """ Retrieves a specific named project from a list of projects. """
         return next((p for p in projects if p.get("name") == project_name), {})
@@ -858,26 +769,22 @@ class CoreSolution(CoreModuleInterface):
         """ Retrieves a specific named configuration from a list of configurations. """
         return next((c for c in configurations if c.get("name") == configuration_name), {})
 
-    def _get_configuration_by_path(self, solution_name: str, project_name: str, config_name: str) -> dict[str, Any]:
+    def _get_configuration_by_path(self, project_name: str, config_name: str) -> dict[str, Any]:
         """
         Find a specific configuration within the stored JSON data structure based on full path.
         Args:
-            solution_name (str): The name of the solution.
             project_name (str): The name of the project.
             config_name (str): The name of the configuration.
         """
-        solutions = self._solution_data.get("solutions", [])
-        for solution in solutions:
-            if solution.get("name") == solution_name:
-                projects = solution.get("projects", [])
-                for project in projects:
-                    if project.get("name") == project_name:
-                        configurations = project.get("configurations", [])
-                        for config in configurations:
-                            if config.get("name") == config_name:
-                                return config
+        projects = self._solution_data.get("projects", [])
+        for project in projects:
+            if project.get("name") == project_name:
+                configurations = project.get("configurations", [])
+                for config in configurations:
+                    if config.get("name") == config_name:
+                        return config
         raise ValueError(
-            f"configuration {config_name} not found in project '{project_name}' of solution '{solution_name}'")
+            f"configuration {config_name} not found in project '{project_name}' of solution '{self._solution_name}'")
 
     @staticmethod
     def _find_references(root: Union[dict, list]) -> bool:
@@ -975,7 +882,7 @@ class CoreSolution(CoreModuleInterface):
         match = re.search(pattern, derivation_string)
         if match:
             solution_name, project_name, config_name = match.groups()
-            return self._get_configuration_by_path(solution_name, project_name, config_name)
+            return self._get_configuration_by_path(project_name=project_name, config_name=config_name)
         else:
             raise ValueError(f"invalid derivation path: {derivation_string}")
 
@@ -1031,6 +938,58 @@ class CoreSolution(CoreModuleInterface):
 
         except Exception as json_query:
             raise RuntimeError(f"JSONPath query failed for path '{path}': {json_query}") from json_query
+
+    def _resolve_include(
+            self,
+            element: str,
+            context: Union[dict, list, str],
+            search_path: Optional[str] = None,
+            return_path: bool = False
+    ) -> Optional[Any]:
+        """
+        Searches for the given element in the provided context. If the value is an include directive
+        in the form "<$include>path/to/file", resolves and optionally loads the file contents.
+        Args:
+            element (str): The key or index to look for in the context.
+            context (Union[dict, list, str]): Structure holding the value (dict, list, or str).
+            search_path (Optional[str]): Directory to resolve relative include paths from, if needed.
+            return_path (bool): If True, returns the resolved file path instead of its loaded contents.
+        Returns:
+            Optional[Any]: Parsed file content or the resolved path if return_path is True, else None.
+
+        """
+        include_prefix = "<$include>"
+
+        # Extract the candidate value
+        value = None
+        if isinstance(context, dict):
+            value = context.get(element)
+        elif isinstance(context, list):
+            try:
+                index = int(element)
+                value = context[index]
+            except (ValueError, IndexError):
+                return None
+        elif isinstance(context, str) and element == "":
+            value = context
+
+        # If it's a valid include directive
+        if isinstance(value, str) and value.startswith(include_prefix):
+            raw_path = value[len(include_prefix):].strip()
+
+            # First try resolving as is
+            expanded_path = self._tool_box.get_expanded_path(raw_path)
+            if not os.path.isfile(expanded_path) and search_path and not os.path.isabs(raw_path):
+                fallback_path = os.path.join(search_path, raw_path)
+                expanded_path = self._tool_box.get_expanded_path(fallback_path)
+
+            if os.path.isfile(expanded_path):
+                if return_path:
+                    return expanded_path
+                with suppress(Exception):
+                    return self._processor.preprocess(file_name=expanded_path)
+
+        return None
 
 
 # -----------------------------------------------------------------------------

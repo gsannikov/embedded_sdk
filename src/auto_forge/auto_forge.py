@@ -126,6 +126,7 @@ class AutoForge(CoreModuleInterface):
 
         # Get all arguments from kwargs
         def _init_arguments():
+            self._solution_name = kwargs.get("solution_name")
             self._workspace_path = kwargs.get("workspace_path")
             self._automation_macro = kwargs.get("automation_macro")
             self._solution_url = kwargs.get("solution_url")
@@ -294,14 +295,13 @@ class AutoForge(CoreModuleInterface):
             # Loads the solution file with multiple parsing passes and comprehensive structural validation.
             # Also initializes the core variables module as part of the process.
 
-            self._solution = CoreSolution(solution_config_file_name=solution_file, workspace_path=self._workspace_path,
+            self._solution = CoreSolution(solution_config_file_name=solution_file, solution_name=self._solution_name,
+                                          workspace_path=self._workspace_path,
                                           workspace_creation_mode=self._create_workspace)
 
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
 
-            # Store the primary solution name
-            self._solution_name = self._solution.get_solutions_list(primary=True)
-            self._logger.debug(f"Primary solution: '{self._solution_name}'")
+            self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
             if not self._create_workspace:
 
@@ -387,7 +387,10 @@ def auto_forge_main() -> Optional[int]:
         # Required argument specifying the workspace path. This can point to an existing workspace
         # or a new one to be created by AutoForge, depending on the solution definition.
         parser.add_argument("-w", "--workspace-path", required=True,
-                            help="Path to an existing or new workspace to be used by AutoForge")
+                            help="Path to an existing or new workspace to be used by AutoForge.")
+
+        parser.add_argument("-n", "--solution-name", required=True,
+                            help="Name of the solution to use. It must exist in the solution file.")
 
         # AutoForge requires a solution to operate. This can be provided either as a pre-existing local ZIP archive,
         # or as a Git URL pointing to a directory containing the necessary solution JSON files.

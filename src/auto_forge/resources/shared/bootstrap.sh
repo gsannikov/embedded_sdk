@@ -62,7 +62,8 @@ main() {
 
 	local ret_val=0
 	local workspace_path=""
-	local solution=""
+	loacl solution_name=""
+	local package=""
 	local token=""
 
 	# Help message function
@@ -71,10 +72,11 @@ main() {
 		echo
 		echo "Usage: $0 [options]"
 		echo
-		echo "  -w, --workspace [path]       Destination workspace path."
-		echo "  -s, --solution  [path/url]   Solution to use (local path or URL)."
-		echo "  -t, --token     [token]      Optional Git token for remote solution."
-		echo "  -h, --help                   Display this help and exit."
+		echo "  -w, --workspace [path]      Destination workspace path."
+		echo "  -n, --name [path]           Solution name to use."
+		echo "  -p, --package  [path/url]   Solution to use (local path or URL)."
+		echo "  -t, --token     [token]     Optional Git token for remote solution."
+		echo "  -h, --help                  Display this help and exit."
 		echo
 	}
 
@@ -85,8 +87,12 @@ main() {
 			workspace_path="$2"
 			shift 2
 			;;
-		-s | --solution)
-			solution="$2"
+		-n |  --name)
+			solution_name="$2"
+			shift 2
+			;;
+		-p | --package)
+			package="$2"
 			shift 2
 			;;
 		-t | --token)
@@ -111,8 +117,15 @@ main() {
 		display_help
 		return 1
 	fi
-	if [[ -z "$solution" ]]; then
-		printf "\nError: Solution not specified (-s).\n\n"
+
+	if [[ -z "$solution_name" ]]; then
+		printf "\nError: Solution name not specified (-n).\n\n"
+		display_help
+		return 1
+	fi
+
+	if [[ -z "$package" ]]; then
+		printf "\nError: Solution package not specified (-p).\n\n"
 		display_help
 		return 1
 	fi
@@ -127,7 +140,8 @@ main() {
 	autoforge_cmd=(
 		python3 -m auto_forge
 		-w "$workspace_path"
-		-p "$solution"
+		-n "$solution_name"
+		-p "$package"
 		--create-workspace
 		--proxy-server "$HTTP_PROXY_SERVER"
 	)
