@@ -14,21 +14,20 @@ Note:
 """
 # @formatter:off
 from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_FILE, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH,
-                       PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH,PROJECT_BUILDERS_PATH,
+                       PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH, PROJECT_BUILDERS_PATH,
                        PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO,
                        PROJECT_PACKAGE)
 
 from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
-from auto_forge.common.local_types import (
-    AddressInfoType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
-    COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType, ExceptionGuru, FieldColorType,
-    InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, MethodLocationType,
-    ModuleInfoType, SignatureFieldType, SignatureSchemaType,
-    TerminalAnsiGuru, TerminalEchoType, TerminalTeeStream,
-    ThreadGuru, ValidationMethodType, VariableFieldType, XYType
-)
+from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
+                                           AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
+                                           COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType, ExceptionGuru,
+                                           FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
+                                           MessageBoxType, MethodLocationType, ModuleInfoType, SignatureFieldType,
+                                           SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType, TerminalTeeStream,
+                                           ThreadGuru, ValidationMethodType, VariableFieldType, XYType)
 
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -56,20 +55,15 @@ from auto_forge.auto_forge import auto_forge_main as main
 # @formatter:on
 
 # Exported symbols
-__all__ = [
-    "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
-    "BuilderInterface", "BuilderToolChainInterface", "BuildProfileType", "BuildTelemetry",
-    "CLICommandInterface", "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment",
-    "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CorePrompt",
-    "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru", "ExecutionModeType",
-    "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
-    "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
-    "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH",
-    "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE", "PROJECT_HELP_PATH", "PROJECT_NAME", "PROJECT_PACKAGE",
-    "PROJECT_REPO", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH",
-    "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",
-    "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler",
-    "SignatureSchemaType", "TerminalAnsiGuru",
-    "TerminalEchoType", "TerminalTeeStream", "ThreadGuru",
-    "ToolBox", "ValidationMethodType", "VariableFieldType", "XYType", "main"
-]
+__all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
+    "BuilderInterface", "BuilderToolChainInterface", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
+    "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface",
+    "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
+    "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
+    "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType", "PROJECT_BASE_PATH",
+    "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE", "PROJECT_HELP_PATH",
+    "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH",
+    "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker", "Registry",
+    "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "TerminalAnsiGuru",
+    "TerminalEchoType", "TerminalTeeStream", "ThreadGuru", "ToolBox", "ValidationMethodType", "VariableFieldType",
+    "XYType", "main"]
