@@ -178,7 +178,8 @@ class BuilderInterface(ABC):
         if not bare_text:
             # Map log levels to distinct label colors
             level_color_map = {logging.CRITICAL: Fore.LIGHTRED_EX, logging.ERROR: Fore.RED,
-                logging.WARNING: Fore.YELLOW, logging.INFO: Fore.CYAN, logging.DEBUG: Fore.LIGHTGREEN_EX, }
+                               logging.WARNING: Fore.YELLOW, logging.INFO: Fore.CYAN,
+                               logging.DEBUG: Fore.LIGHTGREEN_EX, }
             color = level_color_map.get(log_level, Fore.WHITE)
             leading_text = f"{color}-- {self._build_label}:{Style.RESET_ALL} "
 

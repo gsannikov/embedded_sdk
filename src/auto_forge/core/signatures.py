@@ -263,7 +263,7 @@ class CoreSignatures(CoreModuleInterface):
             int: The size in bytes corresponding to the input type.
         """
         type_sizes = {'uint64': 8, 'uint64_t': 8, 'uint32': 4, 'uint32_t': 4, 'uint16': 2, 'uint16_t': 2, 'uint8': 1,
-            'uint8_t': 1, 'char': 1, 'uintptr_t': 8, 'intptr_t': 8}
+                      'uint8_t': 1, 'char': 1, 'uintptr_t': 8, 'intptr_t': 8}
         type_base, array_size = self._parse_type_and_array(field_type)
         if type_base in type_sizes:
             size = type_sizes[type_base]
@@ -285,10 +285,11 @@ class CoreSignatures(CoreModuleInterface):
         try:
             # Basic type to struct format mappings
             type_mappings = {'uint64': 'Q', 'uint64_t': 'Q', 'uint32': 'I', 'uint32_t': 'I', 'uint16': 'H',
-                'uint16_t': 'H', 'uint8': 'B', 'uint8_t': 'B', 'char': 'c',  # 'c' is used for a single byte character
-                'uintptr_t': 'Q',  # Assuming 64-bit addressing
-                'intptr_t': 'q'  # Assuming 64-bit addressing for pointer types
-            }
+                             'uint16_t': 'H', 'uint8': 'B', 'uint8_t': 'B', 'char': 'c',
+                             # 'c' is used for a single byte character
+                             'uintptr_t': 'Q',  # Assuming 64-bit addressing
+                             'intptr_t': 'q'  # Assuming 64-bit addressing for pointer types
+                             }
             type_base, array_size = self._parse_type_and_array(field_type)
             if type_base in type_mappings:
                 format_char = type_mappings[type_base]

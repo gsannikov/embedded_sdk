@@ -222,7 +222,7 @@ class CLICommandInterface(ABC):
 
         # Call the mandatory implementation create_parser() to create parser instance if it's not created
         parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(prog=self._module_info.name,
-            description=self._module_info.description)
+                                                                          description=self._module_info.description)
         self.create_parser(parser)
 
         # Make sure we always support version

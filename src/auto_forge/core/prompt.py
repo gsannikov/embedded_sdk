@@ -315,8 +315,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             setattr(self, f"complete_{command_name}", lambda *_: [])
 
     def _set_command_metadata(self, command_name: str, description: Optional[str] = None,
-            command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN, hidden: bool = False,
-            patch_doc: bool = False, is_alias: bool = False) -> None:
+                              command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN, hidden: bool = False,
+                              patch_doc: bool = False, is_alias: bool = False) -> None:
         """
         Sets or updates metadata for any cmd2 command, including dynamic aliases.
 

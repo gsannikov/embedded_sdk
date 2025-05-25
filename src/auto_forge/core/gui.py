@@ -65,7 +65,7 @@ class CoreGUI(CoreModuleInterface):
 
         # Add to AutoForge modules registry
         Registry.get_instance().register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-            auto_forge_module_type=AutoForgeModuleType.CORE)
+                                                auto_forge_module_type=AutoForgeModuleType.CORE)
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
 

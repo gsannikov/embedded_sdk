@@ -51,7 +51,7 @@ class CoreLoader(CoreModuleInterface):
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {CLICommandInterface: "CLICommandInterface",
-            BuilderInterface: "BuilderInterface", }
+                                      BuilderInterface: "BuilderInterface", }
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -143,8 +143,8 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (isinstance(attr, type) and issubclass(attr, tuple(
-                            self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                        if (isinstance(attr, type) and issubclass(attr,
+                                                                  tuple(self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 
@@ -237,7 +237,8 @@ class CoreLoader(CoreModuleInterface):
             Optional[int]: The result of the build process.
         """
         class_instance = self._resolve_registered_instance(name=build_profile.build_system,
-            expected_type=AutoForgeModuleType.BUILDER, required_method='build')
+                                                           expected_type=AutoForgeModuleType.BUILDER,
+                                                           required_method='build')
 
         return class_instance.build(build_profile=build_profile)
 
@@ -256,7 +257,7 @@ class CoreLoader(CoreModuleInterface):
         self._execution_output = None
 
         class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.CLI_COMMAND,
-            required_method='execute')
+                                                           required_method='execute')
 
         buffer = io.StringIO()
         output_stream = buffer if suppress_output else TerminalTeeStream(sys.stdout, buffer)
