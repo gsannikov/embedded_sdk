@@ -684,10 +684,6 @@ class CoreEnvironment(CoreModuleInterface):
                 kwargs = dict()
                 kwargs['executable'] = env_shell
 
-        builtin = self._tool_box.is_shell_builtin(tested_command=command)
-        if not builtin and shutil.which(command) is None:
-            raise RuntimeError(f"command not found: {command}")
-
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
             """
             Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
