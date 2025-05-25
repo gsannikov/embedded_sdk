@@ -760,7 +760,7 @@ class CoreEnvironment(CoreModuleInterface):
                 self._logger.debug(f"> {clear_text}")
 
             input_buffer.clear()
-            if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
+            if echo_type != TerminalEchoType.LINE:
                 return clear_text
             else:
                 return text
@@ -1555,9 +1555,11 @@ class CoreEnvironment(CoreModuleInterface):
         """
         step_number: int = 0
         local_path = os.path.abspath(os.getcwd())  # Store initial path
+        status_on_error: Optional[str] = None
 
         def _expand_and_print(msg: Optional[Any]) -> None:
             """ Expands an input if it's a string, resolve inner variables and finally print thed results."""
+
             if not isinstance(msg, str) or msg == "":
                 return None
 
@@ -1567,6 +1569,7 @@ class CoreEnvironment(CoreModuleInterface):
             return None
 
         try:
+
             # Expand, convert to absolute path and verify
             steps_file = self.environment_variable_expand(text=steps_file, to_absolute_path=True)
             if not os.path.exists(steps_file):
@@ -1597,11 +1600,12 @@ class CoreEnvironment(CoreModuleInterface):
                 # Allow a step to temporary override in place status output behaviour
                 status_new_line: bool = step.get("status_new_line", self._status_new_line)
 
-                # Allow to skip a step when 'status_step_disabled' exist and set to True
-                step_disabled: bool = step.get("step_disabled", False)
-                if step_disabled:
+                # Allow to skip a step when 'disabled' exist and set to True
+                if step.get("disabled", False):
                     continue
 
+                # Friendlier message to print if the step has failed
+                status_on_error = step.get("status_on_error")
                 self._tracker.set_pre(text=step.get('description'), new_line=status_new_line)
 
                 # Execute the method
@@ -1623,7 +1627,8 @@ class CoreEnvironment(CoreModuleInterface):
             return 0
 
         except Exception as steps_error:
-            self._tracker.set_result(text="Error", status_code=1)
+            error_text = "Error" if status_on_error is None else status_on_error
+            self._tracker.set_result(text=error_text, status_code=1)
             raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}") from steps_error
         finally:
             # Restore terminal cursor on exit
