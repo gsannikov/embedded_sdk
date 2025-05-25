@@ -151,75 +151,124 @@ class CoreSolution(CoreModuleInterface):
                        project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific project or a list of all projects that belong to a given solution.
+        Excludes projects where "disabled" is set to true.
+
         Args:
             project_name (Optional[str]): The name of the project to retrieve. If None, all projects are retrieved.
+
         Returns:
             Union[list, dict, None]: List of project dictionaries, a single project dict if only one is found,
             or None if nothing is found.
         """
-        if self._solution_loaded:
-            path = f"$.projects[?(@.name=='{project_name}')]"
-            data = self._query_json_path(path)
+        if not self._solution_loaded:
+            return None
 
-            if isinstance(data, list):
-                if len(data) == 1:
-                    return data[0]
-                elif len(data) == 0:
-                    return None
-            return data
-        return None
+        # Get all projects
+        data = self._query_json_path("$.projects[*]")
 
-    def get_projects_list(self) -> Optional[Union[list, dict]]:
+        if not isinstance(data, list):
+            return None
+
+        # Filter out disabled projects
+        filtered = [p for p in data if not p.get("disabled", False)]
+
+        # If looking for a specific project, filter again by name
+        if project_name:
+            named = [p for p in filtered if p.get("name") == project_name]
+            if len(named) == 1:
+                return named[0]
+            elif not named:
+                return None
+            return named  # Just in case there are multiple with the same name
+        else:
+            return filtered if filtered else None
+
+    def get_projects_list(self) -> Optional[list[str]]:
         """
-        Returns the projects list of all projects that belong to the loaded solution.
+        Returns the list of project names from the loaded solution,
+        excluding projects where 'disabled' is set to true.
+
         Returns:
-            List, Dict: List of project names matching the criteria.
+            List[str]: List of enabled project names, or None if no solution is loaded.
         """
         if self._solution_loaded:
-            path = f"$.projects[*].name"
-            return self._query_json_path(path)
+            projects = self._query_json_path("$.projects[*]")  # Retrieve full project objects
+            if not isinstance(projects, list):
+                return None
+
+            return [p["name"] for p in projects if not p.get("disabled", False) and "name" in p]
+
         return None
 
     def query_configurations(self, project_name: Optional[str] = None,
                              configuration_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
-        Returns a specific configuration or a list of all configurations related to a specific project of the loaded solution.
+        Returns a specific configuration or a list of all configurations related to a specific project
+        of the loaded solution, excluding configurations where 'disabled' is set to true.
         Args:
             project_name (Optional[str]): The name of the project.
             configuration_name (Optional[str]): The name of the configuration to retrieve. If None, all configurations are retrieved.
+
         Returns:
             Union[list, dict, None]: List of configuration dictionaries, a single configuration dict if only one is found,
             or None if nothing is found.
         """
+        if not self._solution_loaded:
+            return None
 
-        if self._solution_loaded:
-            if configuration_name:
-                path = f"$.projects[?(@.name=='{project_name}')].configurations[?(@.name=='{configuration_name}')]"
-            else:
-                path = f"$.projects[?(@.name=='{project_name}')].configurations[*]"
+        # Retrieve all project objects
+        projects = self._query_json_path("$.projects[*]")
+        if not isinstance(projects, list):
+            return None
 
-            data = self._query_json_path(path)
+        # Find the matching project
+        project = next((p for p in projects if p.get("name") == project_name and not p.get("disabled", False)), None)
+        if not project:
+            return None
 
-            if isinstance(data, list):
-                if len(data) == 1:
-                    return data[0]
-                elif len(data) == 0:
-                    return None
-            return data
-        return None
+        configurations = project.get("configurations", [])
+        if not isinstance(configurations, list):
+            return None
 
-    def get_configurations_list(self, project_name: Optional[str]) -> Optional[Union[list, dict]]:
+        # Filter out disabled configurations
+        active_configs = [cfg for cfg in configurations if not cfg.get("disabled", False)]
+
+        if configuration_name:
+            matching = [cfg for cfg in active_configs if cfg.get("name") == configuration_name]
+            if len(matching) == 1:
+                return matching[0]
+            elif len(matching) == 0:
+                return None
+            return matching  # If multiple match (not expected, but handled)
+        else:
+            return active_configs if active_configs else None
+
+    def get_configurations_list(self, project_name: Optional[str]) -> Optional[list[str]]:
         """
-        Returns a list of  configuration names related to a specific project under the loaded solution.
+        Returns a list of configuration names related to a specific project under the loaded solution,
+        excluding configurations where 'disabled' is set to true.
         Args:
             project_name (Optional[str]): The name of the project.
+
         Returns:
-            List[Any]: List of configuration names matching the criteria.
+            List[str]: List of enabled configuration names, or None if not found.
         """
-        if self._solution_loaded:
-            path = f"$.projects[?(@.name=='{project_name}')].configurations[*].name"
-            return self._query_json_path(path)
-        return None
+        if not self._solution_loaded or not project_name:
+            return None
+
+        projects = self._query_json_path("$.projects[*]")
+        if not isinstance(projects, list):
+            return None
+
+        project = next((p for p in projects if p.get("name") == project_name and not p.get("disabled", False)), None)
+        if not project:
+            return None
+
+        configurations = project.get("configurations", [])
+        if not isinstance(configurations, list):
+            return None
+
+        return [cfg["name"] for cfg in configurations if not cfg.get("disabled", False) and "name" in cfg]
 
     def iter_menu_commands_with_context(self) -> Optional[Iterator[tuple[str, str, dict]]]:
         """
@@ -252,7 +301,7 @@ class CoreSolution(CoreModuleInterface):
         if not pretty:
             print(json.dumps(self._solution_data, indent=4))
         else:
-            json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path"])
+            json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path", "disabled"])
             json_print.render(self._solution_data)
 
     def get_loaded_solution(self, name_only: bool = False) -> Optional[Union[dict[str, Any], str]]:
@@ -482,6 +531,10 @@ class CoreSolution(CoreModuleInterface):
         """
         if isinstance(node, dict):
             for key, value in list(node.items()):
+                # Store current tool china scope
+                if key == "name" and parent_key in ('solutions', 'tool_chains', 'projects', 'configurations'):
+                    self._scope.update(parent_key, node)
+
                 if key == "data" and isinstance(value, str) and "<$derived_from_" in value:
                     source_config = self._resolve_derivation_path(value)
                     if source_config:
@@ -495,7 +548,7 @@ class CoreSolution(CoreModuleInterface):
 
     def _traverse_and_process_includes(self,
                                        node: Union[dict[str, Any], list[Any]],
-                                       ) -> None:
+                                       parent_key: Optional[str] = None) -> None:
         """
         Recursively traverses a JSON-like structure to process <$include> directives.
         If a string value in the structure is a valid include directive, it replaces
@@ -503,9 +556,15 @@ class CoreSolution(CoreModuleInterface):
 
         Args:
             node (Union[dict, list]): The data structure to process.
+            parent_key (Optional[str]): The key associated with the current node in its parent node.
         """
         if isinstance(node, dict):
             for key, value in list(node.items()):
+
+                # Store current tool china scope
+                if key == "name" and parent_key in ('solutions', 'tool_chains', 'projects', 'configurations'):
+                    self._scope.update(parent_key, node)
+
                 # Case 1: value is a string and might be an include directive
                 if isinstance(value, str) and value.strip().startswith("<$include>"):
                     resolved = self._resolve_include(key, node, search_path=self._config_file_path, return_path=True)
@@ -525,7 +584,7 @@ class CoreSolution(CoreModuleInterface):
                         node[i] = resolved
                 # Case 2: item is nested
                 elif isinstance(item, (dict, list)):
-                    self._traverse_and_process_includes(item)
+                    self._traverse_and_process_includes(item, parent_key)
 
     def _traverse_and_process_references(self, node: Union[dict[str, Any], list[Any]], parent_key: Optional[str] = None,
                                          current_context: Optional[dict[str, Any]] = None):
@@ -546,11 +605,9 @@ class CoreSolution(CoreModuleInterface):
         if isinstance(node, dict):
 
             for key, value in list(node.items()):  # Copy keys for safe iteration
-
                 # Store current tool china scope
                 if key == "name" and parent_key in ('solutions', 'tool_chains', 'projects', 'configurations'):
                     self._scope.update(parent_key, node)
-                    current_context = node  # Update current context
 
                 if isinstance(value, str) and "<$ref_" in value:
 
@@ -882,6 +939,13 @@ class CoreSolution(CoreModuleInterface):
         match = re.search(pattern, derivation_string)
         if match:
             solution_name, project_name, config_name = match.groups()
+            if solution_name and solution_name != self._solution_name:
+                raise ValueError(f"deriving from foreign solution is not allowed ('{solution_name}")
+            if not project_name:
+                project_name = self._scope.project.name_value if self._scope.project else None
+                if not project_name:
+                    raise ValueError(f"could resolve project name for current scope")
+
             return self._get_configuration_by_path(project_name=project_name, config_name=config_name)
         else:
             raise ValueError(f"invalid derivation path: {derivation_string}")

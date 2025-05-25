@@ -131,7 +131,8 @@
 			// Projects
 			"projects": [
 				{
-					"name": "btop",
+					"name": "btop_arm",
+					"disabled": true,
 					"description": "Terminal based resource monitor for ARM",
 					"tool_chain": "<$ref_solutions[demo].tool_chains[AArch64 Cross Toolchain]>",
 					// Per project configuration
@@ -166,7 +167,7 @@
 						},
 						{
 							"name": "release",
-							"data": "<$derived_from_solutions[demo].projects[btop].configurations[debug]>",
+							"data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
 							"menu_command": {
 								"name": "br",
 								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
@@ -185,7 +186,7 @@
 					]
 				},
 				{
-					"name": "btop86",
+					"name": "btop",
 					"description": "Terminal based resource monitor for x86",
 					"tool_chain": "<$ref_solutions[demo].tool_chains[x86 x64 Linux GCC Toolchain]>",
 					// Per project configuration
@@ -215,7 +216,7 @@
 						},
 						{
 							"name": "release",
-							"data": "<$derived_from_solutions[demo].projects[btop].configurations[debug]>",
+							"data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
 							"menu_command": {
 								"name": "br86",
 								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"

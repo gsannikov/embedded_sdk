@@ -56,7 +56,7 @@
         "bat",
         "cat",
         "clear",
-        "dnf",
+        "dnf*",
         "htop",
         "less",
         "nano",
