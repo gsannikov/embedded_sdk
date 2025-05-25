@@ -21,14 +21,8 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (
-    BuilderInterface,
-    BuilderToolChainInterface,
-    BuildProfileType,
-    TerminalEchoType,
-    CoreEnvironment,
-    CorePrompt,
-)
+from auto_forge import (BuilderInterface, BuilderToolChainInterface, BuildProfileType, TerminalEchoType,
+                        CoreEnvironment, CorePrompt, )
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
@@ -79,8 +73,8 @@ class _MakeToolChain(BuilderToolChainInterface):
                 if not show_help_on_error:
                     return None
 
-                self._builder_instance.print_message(
-                    message=f"toolchain item '{tool_path}' not found or not satisfied", log_level=logging.ERROR)
+                self._builder_instance.print_message(message=f"toolchain item '{tool_path}' not found or not satisfied",
+                                                     log_level=logging.ERROR)
 
                 if help_path:
                     if self._tool_box.show_help_file(help_path) != 0:
@@ -116,8 +110,7 @@ class MakeBuilder(BuilderInterface):
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
     def _execute_build(  # noqa: C901
-            self,
-            build_profile: BuildProfileType) -> Optional[int]:
+            self, build_profile: BuildProfileType) -> Optional[int]:
         """
         - Compiles a configuration using the provided build profile and validated toolchain.
         - Validates all required paths (build path, execute_from, etc.)
@@ -187,12 +180,10 @@ class MakeBuilder(BuilderInterface):
         # Execute
         try:
             self.print_message(message=f"Executing build in '{execute_from}'")
-            results = self._environment.execute_shell_command(
-                command_and_args=command_line,
-                echo_type=TerminalEchoType.SINGLE_LINE,
-                cwd=str(execute_from),
-                leading_text=build_profile.terminal_leading_text,
-                expand_command=True)
+            results = self._environment.execute_shell_command(command_and_args=command_line,
+                                                              echo_type=TerminalEchoType.SINGLE_LINE,
+                                                              cwd=str(execute_from),
+                                                              leading_text=build_profile.terminal_leading_text)
 
         except Exception as execution_error:
             raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
@@ -219,9 +210,8 @@ class MakeBuilder(BuilderInterface):
             else:
                 base_artifact_file_name: str = os.path.basename(artifact_file)
                 formated_size: str = self._tool_box.get_formatted_size(artifact_file.stat().st_size)
-                self.print_message(
-                    message=f"Artifact '{base_artifact_file_name}' created, size: "
-                            f"{Fore.LIGHTYELLOW_EX}{formated_size}{Style.RESET_ALL}")
+                self.print_message(message=f"Artifact '{base_artifact_file_name}' created, size: "
+                                           f"{Fore.LIGHTYELLOW_EX}{formated_size}{Style.RESET_ALL}")
 
         if missing_artifacts:
             raise ValueError("missing expected build artifacts:" + "\n".join(missing_artifacts))
@@ -251,10 +241,8 @@ class MakeBuilder(BuilderInterface):
             if command.startswith("!"):
                 command_line = command[1:].lstrip()
                 try:
-                    self._environment.execute_shell_command(
-                        command_and_args=command_line,
-                        echo_type=TerminalEchoType.SINGLE_LINE,
-                        expand_command=True)
+                    self._environment.execute_shell_command(command_and_args=command_line,
+                                                            echo_type=TerminalEchoType.SINGLE_LINE)
                 except Exception as execution_error:
                     self.print_message(message=f"Failed to execute '{step_name}': {execution_error}",
                                        log_level=logging.ERROR)

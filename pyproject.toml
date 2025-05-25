@@ -12,15 +12,12 @@ description = "AutoForge: YABS (yet another build system tool)"
 readme = "README.md"
 authors = [{ name = "Eitan Michaelson", email = "eitanm@me.com" }]
 license = { file = "LICENSE" }
-classifiers = [
-    "Programming Language :: Python :: 3",
+classifiers = ["Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux"
-]
+    "Operating System :: POSIX :: Linux"]
 requires-python = ">=3.9"  # Requires Python 3.9 or later
 # NOTE: tkinter is required but must be installed via system package manager.
-dependencies = [
-    "packaging>=20.0",
+dependencies = ["packaging>=20.0",
     "wheel==0.43.0",
     "colorama>=0.4.6",
     "rich>=13.7,<14.0",
@@ -37,8 +34,7 @@ dependencies = [
     "prompt_toolkit>=3.0.43",
     "jmespath>=0.10.0,<1.0.0",
     "textual>=0.40.0",
-    "cmd2>=2.4.3"
-]
+    "cmd2>=2.4.3"]
 
 [project.urls]
 homepage = "https://github.com/emichael72/auto_forge.git"
@@ -50,8 +46,7 @@ autoforge = "auto_forge.__main__:main"
 [tool.setuptools]
 platforms = ["linux"]
 package-dir = { "" = "src" }
-packages = [
-    "auto_forge",
+packages = ["auto_forge",
     "auto_forge.core",
     "auto_forge.core.interfaces",
     "auto_forge.common",
@@ -80,16 +75,12 @@ line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-select = [
-    "F", "E", "W", "B", "C90", "I", "UP", "SIM", "TID", "ARG", "N", "RUF"
-]
+select = ["F", "E", "W", "B", "C90", "I", "UP", "SIM", "TID", "ARG", "N", "RUF"]
 
 # Ignore Ruff import-sorting warnings (I001) for this file,
 # as we intentionally follow PyCharm's sorting logic instead.
 
-ignore = [
-    "E501", "D203", "D213", "RUF100", "I001"
-]
+ignore = ["E501", "D203", "D213", "RUF100", "I001"]
 
 # This raises the McCabe complexity threshold from the default (10) to a more reasonable 16,
 # reducing unnecessary warnings for well-contained but naturally complex logic.

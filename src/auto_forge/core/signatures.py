@@ -21,16 +21,8 @@ from re import Match
 from typing import Any, Optional
 
 # Internal AutoForge imports
-from auto_forge import (
-    AutoForgeModuleType,
-    AutoLogger,
-    CoreModuleInterface,
-    CoreProcessor,
-    CoreVariables,
-    Registry,
-    SignatureFieldType,
-    SignatureSchemaType,
-)
+from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor, CoreVariables, Registry,
+                        SignatureFieldType, SignatureSchemaType, )
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
@@ -68,8 +60,7 @@ class CoreSignatures(CoreModuleInterface):
 
         # Preform expansion as needed
         expanded_file = os.path.expanduser(os.path.expandvars(signatures_config_file_name))
-        self._config_file_name = os.path.abspath(
-            expanded_file)  # Resolve relative paths to absolute paths
+        self._config_file_name = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
 
         signatures = self._processor.preprocess(file_name=signatures_config_file_name).get("signatures", None)
         if signatures is None or not isinstance(signatures, (list, dict)):
@@ -146,13 +137,11 @@ class CoreSignatures(CoreModuleInterface):
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def deserialize(  # noqa: C901 # Acceptable complexity
-            self,
-            file_name: str) -> Optional["SignatureFileHandler"]:
+            self, file_name: str) -> Optional["SignatureFileHandler"]:
         """
         Loads and maps a binary file into memory, searches for signatures and extracts their fields.
         The returned `FileHandler` instance allows iteration over signatures and their respective fields.
@@ -273,14 +262,8 @@ class CoreSignatures(CoreModuleInterface):
         Returns:
             int: The size in bytes corresponding to the input type.
         """
-        type_sizes = {
-            'uint64': 8, 'uint64_t': 8,
-            'uint32': 4, 'uint32_t': 4,
-            'uint16': 2, 'uint16_t': 2,
-            'uint8': 1, 'uint8_t': 1,
-            'char': 1,
-            'uintptr_t': 8, 'intptr_t': 8
-        }
+        type_sizes = {'uint64': 8, 'uint64_t': 8, 'uint32': 4, 'uint32_t': 4, 'uint16': 2, 'uint16_t': 2, 'uint8': 1,
+            'uint8_t': 1, 'char': 1, 'uintptr_t': 8, 'intptr_t': 8}
         type_base, array_size = self._parse_type_and_array(field_type)
         if type_base in type_sizes:
             size = type_sizes[type_base]
@@ -301,12 +284,8 @@ class CoreSignatures(CoreModuleInterface):
         """
         try:
             # Basic type to struct format mappings
-            type_mappings = {
-                'uint64': 'Q', 'uint64_t': 'Q',
-                'uint32': 'I', 'uint32_t': 'I',
-                'uint16': 'H', 'uint16_t': 'H',
-                'uint8': 'B', 'uint8_t': 'B',
-                'char': 'c',  # 'c' is used for a single byte character
+            type_mappings = {'uint64': 'Q', 'uint64_t': 'Q', 'uint32': 'I', 'uint32_t': 'I', 'uint16': 'H',
+                'uint16_t': 'H', 'uint8': 'B', 'uint8_t': 'B', 'char': 'c',  # 'c' is used for a single byte character
                 'uintptr_t': 'Q',  # Assuming 64-bit addressing
                 'intptr_t': 'q'  # Assuming 64-bit addressing for pointer types
             }
@@ -736,8 +715,7 @@ class Signature:
             raise RuntimeError(exception) from exception
 
     @staticmethod
-    def get_field_data(field: Optional[SignatureFieldType] = None,
-                       default: Optional[Any] = None) -> Optional[Any]:
+    def get_field_data(field: Optional[SignatureFieldType] = None, default: Optional[Any] = None) -> Optional[Any]:
         """
         Returns the field content or a default value if none is specified.
 
@@ -752,8 +730,8 @@ class Signature:
 
         return field.data
 
-    def set_field_data(self, field: Optional[SignatureFieldType],
-                       data: Optional[Any] = None) -> Optional[SignatureFieldType]:
+    def set_field_data(self, field: Optional[SignatureFieldType], data: Optional[Any] = None) -> Optional[
+        SignatureFieldType]:
         """
         Sets a field with new data, encoding and adjusting it according to the field's type and size.
 
@@ -955,8 +933,7 @@ class SignatureFileHandler:
 
             if field_index >= len(signature.unpacked_data):
                 raise RuntimeError(
-                    f"Mismatch: Expected {len(signature.unpacked_data)} fields, but schema defines more ({field_index + 1})"
-                )
+                    f"Mismatch: Expected {len(signature.unpacked_data)} fields, but schema defines more ({field_index + 1})")
 
             field_data = signature.unpacked_data[field_index]
 
@@ -1023,8 +1000,7 @@ class SignatureFileHandler:
             # Ensure all unpacked_data was consumed correctly
             if field_index != len(signature.unpacked_data):
                 raise RuntimeError(
-                    f"Schema defines {field_index} fields, but unpacked data contains {len(signature.unpacked_data)} values"
-                )
+                    f"Schema defines {field_index} fields, but unpacked data contains {len(signature.unpacked_data)} values")
 
         except Exception as exception:
             raise RuntimeError(f"error processing fields: {exception}") from exception
@@ -1142,11 +1118,8 @@ class SignatureFileHandler:
                             unpacked_data = None  # Handle cases where unpacking fails
 
                         # Create a signature instance
-                        signature = Signature(file_name=self._file_name,
-                                              unpacked_data=unpacked_data,
-                                              data=raw_data,
-                                              file_signature_offset=match_start,
-                                              file_handler=self)
+                        signature = Signature(file_name=self._file_name, unpacked_data=unpacked_data, data=raw_data,
+                                              file_signature_offset=match_start, file_handler=self)
 
                         # Retrieve the fields associated with this signature based on the schema
                         self._build_fields_list(signature=signature, schema=schema)
@@ -1162,8 +1135,7 @@ class SignatureFileHandler:
                         signature_index = signature_index + 1
 
                     self._close_file()  # Close the memory-mapped file
-                    self._logger.debug(
-                        f"Found {len(self.signatures)} signatures")
+                    self._logger.debug(f"Found {len(self.signatures)} signatures")
                     return len(self.signatures)
 
         except Exception as exception:

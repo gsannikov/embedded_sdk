@@ -33,16 +33,8 @@ from urllib.parse import ParseResult, unquote, urlparse
 import psutil
 
 # Retrieve our package base path from settings
-from auto_forge import (
-    PROJECT_BASE_PATH,
-    PROJECT_SHARED_PATH,
-    PROJECT_HELP_PATH,
-    AddressInfoType,
-    AutoForgeModuleType,
-    CoreModuleInterface,
-    MethodLocationType,
-    XYType,
-)
+from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, AddressInfoType, AutoForgeModuleType,
+                        CoreModuleInterface, MethodLocationType, XYType, )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
@@ -69,8 +61,7 @@ class ToolBox(CoreModuleInterface):
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
@@ -353,10 +344,8 @@ class ToolBox(CoreModuleInterface):
         return None
 
     @staticmethod
-    def find_method_name(
-            method_name: str,
-            directory: Optional[Union[str, os.PathLike[str]]] = None
-    ) -> Optional[MethodLocationType]:
+    def find_method_name(method_name: str, directory: Optional[Union[str, os.PathLike[str]]] = None) -> Optional[
+        MethodLocationType]:
         """
         Searches for a method definition by name within Python files under the specified directory.
         Returns a MethodLocationType tuple with the class name (if found), method name, and module path.
@@ -419,8 +408,8 @@ class ToolBox(CoreModuleInterface):
         return None
 
     @staticmethod
-    def filter_kwargs_for_method(kwargs: dict[str, Any], sig: inspect.Signature) -> (
-            tuple)[dict[str, Any], dict[str, Any]]:
+    def filter_kwargs_for_method(kwargs: dict[str, Any], sig: inspect.Signature) -> tuple[
+        dict[str, Any], dict[str, Any]]:
         """
         Filters keyword arguments (`kwargs`) according to the signature of a method, and manages nested structures.
 
@@ -474,8 +463,7 @@ class ToolBox(CoreModuleInterface):
                 base_key = full_key.split('.')[-1]
 
             if base_key in used_keys:
-                raise ValueError(
-                    f"key collision detected for '{base_key}' while processing path '{full_key}")
+                raise ValueError(f"key collision detected for '{base_key}' while processing path '{full_key}")
 
             # Determine if the key should go to method_kwargs or extra_kwargs
             if base_key in sig.parameters:
@@ -1027,8 +1015,7 @@ class ToolBox(CoreModuleInterface):
         return text.strip()
 
     def print_logo(self, banner_file: Optional[str] = None, clear_screen: bool = False,
-                   terminal_title: Optional[str] = None,
-                   blink_pixel: Optional[XYType] = None) -> None:
+                   terminal_title: Optional[str] = None, blink_pixel: Optional[XYType] = None) -> None:
         """
         Displays an ASCII logo from a file using a consistent horizontal RGB gradient
         (same for every line, from dark to bright).
@@ -1133,11 +1120,7 @@ class ToolBox(CoreModuleInterface):
         # Normalize indentation
         doc = textwrap.dedent(doc).strip()
         # Match the Description section (including indented lines until next heading or EOF)
-        match = re.search(
-            r'^Description:\s*\n((?:\s{2,}.*\n?)+)',
-            doc,
-            re.IGNORECASE | re.MULTILINE
-        )
+        match = re.search(r'^Description:\s*\n((?:\s{2,}.*\n?)+)', doc, re.IGNORECASE | re.MULTILINE)
 
         if match:
             description = match.group(1).strip()
@@ -1340,20 +1323,10 @@ class ToolBox(CoreModuleInterface):
         """
         with suppress(Exception):
             # Run `man <command>` and clean formatting
-            man_proc = subprocess.run(
-                ["man", command],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True
-            )
+            man_proc = subprocess.run(["man", command], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
 
             # Remove overs trike formatting using `col -bx`
-            col_proc = subprocess.run(
-                ["col", "-bx"],
-                input=man_proc.stdout,
-                stdout=subprocess.PIPE,
-                text=True
-            )
+            col_proc = subprocess.run(["col", "-bx"], input=man_proc.stdout, stdout=subprocess.PIPE, text=True)
             man_text = col_proc.stdout
 
             # Find the DESCRIPTION section
@@ -1421,3 +1394,18 @@ class ToolBox(CoreModuleInterface):
             return return_code
 
         return 1  # If anything failed silently
+
+    @staticmethod
+    def is_shell_builtin(tested_command: str) -> bool:
+        """
+        Checks whether the given command is a shell internal (builtin, reserved word, alias, or function).
+        Returns:
+            bool: True if the command is a shell internal, False otherwise.
+        """
+        with suppress(Exception):
+            user_shell = os.environ.get("SHELL", "/bin/bash")
+            result = subprocess.run([user_shell, "-c", f"type {tested_command}"], capture_output=True, text=True,
+                                    check=False, )
+            return any(keyword in result.stdout for keyword in ("shell builtin", "reserved word", "alias", "function"))
+
+        return False

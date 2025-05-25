@@ -106,27 +106,27 @@ main() {
 	# Argument parsing
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-		-d | --debug_port)
-			if [[ -n "$2" && "$2" =~ ^[0-9]+$ && "$2" -ge 0 && "$2" -le 65535 ]]; then
-				debug_port="$2"
-				shift
-			else
-				echo "Error: Invalid or missing port for $1"
-				return 4
-			fi
-			;;
-		-v | --version)
-			show_version=1
-			;;
-		-\? | --help)
-			print_help
-			return 0
-			;;
-		*)
-			echo "Error: Unknown option '$1'"
-			print_help
-			return 5
-			;;
+			-d | --debug_port)
+				if [[ -n "$2" && "$2" =~ ^[0-9]+$ && "$2" -ge 0 && "$2" -le 65535 ]]; then
+					debug_port="$2"
+					shift
+				else
+					echo "Error: Invalid or missing port for $1"
+					return 4
+				fi
+				;;
+			-v | --version)
+				show_version=1
+				;;
+			-\? | --help)
+				print_help
+				return 0
+				;;
+			*)
+				echo "Error: Unknown option '$1'"
+				print_help
+				return 5
+				;;
 		esac
 		shift
 	done
@@ -142,7 +142,7 @@ main() {
 	source "$venv_path"
 
 	# Check if 'autoforge' is available
-	if ! command -v autoforge > /dev/null 2>&1; then
+	if ! command -v autoforge >/dev/null 2>&1; then
 		echo "Error: 'autoforge' command not found in PATH"
 		return 2
 	fi

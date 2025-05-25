@@ -35,22 +35,9 @@ from rich.console import Console
 from rich.panel import Panel
 
 # AutoForge imports
-from auto_forge import (
-    PROJECT_NAME,
-    COMMAND_TYPE_COLOR_MAP,
-    AutoLogger,
-    AutoForgCommandType,
-    AutoForgeModuleType,
-    BuildProfileType,
-    CoreEnvironment,
-    CoreLoader,
-    CoreModuleInterface,
-    CoreSolution,
-    ModuleInfoType,
-    CoreVariables,
-    ExecutionModeType,
-    Registry,
-    ToolBox, )
+from auto_forge import (PROJECT_NAME, COMMAND_TYPE_COLOR_MAP, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
+                        BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
+                        ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, )
 
 # Basic types
 
@@ -210,11 +197,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def _initialize(self,
-                    prompt: Optional[str] = None,
-                    max_completion_results: Optional[int] = 100,
-                    history_file: Optional[str] = None,
-                    configuration_data: Optional[dict[str, Any]] = None) -> None:
+    def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100,
+                    history_file: Optional[str] = None, configuration_data: Optional[dict[str, Any]] = None) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         Args:
@@ -300,8 +284,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def _remove_command(self, command_name: str,
-                        disable_functionality: bool = False,
+    def _remove_command(self, command_name: str, disable_functionality: bool = False,
                         disable_help: bool = False) -> None:
         """
         Hides and optionally disables a built-in cmd2 command.
@@ -331,15 +314,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             setattr(self, f"help_{command_name}", lambda _self: None)
             setattr(self, f"complete_{command_name}", lambda *_: [])
 
-    def _set_command_metadata(
-            self,
-            command_name: str,
-            description: Optional[str] = None,
-            command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
-            hidden: bool = False,
-            patch_doc: bool = False,
-            is_alias: bool = False
-    ) -> None:
+    def _set_command_metadata(self, command_name: str, description: Optional[str] = None,
+            command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN, hidden: bool = False,
+            patch_doc: bool = False, is_alias: bool = False) -> None:
         """
         Sets or updates metadata for any cmd2 command, including dynamic aliases.
 
@@ -366,12 +343,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if not hasattr(func, "command_metadata"):
                 func.command_metadata = {}
 
-            func.command_metadata.update({
-                "description": description,
-                "type": command_type,
-                "hidden": hidden,
-                "is_alias": is_alias,
-            })
+            func.command_metadata.update(
+                {"description": description, "type": command_type, "hidden": hidden, "is_alias": is_alias, })
 
             if patch_doc and description:
                 with suppress(AttributeError, TypeError):
@@ -391,8 +364,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         target_cmd_root = target_command.split()[0] if target_command else ""
 
         # If this alias maps 1-to-1 to a builtin command, use cmd2's alias system
-        if (alias_name not in self._builtin_commands and target_command == target_cmd_root
-                and target_cmd_root in self._builtin_commands):
+        if (
+                alias_name not in self._builtin_commands and target_command == target_cmd_root and target_cmd_root in self._builtin_commands):
             self.aliases[alias_name] = target_command
             return
 
@@ -411,15 +384,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         existing = self._alias_metadata.get(alias_name, {})
         self._alias_metadata[alias_name] = {
-            "description": description or existing.get("description", "No help available"),
-            "type": cmd_type,
-            "target_command": existing.get("target_command"),
-            "hidden": hidden,
-        }
+            "description": description or existing.get("description", "No help available"), "type": cmd_type,
+            "target_command": existing.get("target_command"), "hidden": hidden, }
 
         # Set metadata
-        self._set_command_metadata(alias_name, description=description,
-                                   command_type=cmd_type, hidden=hidden, patch_doc=True, is_alias=True)
+        self._set_command_metadata(alias_name, description=description, command_type=cmd_type, hidden=hidden,
+                                   patch_doc=True, is_alias=True)
         # Hide if specified
         if hidden and alias_name not in self.hidden_commands:
             self.hidden_commands.append(alias_name)
@@ -618,8 +588,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             bound_method = MethodType(unbound_func, self)
             setattr(self, method_name, bound_method)
 
-            self._set_command_metadata(command_name=command_name, description=description,
-                                       command_type=command_type, hidden=hidden)
+            self._set_command_metadata(command_name=command_name, description=description, command_type=command_type,
+                                       hidden=hidden)
             added_commands += 1
             self._logger.debug(f"Command '{command_name}' was added to the prompt")
 
@@ -901,8 +871,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             str: The output of the 'ls' command as a string.
         """
         try:
-            self._environment.execute_shell_command(command_and_args=f"ls {args} --color=auto -F", expand_command=True,
-                                                    check=False, )
+            self._environment.execute_shell_command(command_and_args=f"ls {args} --color=auto -F", check=False, )
         except Exception as exception:
             self.perror(f"ls: {exception}")
 
@@ -963,8 +932,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._show_commands_summary_table()
         return None
 
-    def add_build_command(self, project: str, configuration: str, command_name: str,
-                          description: Optional[str] = None):
+    def add_build_command(self, project: str, configuration: str, command_name: str, description: Optional[str] = None):
         """
         Registers a user-friendly build command alias.
         Here we create a new cmd2 command alias that triggers a specific build configuration
@@ -1038,8 +1006,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
         try:
-            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args,
-                                                              expand_command=True)
+            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args)
             self.last_result = results.response
 
         except KeyboardInterrupt:

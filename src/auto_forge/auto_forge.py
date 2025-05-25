@@ -24,9 +24,9 @@ from colorama import Fore, Style
 
 # Local application imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
-                        PROJECT_NAME, PROJECT_VERSION, AddressInfoType, AutoLogger, BuildTelemetry,
-                        CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor, CorePrompt,
-                        CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType, Registry,
+                        PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType, AutoLogger,
+                        BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor,
+                        CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType, Registry,
                         ToolBox, )
 
 
@@ -48,6 +48,7 @@ class AutoForge(CoreModuleInterface):
         self._gui: Optional[CoreGUI] = None
         self._prompt: Optional[CorePrompt] = None
         self._telemetry: Optional[BuildTelemetry] = None
+        self.work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
 
         # Startup arguments
         self._automated_mode: bool = False
@@ -60,7 +61,6 @@ class AutoForge(CoreModuleInterface):
         self._git_token: Optional[str] = None
         self._remote_debugging: Optional[AddressInfoType] = None
         self._proxy_server: Optional[AddressInfoType] = None
-        self._create_workspace: bool = False
 
         super().__init__(*args, **kwargs)
 
@@ -131,11 +131,16 @@ class AutoForge(CoreModuleInterface):
             self._automation_macro = kwargs.get("automation_macro")
             self._solution_url = kwargs.get("solution_url")
             self._git_token = kwargs.get("git_token")
-            self._create_workspace = kwargs.get("create_workspace", False)
             nonlocal solution_package, remote_debugging, proxy_server
             solution_package = kwargs.get("solution_package")
             remote_debugging = kwargs.get("remote_debugging")
             proxy_server = kwargs.get("proxy_server")
+
+            # Determine AutForge work mode
+            if kwargs.get("create_workspace", False):
+                self.work_mode = AutoForgeWorkModeType.ENV_CREATE
+            else:
+                self.work_mode = AutoForgeWorkModeType.INTERACTIVE
 
         def _validate_workspace_path():
             """
@@ -151,12 +156,13 @@ class AutoForge(CoreModuleInterface):
             self._workspace_path = ToolBox.get_expanded_path(self._workspace_path)
             if not ToolBox.looks_like_unix_path(self._workspace_path):
                 raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
-            if not self._create_workspace and not os.path.exists(self._workspace_path):
+
+            if self.work_mode != AutoForgeWorkModeType.ENV_CREATE and not os.path.exists(self._workspace_path):
                 raise RuntimeError(f"workspace path '{self._workspace_path}' does not exist and creation is disabled")
 
             # If we were requested to create a workspace, the destination path must be empty
-            if (self._create_workspace and os.path.exists(self._workspace_path) and not ToolBox.is_directory_empty(
-                    self._workspace_path)):
+            if (self.work_mode == AutoForgeWorkModeType.ENV_CREATE and os.path.exists(
+                    self._workspace_path) and not ToolBox.is_directory_empty(self._workspace_path)):
                 raise RuntimeError(f"path '{self._workspace_path}' is not empty while workspace creation is enabled")
 
         def _validate_macro():
@@ -296,14 +302,14 @@ class AutoForge(CoreModuleInterface):
             # Also initializes the core variables module as part of the process.
 
             self._solution = CoreSolution(solution_config_file_name=solution_file, solution_name=self._solution_name,
-                                          workspace_path=self._workspace_path,
-                                          workspace_creation_mode=self._create_workspace)
+                                          workspace_path=self._workspace_path)
 
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
+            self._environment.refresh_variables()  # Update the variables instance in the environment module.
 
             self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
-            if not self._create_workspace:
+            if self.work_mode != AutoForgeWorkModeType.ENV_CREATE:
 
                 # Start user telemetry
                 telemetry_path = self._toolbox.get_expanded_path("~/.autoforge_telemetry.json")
@@ -338,7 +344,7 @@ class AutoForge(CoreModuleInterface):
                 ret_val = self._environment.follow_steps(steps_file=env_steps_file)
 
                 # Lastly store the solution in the newly created workspace
-                scripts_path = self._variables.get(variable_name="PROJ_SCRIPTS")
+                scripts_path = self._variables.get(key="PROJ_SCRIPTS")
                 if scripts_path is not None:
                     solution_destination_path = os.path.join(scripts_path, 'solution')
                     env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'

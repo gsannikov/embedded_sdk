@@ -35,8 +35,7 @@ class CoreProcessor(CoreModuleInterface):
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
@@ -88,11 +87,8 @@ class CoreProcessor(CoreModuleInterface):
 
         """
         if isinstance(obj, dict):
-            return {
-                k: self._remove_formatter_hints(v)
-                for k, v in obj.items()
-                if not (isinstance(v, str) and "# @formatter:" in v)
-            }
+            return {k: self._remove_formatter_hints(v) for k, v in obj.items() if
+                not (isinstance(v, str) and "# @formatter:" in v)}
         elif isinstance(obj, list):
             return [self._remove_formatter_hints(i) for i in obj]
         else:
@@ -108,15 +104,13 @@ class CoreProcessor(CoreModuleInterface):
             str: The JSON string with all comments removed, ready to be parsed by json.loads()
         """
         # Pattern to find JSON strings, comments, or any relevant content
-        pattern = re.compile(
-            r'"(?:\\.|[^"\\])*"'  # Match double-quoted strings
-            r"|'(?:\\.|[^'\\])*'"  # Match single-quoted strings (if unofficially used in JSON-like structures)
-            r"|//.*?$"  # Match single-line comments
-            r"|/\*.*?\*/"  # Match multi-line comments
-            r"|'''.*?'''"  # Match triple single-quoted Python multi-line strings
-            r'|""".*?"""',  # Match triple double-quoted Python multi-line strings
-            flags=re.DOTALL | re.MULTILINE
-        )
+        pattern = re.compile(r'"(?:\\.|[^"\\])*"'  # Match double-quoted strings
+                             r"|'(?:\\.|[^'\\])*'"  # Match single-quoted strings (if unofficially used in JSON-like structures)
+                             r"|//.*?$"  # Match single-line comments
+                             r"|/\*.*?\*/"  # Match multi-line comments
+                             r"|'''.*?'''"  # Match triple single-quoted Python multi-line strings
+                             r'|""".*?"""',  # Match triple double-quoted Python multi-line strings
+            flags=re.DOTALL | re.MULTILINE)
 
         # Use a function to decide what to replace with
         def _replace_func(match):

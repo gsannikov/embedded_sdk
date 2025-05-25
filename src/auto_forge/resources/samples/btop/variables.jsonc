@@ -7,72 +7,58 @@
 */
 
 {
-	"force_upper_case": true,
-	"auto_prefix": false,
-	"defaults": {
-		"description": "Description not specified",
-		"is_path": true,
-		"create_path_if_not_exist": false
-	},
 	"variables": [
 		{
 			"name": "HOME_BASE",
 			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
-			"description": "Locally stored project user preferences",
-			"create_path_if_not_exist": true
+			"description": "Locally stored project user preferences"
 		},
 		{
 			"name": "BUILD_BASE",
-			"value": "<$ref_PROJ_WORKSPACE>/build",
-			"description": "Base path for compilers outputs",
-			"create_path_if_not_exist": true
+			"value": "$PROJ_WORKSPACE/build",
+			"description": "Base path for compilers outputs"
 		},
 		{
 			"name": "BUILD_OUT",
-			"value": "<$ref_BUILD_BASE>/out",
-			"description": "Compilation outputs and temporary files",
-			"create_path_if_not_exist": true
+			"value": "$BUILD_BASE/out",
+			"description": "Compilation outputs and temporary files"
 		},
 		{
 			"name": "BUILD_IMAGES",
-			"value": "<$ref_BUILD_BASE>/images",
-			"description": "Compiled binaries",
-			"create_path_if_not_exist": true
+			"value": "$BUILD_BASE/images",
+			"description": "Compiled binaries"
 		},
 		{
 			"name": "BUILD_LOGS",
-			"value": "<$ref_BUILD_BASE>/logs",
-			"description": "Runtime build logs",
-			"create_path_if_not_exist": true
+			"value": "$BUILD_BASE/logs",
+			"description": "Runtime build logs"
 		},
 		{
 			"name": "PYTHON_VENV",
-			"value": "<$ref_PROJ_WORKSPACE>/.venv",
+			"value": "$PROJ_WORKSPACE/.venv",
 			"description": "Python virtual environment",
-			"path_must_exist": false
+			"path_must_exist": true,
+			"create_path_if_not_exist": false
 		},
 		{
 			"name": "PROJ_BASE",
-			"value": "<$ref_PROJ_WORKSPACE>/<$ref_SOLUTION_NAME>",
+			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
 			"description": "Project base path"
 		},
 		{
 			"name": "DOCS_BASE",
-			"value": "<$ref_PROJ_BASE>/docs",
-			"description": "Project Documents",
-			"create_path_if_not_exist": true
+			"value": "$PROJ_BASE/docs",
+			"description": "Project Documents"
 		},
 		{
 			"name": "PROJ_SCRIPTS",
-			"value": "<$ref_PROJ_BASE>/scripts",
-			"description": "Project scripts",
-			"create_path_if_not_exist": true
+			"value": "$PROJ_BASE/scripts",
+			"description": "Project scripts"
 		},
 		{
-			"name": "PROJ_SOURCES_BASE",
-			"value": "<$ref_PROJ_BASE>/fw",
-			"description": "Firmware sources base path",
-			"create_path_if_not_exist": true
+			"name": "SOURCE_BASE",
+			"value": "$PROJ_BASE/fw",
+			"description": "Firmware sources base path"
 		}
 	]
 }

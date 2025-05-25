@@ -22,7 +22,7 @@ from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
 # Basic types
 from auto_forge.common.local_types import (
-    AddressInfoType, AutoForgeModuleType, AutoForgCommandType, BuildProfileType, BuildTelemetry,
+    AddressInfoType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
     COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType, ExceptionGuru, FieldColorType,
     InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, MethodLocationType,
     ModuleInfoType, SignatureFieldType, SignatureSchemaType,
@@ -57,7 +57,7 @@ from auto_forge.auto_forge import auto_forge_main as main
 
 # Exported symbols
 __all__ = [
-    "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoLogger",
+    "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
     "BuilderInterface", "BuilderToolChainInterface", "BuildProfileType", "BuildTelemetry",
     "CLICommandInterface", "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment",
     "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CorePrompt",

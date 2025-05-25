@@ -38,18 +38,8 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # Internal AutoForge imports
-from auto_forge import (
-    PROJECT_SCHEMAS_PATH,
-    AutoForgeModuleType,
-    AutoLogger,
-    CoreModuleInterface,
-    CoreProcessor,
-    CoreSignatures,
-    CoreVariables,
-    PrettyPrinter,
-    Registry,
-    ToolBox,
-)
+from auto_forge import (PROJECT_SCHEMAS_PATH, AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor,
+                        CoreSignatures, CoreVariables, PrettyPrinter, Registry, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
@@ -62,17 +52,13 @@ class CoreSolution(CoreModuleInterface):
     predefined schemas, and expanding variables to their actual values.
     """
 
-    def _initialize(self, solution_config_file_name: str,
-                    solution_name: str,
-                    workspace_path: str,
-                    workspace_creation_mode: bool = False) -> None:
+    def _initialize(self, solution_config_file_name: str, solution_name: str, workspace_path: str) -> None:
         """
         Initializes the 'Solution' class using a configuration JSON file.
         Args:
             solution_config_file_name (str): The path to the JSON configuration file.
             solution_name (str): The name of the solution to load.
             workspace_path (str): The workspace path.
-            workspace_creation_mode (bool): Specify if the solution is loaded in a workspace initialization mode.
         """
 
         if not solution_config_file_name:
@@ -96,7 +82,6 @@ class CoreSolution(CoreModuleInterface):
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
         self._tool_box = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
-        self._workspace_creation_mode: bool = workspace_creation_mode  # Creation arguments
         self._workspace_path: str = workspace_path  # Creation arguments
 
         # Load the solution
@@ -104,13 +89,11 @@ class CoreSolution(CoreModuleInterface):
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def get_arbitrary_item(self,
-                           key: str,
-                           deep_search: bool = False) -> Optional[Union[list[Any], dict[str, Any], str]]:
+    def get_arbitrary_item(self, key: str, deep_search: bool = False) -> Optional[
+        Union[list[Any], dict[str, Any], str]]:
         """
         Returns a list, dictionary, or string from the solution JSON by key.
         If deep_search is True, performs a recursive search through the entire structure.
@@ -147,8 +130,7 @@ class CoreSolution(CoreModuleInterface):
 
         return None
 
-    def query_projects(self,
-                       project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
+    def query_projects(self, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific project or a list of all projects that belong to the loaded solution.
         Excludes projects where "disabled" is set to true.
@@ -201,8 +183,8 @@ class CoreSolution(CoreModuleInterface):
 
         return None
 
-    def query_configurations(self, project_name: str,
-                             configuration_name: Optional[str] = None) -> Optional[Union[list, dict]]:
+    def query_configurations(self, project_name: str, configuration_name: Optional[str] = None) -> Optional[
+        Union[list, dict]]:
         """
         Returns a specific configuration or a list of all configurations related to a specific project
         of the loaded solution, excluding configurations where 'disabled' is set to true.
@@ -343,8 +325,7 @@ class CoreSolution(CoreModuleInterface):
 
         if isinstance(solutions, list) and solutions:
             solution_data = next(
-                (item for item in solutions if isinstance(item, dict) and item.get("name") == solution_name),
-                None)
+                (item for item in solutions if isinstance(item, dict) and item.get("name") == solution_name), None)
             if not solution_data:
                 raise RuntimeError(f"Solution named '{solution_name}' not found.")
 
@@ -356,9 +337,7 @@ class CoreSolution(CoreModuleInterface):
 
         # Initialize the variables core module based on the configuration file we got
         self._variables = CoreVariables(variables_config_file_name=variables_config_file_name,
-                                        solution_name=solution_name,
-                                        workspace_path=self._workspace_path,
-                                        workspace_creation_mode=self._workspace_creation_mode)
+                                        solution_name=solution_name, workspace_path=self._workspace_path)
 
         schema_version = solution_data.get("schema")
         if schema_version is not None:
@@ -422,9 +401,8 @@ class CoreSolution(CoreModuleInterface):
                 self._pre_processed_iterations += 1
 
             if self._pre_processed_iterations >= self._max_iterations:
-                raise RuntimeError(
-                    f"exceeded maximum reference resolution iterations '{self._max_iterations}', "
-                    f"potential unresolved references or circular dependencies!")
+                raise RuntimeError(f"exceeded maximum reference resolution iterations '{self._max_iterations}', "
+                                   f"potential unresolved references or circular dependencies!")
 
             # Finally, if a schema was specified, validate the fully constructed solution configuration
             if self._solution_schema is not None:
@@ -545,8 +523,7 @@ class CoreSolution(CoreModuleInterface):
             for item in node:
                 self._traverse_and_process_derivations(item, parent_key)
 
-    def _traverse_and_process_includes(self,
-                                       node: Union[dict[str, Any], list[Any]],
+    def _traverse_and_process_includes(self, node: Union[dict[str, Any], list[Any]],
                                        parent_key: Optional[str] = None) -> None:
         """
         Recursively traverses a JSON-like structure to process <$include> directives.
@@ -643,11 +620,7 @@ class CoreSolution(CoreModuleInterface):
 
         if variable_type == PreProcessType.ENVIRONMENT:
             # Replace $VAR or ${VAR} — but skip $ref_ and <$ref_> patterns
-            return re.sub(
-                r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}',
-                lambda m: self._variables.get(m.group(0)),
-                text
-            )
+            return re.sub(r'\$(?!\{?ref_)(\w+)|\$\{([^}]*)}', lambda m: self._variables.get(m.group(0)), text)
 
         elif variable_type == PreProcessType.REFERENCE:
             def _replace_match(match: re.Match) -> str:
@@ -683,8 +656,7 @@ class CoreSolution(CoreModuleInterface):
             raise ValueError(f"unknown variable type: {variable_type}")
 
     def _resolve_reference(  # noqa: C901,
-            self,
-            reference_path: str) -> Union[str, dict]:
+            self, reference_path: str) -> Union[str, dict]:
         """
         Resolves a single reference path `<$ref_???>` by retrieving the corresponding value
         from the current context, project, or solution.
@@ -920,9 +892,8 @@ class CoreSolution(CoreModuleInterface):
         """
         normalized_name = self._normalize_and_check_name(name=name, entity_type=entity_type)
         if normalized_name in name_set:
-            raise ValueError(
-                f"duplicate {entity_type} '{normalized_name}' found, "
-                f"all {entity_type} names must be unique within the same scope.")
+            raise ValueError(f"duplicate {entity_type} '{normalized_name}' found, "
+                             f"all {entity_type} names must be unique within the same scope.")
         name_set.add(normalized_name)
 
     def _resolve_derivation_path(self, derivation_string: str) -> dict[str, Any]:
@@ -1002,13 +973,8 @@ class CoreSolution(CoreModuleInterface):
         except Exception as json_query:
             raise RuntimeError(f"JSONPath query failed for path '{path}': {json_query}") from json_query
 
-    def _resolve_include(
-            self,
-            element: str,
-            context: Union[dict, list, str],
-            search_path: Optional[str] = None,
-            return_path: bool = False
-    ) -> Optional[Any]:
+    def _resolve_include(self, element: str, context: Union[dict, list, str], search_path: Optional[str] = None,
+                         return_path: bool = False) -> Optional[Any]:
         """
         Searches for the given element in the provided context. If the value is an include directive
         in the form "<$include>path/to/file", resolves and optionally loads the file contents.
@@ -1220,11 +1186,8 @@ class _ScopeState:
         Returns:
             Optional[ScopeInfo]: The `ScopeInfo` instance of the requested scope, or None if not found.
         """
-        return {
-            "solutions": self.solution,
-            "projects": self.project,
-            "configurations": self.configuration,
-        }.get(scope_type_name)
+        return {"solutions": self.solution, "projects": self.project, "configurations": self.configuration, }.get(
+            scope_type_name)
 
     def reset(self) -> None:
         """

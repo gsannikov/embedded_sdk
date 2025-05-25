@@ -2,9 +2,12 @@
 
 Welcome to **AutoForge**.
 
-**AutoForge** is a flexible and extensible Python framework designed to streamline and enhance modern build workflows. It provides a powerful set of tools to define and manage complete build systems — from initial setup and environment preparation, through compilation and deployment, all the way to logging, error handling, and reporting.
+**AutoForge** is a flexible and extensible Python framework designed to streamline and enhance modern build workflows.
+It provides a powerful set of tools to define and manage complete build systems — from initial setup and environment
+preparation, through compilation and deployment, all the way to logging, error handling, and reporting.
 
-At its core, AutoForge is driven by a set of simple, declarative JSON definitions, allowing teams to configure build behavior with minimal boilerplate.
+At its core, AutoForge is driven by a set of simple, declarative JSON definitions, allowing teams to configure build
+behavior with minimal boilerplate.
 
 Key features include:
 
@@ -14,7 +17,8 @@ Key features include:
 - JSON-based configuration for repeatable builds
 - Dynamic command loading for easy extension
 
-AutoForge was built with scalability in mind — whether you're managing a small embedded project or orchestrating complex multi-stage builds, it provides the right balance of automation, clarity, and control.
+AutoForge was built with scalability in mind — whether you're managing a small embedded project or orchestrating complex
+multi-stage builds, it provides the right balance of automation, clarity, and control.
 
 ### Setup Instructions.
 
@@ -30,7 +34,8 @@ curl -sSL \
 
 ### Installing the package.
 
-To  install the latest AutoForge package use the following command:
+To install the latest AutoForge package use the following command:
+
 ```bash
 pip install git+https://github.com/emichael72/auto_forge.git --force-reinstall
 ```

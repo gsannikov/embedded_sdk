@@ -139,8 +139,7 @@ class CLICommandInterface(ABC):
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
-    def __init__(self, command_name: Optional[str] = None,
-                 raise_exceptions: Optional[bool] = False,
+    def __init__(self, command_name: Optional[str] = None, raise_exceptions: Optional[bool] = False,
                  hidden: Optional[bool] = False):
         """
         Initializes the CLICommand and prepares its argument parser using
@@ -171,11 +170,9 @@ class CLICommandInterface(ABC):
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
         self._module_info: ModuleInfoType = (
-            registry.register_module(name=command_name,
-                                     description=caller_module_description,
+            registry.register_module(name=command_name, description=caller_module_description,
                                      version=caller_module_version,
-                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND,
-                                     hidden=self._hidden))
+                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND, hidden=self._hidden))
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
@@ -224,10 +221,8 @@ class CLICommandInterface(ABC):
         return_value: int = 1
 
         # Call the mandatory implementation create_parser() to create parser instance if it's not created
-        parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
-            prog=self._module_info.name,
-            description=self._module_info.description
-        )
+        parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(prog=self._module_info.name,
+            description=self._module_info.description)
         self.create_parser(parser)
 
         # Make sure we always support version

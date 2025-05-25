@@ -144,7 +144,7 @@
 								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
 							},
 							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-							"execute_from": "$PROJ_SOURCES_BASE/btop",
+							"execute_from": "$SOURCE_BASE/btop",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
 								"OPTFLAGS=-O0",
@@ -198,7 +198,7 @@
 								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
 							},
 							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-							"execute_from": "$PROJ_SOURCES_BASE/btop",
+							"execute_from": "$SOURCE_BASE/btop",
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",
 								"EXTRA_CXXFLAGS=-I<$ref_build_path>",

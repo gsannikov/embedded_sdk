@@ -19,13 +19,7 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (
-    CLICommandInterface,
-    CoreEnvironment,
-    CoreSolution,
-    CoreVariables,
-    ToolBox,
-    FieldColorType)
+from auto_forge import (CLICommandInterface, CoreEnvironment, CoreSolution, CoreVariables, ToolBox, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -54,8 +48,7 @@ class SolutionCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         raise_exceptions=raise_exceptions)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions)
 
     def _print_variables_table(self):
         """
@@ -63,7 +56,7 @@ class SolutionCommand(CLICommandInterface):
         This method is fully compatible with cmd2 and does not rely on self.console.
         """
 
-        console = Console()
+        console = Console(force_terminal=True)
 
         def _bool_emoji(bool_value: Optional[bool]) -> str:
             if bool_value is True:
@@ -82,26 +75,21 @@ class SolutionCommand(CLICommandInterface):
         table = Table(title="Managed Variables", box=box.ROUNDED)
 
         # Define columns based on VariableFieldType
-        table.add_column("Name", style="bold cyan", no_wrap=True)
+        table.add_column("Key", style="bold cyan", no_wrap=True)
         table.add_column("Value", style="green")
         table.add_column("Description", style="dim")
         table.add_column("Is Path", style="yellow", justify="center")
         table.add_column("Create If Missing", justify="center")
 
         for var in var_list:
-            name = str(var.get("name", "") or "")
+            key = str(var.get("key", "") or "")
             description = str(var.get("description", "") or "")
             is_path = var.get("is_path", False)
             value = var.get("value", "")
 
             # Build styled value text
             value_text = Text()
-            if (
-                    project_workspace
-                    and is_path
-                    and isinstance(value, str)
-                    and value.startswith(project_workspace)
-            ):
+            if project_workspace and is_path and isinstance(value, str) and value.startswith(project_workspace):
                 try:
                     rel_path = Path(value).relative_to(project_workspace)
                     value_text.append("<ws>", style="blue")
@@ -111,11 +99,8 @@ class SolutionCommand(CLICommandInterface):
             else:
                 value_text = Text(str(value))
 
-            table.add_row(
-                name, value_text, description,
-                _bool_emoji(is_path),
-                _bool_emoji(var.get("create_path_if_not_exist"))
-            )
+            table.add_row(key, value_text, description, _bool_emoji(is_path),
+                          _bool_emoji(var.get("create_path_if_not_exist")))
 
         console.print('\n', table, '\n')
 
@@ -127,14 +112,12 @@ class SolutionCommand(CLICommandInterface):
                              Otherwise, use a more standard presentation.
         """
 
-        field_colors = [
-            FieldColorType(field_name="AutoForge", color=Fore.GREEN),
-            FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
-            FieldColorType(field_name="Loader", color=Fore.MAGENTA),
-            FieldColorType(field_name="Prompt", color=Fore.LIGHTCYAN_EX),
-            FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
-            FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX),
-        ]
+        field_colors = [FieldColorType(field_name="AutoForge", color=Fore.GREEN),
+                        FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
+                        FieldColorType(field_name="Loader", color=Fore.MAGENTA),
+                        FieldColorType(field_name="Prompt", color=Fore.LIGHTCYAN_EX),
+                        FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
+                        FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
 
         self._solution.auto_forge.get_root_logger().show(cheerful=cheerful, field_colors=field_colors)
 
@@ -150,8 +133,7 @@ class SolutionCommand(CLICommandInterface):
 
         # Logger printout
         parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
-        parser.add_argument('-t', '--tutorial', action='store_true',
-                            help='Show the solution creation  tutorial.')
+        parser.add_argument('-t', '--tutorial', action='store_true', help='Show the solution creation  tutorial.')
 
         parser.add_argument("-c", "--cheerful", action="store_true", help="Enable colorful log output (only with -l)")
 

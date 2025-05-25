@@ -216,7 +216,7 @@ class LSDCommand(CLICommandInterface):
 
         return max_width
 
-    def _lsd(self,  # noqa: C901 # Method is indeed too long, noted thanks.
+    def _lsd(self,  # noqa: C901 # Method is indeed too long, noted, thanks.
              destination_paths: list[Path],
              show_all: bool = False,
              group_directories_first: bool = False,

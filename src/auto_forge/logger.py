@@ -91,9 +91,7 @@ class _ColorFormatter(logging.Formatter):
 
         # Enable colors only when used with a console handler and the logger allows it
         self._enable_colors = (
-                LogHandlersTypes.CONSOLE_HANDLER in self._handler and
-                self._auto_logger.is_console_colors_enabled()
-        )
+                LogHandlersTypes.CONSOLE_HANDLER in self._handler and self._auto_logger.is_console_colors_enabled())
 
     def clean_log_line(self, line: str) -> str:
         """
@@ -201,9 +199,8 @@ class _ColorFormatter(logging.Formatter):
                 # Parse and pretty-print the JSON part
                 error_data = json.loads(json_part)
                 if 'errors' in error_data:
-                    formatted_errors = [
-                        f"Error {error['status']}: {error['message']}" for error in error_data['errors']
-                    ]
+                    formatted_errors = [f"Error {error['status']}: {error['message']}" for error in
+                        error_data['errors']]
                     # Return the combined text and formatted JSON
                     return f"{text_part} {'; '.join(formatted_errors)}"
         except (json.JSONDecodeError, ValueError):
@@ -267,19 +264,11 @@ class AutoLogger:
         return cls._instance
 
     # Dictionary to map log levels to colors using Colorama
-    LOG_LEVEL_COLORS: ClassVar[dict[str, str]] = {
-        'DEBUG': Fore.LIGHTCYAN_EX,
-        'INFO': Fore.LIGHTBLUE_EX,
-        'WARNING': Fore.YELLOW,
-        'ERROR': Fore.RED,
-        'CRITICAL': Fore.MAGENTA,
-    }
+    LOG_LEVEL_COLORS: ClassVar[dict[str, str]] = {'DEBUG': Fore.LIGHTCYAN_EX, 'INFO': Fore.LIGHTBLUE_EX,
+        'WARNING': Fore.YELLOW, 'ERROR': Fore.RED, 'CRITICAL': Fore.MAGENTA, }
 
-    def __init__(self, log_level=logging.ERROR,
-                 console_enable_colors: bool = True,
-                 console_output_state: bool = True,
-                 erase_exiting_file: bool = True,
-                 exclusive: bool = True,
+    def __init__(self, log_level=logging.ERROR, console_enable_colors: bool = True, console_output_state: bool = True,
+                 erase_exiting_file: bool = True, exclusive: bool = True,
                  configuration_data: Optional[dict[str, Any]] = None) -> None:
 
         """
@@ -361,12 +350,10 @@ class AutoLogger:
 
         self._logger.setLevel(self._log_level)
 
-        if (LogHandlersTypes.CONSOLE_HANDLER in handlers and
-                self._stream_console_handler is None):
+        if (LogHandlersTypes.CONSOLE_HANDLER in handlers and self._stream_console_handler is None):
             # Create dedicated formatter instance
-            formatter: Optional[_ColorFormatter] = (
-                _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
-                                handler=LogHandlersTypes.CONSOLE_HANDLER))
+            formatter: Optional[_ColorFormatter] = (_ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
+                                                                    handler=LogHandlersTypes.CONSOLE_HANDLER))
 
             pause_filer = _PausableFilter()
             pause_filer.enabled = self._output_console_state
@@ -383,8 +370,7 @@ class AutoLogger:
 
             # Create dedicated formatter instance
             formatter: Optional[_ColorFormatter] = (
-                _ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
-                                handler=LogHandlersTypes.FILE_HANDLER))
+                _ColorFormatter(fmt=self._log_format, datefmt=self._date_format, handler=LogHandlersTypes.FILE_HANDLER))
             self._stream_file_handler = logging.FileHandler(self._log_file_name)
             self._stream_file_handler.setFormatter(formatter)
             self._logger.addHandler(self._stream_file_handler)
@@ -560,8 +546,7 @@ class AutoLogger:
         return local_instance._logger if (local_instance and local_instance._logger) else None
 
     @staticmethod
-    def set_output_enabled(logger: Optional[logging.Logger] = None,
-                           state: bool = True) -> None:
+    def set_output_enabled(logger: Optional[logging.Logger] = None, state: bool = True) -> None:
         """
         Enable or disable log output for any logger by toggling _PausableFilter instances
         attached to its handlers.

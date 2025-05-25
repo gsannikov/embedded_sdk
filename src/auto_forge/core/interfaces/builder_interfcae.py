@@ -137,10 +137,8 @@ class BuilderInterface(ABC):
         # Persist this builder instance in the global registry for centralized access
         registry = Registry.get_instance()
         self._module_info: ModuleInfoType = (
-            registry.register_module(name=self._build_system,
-                                     description=caller_module_description,
-                                     version=caller_module_version,
-                                     auto_forge_module_type=AutoForgeModuleType.BUILDER))
+            registry.register_module(name=self._build_system, description=caller_module_description,
+                                     version=caller_module_version, auto_forge_module_type=AutoForgeModuleType.BUILDER))
 
         super().__init__()
 
@@ -179,13 +177,8 @@ class BuilderInterface(ABC):
         """
         if not bare_text:
             # Map log levels to distinct label colors
-            level_color_map = {
-                logging.CRITICAL: Fore.LIGHTRED_EX,
-                logging.ERROR: Fore.RED,
-                logging.WARNING: Fore.YELLOW,
-                logging.INFO: Fore.CYAN,
-                logging.DEBUG: Fore.LIGHTGREEN_EX,
-            }
+            level_color_map = {logging.CRITICAL: Fore.LIGHTRED_EX, logging.ERROR: Fore.RED,
+                logging.WARNING: Fore.YELLOW, logging.INFO: Fore.CYAN, logging.DEBUG: Fore.LIGHTGREEN_EX, }
             color = level_color_map.get(log_level, Fore.WHITE)
             leading_text = f"{color}-- {self._build_label}:{Style.RESET_ALL} "
 

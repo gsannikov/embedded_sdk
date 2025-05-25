@@ -20,18 +20,8 @@ from types import ModuleType
 from typing import Any, Optional, Union
 
 # AutoGorge local imports
-from auto_forge import (
-    AutoForgeModuleType,
-    AutoLogger,
-    BuildProfileType,
-    CLICommandInterface,
-    CoreModuleInterface,
-    BuilderInterface,
-    ModuleInfoType,
-    Registry,
-    TerminalTeeStream,
-    ToolBox,
-)
+from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CLICommandInterface, CoreModuleInterface,
+                        BuilderInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Loader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load supported modules"
@@ -60,14 +50,11 @@ class CoreLoader(CoreModuleInterface):
         self._loaded_commands: int = 0
 
         # Supported base interfaces for command classes
-        self._supported_interfaces = {
-            CLICommandInterface: "CLICommandInterface",
-            BuilderInterface: "BuilderInterface",
-        }
+        self._supported_interfaces = {CLICommandInterface: "CLICommandInterface",
+            BuilderInterface: "BuilderInterface", }
 
         # Persist this module instance in the global registry for centralized access
-        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                       description=AUTO_FORGE_MODULE_DESCRIPTION,
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _resolve_registered_instance(self, name: str, expected_type: AutoForgeModuleType, required_method: str) -> Any:
@@ -103,8 +90,7 @@ class CoreLoader(CoreModuleInterface):
         return class_instance
 
     def probe(  # noqa: C901
-            self,
-            paths: Union[str, Sequence[str]]) -> int:
+            self, paths: Union[str, Sequence[str]]) -> int:
         """
         Scans one or more paths for Python modules, searches for classes derived from known base classes,
         instantiates them, and registers them.
@@ -157,11 +143,8 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (
-                                isinstance(attr, type)
-                                and issubclass(attr, tuple(self._supported_interfaces.keys()))
-                                and attr not in self._supported_interfaces
-                        ):
+                        if (isinstance(attr, type) and issubclass(attr, tuple(
+                            self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 
@@ -172,8 +155,7 @@ class CoreLoader(CoreModuleInterface):
 
                     interface_name: str = next(
                         (name for base, name in self._supported_interfaces.items() if issubclass(class_object, base)),
-                        None
-                    )
+                        None)
 
                     if not interface_name:
                         self._logger.warning(f"Unsupported command interface in module '{file_stem_name}'. Skipping")
@@ -200,9 +182,7 @@ class CoreLoader(CoreModuleInterface):
 
                     # The command should have automatically updated its metadata in the registry; next we validate this.
                     command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
-                        module_name=module_info.name,
-                        case_insensitive=False
-                    )
+                        module_name=module_info.name, case_insensitive=False)
 
                     if not command_record:
                         self._logger.warning(
@@ -256,11 +236,8 @@ class CoreLoader(CoreModuleInterface):
         Returns:
             Optional[int]: The result of the build process.
         """
-        class_instance = self._resolve_registered_instance(
-            name=build_profile.build_system,
-            expected_type=AutoForgeModuleType.BUILDER,
-            required_method='build'
-        )
+        class_instance = self._resolve_registered_instance(name=build_profile.build_system,
+            expected_type=AutoForgeModuleType.BUILDER, required_method='build')
 
         return class_instance.build(build_profile=build_profile)
 
@@ -278,11 +255,8 @@ class CoreLoader(CoreModuleInterface):
         """
         self._execution_output = None
 
-        class_instance = self._resolve_registered_instance(
-            name=name,
-            expected_type=AutoForgeModuleType.CLI_COMMAND,
-            required_method='execute'
-        )
+        class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.CLI_COMMAND,
+            required_method='execute')
 
         buffer = io.StringIO()
         output_stream = buffer if suppress_output else TerminalTeeStream(sys.stdout, buffer)

@@ -25,17 +25,8 @@ with suppress(ImportError):
     from typing import Any, Optional
 
 # AutoGorge local imports
-from auto_forge import (
-    AutoForgeModuleType,
-    AutoLogger,
-    CoreModuleInterface,
-    InputBoxButtonType,
-    InputBoxLineType,
-    InputBoxTextType,
-    MessageBoxType,
-    Registry,
-    ToolBox,
-)
+from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, InputBoxButtonType, InputBoxLineType,
+                        InputBoxTextType, MessageBoxType, Registry, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "GUI"
 AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"
@@ -73,9 +64,7 @@ class CoreGUI(CoreModuleInterface):
         atexit.register(self._shutdown)
 
         # Add to AutoForge modules registry
-        Registry.get_instance().register_module(
-            name=AUTO_FORGE_MODULE_NAME,
-            description=AUTO_FORGE_MODULE_DESCRIPTION,
+        Registry.get_instance().register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
             auto_forge_module_type=AutoForgeModuleType.CORE)
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
@@ -106,13 +95,10 @@ class CoreGUI(CoreModuleInterface):
                 except Exception as exception:
                     message.append(f"Exception: {exception}")
             elif system == "Darwin":
-                message.append(
-                    "On macOS, ensure Python was installed via python.org or Homebrew with Tcl/Tk support."
-                )
+                message.append("On macOS, ensure Python was installed via python.org or Homebrew with Tcl/Tk support.")
             elif system == "Windows":
                 message.append(
-                    "On Windows, ensure you are using the official Python installer from python.org, which includes 'tkinter' by default."
-                )
+                    "On Windows, ensure you are using the official Python installer from python.org, which includes 'tkinter' by default.")
             else:
                 message.append("Please ensure 'tkinter' is available in your Python environment.")
 
@@ -173,11 +159,8 @@ class CoreGUI(CoreModuleInterface):
 
             time.sleep(0.05)  # Small sleep to avoid busy-wait
 
-    def input_box(self, caption: str,
-                  button_type: InputBoxButtonType,
-                  lines: list[InputBoxLineType],
-                  centered: bool = True,
-                  top_most: bool = True) -> dict[str, str]:
+    def input_box(self, caption: str, button_type: InputBoxButtonType, lines: list[InputBoxLineType],
+                  centered: bool = True, top_most: bool = True) -> dict[str, str]:
         """
         Displays a customizable input dialog with one or more labeled fields.
 
@@ -244,8 +227,8 @@ class CoreGUI(CoreModuleInterface):
         self._msg_queue.put(_show_input_box)
         return self._wait_for_response()
 
-    def message_box(self, text: str, caption: str, box_type: MessageBoxType,
-                    _centered: bool = True, top_most: bool = True) -> Optional[str]:
+    def message_box(self, text: str, caption: str, box_type: MessageBoxType, _centered: bool = True,
+                    top_most: bool = True) -> Optional[str]:
         """
         Displays a message box to the user in a thread-safe and GUI-friendly way.
 

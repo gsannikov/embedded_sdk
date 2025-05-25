@@ -25,6 +25,16 @@ AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
 
 
+class AutoForgeWorkModeType(Enum):
+    """
+    Enumeration of known AutoForge run modes.
+    """
+    UNKNOWN = 0
+    INTERACTIVE = 1  # Normal interactive shell
+    AUTOMATED = 2  # Non-interactive - running in automation mode.
+    ENV_CREATE = 3  # Environment creation mode
+
+
 class AutoForgeModuleType(Enum):
     """
     Enumeration of known AutoForge module types.
@@ -237,10 +247,9 @@ class VariableFieldType:
     """
     A data class to manage a single managed variable.
     """
-    name: Optional[str] = None
-    base_name: Optional[Any] = None
+    key: Optional[str] = None
+    value: Optional[str] = None
     description: Optional[str] = None
-    value: Optional[Any] = None
     is_path: Optional[bool] = None
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None

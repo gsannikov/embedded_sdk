@@ -39,21 +39,9 @@ from typing import Any, Callable, Optional, Union
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (
-    AddressInfoType,
-    AutoForgeModuleType,
-    AutoLogger,
-    CoreLoader,
-    CoreModuleInterface,
-    CoreProcessor,
-    CommandResultType,
-    ExecutionModeType,
-    ProgressTracker,
-    Registry,
-    ToolBox,
-    ValidationMethodType,
-    TerminalEchoType,
-)
+from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
+                        CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
+                        ValidationMethodType, TerminalEchoType, )
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -80,8 +68,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str,
-                    automated_mode: Optional[bool] = False,
+    def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False,
                     configuration_data: Optional[dict[str, Any]] = None) -> None:
         """
         Initialize the 'Environment' class, collect few system properties and prepare for execution a 'steps' file.
@@ -98,7 +85,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._default_execution_time: float = 60.0  # Time allowed for executed shell command
         self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
         self._automated_mode: bool = automated_mode  # Default execution mode
-        self._toolbox: ToolBox = ToolBox.get_instance()
+        self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
 
         # Determine the terminal width
@@ -128,13 +115,11 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Normalize workspace path
         if self._workspace_path:
-            self._workspace_path = self.environment_variable_expand(text=self._workspace_path,
-                                                                    to_absolute_path=True)
+            self._workspace_path = self.environment_variable_expand(text=self._workspace_path, to_absolute_path=True)
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _print(self, text: str):
@@ -173,14 +158,10 @@ class CoreEnvironment(CoreModuleInterface):
             for line in file:
                 if line.startswith("ID="):
                     # Extract and clean the distro name
-                    distro_info['name'] = (
-                        line.strip().split('=')[1].strip().replace('"', '').lower()
-                    )
+                    distro_info['name'] = (line.strip().split('=')[1].strip().replace('"', '').lower())
                 elif line.startswith("VERSION_ID="):
                     # Extract and clean the distro version
-                    distro_info['version'] = (
-                        line.strip().split('=')[1].strip().replace('"', '').lower()
-                    )
+                    distro_info['version'] = (line.strip().split('=')[1].strip().replace('"', '').lower())
 
             # Return tuple only if both name and version were found
             return distro_info['name'], distro_info['version']
@@ -269,7 +250,6 @@ class CoreEnvironment(CoreModuleInterface):
         for case insensitivity in the "Version" label.
         Args:
             package_info (str): The output string from 'pip show' command.
-
         Returns:
             str: The extracted version number.
         """
@@ -316,9 +296,12 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception:  # Propagate the exception
             raise
 
+    def refresh_variables(self):
+        """ Inform that we can refresh our local variables class instance """
+        self._variables = CoreVariables.get_instance()
+
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
-                             create_as_needed: bool = False,
-                             change_dir: bool = False) -> Optional[str]:
+                             create_as_needed: bool = False, change_dir: bool = False) -> Optional[str]:
         """
         Initializes the workspace path.
         Args:
@@ -348,7 +331,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Enforce empty path
             if must_be_empty:
-                self._toolbox.is_directory_empty(path=self._workspace_path, raise_exception=True)
+                self._tool_box.is_directory_empty(path=self._workspace_path, raise_exception=True)
 
             # Set the workspace as a working directory, may raise an exception if it does not exist
             if change_dir:
@@ -464,12 +447,10 @@ class CoreEnvironment(CoreModuleInterface):
             searched_token = searched_token.lower()
 
         if searched_token not in env_value:
-            raise ValueError(
-                f"token '{searched_token}' not found in environment variable '{name}'."
-            )
+            raise ValueError(f"token '{searched_token}' not found in environment variable '{name}'.")
 
-    def execute_python_method(self, method_name: str,
-                              arguments: Optional[Union[str, dict]] = None) -> Optional[CommandResultType]:
+    def execute_python_method(self, method_name: str, arguments: Optional[Union[str, dict]] = None) -> Optional[
+        CommandResultType]:
         """
         Dynamically execute an arbitrary method using its name and arguments read from JSON step.
         Args:
@@ -497,7 +478,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Finetune the arguments to the executed method based on its signature
         method_signature = inspect.signature(method)
-        method_kwargs, extra_kwargs = self._toolbox.filter_kwargs_for_method(kwargs=arguments, sig=method_signature)
+        method_kwargs, extra_kwargs = self._tool_box.filter_kwargs_for_method(kwargs=arguments, sig=method_signature)
 
         self._logger.debug(f"Executing Python method: '{method.__name__}'")
 
@@ -531,25 +512,18 @@ class CoreEnvironment(CoreModuleInterface):
         """
 
         self._logger.debug(f"Executing registered command: '{command}'")
-        return_code = self._loader.execute_command(name=command, arguments=arguments,
-                                                   suppress_output=suppress_output)
+        return_code = self._loader.execute_command(name=command, arguments=arguments, suppress_output=suppress_output)
         # Get the command output
         command_response = self._loader.get_last_output().strip()
 
         if return_code != expected_return_code:
-            raise RuntimeError(
-                f"'{command}' failed with return code {return_code}, expected {expected_return_code}")
+            raise RuntimeError(f"'{command}' failed with return code {return_code}, expected {expected_return_code}")
 
         return CommandResultType(response=command_response, return_code=return_code)
 
-    def execute_with_spinner(self,
-                             message: str,
-                             command: Union[str, Callable],
-                             arguments: Optional[Any] = None,
-                             command_type: ExecutionModeType = ExecutionModeType.SHELL,
-                             timeout: Optional[float] = None,
-                             color: Optional[str] = Fore.CYAN,
-                             new_lines: int = 0) -> Optional[int]:
+    def execute_with_spinner(self, message: str, command: Union[str, Callable], arguments: Optional[Any] = None,
+                             command_type: ExecutionModeType = ExecutionModeType.SHELL, timeout: Optional[float] = None,
+                             color: Optional[str] = Fore.CYAN, new_lines: int = 0) -> Optional[int]:
         """
         Run a command with a spinning indicator and optional timeout.
 
@@ -567,7 +541,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         spinner_running = True
         result_container = {}
-        message = self._toolbox.normalize_text(text=message)
+        message = self._tool_box.normalize_text(text=message)
 
         if new_lines:
             print('\n' * new_lines, end='')
@@ -588,10 +562,7 @@ class CoreEnvironment(CoreModuleInterface):
                 if command_type == ExecutionModeType.SHELL:
                     self.execute_shell_command(
                         command_and_args=self._flatten_command(command=command, arguments=arguments),
-                        expand_command=False,
-                        echo_type=TerminalEchoType.NONE,
-                        timeout=timeout
-                    )
+                        echo_type=TerminalEchoType.NONE, timeout=timeout)
                     result_container['code'] = 0
 
                 elif command_type == ExecutionModeType.PYTHON:
@@ -616,7 +587,7 @@ class CoreEnvironment(CoreModuleInterface):
                 result_container['code'] = -1
                 raise exception
 
-        self._toolbox.set_cursor(visible=False)
+        self._tool_box.set_cursor(visible=False)
         spin_thread = threading.Thread(target=_show_spinner, name="Spinner")
         exec_thread = threading.Thread(target=_execute_foreign_code, name="ForeignCodeExecutor")
 
@@ -625,25 +596,17 @@ class CoreEnvironment(CoreModuleInterface):
 
         exec_thread.join()
         spinner_running = False
-        self._toolbox.set_cursor(visible=True)
+        self._tool_box.set_cursor(visible=True)
         spin_thread.join()
 
         print(Style.RESET_ALL, end='')  # Ensure styling is reset
         return result_container.get('code', 1)
 
     def execute_shell_command(  # noqa: C901
-            self,
-            command_and_args: Union[str, list[str]],
-            timeout: Optional[float] = None,
-            echo_type: TerminalEchoType = TerminalEchoType.LINE,
-            leading_text: Optional[str] = None,
-            expand_command: bool = True,
-            use_pty: bool = True,
-            searched_token: Optional[str] = None,
-            check: bool = True,
-            shell: bool = True,
-            cwd: Optional[str] = None,
-            env: Optional[Mapping[str, str]] = None) -> Optional[CommandResultType]:
+            self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
+            echo_type: TerminalEchoType = TerminalEchoType.LINE, leading_text: Optional[str] = None,
+            use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True, shell: bool = True,
+            cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None) -> Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -651,7 +614,6 @@ class CoreEnvironment(CoreModuleInterface):
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
             echo_type (TerminalEchoType): Defines how data is being echoed to the terminal from a forked process.
             leading_text (Optional[str]): Leading text to be printed before each logged line.
-            expand_command (bool): If True, the command will be expanded to resolve any input similar to '$EXAMPLE'.
             use_pty (bool): If True, the command will be executed in a PTY environment. Defaults to False.
             searched_token (Optional[str]): A token to search for in the command output.
             check (bool): If True, the command will raise CalledProcessError if the return code is non-zero
@@ -670,21 +632,22 @@ class CoreEnvironment(CoreModuleInterface):
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
         master_fd: Optional[int] = None  # PTY master descriptor
         timeout = self._default_execution_time is timeout is None  # Set default timeout when not provided
-        env = os.environ if env is None else env
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
 
-        # Cleanup and expansion
+        # Create merged environment where AutoForge variables override exising
+        base_env = os.environ if env is None else env
+        env_dict = self._variables.export(as_env=True)
+        env = dict(base_env)
+        env.update(env_dict)
+
+        # Cleanup
         if isinstance(command_and_args, str):
             command_and_args = ToolBox.normalize_text(text=command_and_args)
-            if expand_command:
-                command_and_args = self.environment_variable_expand(text=command_and_args)
             command_list = command_and_args.strip().split()
         elif isinstance(command_and_args, list):
             command_list = []
             for item in command_and_args:
                 cleaned = ToolBox.normalize_text(text=item)
-                if expand_command:
-                    cleaned = self.environment_variable_expand(text=cleaned)
                 command_list.append(cleaned)
         else:
             raise TypeError("command_and_args must be a string or a list of strings")
@@ -695,26 +658,34 @@ class CoreEnvironment(CoreModuleInterface):
         # Full TTY handoff for interactive apps
         if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
             self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
-            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args)
+            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=env)
             if check and results.return_code != 0:
                 raise subprocess.CalledProcessError(returncode=results.return_code, cmd=command)
             return results
 
         # Expand current work directory if specified
-        if cwd:
-            cwd = self.environment_variable_expand(text=cwd)
+        cwd = self._variables.expand(text=cwd) if cwd else cwd
+
+        def _safe_quote(arg: str) -> str:
+            """ Allow simple expansions or globs, quote all else """
+            if re.match(r'^[$~][\w{}@]*$', arg) or '*' in arg or '?' in arg:
+                return arg  # allow shell expansion
+            return shlex.quote(arg)
 
         # When not using shell we have to use list for the arguments rather than string
         if not shell:
+            if " " in command or any(c in command for c in "|&;<>()"):
+                raise ValueError(f"unsupported compound shell expression: {command}")
             _command = command_list
         else:
-            _command = " ".join(shlex.quote(arg) for arg in command_list)  # Flatten to string
+            _command = " ".join(_safe_quote(arg) for arg in command_list)
             env_shell = os.environ.get("SHELL")
             if env_shell:
                 kwargs = dict()
                 kwargs['executable'] = env_shell
 
-        if shutil.which(command) is None:
+        builtin = self._tool_box.is_shell_builtin(tested_command=command)
+        if not builtin and shutil.which(command) is None:
             raise RuntimeError(f"command not found: {command}")
 
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
@@ -783,7 +754,7 @@ class CoreEnvironment(CoreModuleInterface):
             except Exception as decode_error:
                 raise RuntimeError(f"Decode error: {decode_error}") from decode_error
 
-            clear_text = self._toolbox.strip_ansi(text=text, bare_text=True)
+            clear_text = self._tool_box.strip_ansi(text=text, bare_text=True)
             if clear_text:
                 message_queue.append(clear_text)
                 self._logger.debug(f"> {clear_text}")
@@ -798,16 +769,15 @@ class CoreEnvironment(CoreModuleInterface):
         if use_pty:
             self._logger.debug(f"Executing: {command_and_args} (PTY)")
             master_fd, slave_fd = pty.openpty()
-            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
-                                       bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
+            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
+                                       shell=shell, cwd=cwd, env=env, **kwargs)
             flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
             fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         else:  # Normal flow
             self._logger.debug(f"Executing: {command_and_args}")
             process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT,
-                                       bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
+                                       stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
 
         # Loop and read the spawned process output upto timeout or normal termination
         try:
@@ -872,9 +842,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Optionally raise exception non-zero return code
             if check and return_code != 0:
-                raise subprocess.CalledProcessError(
-                    returncode=process.returncode,
-                    cmd=command, output=process.stdout, stderr=process.stderr)
+                raise subprocess.CalledProcessError(returncode=process.returncode, cmd=command, output=process.stdout,
+                                                    stderr=process.stderr)
 
             command_response: str = "\n".join(lines_queue)  # Convert to a full string with newlines
             if searched_token and command_response and searched_token not in command_response:
@@ -892,11 +861,13 @@ class CoreEnvironment(CoreModuleInterface):
                 os.close(master_fd)
 
     @staticmethod
-    def execute_fullscreen_shell_command(command_and_args: str) -> Optional[CommandResultType]:
+    def execute_fullscreen_shell_command(command_and_args: str, env: Optional[Mapping[str, str]] = None) -> Optional[
+        CommandResultType]:
         """
         Runs a full-screen TUI command like 'htop' or 'vim' by fully attaching to the terminal.
         Args:
             command_and_args (str): a string containing the full command and arguments to execute.
+            env (Optional[Mapping[str, str]]): Environment variables.
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
@@ -904,21 +875,16 @@ class CoreEnvironment(CoreModuleInterface):
         return_code: int = 0  # Initialize to error code
 
         with suppress(KeyboardInterrupt):
-            result = subprocess.run(
-                command_and_args,
-                shell=True, check=False, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr, env=os.environ,
-            )
+            result = subprocess.run(command_and_args, shell=True, check=False, stdin=sys.stdin, stdout=sys.stdout,
+                                    stderr=sys.stderr, env=env, )
             return_code = result.returncode
 
         return CommandResultType(response='', return_code=return_code)
 
-    def validate_prerequisite(self,
-                              command: str,
-                              arguments: Optional[str] = None,
-                              cwd: Optional[str] = None,
+    def validate_prerequisite(self, command: str, arguments: Optional[str] = None, cwd: Optional[str] = None,
                               validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
-                              expected_response: Optional[str] = None,
-                              allow_greater_decimal: bool = False) -> Optional[CommandResultType]:
+                              expected_response: Optional[str] = None, allow_greater_decimal: bool = False) -> Optional[
+        CommandResultType]:
         """
         Validates that a system-level prerequisite is met using a specified method.
         Args:
@@ -942,14 +908,11 @@ class CoreEnvironment(CoreModuleInterface):
             if validation_method == ValidationMethodType.EXECUTE_PROCESS:
                 results = self.execute_shell_command(
                     command_and_args=self._flatten_command(command=command, arguments=arguments),
-                    echo_type=TerminalEchoType.NONE,
-                    cwd=cwd
-                )
+                    echo_type=TerminalEchoType.NONE, cwd=cwd)
 
                 if expected_response:
                     if results.response is None:
-                        raise RuntimeError(
-                            f"'{command}' returned no output while expecting '{expected_response}'")
+                        raise RuntimeError(f"'{command}' returned no output while expecting '{expected_response}'")
 
                     if allow_greater_decimal:
                         actual_version = self._parse_version(text=results.response)
@@ -965,8 +928,7 @@ class CoreEnvironment(CoreModuleInterface):
             elif validation_method == ValidationMethodType.READ_FILE:
                 parts = command.split(':')
                 if len(parts) < 2:
-                    raise ValueError(
-                        "READ_FILE command must be in the form '<file_path>:<line_number>[:<line_count>]'")
+                    raise ValueError("READ_FILE command must be in the form '<file_path>:<line_number>[:<line_count>]'")
                 file_path = parts[0]
                 line_number = int(parts[1])
                 line_count = int(parts[2]) if len(parts) > 2 else 1
@@ -998,8 +960,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception:  # Propagate the exception
             raise
 
-    def path_erase(self, path: str, allow_non_empty: bool = False,
-                   raise_exception_if_not_exist: bool = False):
+    def path_erase(self, path: str, allow_non_empty: bool = False, raise_exception_if_not_exist: bool = False):
         """
         Safely delete a directory with safeguards to prevent accidental removal of critical system or user directories.
         Enforces the following safety checks before performing deletion:
@@ -1030,11 +991,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Ensure the path is not home directory or its important subdirectories
             home_path = os.path.expanduser("~")
-            important_paths = [
-                home_path,  # Never delete home directory
-                os.path.join(home_path, "Documents"),
-                os.path.join(home_path, "Desktop"),
-            ]
+            important_paths = [home_path,  # Never delete home directory
+                               os.path.join(home_path, "Documents"), os.path.join(home_path, "Desktop"), ]
 
             if normalized_path in map(os.path.abspath, important_paths):
                 raise RuntimeError(f"refusing to delete important or protected directory: '{normalized_path}'")
@@ -1050,8 +1008,8 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as erase_exception:
             raise erase_exception
 
-    def path_create(self, path: Optional[str] = None, paths: Optional[list[str]] = None,
-                    erase_if_exist: bool = False, project_path: bool = True) -> Optional[str]:
+    def path_create(self, path: Optional[str] = None, paths: Optional[list[str]] = None, erase_if_exist: bool = False,
+                    project_path: bool = True) -> Optional[str]:
         """
         Create a path or folder tree. Optionally erase if it exists.
         If `project_path` is True, the path is assumed to be relative to `self._workspace_path`.
@@ -1112,7 +1070,7 @@ class CoreEnvironment(CoreModuleInterface):
             if python_binary_path is not None:
                 expanded_python_binary_path = self.environment_variable_expand(text=python_binary_path,
                                                                                to_absolute_path=True)
-                self._toolbox.validate_path(expanded_python_binary_path)
+                self._tool_box.validate_path(expanded_python_binary_path)
                 python_binary = os.path.join(expanded_python_binary_path, f"python{python_version}")
             else:
                 expanded_python_binary_path = None
@@ -1129,8 +1087,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"-m venv {full_py_venv_path}"
             results = self.execute_shell_command(
                 command_and_args=self._flatten_command(command=command, arguments=arguments),
-                echo_type=TerminalEchoType.NONE,
-                cwd=expanded_python_binary_path)
+                echo_type=TerminalEchoType.NONE, cwd=expanded_python_binary_path)
 
             return results
 
@@ -1162,8 +1119,8 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as py_env_error:
             raise Exception(f"could not update pip {py_env_error}") from py_env_error
 
-    def python_package_add(self, package_or_requirements: str,
-                           venv_path: Optional[str] = None) -> Optional[CommandResultType]:
+    def python_package_add(self, package_or_requirements: str, venv_path: Optional[str] = None) -> Optional[
+        CommandResultType]:
         """
         Installs a package or a list of packages from a requirements file into a specified virtual environment using pip.
         Args:
@@ -1178,7 +1135,7 @@ class CoreEnvironment(CoreModuleInterface):
             command = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
-            package_or_requirements = self._toolbox.normalize_text(package_or_requirements)
+            package_or_requirements = self._tool_box.normalize_text(package_or_requirements)
             if len(package_or_requirements) == 0:
                 raise RuntimeError("no package or requirements file specified for pip")
 
@@ -1189,14 +1146,13 @@ class CoreEnvironment(CoreModuleInterface):
                 arguments = f"-m pip install {package_or_requirements}"
 
             # Execute the command
-            results = (self.execute_shell_command(command_and_args=
-                                                  self._flatten_command(command=command, arguments=arguments),
-                                                  echo_type=TerminalEchoType.NONE, shell=False))
+            results = (
+                self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments),
+                                           echo_type=TerminalEchoType.NONE, shell=False))
             return results
 
         except Exception as python_pip_error:
-            raise Exception(
-                f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}") \
+            raise Exception(f"could not install pip package(s) '{package_or_requirements}' {python_pip_error}") \
                 from python_pip_error
 
     def python_package_uninstall(self, package: str, venv_path: Optional[str] = None) -> Optional[CommandResultType]:
@@ -1214,7 +1170,7 @@ class CoreEnvironment(CoreModuleInterface):
             command = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
-            package = self._toolbox.normalize_text(package)
+            package = self._tool_box.normalize_text(package)
             if not package:
                 raise RuntimeError("no package specified for pip")
 
@@ -1230,8 +1186,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as python_pip_error:
             raise Exception(f"could not uninstall pip package(s) '{package}' {python_pip_error}") from python_pip_error
 
-    def python_package_get_version(self, package: str,
-                                   venv_path: Optional[str] = None) -> Optional[str]:
+    def python_package_get_version(self, package: str, venv_path: Optional[str] = None) -> Optional[str]:
         """
         Retrieves the version of a specified package installed in the given virtual environment.
         Args:
@@ -1246,15 +1201,15 @@ class CoreEnvironment(CoreModuleInterface):
             command = self._get_python_binary_path(venv_path=venv_path)
 
             # Normalize inputs
-            package = self._toolbox.normalize_text(package)
+            package = self._tool_box.normalize_text(package)
             if not package:
                 raise RuntimeError("no package specified for pip")
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
-            results = (self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments),
-                echo_type=TerminalEchoType.NONE))
+            results = (
+                self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments),
+                                           echo_type=TerminalEchoType.NONE))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1266,9 +1221,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception:  # Propagate the exception
             raise
 
-    def git_clone_repo(self, repo_url: str,
-                       dest_repo_path: str,
-                       timeout: float = 0,
+    def git_clone_repo(self, repo_url: str, dest_repo_path: str, timeout: float = 0,
                        clear_destination_path: bool = True) -> Optional[CommandResultType]:
         """
         Clones a Git repository from a specified URL into a specified destination directory.
@@ -1285,7 +1238,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         try:
             # Normalize inputs
-            repo_url = self._toolbox.normalize_text(repo_url)
+            repo_url = self._tool_box.normalize_text(repo_url)
 
             # Normalize and prepare the destination path
             if self._variables is not None:
@@ -1308,9 +1261,8 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as py_git_error:
             raise Exception(f"git operation failure {py_git_error!s}") from py_git_error
 
-    def git_checkout_revision(self, dest_repo_path: str, revision: str,
-                              timeout: float = 0,
-                              pull_latest: bool = True) -> Optional[CommandResultType]:
+    def git_checkout_revision(self, dest_repo_path: str, revision: str, timeout: float = 0, pull_latest: bool = True) -> \
+            Optional[CommandResultType]:
         """
         Checks out a specific revision in a Git repository.
         Args:
@@ -1326,7 +1278,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         try:
             # Validate and prepare the repository path
-            normalized_repo_path = self._toolbox.normalize_text(dest_repo_path)
+            normalized_repo_path = self._tool_box.normalize_text(dest_repo_path)
             dest_repo_path = self.environment_variable_expand(text=normalized_repo_path, to_absolute_path=True)
             command = "git"
 
@@ -1336,29 +1288,26 @@ class CoreEnvironment(CoreModuleInterface):
             if pull_latest:
                 # Perform a git pull to update the repository
                 arguments = "pull"
-                results = self.execute_shell_command(command_and_args=
-                                                     self._flatten_command(command=command, arguments=arguments),
-                                                     cwd=dest_repo_path, timeout=timeout,
-                                                     echo_type=TerminalEchoType.NONE)
+                results = self.execute_shell_command(
+                    command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=dest_repo_path,
+                    timeout=timeout, echo_type=TerminalEchoType.NONE)
                 if results.return_code != 0:
                     raise RuntimeError(f"git 'pull'' failed with exit code {results.return_code}")
 
             # Construct and execute the git checkout command
             arguments = f"checkout {revision}"
-            results = self.execute_shell_command(command_and_args=
-                                                 self._flatten_command(command=command, arguments=arguments),
-                                                 cwd=dest_repo_path, timeout=timeout, echo_type=TerminalEchoType.NONE)
+            results = self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=dest_repo_path,
+                timeout=timeout, echo_type=TerminalEchoType.NONE)
             return results
 
         except Exception as py_git_error:
             raise Exception(f"git operation failure {py_git_error!s}") from py_git_error
 
-    def git_get_path_from_url(self, url: str,
-                              destination_file_name: Optional[str] = None,
-                              allowed_extensions: Optional[list[str]] = None,
-                              delete_if_exist: bool = False,
-                              proxy_host: Optional[AddressInfoType] = None,
-                              token: Optional[str] = None) -> Optional[str]:
+    def git_get_path_from_url(self, url: str, destination_file_name: Optional[str] = None,
+                              allowed_extensions: Optional[list[str]] = None, delete_if_exist: bool = False,
+                              proxy_host: Optional[AddressInfoType] = None, token: Optional[str] = None) -> Optional[
+        str]:
         """
         Downloads a GitHub folder (tree URL or API URL) as a .zip archive.
         Args:
@@ -1373,27 +1322,27 @@ class CoreEnvironment(CoreModuleInterface):
         Returns:
             str: Full path to the created .zip archive.
         """
-        url = self._toolbox.normalize_text(text=url)
-        url = self._toolbox.normalize_to_github_api_url(url=url)
+        url = self._tool_box.normalize_text(text=url)
+        url = self._tool_box.normalize_to_github_api_url(url=url)
         proxy: Optional[str] = proxy_host.endpoint if proxy_host else None
 
         if url is None:
             raise RuntimeError(f"URL '{url}' is not a valid URL")
 
         # We're getting a pth so the URL is expected to point to git path
-        is_url_path = self._toolbox.is_url_path(url)
+        is_url_path = self._tool_box.is_url_path(url)
         if is_url_path is None or not is_url_path:
             raise RuntimeError(f"URL '{url}' is not a valid URL or not pointing to a path")
 
         # Use temporary destination file if not specified
         if destination_file_name is None:
-            destination_file_name = self._toolbox.get_temp_filename()
+            destination_file_name = self._tool_box.get_temp_filename()
 
         destination_file_name = CoreEnvironment.environment_variable_expand(text=destination_file_name,
                                                                             to_absolute_path=True)
 
         # Make sure we got something that look like path that points to a filed name
-        is_destination_path = self._toolbox.looks_like_unix_path(destination_file_name)
+        is_destination_path = self._tool_box.looks_like_unix_path(destination_file_name)
         if is_destination_path:
             raise RuntimeError(f"destination '{destination_file_name}' must point to a file name")
 
@@ -1411,7 +1360,7 @@ class CoreEnvironment(CoreModuleInterface):
             raise RuntimeError("could not get listing for remote URL")
 
         # Define temporary paths to work on
-        destination_temp_path = self._toolbox.get_temp_pathname()
+        destination_temp_path = self._tool_box.get_temp_pathname()
 
         # Download files and create ZIP
         try:
@@ -1428,7 +1377,7 @@ class CoreEnvironment(CoreModuleInterface):
                 local_filename = os.path.join(destination_temp_path, file_info['name'])
 
                 # Use the provided download function
-                file_url = self._toolbox.normalize_to_github_api_url(url=file_url)
+                file_url = self._tool_box.normalize_to_github_api_url(url=file_url)
                 self.url_get(url=file_url, proxy=proxy, token=token, destination=local_filename)
 
             # After all files are downloaded, zip them
@@ -1447,12 +1396,8 @@ class CoreEnvironment(CoreModuleInterface):
             shutil.rmtree(destination_temp_path)
 
     def url_get(  # noqa: C901 # Acceptable complexity
-            self, url: str,
-            destination: Optional[str] = None,
-            delete_if_exist: Optional[bool] = False,
-            proxy: Optional[str] = None,
-            token: Optional[str] = None,
-            timeout: Optional[float] = None,
+            self, url: str, destination: Optional[str] = None, delete_if_exist: Optional[bool] = False,
+            proxy: Optional[str] = None, token: Optional[str] = None, timeout: Optional[float] = None,
             extra_headers: Optional[dict] = None) -> Optional[Any]:
         """
         Downloads a file / list of files from a specified URL to a specified local path, with optional authentication,
@@ -1475,8 +1420,8 @@ class CoreEnvironment(CoreModuleInterface):
 
         try:
             # Normalize URL and output name
-            url = self._toolbox.normalize_text(text=url)
-            is_url_path = self._toolbox.is_url_path(url)
+            url = self._tool_box.normalize_text(text=url)
+            is_url_path = self._tool_box.is_url_path(url)
 
             if is_url_path is None:
                 raise RuntimeError(f"URL '{url}' is not a valid URL")
@@ -1485,16 +1430,16 @@ class CoreEnvironment(CoreModuleInterface):
 
                 # When the remote URL points to a path, we will attempt to retrieve the directory listing.
                 # Therefore, the following section, which constructs the destination file and path, becomes relevant.
-                remote_file = self._toolbox.file_from_url(url=url)
+                remote_file = self._tool_box.file_from_url(url=url)
 
                 if destination is None:
-                    destination = self._toolbox.get_temp_pathname()
+                    destination = self._tool_box.get_temp_pathname()
                     is_destination_path = True
                 else:
                     # Expand the provided destination string as needed
                     destination = self.environment_variable_expand(text=destination, to_absolute_path=True)
                     # Try to detect if destination looks like a path
-                    is_destination_path = self._toolbox.looks_like_unix_path(destination)
+                    is_destination_path = self._tool_box.looks_like_unix_path(destination)
 
                 if is_destination_path:
                     destination_dir = destination
@@ -1525,10 +1470,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Configure proxy settings if a proxy URL is provided
             if proxy:
-                proxy_handler = urllib.request.ProxyHandler({
-                    'http': proxy,
-                    'https': proxy
-                })
+                proxy_handler = urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
                 opener = urllib.request.build_opener(proxy_handler)
                 urllib.request.install_opener(opener)
 
@@ -1613,7 +1555,6 @@ class CoreEnvironment(CoreModuleInterface):
         """
         step_number: int = 0
         local_path = os.path.abspath(os.getcwd())  # Store initial path
-        self._variables = CoreVariables.get_instance()
 
         def _expand_and_print(msg: Optional[Any]) -> None:
             """ Expands an input if it's a string, resolve inner variables and finally print thed results."""
@@ -1671,7 +1612,7 @@ class CoreEnvironment(CoreModuleInterface):
                 # Store the command response as a value If it's a string, and we got the skey name from the JSON
                 if results.response and store_key is not None:
                     self._logger.debug(f"Storing value '{results.response}' in '{store_key}'")
-                    self._toolbox.store_value(key=store_key, value=results.response)
+                    self._tool_box.store_value(key=store_key, value=results.response)
 
                 self._tracker.set_result(text="OK", status_code=0)
                 step_number = step_number + 1
