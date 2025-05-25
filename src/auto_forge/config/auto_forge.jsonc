@@ -21,6 +21,25 @@
         "^━+.*?━+\\s*"
     ],
 
+    "essential_variables": [
+
+        // List of variable names that must be defined in the "variables" section.
+        // These are considered critical for proper project configuration.
+        // Each entry in the "variables" array must include an object with a matching "name" field.
+        // Validation will fail if any of these are missing.
+
+        "HOME_BASE",
+        "BUILD_BASE",
+        "BUILD_OUT",
+        "BUILD_IMAGES",
+        "BUILD_LOGS",
+        "PYTHON_VENV",
+        "PROJ_BASE",
+        "DOCS_BASE",
+        "SCRIPTS_BASE",
+        "SOURCE_BASE"
+    ],
+
     "builtin_aliases": [
 
         { "alias_name": "..",    "target_command": "cd ..",                 "description": "Go up one directory",       "command_type": "NAVIGATE", "hidden": true },

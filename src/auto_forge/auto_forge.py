@@ -263,6 +263,10 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
+    def get_config(self) -> Optional[dict[str, Any]]:
+        """ Returns the main configuration """
+        return self.configuration
+
     def get_telemetry(self) -> Optional[BuildTelemetry]:
         """ Returns the AutoForge telemetry class instance """
         return self._telemetry

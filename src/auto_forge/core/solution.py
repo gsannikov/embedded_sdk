@@ -29,6 +29,7 @@ from collections import deque
 from collections.abc import Iterator
 from contextlib import suppress
 from enum import Enum
+from pathlib import Path
 from typing import Any, Optional, Union
 
 # Third-party
@@ -69,6 +70,7 @@ class CoreSolution(CoreModuleInterface):
 
         self._config_file_name: Optional[str] = None  # Loaded solution file name
         self._config_file_path: Optional[str] = None  # Loaded solution file path
+        self._schema_files: Optional[dict[str, str]] = None  # Optional schema files path
         self._max_iterations: int = 20  # Maximum allowed iterations for resolving references
         self._pre_processed_iterations: int = 0  # Count of passes we did until all references ware resolved
         self._scope = _ScopeState()  # Initialize scope state to track processing state and context
@@ -322,12 +324,25 @@ class CoreSolution(CoreModuleInterface):
 
         solutions = self._root_context.get("solutions", [])
         solution_data: Optional[dict] = None
+        variables_schema: Optional[dict] = None
 
         if isinstance(solutions, list) and solutions:
             solution_data = next(
                 (item for item in solutions if isinstance(item, dict) and item.get("name") == solution_name), None)
             if not solution_data:
                 raise RuntimeError(f"Solution named '{solution_name}' not found.")
+
+        # Get an optional path to schema files
+        schema_version = solution_data.get("schema")
+        if schema_version is not None:
+            schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
+            if os.path.exists(schema_path):
+                self._schema_files = self._get_files_list(path=str(schema_path), extension=[".json", ".jsonc"])
+                if self._schema_files is not None:
+                    self._logger.debug(
+                        f"Found {len(self._schema_files)} schemas under version '{schema_version}' in {schema_path}'")
+                else:
+                    self._logger.warning(f"No schema loaded: schemas path '{schema_path}' does not exist")
 
         # Get a reference to mandatory included JSON files, we will use them to jump start other core modules
         variables_config_file_name = self._resolve_include(element="variables", context=solution_data,
@@ -336,34 +351,24 @@ class CoreSolution(CoreModuleInterface):
             raise RuntimeError("'variables' mandatory include file could not be resolved")
 
         # Initialize the variables core module based on the configuration file we got
+
+        if self._schema_files is not None and self._schema_files.get("variables"):
+            variables_schema = self._processor.preprocess(file_name=self._schema_files.get("variables"))
         self._variables = CoreVariables(variables_config_file_name=variables_config_file_name,
-                                        solution_name=solution_name, workspace_path=self._workspace_path)
+                                        solution_name=solution_name, workspace_path=self._workspace_path,
+                                        variables_schema=variables_schema)
 
-        schema_version = solution_data.get("schema")
-        if schema_version is not None:
-            schema_path = os.path.join(PROJECT_SCHEMAS_PATH.__str__(), schema_version)
-            if os.path.exists(schema_path):
+        if self._schema_files is not None and self._schema_files.get("signatures"):
+            # Instantiate the optional signatures core module based on the configuration file we got
+            self._signatures = CoreSignatures(signatures_config_file_name=self._schema_files.get("signatures"))
+        else:
+            self._logger.warning("Signatures schema file not found, signature support is disables")
 
-                self._logger.debug(f"Using schemas version '{schema_version}'")
-
-                # Try to locate and load expected schema files
-                signature_schema_file = os.path.join(schema_path.__str__(), "signature.jsonc")
-                solution_schema_file = os.path.join(schema_path.__str__(), "solution.jsonc")
-
-                # Instantiate the optional signatures core module based on the configuration file we got
-                if os.path.exists(signature_schema_file):
-                    self._signatures = CoreSignatures(signatures_config_file_name=signature_schema_file)
-                else:
-                    self._logger.warning(f"Signatures schema file '{signature_schema_file}' does not exist")
-
-                # Initialize the optional schema used for validating the solution structure
-                # If file is specified, attempt to preprocess and load it
-                if os.path.exists(solution_schema_file):
-                    self._solution_schema = self._processor.preprocess(file_name=solution_schema_file)
-                else:
-                    self._logger.warning(f"Solution schema file '{solution_schema_file}' does not exist")
-            else:
-                self._logger.warning(f"No schema loaded: schemas path '{schema_path}' does not exist")
+        # Preprocess the solution schema file if we have it
+        if self._schema_files is not None and self._schema_files.get("solution"):
+            self._solution_schema = self._processor.preprocess(file_name=self._schema_files.get("solution"))
+        else:
+            self._logger.warning(f"Solution schema file not foud")
 
         # Having the solution structure validated we can build the tree
         self._solution_data = solution_data
@@ -1017,6 +1022,42 @@ class CoreSolution(CoreModuleInterface):
                     return expanded_path
                 with suppress(Exception):
                     return self._processor.preprocess(file_name=expanded_path)
+
+        return None
+
+    @staticmethod
+    def _get_files_list(path: str, extension: Union[str, list[str]]) -> Optional[dict[str, str]]:
+        """
+        Returns a dictionary mapping base file names (without extension) to their full paths,
+        for files under the given path matching the given extension(s).
+        Args:
+            path (str): Path to a directory or file.
+            extension (Union[str, List[str]]): File extension(s) to match (e.g., '.json' or ['.json', '.jsonc']).
+        Returns:
+            Optional[Dict[str, str]]: Mapping of base file name to full path, or None if path is invalid.
+        """
+        if not path:
+            return None
+
+        base_path = Path(path).expanduser().resolve()
+
+        if isinstance(extension, str):
+            extension = [extension]
+
+        extensions = {ext if ext.startswith('.') else f'.{ext}' for ext in extension}
+
+        result: dict[str, str] = {}
+
+        if base_path.is_file():
+            if base_path.suffix in extensions:
+                result[base_path.stem] = str(base_path)
+            return result
+
+        if base_path.is_dir():
+            for p in base_path.rglob("*"):
+                if p.suffix in extensions and p.is_file():
+                    result[p.stem] = str(p.resolve())
+            return result
 
         return None
 
