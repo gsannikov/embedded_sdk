@@ -150,7 +150,7 @@ class CoreSolution(CoreModuleInterface):
     def query_projects(self,
                        project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
-        Returns a specific project or a list of all projects that belong to a given solution.
+        Returns a specific project or a list of all projects that belong to the loaded solution.
         Excludes projects where "disabled" is set to true.
 
         Args:
@@ -183,30 +183,31 @@ class CoreSolution(CoreModuleInterface):
         else:
             return filtered if filtered else None
 
-    def get_projects_list(self) -> Optional[list[str]]:
+    def get_projects_names(self) -> Optional[list[str]]:
         """
-        Returns the list of project names from the loaded solution,
-        excluding projects where 'disabled' is set to true.
-
+        Returns the list of project names from the loaded solution.
         Returns:
-            List[str]: List of enabled project names, or None if no solution is loaded.
+            List[str]: List of project names, or None if no solution is loaded or no projects are found.
         """
-        if self._solution_loaded:
-            projects = self._query_json_path("$.projects[*]")  # Retrieve full project objects
-            if not isinstance(projects, list):
-                return None
+        projects = self.query_projects()
+        if projects is None:
+            return None
 
-            return [p["name"] for p in projects if not p.get("disabled", False) and "name" in p]
+        if isinstance(projects, dict):
+            return [projects.get("name")]
+
+        if isinstance(projects, list):
+            return [proj.get("name") for proj in projects if isinstance(proj, dict)]
 
         return None
 
-    def query_configurations(self, project_name: Optional[str] = None,
+    def query_configurations(self, project_name: str,
                              configuration_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """
         Returns a specific configuration or a list of all configurations related to a specific project
         of the loaded solution, excluding configurations where 'disabled' is set to true.
         Args:
-            project_name (Optional[str]): The name of the project.
+            project_name (str): The name of the project.
             configuration_name (Optional[str]): The name of the configuration to retrieve. If None, all configurations are retrieved.
 
         Returns:
@@ -243,36 +244,30 @@ class CoreSolution(CoreModuleInterface):
         else:
             return active_configs if active_configs else None
 
-    def get_configurations_list(self, project_name: Optional[str]) -> Optional[list[str]]:
+    def get_configurations_names(self, project_name: str) -> Optional[list[str]]:
         """
-        Returns a list of configuration names related to a specific project under the loaded solution,
-        excluding configurations where 'disabled' is set to true.
+        Returns a list of configuration names related to a specific project under the loaded solution.
         Args:
-            project_name (Optional[str]): The name of the project.
-
+            project_name (str): The name of the project.
         Returns:
-            List[str]: List of enabled configuration names, or None if not found.
+            List[str]: List of configuration names, or None if not found.
         """
-        if not self._solution_loaded or not project_name:
+        configurations = self.query_configurations(project_name=project_name)
+        if configurations is None:
             return None
 
-        projects = self._query_json_path("$.projects[*]")
-        if not isinstance(projects, list):
-            return None
+        if isinstance(configurations, dict):
+            return [configurations.get("name")]
 
-        project = next((p for p in projects if p.get("name") == project_name and not p.get("disabled", False)), None)
-        if not project:
-            return None
+        if isinstance(configurations, list):
+            return [conf.get("name") for conf in configurations if isinstance(conf, dict)]
 
-        configurations = project.get("configurations", [])
-        if not isinstance(configurations, list):
-            return None
-
-        return [cfg["name"] for cfg in configurations if not cfg.get("disabled", False) and "name" in cfg]
+        return None
 
     def iter_menu_commands_with_context(self) -> Optional[Iterator[tuple[str, str, dict]]]:
         """
-        Iterates over all 'menu_command' entries and yields their full context.
+        Iterates over all 'menu_command' entries from enabled projects and configurations,
+        and yields their full context.
         Yields:
             Tuple of (project_name, configuration_name, menu_command_dict)
         """
@@ -281,8 +276,12 @@ class CoreSolution(CoreModuleInterface):
 
         def generator():
             for project in self._solution_data.get("projects", []):
+                if project.get("disabled", False):
+                    continue
                 proj_name = project.get("name", "<unknown-project>")
                 for config in project.get("configurations", []):
+                    if config.get("disabled", False):
+                        continue
                     cfg_name = config.get("name", "<unknown-config>")
                     menu_cmd = config.get("menu_command")
                     if isinstance(menu_cmd, dict):

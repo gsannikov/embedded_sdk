@@ -832,13 +832,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             # Case 1: build + SPACE → suggest projects (no dot inserted)
             if len(tokens) == 1 and not text:
-                for proj in self._solution.get_projects_list() or []:
+                for proj in self._solution.get_projects_names() or []:
                     completions.append(Completion(proj, start_position=0))
 
             # Case 2: build sol → match projects
             elif len(dot_parts) == 1:
                 partial = dot_parts[0]
-                for proj in self._solution.get_projects_list() or []:
+                for proj in self._solution.get_projects_names() or []:
                     if proj.startswith(partial):
                         suffix = proj[len(partial):]
                         completions.append(Completion(suffix, start_position=-len(partial)))
@@ -846,7 +846,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Case 3: build proj → match projects (no dot in completion)
             elif len(dot_parts) == 2:
                 proj, cfg_partial = dot_parts
-                for cfg in self._solution.get_configurations_list(project_name=proj) or []:
+                for cfg in self._solution.get_configurations_names(project_name=proj) or []:
                     if cfg.startswith(cfg_partial):
                         suffix = cfg[len(cfg_partial):]
                         completions.append(Completion(suffix, start_position=-len(cfg_partial)))
