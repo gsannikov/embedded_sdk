@@ -393,6 +393,7 @@ class CoreSolution(CoreModuleInterface):
         """
 
         try:
+
             # Each major step is processed and immediately refreshed
             self._process_and_refresh(method=self._traverse_and_process_syntax)
             self._process_and_refresh(method=self._traverse_and_process_includes)
@@ -690,6 +691,10 @@ class CoreSolution(CoreModuleInterface):
         if reference_path is None:
             raise RuntimeError("can't resolve using invalid reference path")
 
+        # Patch an empty solution with the current loaded solution name
+        if reference_path.startswith('solutions[]'):
+            reference_path = reference_path.replace('solutions[]', f'solutions[{self._solution_name}]')
+
         if "." not in reference_path:
 
             # Resolve Local Referencing: Directly refers to keys within the current context (solution, project, or configuration).
@@ -733,7 +738,11 @@ class CoreSolution(CoreModuleInterface):
             #   Example:
             #   "dummy": "<$ref_solutions[example].projects[test].configurations[debug].board>"
 
-            pattern = r"solutions\[([^\]]+)\](\..+)?"  # Full path always starts with .solutions'
+            pattern = r"solutions\[([^\]]+)\](\..+)?"  # Full path always starts with 'solutions'
+
+            # Patch an empty solution with the current loaded solution name
+            if reference_path.startswith('solutions[]'):
+                reference_path = reference_path.replace('solutions[]', f'solutions[{self._solution_name}]')
             match = re.search(pattern, reference_path)
             if not match:
                 raise ValueError(f"reference '{reference_path}' format or scope not starting with 'solutions'")
@@ -914,6 +923,8 @@ class CoreSolution(CoreModuleInterface):
         match = re.search(pattern, derivation_string)
         if match:
             solution_name, project_name, config_name = match.groups()
+            if not solution_name:
+                solution_name = self._solution_name
             if solution_name and solution_name != self._solution_name:
                 raise ValueError(f"deriving from foreign solution is not allowed ('{solution_name}")
             if not project_name:

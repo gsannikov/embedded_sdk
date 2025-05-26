@@ -1,7 +1,7 @@
 /*
     AutoForge Solution Configuration File
     -------------------------------------
-    Use 'sln -t' to get a full tutorial about this file structure.
+    Use sln -t to view a full tutorial on this file structure.
 
     Note: This JSONC format supports inline comments, which are useful during development but should be
     removed or ignored by parsers in production environments.
