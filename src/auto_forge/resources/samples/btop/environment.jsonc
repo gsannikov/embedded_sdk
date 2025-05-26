@@ -25,6 +25,17 @@
 	"status_post_message": "\n\nSetup is completed.\n",
 	"steps": [
 		{
+            "description": "Show Proxy",
+            "method": "execute_shell_command",
+            "arguments": {
+                "command_and_args": [
+                    "python",
+                    "-c",
+                    "import os; print(os.environ.get('http_proxy', '<not set>'))"
+                ]
+            }
+        },
+		{
 			"description": "Looking for 'dt'",
 			"disabled": true,
 			"method": "validate_prerequisite",

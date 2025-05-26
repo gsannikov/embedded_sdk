@@ -781,7 +781,6 @@ class CoreEnvironment(CoreModuleInterface):
         try:
             start_time = time.time()  # Initialize start_time here for timeout management
             while process.poll() is not None:
-                time.sleep(polling_interval)
                 if timeout > 0 and (time.time() - start_time > timeout):
                     process.kill()
                     raise TimeoutError(f"'{command}' process didn't start after {timeout} seconds")
@@ -1108,10 +1107,9 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Construct the command to update pip
             arguments = "-m pip install --upgrade pip"
-            results = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments),
-                echo_type=TerminalEchoType.NONE)
+            command_and_args = self._flatten_command(command=command, arguments=arguments)
 
+            results = self.execute_shell_command(command_and_args=command_and_args, echo_type=TerminalEchoType.NONE)
             return results
 
         except Exception as py_env_error:
