@@ -76,7 +76,6 @@ class CoreEnvironment(CoreModuleInterface):
             automated_mode(boo, Optional): Specify if we're running in automation mode.
         """
 
-        # Create a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
         self._package_manager: Optional[str] = None
         self._workspace_path: Optional[str] = workspace_path
@@ -85,6 +84,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
+        self._default_step_timeout: float = 30.0
 
         # Slightly non treditional way for extracting the package configuration from the probably not yet created main AutoForge class.
         self._package_configuration_data: Optional[
@@ -907,7 +907,7 @@ class CoreEnvironment(CoreModuleInterface):
             if validation_method == ValidationMethodType.EXECUTE_PROCESS:
                 results = self.execute_shell_command(
                     command_and_args=self._flatten_command(command=command, arguments=arguments),
-                    echo_type=TerminalEchoType.NONE, cwd=cwd)
+                    echo_type=TerminalEchoType.NONE, cwd=cwd, timeout=self._default_step_timeout)
 
                 if expected_response:
                     if results.response is None:
@@ -1086,7 +1086,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"-m venv {full_py_venv_path}"
             results = self.execute_shell_command(
                 command_and_args=self._flatten_command(command=command, arguments=arguments),
-                echo_type=TerminalEchoType.NONE, cwd=expanded_python_binary_path)
+                echo_type=TerminalEchoType.NONE, cwd=expanded_python_binary_path, timeout=self._default_step_timeout)
 
             return results
 
@@ -1111,7 +1111,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = "-m pip install --upgrade pip"
             results = self.execute_shell_command(
                 command_and_args=self._flatten_command(command=command, arguments=arguments),
-                echo_type=TerminalEchoType.NONE)
+                echo_type=TerminalEchoType.NONE, timeout=self._default_step_timeout)
 
             return results
 
