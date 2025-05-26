@@ -62,9 +62,10 @@ class CoreVariables(CoreModuleInterface):
             self._base_config_file_name: Optional[str] = os.path.basename(
                 variables_config_file_name) if variables_config_file_name else None
             self._variables_schema: Optional[dict] = variables_schema
+            self._package_configuration_data: Optional[
+                dict[str, Any]] = self.auto_forge.get_instance().get_package_configuration()
 
-            self._search_keys: Optional[
-                list[tuple[bool, str]]] = None  # Allow for faster binary search on the signatures list
+            self._search_keys: Optional[list[tuple[bool, str]]] = None  # Allow for faster binary search
 
             # Create an instance of the JSON preprocessing library
             self._processor: CoreProcessor = CoreProcessor.get_instance()
@@ -77,9 +78,8 @@ class CoreVariables(CoreModuleInterface):
                 self._ignore_path_errors = True
 
             # Get essential variables list from the package configuration
-            auto_forge_config = self.auto_forge.get_instance().get_config()
-            if auto_forge_config and "essential_variables" in auto_forge_config:
-                self._essential_variables = auto_forge_config["essential_variables"]
+            if self._package_configuration_data and "essential_variables" in self._package_configuration_data:
+                self._essential_variables = self._package_configuration_data["essential_variables"]
 
             # Build variables list
             if self._config_file_name is not None:

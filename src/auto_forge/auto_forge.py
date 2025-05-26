@@ -52,7 +52,7 @@ class AutoForge(CoreModuleInterface):
 
         # Startup arguments
         self._automated_mode: bool = False
-        self.configuration: Optional[dict[str, Any]] = None
+        self._package_configuration_data: Optional[dict[str, Any]] = None
         self._workspace_path: Optional[str] = None
         self._automation_macro: Optional[str] = None
         self._solution_package_path: Optional[str] = None
@@ -77,7 +77,7 @@ class AutoForge(CoreModuleInterface):
 
         # Initialize the most basic and essential core modules, registry must come first.
         self._registry: Registry = Registry()
-        self._toolbox: Optional[ToolBox] = ToolBox()
+        self._tool_box: Optional[ToolBox] = ToolBox()
         self._processor: Optional[CoreProcessor] = CoreProcessor()
 
         # Pass all received arguments down to _validate_arguments
@@ -87,16 +87,18 @@ class AutoForge(CoreModuleInterface):
         if self._remote_debugging is not None:
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
-        # Load AutoForge configuration and several dictionaries we might need later
-        self.configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
-        self.ansi_codes = self.configuration.get("ansi_codes") if "ansi_codes" in self.configuration else None
+        # Load AutoForge package configuration and several dictionaries we might need later
+        self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
+        self.ansi_codes = self._package_configuration_data.get(
+            "ansi_codes") if "ansi_codes" in self._package_configuration_data else None
 
         # Greetings
         print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
               f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Initializes the logger
-        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG, configuration_data=self.configuration)
+        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
+                                                   configuration_data=self._package_configuration_data)
         self._auto_logger.set_log_file_name("auto_forge.log")
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
@@ -106,8 +108,7 @@ class AutoForge(CoreModuleInterface):
         self._loader: Optional[CoreLoader] = CoreLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
-                                                             automated_mode=self._automated_mode,
-                                                             configuration_data=self.configuration)
+                                                             automated_mode=self._automated_mode)
 
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -263,9 +264,9 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
-    def get_config(self) -> Optional[dict[str, Any]]:
-        """ Returns the main configuration """
-        return self.configuration
+    def get_package_configuration(self) -> Optional[dict[str, Any]]:
+        """ Returns the package configuration processed JSON """
+        return self._package_configuration_data
 
     def get_telemetry(self) -> Optional[BuildTelemetry]:
         """ Returns the AutoForge telemetry class instance """
@@ -314,10 +315,10 @@ class AutoForge(CoreModuleInterface):
 
             self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
-            if self.work_mode != AutoForgeWorkModeType.ENV_CREATE:
+            if self.work_mode == AutoForgeWorkModeType.INTERACTIVE:
 
                 # Start user telemetry
-                telemetry_path = self._toolbox.get_expanded_path("~/.autoforge_telemetry.json")
+                telemetry_path = self._tool_box.get_expanded_path("~/.auto_forge.telemetry")
                 self._telemetry = BuildTelemetry.load(telemetry_path)
 
                 # ==============================================================
@@ -326,15 +327,17 @@ class AutoForge(CoreModuleInterface):
                 # ==============================================================
 
                 # Greetings earthlings, we're here!
-                self._toolbox.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}",
-                                         blink_pixel=XYType(x=6, y=2))
+                self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}",
+                                          blink_pixel=XYType(x=6, y=2))
 
                 # Start blocking build system user mode shell
+                self._tool_box.set_terminal_input(state=False)  # Disable user input until the prompt is active
                 self._gui: CoreGUI = CoreGUI()
-                self._prompt = CorePrompt(history_file="~/.auto_forge_history", configuration_data=self.configuration)
-                return self._prompt.cmdloop()
+                self._prompt = CorePrompt()
+                self._prompt.cmdloop()
+                ret_val = self._prompt.last_result
 
-            else:
+            elif self.work_mode == AutoForgeWorkModeType.ENV_CREATE:
 
                 # ==============================================================
                 # Execute workspace creation script
@@ -347,25 +350,27 @@ class AutoForge(CoreModuleInterface):
 
                 # Execute suction creation steps
                 ret_val = self._environment.follow_steps(steps_file=env_steps_file)
+                if ret_val == 0:
+                    # Lastly store the solution in the newly created workspace
+                    scripts_path = self._variables.get(key="SCRIPTS_BASE")
+                    if scripts_path is not None:
+                        solution_destination_path = os.path.join(scripts_path, 'solution')
+                        env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
 
-                # Lastly store the solution in the newly created workspace
-                scripts_path = self._variables.get(key="SCRIPTS_BASE")
-                if scripts_path is not None:
-                    solution_destination_path = os.path.join(scripts_path, 'solution')
-                    env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
+                        self._tool_box.cp(pattern=f'{self._solution_package_path}/*.jsonc',
+                                          dest_dir=f'{solution_destination_path}')
 
-                    self._toolbox.cp(pattern=f'{self._solution_package_path}/*.jsonc',
-                                     dest_dir=f'{solution_destination_path}')
+                        # Place the build system default initiator script
+                        self._tool_box.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=f'{self._workspace_path}')
 
-                    # Place the build system default initiator script
-                    self._toolbox.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=f'{self._workspace_path}')
+                        # Finally, create a hidden '.config' file in the solution directory with essential metadata.
+                        self._environment.create_config_file(solution_name=self._solution_name,
+                                                             create_path=self._workspace_path)
 
-                    # Finally, create a hidden '.config' file in the solution directory with essential metadata.
-                    self._environment.create_config_file(solution_name=self._solution_name,
-                                                         config_path=self._workspace_path)
+            else:
+                raise RuntimeError(f"work mode '{self.work_mode}' not supported")
 
-                return ret_val
-
+            return ret_val
 
         except Exception:  # Propagate
             raise
@@ -449,5 +454,8 @@ def auto_forge_main() -> Optional[int]:
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
+
+    finally:
+        ToolBox.set_terminal_input(state=True, flush=True)  # Restore terminal input
 
     return result

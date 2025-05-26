@@ -10,6 +10,7 @@
 	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     "hide_cmd2_commands": true,
+    "prompt_history_file": "$HOME/.auto_forge.history",
     "log_cleanup_patterns": [
 
         // log_cleanup_patterns:

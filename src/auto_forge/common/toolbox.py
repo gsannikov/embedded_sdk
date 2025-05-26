@@ -10,9 +10,12 @@ Description:
 
 import base64
 import glob
+import gzip
 import importlib.metadata
 import importlib.util
 import inspect
+import json
+import lzma
 import os
 import random
 import re
@@ -21,6 +24,7 @@ import string
 import subprocess
 import sys
 import tempfile
+import termios
 import textwrap
 import zipfile
 from contextlib import suppress
@@ -589,11 +593,9 @@ class ToolBox(CoreModuleInterface):
     def validate_path(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
         """
         Check whether the given text represents an existing directory.
-
         Args:
             text (str): The path string to check.
             raise_exception (bool, optional): If True, raises an exception when the path is invalid.
-                                              Defaults to True.
         Returns:
             bool: True if the path exists and is a directory, False otherwise.
         """
@@ -604,9 +606,31 @@ class ToolBox(CoreModuleInterface):
                 return True
             if raise_exception:
                 raise FileNotFoundError(f"path does not exist or is not a directory: {text}")
-        except Exception as e:
+        except Exception as path_validation_exception:
             if raise_exception:
-                raise e
+                raise path_validation_exception
+        return False
+
+    @staticmethod
+    def validate_file(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
+        """
+        Check whether the given text represents an existing file.
+        Args:
+            text (str): The path string to check.
+            raise_exception (bool, optional): If True, raises an exception when the file is invalid.
+        Returns:
+            bool: True if the path exists and is a file, False otherwise.
+        """
+        try:
+            expanded_path = os.path.expanduser(os.path.expandvars(text))
+            path = Path(expanded_path)
+            if path.exists() and path.is_file():
+                return True
+            if raise_exception:
+                raise FileNotFoundError(f"file does not exist or is not a file: {text}")
+        except Exception as file_validation_exception:
+            if raise_exception:
+                raise file_validation_exception
         return False
 
     @staticmethod
@@ -1409,3 +1433,122 @@ class ToolBox(CoreModuleInterface):
             return any(keyword in result.stdout for keyword in ("shell builtin", "reserved word", "alias", "function"))
 
         return False
+
+    @staticmethod
+    def set_terminal_input(state: bool = False, flush: bool = True) -> Optional[bool]:
+        """
+        Unix specific - Enable or disable terminal input (ECHO and line buffering).
+        Args:
+            state (bool): True to enable input, False to disable.
+            flush (bool): If True, flush the input buffer before changing state.
+        Returns:
+            Optional[bool]: Final input state (True = enabled, False = disabled),
+                            or None if an error occurred.
+        """
+        if os.name != 'posix':
+            return None
+
+        with suppress(Exception):
+            fd = sys.stdin.fileno()
+            attrs = termios.tcgetattr(fd)
+
+            # Flush in any case if specified
+            if flush:
+                termios.tcflush(fd, termios.TCIFLUSH)
+
+            input_enabled = bool(attrs[3] & termios.ECHO and attrs[3] & termios.ICANON)
+            if input_enabled == state:
+                return input_enabled  # Already in desired state
+
+            if state:
+                attrs[3] |= (termios.ECHO | termios.ICANON)
+                termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
+            else:
+                attrs[3] &= ~(termios.ECHO | termios.ICANON)
+                termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
+
+            return state
+
+        return None  # Suppressed exception accused
+
+    @staticmethod
+    def is_valid_compressed_json(file_path: str) -> Optional[str]:
+        """
+        Detects the compression type and validates that the file contains line-delimited JSON.
+        Args:
+            file_path (str): Path to the file.
+        Returns:
+            Optional[str]: Returns the format name ('gzip', 'lzma', 'zip') if valid, None otherwise.
+        """
+
+        def _validate_json_any_format(file_obj) -> bool:
+            """
+            Validates the file contains either:
+            - A single JSON object or array.
+            - Line-delimited JSON objects.
+            Returns:
+                bool: True if any valid JSON format detected, else False.
+            """
+            content = file_obj.read()
+            if isinstance(content, bytes):
+                content = content.decode('utf-8')
+
+            # Try whole-file JSON first (pretty-printed or compact)
+            with suppress(json.JSONDecodeError):
+                json.loads(content)
+                return True
+
+            # Try line-delimited JSON
+            for line in content.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                with suppress(json.JSONDecodeError):
+                    json.loads(line)
+                    continue
+                return False
+
+            return True
+
+        # Check gzip
+        with suppress(Exception):
+            with gzip.open(file_path, 'rt', encoding='utf-8') as f:
+                if _validate_json_any_format(f):
+                    return 'gzip'
+
+        # Check lzma (.xz)
+        with suppress(Exception):
+            with lzma.open(file_path, 'rt', encoding='utf-8') as f:
+                if _validate_json_any_format(f):
+                    return 'lzma'
+
+        return None
+
+    @staticmethod
+    def find_variable_in_stack(module_name: str, variable_name: str) -> Optional[Any]:
+        """
+        Searches the call stack for a frame originating from the given module name
+        and attempts to retrieve a variable or attribute by name.
+        Args:
+            module_name (str): Name of the module (e.g., 'auto_forge').
+            variable_name (str): The name of the attribute or variable to retrieve.
+
+        Returns:
+            Optional[Any]: The value if found, else None.
+        """
+        with suppress(Exception):
+            for frame_info in inspect.stack():
+                frame = frame_info.frame
+                module = inspect.getmodule(frame)
+
+                if module and module.__name__.endswith(module_name):
+                    # Try to fetch from instance attribute
+                    self_obj = frame.f_locals.get("self")
+                    if self_obj and hasattr(self_obj, variable_name):
+                        return getattr(self_obj, variable_name)
+
+                    # Fallback to locals
+                    if variable_name in frame.f_locals:
+                        return frame.f_locals[variable_name]
+
+        return None

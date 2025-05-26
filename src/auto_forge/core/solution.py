@@ -368,7 +368,7 @@ class CoreSolution(CoreModuleInterface):
         if self._schema_files is not None and self._schema_files.get("solution"):
             self._solution_schema = self._processor.preprocess(file_name=self._schema_files.get("solution"))
         else:
-            self._logger.warning(f"Solution schema file not foud")
+            self._logger.warning("Solution schema file not foud")
 
         # Having the solution structure validated we can build the tree
         self._solution_data = solution_data
@@ -919,7 +919,7 @@ class CoreSolution(CoreModuleInterface):
             if not project_name:
                 project_name = self._scope.project.name_value if self._scope.project else None
                 if not project_name:
-                    raise ValueError(f"could resolve project name for current scope")
+                    raise ValueError("could not resolve project name using current scope")
 
             return self._get_configuration_by_path(project_name=project_name, config_name=config_name)
         else:

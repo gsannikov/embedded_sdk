@@ -10,7 +10,7 @@ Description:
 import html
 import logging
 import os
-import readline
+import stat
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -197,8 +197,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100,
-                    history_file: Optional[str] = None, configuration_data: Optional[dict[str, Any]] = None) -> None:
+    def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
         Args:
@@ -206,21 +205,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 If not specified, the lowercase project name ('autoforge') will be used
                 as the base prefix for the dynamic prompt.
             max_completion_results (Optional[int]): Maximum number of completion results.
-            history_file (Optional[str]): Optional file to store the prompt history and make it persistent.
-            configuration_data (dict, optional): Global AutoForge JSON configuration data.
         """
 
-        self._toolbox = ToolBox.get_instance()
+        self._tool_box = ToolBox.get_instance()
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._prompt_base: Optional[str] = prompt
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
-        self._history_file: Optional[str] = None
+        self._history_file_name: Optional[str] = None
+        self._package_configuration_data: Optional[dict[str, Any]] = None
         self._max_completion_results = max_completion_results
         self._last_execution_return_code: Optional[int] = 0
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
+
+        # Retrieve AutoForge packge configuration
+        self._package_configuration_data = self.auto_forge.get_instance().get_package_configuration()
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -245,7 +246,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             raise RuntimeError("could not finish initializing")
 
         # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
-        self.command_completion = configuration_data.get('command_completion') if configuration_data else None
+        self.command_completion = (
+            self._package_configuration_data.get('command_completion')) if self._package_configuration_data else None
         if self.command_completion is None:
             self._logger.warning("No command completion map loaded")
 
@@ -253,36 +255,84 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if self._prompt_base is None:
             self._prompt_base = self._loaded_solution_name
 
+        # Restore keyboard and flush any residual user input
+        self._tool_box.set_terminal_input(state=True, flush=True)
+
+        # Expand and set persistent history file
+        self._history_file_name = (
+            self._package_configuration_data.get('prompt_history_file')
+            if self._package_configuration_data else None)
+
+        # Perper history file
+        if not self._init_history_file():
+            self._logger.warning("No history file loaded")
+
         # Initialize cmd2 bas class
-        cmd2.Cmd.__init__(self)
+        cmd2.Cmd.__init__(self,
+                          persistent_history_file=self._history_file_name)
+
+        # Post 'cmd2' instantiation setup
         self.default_to_shell = True
 
         for proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
             self.add_build_command(project=proj, configuration=cfg, description=cmd['description'],
                                    command_name=cmd['name'])
 
-        # Create persistent history object
-        if history_file is not None:
-            history_file = self._variables.expand(text=history_file)
-            self._history_file = history_file
-            self._load_history()
-
         # Exclude built-in cmd2 commands from help display without disabling their functionality
-        if configuration_data.get('hide_cmd2_commands', False):
-            for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
-                        'quit', 'help']:
-                self._remove_command(command_name=cmd)
+        if self._package_configuration_data:
+            if self._package_configuration_data.get('hide_cmd2_commands', False):
+                for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set',
+                            'alias',
+                            'quit', 'help']:
+                    self._remove_command(command_name=cmd)
 
-        # Dynamically add built-in aliases based on a dictionary in the package configuration file
-        builtin_aliases = configuration_data.get('builtin_aliases')
-        if builtin_aliases:
-            added_aliases = self._add_dynamic_aliases(builtin_aliases)
-            if added_aliases is not None:
-                self._logger.info(f"{added_aliases} dynamic aliases registered.")
+            # Dynamically add built-in aliases based on a dictionary in the package configuration file
+            builtin_aliases = self._package_configuration_data.get('builtin_aliases')
+            if builtin_aliases:
+                added_aliases = self._add_dynamic_aliases(builtin_aliases)
+                if added_aliases is not None:
+                    self._logger.info(f"{added_aliases} dynamic aliases registered.")
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
+
+    def _init_history_file(self) -> bool:
+        """
+        Initializes the history file path from the package configuration.
+
+        - Expands any environment or user variables.
+        - Validates that the file (if present) appears to be a valid compressed JSON archive,
+          such as one used by cmd2 for persistent history.
+        - Deletes the file if it's invalid.
+        - Ensures the parent directory exists.
+
+        Returns:
+            bool: True if a history file name is defined (even if not yet created), False otherwise.
+        """
+        self._history_file_name = (
+            self._package_configuration_data.get('prompt_history_file')
+            if self._package_configuration_data else None
+        )
+
+        if not self._history_file_name:
+            return False
+
+        self._history_file_name = self._variables.expand(self._history_file_name)
+
+        with suppress(Exception):
+            if os.path.exists(self._history_file_name):
+                if not self._tool_box.is_valid_compressed_json(self._history_file_name):
+                    self._logger.warning(f"Invalid history file '{self._history_file_name}' was deleted")
+                    with suppress(Exception):
+                        os.chmod(self._history_file_name, stat.S_IWRITE)  # Best-effort unlock
+                    os.remove(self._history_file_name)
+            else:
+                # Ensure parent directory exists so cmd2 can write to it later
+                os.makedirs(os.path.dirname(self._history_file_name), exist_ok=True)
+            self._logger.info("Using history file from '{self._history_file_name}'")
+            return True
+        return False  # Probably suppressed exception
 
     def _remove_command(self, command_name: str, disable_functionality: bool = False,
                         disable_help: bool = False) -> None:
@@ -406,7 +456,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             show_hidden(bool, optional): Whether to show hidden commands.
             filter_type (Optional[AutoForgCommandType]): If provided, only show commands of this type.
         """
-        term_width = self._toolbox.get_terminal_width(default_width=100)
+        term_width = self._tool_box.get_terminal_width(default_width=100)
         max_desc_width = term_width - 30
         cmd_column_width = 24
         desc_column_width = max(40, max_desc_width)
@@ -444,7 +494,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if not show_hidden and (cmd in self.hidden_commands or cmd in self._alias_metadata):
                 continue
 
-            doc = self._toolbox.flatten_text(method.__doc__, default_text="No help available")
+            doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
             cmd_type = AutoForgCommandType.MISCELLANEOUS
             if filter_type is None or filter_type == cmd_type:
                 commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
@@ -599,24 +649,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.warning("No dynamic commands loaded")
         return added_commands
 
-    def _load_history(self):
-        """Load history from file if available."""
-        if self._history_file is not None and os.path.exists(self._history_file):
-            try:
-                readline.read_history_file(self._history_file)
-                self._logger.debug(f"History loaded from {self._history_file}")
-            except Exception as exception:
-                self._logger.warning(f"Failed to load history: {exception}")
-
-    def _save_history(self):
-        """Save history to file if specified"""
-        if self._history_file is not None:
-            try:
-                readline.write_history_file(self._history_file)
-                self._logger.debug(f"History saved to {self._history_file}")
-            except Exception as exception:
-                self._logger.warning(f"Failed to save history: {exception}")
-
     def _build_executable_index(self) -> None:
         """
         Scan all PATH directories and populate self._executable_db
@@ -648,7 +680,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Function attribute (sort of C-style static variable)
         func = type(self)._get_colored_prompt_toolkit
         if not hasattr(func, "_last_cwd"):
-            func._last_cwd = self._toolbox.get_expanded_path("~")
+            func._last_cwd = self._tool_box.get_expanded_path("~")
 
         # Virtual environment / prompt base name section
         prompt_base = self._prompt_base
@@ -663,13 +695,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if os.path.exists(func._last_cwd):
                 os.chdir(func._last_cwd)
             else:
-                os.chdir(self._toolbox.get_expanded_path("~"))
+                os.chdir(self._tool_box.get_expanded_path("~"))
             cwd = os.getcwd()
             func._last_cwd = cwd
 
             # cwd = func._last_cwd  # Fallback to last known good path
 
-        home = self._toolbox.get_expanded_path("~")
+        home = self._tool_box.get_expanded_path("~")
         cwd_display = "~" + cwd[len(home):] if cwd.startswith(home) else cwd
 
         # Git branch name (optional)
@@ -885,7 +917,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         console = Console()
-        term_width = self._toolbox.get_terminal_width(default_width=100)
+        term_width = self._tool_box.get_terminal_width(default_width=100)
 
         def _show_command_help():
             """
@@ -902,7 +934,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Extract man page help if it's not an internal registered command
             man_description: Optional[str] = None
             if command_record is None:
-                man_description = self._toolbox.get_man_description(command_name)
+                man_description = self._tool_box.get_man_description(command_name)
 
             command_method = getattr(self, f'do_{arg}', None)
 
@@ -910,11 +942,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if command_record and 'description' in command_record:
                 command_method_description = command_record.get('description', None)
             elif command_method and command_method.__doc__:
-                command_method_description = self._toolbox.normalize_docstrings(doc=command_method.__doc__,
-                                                                                wrap_term_width=term_width - 8)
+                command_method_description = self._tool_box.normalize_docstrings(doc=command_method.__doc__,
+                                                                                 wrap_term_width=term_width - 8)
             elif man_description:
-                command_method_description = self._toolbox.normalize_docstrings(doc=man_description,
-                                                                                wrap_term_width=term_width - 8)
+                command_method_description = self._tool_box.normalize_docstrings(doc=man_description,
+                                                                                 wrap_term_width=term_width - 8)
             else:
                 command_method_description = None
 
@@ -1025,11 +1057,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Called once when exiting the command loop.
         """
 
-        # Save history when the session ends
-        self._save_history()
-
         self.poutput("\nClosing session..")
-        self._toolbox.set_terminal_title("Terminal")
+        self._tool_box.set_terminal_title("Terminal")
         super().postloop()  # Always call the parent
 
         telemetry = self.auto_forge.get_telemetry()
@@ -1080,8 +1109,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Create session with completer and key bindings
         completer = _CoreCompleter(self, logger=self._logger)
-        history_path = self._history_file or os.path.expanduser(self._history_file)
-        session = PromptSession(completer=completer, history=FileHistory(history_path), key_bindings=kb, style=style, )
+        session = PromptSession(completer=completer, history=FileHistory(self._history_file_name), key_bindings=kb,
+                                style=style, enable_history_search=True)
 
         while True:
             try:

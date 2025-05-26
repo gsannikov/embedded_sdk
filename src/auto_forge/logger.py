@@ -200,7 +200,7 @@ class _ColorFormatter(logging.Formatter):
                 error_data = json.loads(json_part)
                 if 'errors' in error_data:
                     formatted_errors = [f"Error {error['status']}: {error['message']}" for error in
-                        error_data['errors']]
+                                        error_data['errors']]
                     # Return the combined text and formatted JSON
                     return f"{text_part} {'; '.join(formatted_errors)}"
         except (json.JSONDecodeError, ValueError):
@@ -265,7 +265,7 @@ class AutoLogger:
 
     # Dictionary to map log levels to colors using Colorama
     LOG_LEVEL_COLORS: ClassVar[dict[str, str]] = {'DEBUG': Fore.LIGHTCYAN_EX, 'INFO': Fore.LIGHTBLUE_EX,
-        'WARNING': Fore.YELLOW, 'ERROR': Fore.RED, 'CRITICAL': Fore.MAGENTA, }
+                                                  'WARNING': Fore.YELLOW, 'ERROR': Fore.RED, 'CRITICAL': Fore.MAGENTA, }
 
     def __init__(self, log_level=logging.ERROR, console_enable_colors: bool = True, console_output_state: bool = True,
                  erase_exiting_file: bool = True, exclusive: bool = True,
@@ -350,7 +350,7 @@ class AutoLogger:
 
         self._logger.setLevel(self._log_level)
 
-        if (LogHandlersTypes.CONSOLE_HANDLER in handlers and self._stream_console_handler is None):
+        if LogHandlersTypes.CONSOLE_HANDLER in handlers and self._stream_console_handler is None:
             # Create dedicated formatter instance
             formatter: Optional[_ColorFormatter] = (_ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
                                                                     handler=LogHandlersTypes.CONSOLE_HANDLER))

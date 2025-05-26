@@ -41,8 +41,10 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         Initializes the parser and sets up an internal buffer to capture error messages.
         Args and kwargs are passed directly to the base ArgumentParser constructor.
         """
-        self._toolbox = ToolBox.get_instance()
+        self._tool_box = ToolBox.get_instance()
+
         self.error_output = io.StringIO()
+
         super().__init__(*args, **kwargs)
 
     def exit(self, status=0, message=None):
@@ -150,11 +152,17 @@ class CLICommandInterface(ABC):
             hidden (bool, optional): Whether to hide commands from the menu.
         """
 
+        self._tool_box = ToolBox.get_instance()  # Gets the toolbox class instance
         self._last_error: Optional[str] = None
         self._last_exception: Optional[Exception] = None
         self._raise_exceptions = raise_exceptions if raise_exceptions else False
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
+
+        # Slightly non treditional way for extracting the package configuration from the probably not yet created main AutoForge class.
+        self._package_configuration_data: Optional[
+            dict[str, Any]] = self._tool_box.find_variable_in_stack(module_name='auto_forge',
+                                                                    variable_name='_package_configuration_data')
 
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals

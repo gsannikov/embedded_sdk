@@ -61,9 +61,8 @@ class LSDCommand(CLICommandInterface):
                 - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
         """
 
-        self._tool_box = ToolBox.get_instance()  # Gets the toolbox class instance
         # Retrieve the ANSI codes map from the main AutoForge instance.
-        self._ansi_codes: Optional[dict[str, Any]] = self._tool_box.auto_forge.ansi_codes
+        self._ansi_codes: Optional[dict[str, Any]] = ToolBox.get_instance().auto_forge.ansi_codes
 
         # Placeholder for the large icons dictionary
         self._terminal_icons: Optional[dict[str, Any]] = None
@@ -374,8 +373,8 @@ class LSDCommand(CLICommandInterface):
         target_paths = args.paths if args.paths else [os.getcwd()]
 
         # Load the terminal icons map from the package configuration, if not already loaded.
-        if self._terminal_icons is None:
-            self._terminal_icons = self._tool_box.auto_forge.configuration.get("terminal_icons")
+        if self._terminal_icons is None and self._package_configuration_data:
+            self._terminal_icons = self._package_configuration_data.get("terminal_icons")
 
         if not self._terminal_icons or not self._ansi_codes:
             raise RuntimeError("'lsd' can't run, essential terminal resources (icons and ANSI codes) are unavailable")

@@ -68,14 +68,12 @@ class CoreEnvironment(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False,
-                    configuration_data: Optional[dict[str, Any]] = None) -> None:
+    def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
         """
         Initialize the 'Environment' class, collect few system properties and prepare for execution a 'steps' file.
         Args:
             workspace_path(str): The workspace path.
             automated_mode(boo, Optional): Specify if we're running in automation mode.
-            configuration_data (dict, optional): Global AutoForge JSON configuration data.
         """
 
         # Create a logger instance
@@ -88,6 +86,10 @@ class CoreEnvironment(CoreModuleInterface):
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
 
+        # Slightly non treditional way for extracting the package configuration from the probably not yet created main AutoForge class.
+        self._package_configuration_data: Optional[
+            dict[str, Any]] = self._tool_box.find_variable_in_stack(module_name='auto_forge',
+                                                                    variable_name='_package_configuration_data')
         # Determine the terminal width
         try:
             self._term_width = shutil.get_terminal_size().columns
@@ -95,7 +97,8 @@ class CoreEnvironment(CoreModuleInterface):
             self._term_width = 100  # fallback default if terminal size can't be determined
 
         # Use project config list for the interactive commands if available, else fallback to default list
-        self._interactive_commands = configuration_data.get('interactive_commands') if configuration_data else None
+        self._interactive_commands = (
+            self._package_configuration_data.get('interactive_commands')) if self._package_configuration_data else None
         if not self._interactive_commands:
             self._interactive_commands = ["cat", "htop", "top", "vim", "less", "nano", "vi", "clear"]
 
@@ -1514,16 +1517,16 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as download_error:
             raise RuntimeError(f"download error '{remote_file or url}', {download_error}") from download_error
 
-    def create_config_file(self, solution_name: str, config_path: str) -> None:
+    def create_config_file(self, solution_name: str, create_path: str) -> None:
         """
         Creates a .config file inside the given directory with basic solution properties.
 
         Args:
             solution_name (str): The name of the solution to store in the config.
-            config_path (str): Path to the directory where .config should be created.
+            create_path (str): Path to the directory where .config should be created.
         """
         try:
-            config_dir = Path(config_path)
+            config_dir = Path(create_path)
             config_file = config_dir / ".config"
 
             self._logger.debug(f"Creating config file '{config_file.__str__()}'")
@@ -1538,7 +1541,7 @@ class CoreEnvironment(CoreModuleInterface):
                 f.write(f"install_date={install_date}\n")
 
         except Exception as exception:
-            raise RuntimeError(f"failed to create .config in {config_path}: {exception}") from exception
+            raise RuntimeError(f"failed to create .config in {create_path}: {exception}") from exception
 
     def follow_steps(self, steps_file: str, tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
