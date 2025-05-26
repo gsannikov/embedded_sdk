@@ -637,10 +637,9 @@ class CoreEnvironment(CoreModuleInterface):
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
 
         # Create merged environment where AutoForge variables override exising
-        base_env = os.environ if env is None else env
-        env_dict = self._variables.export(as_env=True)
-        env = dict(base_env)
-        env.update(env_dict)
+        proc_env: dict[str, str] = os.environ.copy()
+        if env:
+            proc_env.update(env)  # apply overrides and updates
 
         # Cleanup
         if isinstance(command_and_args, str):
@@ -660,7 +659,7 @@ class CoreEnvironment(CoreModuleInterface):
         # Full TTY handoff for interactive apps
         if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
             self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
-            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=env)
+            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env)
             if check and results.return_code != 0:
                 raise subprocess.CalledProcessError(returncode=results.return_code, cmd=command)
             return results
@@ -768,14 +767,15 @@ class CoreEnvironment(CoreModuleInterface):
             self._logger.debug(f"Executing: {command_and_args} (PTY)")
             master_fd, slave_fd = pty.openpty()
             process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
-                                       shell=shell, cwd=cwd, env=env, **kwargs)
+                                       shell=shell, cwd=cwd, env=proc_env, **kwargs)
             flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
             fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         else:  # Normal flow
             self._logger.debug(f"Executing: {command_and_args}")
             process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=env, **kwargs)
+                                       stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
+                                       **kwargs)
 
         # Loop and read the spawned process output upto timeout or normal termination
         try:

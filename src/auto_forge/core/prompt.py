@@ -1114,7 +1114,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
         try:
-            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args)
+
+            # Export local variables to an environment mapping
+            var_env = self._variables.export(as_env=True)
+
+            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args, env=var_env)
             self.last_result = results.response
 
         except KeyboardInterrupt:
