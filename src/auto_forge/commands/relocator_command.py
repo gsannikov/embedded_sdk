@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import CLICommandInterface, CoreProcessor, ToolBox
+from auto_forge import (CLICommandInterface, CoreProcessor, CoreVariables, ToolBox)
 
 # Third-party
 
@@ -39,8 +39,6 @@ class _RelocateFolder:
 
 @dataclass
 class _RelocateDefaults:
-    base_source_path: str
-    base_destination_path: str
     delete_destination_on_start: bool
     full_debug: bool
     file_types: list[str]
@@ -59,28 +57,13 @@ class _RelocateDefaultsRead:
         if not isinstance(defaults_data, dict):
             raise TypeError("'defaults_data' must be a dictionary")
 
-        # Expand and resolve base paths
-        base_source_path = os.path.expandvars(os.path.expanduser(defaults_data.get("base_source_path", "")))
-        base_destination_path = os.path.expandvars(os.path.expanduser(defaults_data.get("base_destination_path", "")))
-
-        if not base_source_path or not base_destination_path:
-            raise ValueError("'base_source_path' and 'base_destination_path' must be defined and non-empty")
-
-        if not os.path.isdir(base_source_path):
-            relative_path = os.path.join(os.getcwd(), base_source_path)
-            if not os.path.isdir(relative_path):
-                raise FileNotFoundError(f"Base source path does not exist: '{base_source_path}'")
-            base_source_path = relative_path
-            base_destination_path = os.path.join(os.getcwd(), base_destination_path)
-
         # Validate file_types
         file_types = defaults_data.get("file_types", ["*"])
         if not isinstance(file_types, list):
             raise ValueError("'file_types' must be a list")
 
         # Construct dataclass instance
-        return _RelocateDefaults(base_source_path=base_source_path, base_destination_path=base_destination_path,
-                                 file_types=file_types,
+        return _RelocateDefaults(file_types=file_types,
                                  delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
                                  full_debug=defaults_data.get("full_debug", False),
                                  create_grave_yard=defaults_data.get("create_grave_yard", False),
@@ -126,7 +109,8 @@ class RelocatorCommand(CLICommandInterface):
         """
 
         self._json_processor: CoreProcessor = CoreProcessor.get_instance()  # JSON preprocessor instance
-        self._toolbox: ToolBox = ToolBox.get_instance()
+        self._tool_box: ToolBox = ToolBox.get_instance()
+        self._variables: CoreVariables = CoreVariables.get_instance()
 
         # Raw JSON data
         self._recipe_data: Optional[dict[str, Any]] = None  # Complete JSON raw data
@@ -204,18 +188,34 @@ class RelocatorCommand(CLICommandInterface):
     def _relocate(self, **kwargs: Any) -> bool:
         """
         Execute the loaded relocation recipe and reconstruct the destination tree accordingly.
-
         Args:
             **kwargs: Optional keyword arguments:
-                - recipe_file (str): Path to the JSON AutoForge recipe file.
-
+                - recipe_file (str): Path to the JSON recipe file.
+                - source_path (str): Source path to process.
+                - destination path (str): Destination path to generate.
         Returns:
             bool: True if relocation was successful, False otherwise.
         """
         try:
+            source_path: Optional[str] = kwargs.get("source_path")
+            destination_path: Optional[str] = kwargs.get("recipe_file")
             recipe_file: Optional[str] = kwargs.get("recipe_file")
-            if not recipe_file or not isinstance(recipe_file, str):
-                raise KeyError("Required argument 'recipe_file' is missing or invalid.")
+
+            # Check all are non-empty strings
+            if not all(isinstance(x, str) for x in (recipe_file, source_path, destination_path)):
+                raise ValueError("missing or invalid arguments: expected non-empty strings for "
+                                 "recipe_file, source_path, and destination_path.")
+
+            # Expand
+            source_path = self._variables.expand(source_path)
+            destination_path = self._variables.expand(destination_path)
+            recipe_file = self._variables.expand(recipe_file)
+
+            # Validate that source_path is an existing directory
+            if not os.path.isdir(source_path):
+                raise NotADirectoryError(f"source path must be an existing directory: {source_path}")
+            if not self._tool_box.looks_like_unix_path(destination_path):
+                raise NotADirectoryError(f"destination path does not appear to look like a directory: {source_path}")
 
             # Load and validate recipe; raises on error
             self._load_recipe(recipe_file)
@@ -224,22 +224,21 @@ class RelocatorCommand(CLICommandInterface):
                 raise RuntimeError("No folders found in the recipe to process.")
 
             graveyard_path: Optional[str] = None
-            destination_root = self._relocate_defaults.base_destination_path
 
             # Handle deletion of existing destination directory
             if self._relocate_defaults.delete_destination_on_start:
-                if os.path.exists(destination_root):
+                if os.path.exists(destination_path):
                     try:
-                        shutil.rmtree(destination_root)
-                        self._logger.debug(f"deleted existing destination directory: '{destination_root}'")
+                        shutil.rmtree(destination_path)
+                        self._logger.debug(f"deleted existing destination directory: '{destination_path}'")
                     except Exception as exception:
                         raise RuntimeError(f"failed to delete destination directory: {exception}") from exception
             else:
-                if os.path.exists(destination_root):
-                    raise RuntimeError(f"destination '{destination_root}' already exists.")
+                if os.path.exists(destination_path):
+                    raise RuntimeError(f"destination '{destination_path}' already exists.")
 
-            # Recreate destination root
-            os.makedirs(destination_root, exist_ok=True)
+            # Recreate destination
+            os.makedirs(destination_path, exist_ok=True)
 
             # Process each folder entry
             for folder in self._relocated_folders:
@@ -321,8 +320,7 @@ class RelocatorCommand(CLICommandInterface):
             }.items() if value is None]
 
             if missing:
-                print(f"Error: missing required arguments: {', '.join(missing)}")
-                return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+                print(f"\nError: missing required arguments: {', '.join(missing)}")
             else:
                 print("OK")
 
