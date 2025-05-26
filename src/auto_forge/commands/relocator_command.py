@@ -14,14 +14,12 @@ import logging
 import os
 import shutil
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Optional
 
-# Third-party
-from rich.console import Console
-
 # AutoForge imports
-from auto_forge import PROJECT_COMMANDS_PATH, CLICommandInterface, CoreProcessor, PrettyPrinter, ToolBox
+from auto_forge import CLICommandInterface, CoreProcessor, ToolBox
+
+# Third-party
 
 AUTO_FORGE_MODULE_NAME = "relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
@@ -82,11 +80,12 @@ class _RelocateDefaultsRead:
 
         # Construct dataclass instance
         return _RelocateDefaults(base_source_path=base_source_path, base_destination_path=base_destination_path,
-            file_types=file_types, delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
-            full_debug=defaults_data.get("full_debug", False),
-            create_grave_yard=defaults_data.get("create_grave_yard", False),
-            max_copy_depth=defaults_data.get("max_copy_depth", -1),
-            create_empty_cmake_file=defaults_data.get("create_empty_cmake_file", False), )
+                                 file_types=file_types,
+                                 delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
+                                 full_debug=defaults_data.get("full_debug", False),
+                                 create_grave_yard=defaults_data.get("create_grave_yard", False),
+                                 max_copy_depth=defaults_data.get("max_copy_depth", -1),
+                                 create_empty_cmake_file=defaults_data.get("create_empty_cmake_file", False), )
 
 
 class _RelocateFolderRead:
@@ -113,7 +112,7 @@ class _RelocateFolderRead:
         file_types = ['*'] if '*' in file_types else file_types
 
         return _RelocateFolder(description=raw_folder_entry.get("description"), source=source, destination=destination,
-            file_types=file_types, )
+                               file_types=file_types, )
 
 
 class RelocatorCommand(CLICommandInterface):
@@ -188,7 +187,7 @@ class RelocatorCommand(CLICommandInterface):
                 raise KeyError("missing or invalid 'folders' section in JSON recipe")
 
             self._relocated_folders = [_RelocateFolderRead.process(self._relocate_defaults, entry) for entry in
-                self._relocate_folders_data]
+                                       self._relocate_folders_data]
             self._relocate_folders_count = len(self._relocated_folders)
 
             # Inform the user if a feature is not implemented
@@ -285,66 +284,6 @@ class RelocatorCommand(CLICommandInterface):
             # Re-raise for upstream error handling; can be enhanced for logging
             raise relocate_error from relocate_error
 
-    def print_relocation_recipe_help(self) -> None:
-        """
-        Prints dynamic help explaining how to create a .jsonc relocation recipe file,
-        based on an example file located in PROJECT_COMMANDS_PATH/help/relocate_example.jsonc.
-        """
-        console = Console(force_terminal=True, color_system="truecolor")
-        help_dir: Path = PROJECT_COMMANDS_PATH / "help"
-        example_file: Path = help_dir / "relocate_example.jsonc"
-
-        if not help_dir.exists() or not help_dir.is_dir():
-            console.print(f"[bold red][ERROR][/bold red] Help directory not found: {help_dir}")
-            return
-
-        if not example_file.exists() or not example_file.is_file():
-            console.print(f"[bold red][ERROR][/bold red] Example recipe file not found: {example_file}")
-            return
-
-        try:
-            json_data = self._json_processor.preprocess(str(example_file))
-        except Exception as json_error:
-            console.print(f"[bold red][ERROR][/bold red] Failed to load or preprocess example recipe: {json_error}")
-            return
-
-        print()
-        console.print("[bold cyan]RELOCATION RECIPE HELP (.jsonc)[/bold cyan]", style="bold underline")
-        console.print("""
-    This guide explains how to write a relocation recipe file for AutoForge.
-
-    A recipe is a JSONC (JSON with comments) file that defines:
-      - Global settings (in the [bold]defaults[/bold] section)
-      - Folder-specific source/destination mappings (in the [bold]folders[/bold] list)
-
-    [bold]Key Sections[/bold]
-    ────────────────────────────────────────────
-
-    [green]▶ defaults[/green]
-      Global settings applied to all folders unless overridden.
-
-        • base_source_path: str (Required)
-        • base_destination_path: str (Required)
-        • file_types: list[str] (Optional, default = ["*"])
-        • delete_destination_on_start: bool (Optional)
-        • full_debug: bool (Optional)
-        • create_grave_yard: bool (Optional)
-        • max_copy_depth: int (Optional, default = -1)
-        • create_empty_cmake_file: bool (Optional)
-
-    [green]▶ folders[/green]
-      Folder-specific mapping list.
-
-        • source: str (Required)
-        • destination: str (Required)
-        • file_types: list[str] (Optional, overrides global)
-        • description: str (Optional)
-
-    """)
-
-        console.print("\n[bold]Parsed JSON version (after stripping comments):[/bold]\n")
-        PrettyPrinter(indent=4).render(json_data)
-
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds the command-line arguments supported by this command.
@@ -352,7 +291,12 @@ class RelocatorCommand(CLICommandInterface):
             parser (argparse.ArgumentParser): The parser to extend.
         """
         parser.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
-        parser.add_argument("-x", "--recipe_example", action="store_true", help="Show precipice file example.")
+        parser.add_argument("-s", "--source_path",
+                            help="Source path containing the structure we would like to refactor")
+        parser.add_argument("-d", "--destination",
+                            help="Destination path which the new structured project will be created in")
+
+        parser.add_argument("-t", "--tutorial", action="store_true", help="Show the relocator tool tutorial.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -365,11 +309,21 @@ class RelocatorCommand(CLICommandInterface):
         return_value: int = 0
 
         # Handle arguments
-        if args.recipe:
-            self._relocate(recipe_file=args.recipe)
-        elif args.recipe_example:
-            self.print_relocation_recipe_help()
+        if args.tutorial:
+            self._tool_box.show_help_file(help_file_relative_path='commands/relocator.md')
         else:
-            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+
+            # Check if all three required arguments are present
+            missing = [arg for arg, value in {
+                '--recipe': args.recipe,
+                '--source_path': args.source_path,
+                '--destination': args.destination
+            }.items() if value is None]
+
+            if missing:
+                print(f"Error: missing required arguments: {', '.join(missing)}")
+                return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            else:
+                print("OK")
 
         return return_value

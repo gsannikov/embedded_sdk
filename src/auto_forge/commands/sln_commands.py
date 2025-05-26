@@ -133,7 +133,7 @@ class SolutionCommand(CLICommandInterface):
 
         # Logger printout
         parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
-        parser.add_argument('-t', '--tutorial', action='store_true', help='Show the solution creation  tutorial.')
+        parser.add_argument('-t', '--tutorial', action='store_true', help='Show the solution creation tutorial.')
 
         parser.add_argument("-c", "--cheerful", action="store_true", help="Enable colorful log output (only with -l)")
 
