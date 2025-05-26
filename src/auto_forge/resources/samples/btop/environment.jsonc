@@ -31,7 +31,7 @@
                 "command_and_args": [
                     "python",
                     "-c",
-                    "import os; print(os.environ.get('http_proxy', '<not set>') + '\n\n\n')"
+                    "import os; print(os.environ.get('http_proxy', '<not set>')); print('\n')"
                 ]
             }
         },
