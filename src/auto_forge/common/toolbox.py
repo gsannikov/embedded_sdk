@@ -1511,16 +1511,14 @@ class ToolBox(CoreModuleInterface):
             return True
 
         # Check gzip
-        with suppress(Exception):
-            with gzip.open(file_path, 'rt', encoding='utf-8') as f:
-                if _validate_json_any_format(f):
-                    return 'gzip'
+        with suppress(Exception), gzip.open(file_path, 'rt', encoding='utf-8') as f:
+            if _validate_json_any_format(f):
+                return 'gzip'
 
         # Check lzma (.xz)
-        with suppress(Exception):
-            with lzma.open(file_path, 'rt', encoding='utf-8') as f:
-                if _validate_json_any_format(f):
-                    return 'lzma'
+        with suppress(Exception), lzma.open(file_path, 'rt', encoding='utf-8') as f:
+            if _validate_json_any_format(f):
+                return 'lzma'
 
         return None
 

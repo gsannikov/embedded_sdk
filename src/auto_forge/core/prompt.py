@@ -27,7 +27,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion, CompleteEvent
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.history import FileHistory
+from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.styles import Style
@@ -91,7 +91,6 @@ class _CoreCompleter(Completer):
         # Fallback for unlisted known commands
         is_known_command = (cmd in self.core_prompt.executable_db or cmd in [c.name for c in
                                                                              self.core_prompt.dynamic_cli_commands_list])
-
         return is_known_command and bool(arg_text.strip())
 
     def get_completions(  # noqa: C901
@@ -197,6 +196,20 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
+    def __init__(self, *args, **kwargs):
+        """
+        Extra initialization required for assigning runtime values to attributes
+        declared earlier in `__init__()` See 'CoreModuleInterface' usage.
+        """
+
+        # Prompt toolkit main objects
+        self._toolkit_completer: Optional[_CoreCompleter] = None
+        self._toolkit_style: Optional[Style] = None
+        self._toolkit_kb: Optional[KeyBindings] = None
+        self._toolkit_session: Optional[PromptSession] = None
+
+        super().__init__(*args, **kwargs)
+
     def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100) -> None:
         """
         Initialize the 'Prompt' class and its underlying cmd2 components.
@@ -268,8 +281,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.warning("No history file loaded")
 
         # Initialize cmd2 bas class
-        cmd2.Cmd.__init__(self,
-                          persistent_history_file=self._history_file_name)
+        cmd2.Cmd.__init__(self, persistent_history_file=self._history_file_name)
 
         # Post 'cmd2' instantiation setup
         self.default_to_shell = True
@@ -282,8 +294,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if self._package_configuration_data:
             if self._package_configuration_data.get('hide_cmd2_commands', False):
                 for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set',
-                            'alias',
-                            'quit', 'help']:
+                            'alias', 'quit', 'help']:
                     self._remove_command(command_name=cmd)
 
             # Dynamically add built-in aliases based on a dictionary in the package configuration file
@@ -300,13 +311,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def _init_history_file(self) -> bool:
         """
         Initializes the history file path from the package configuration.
-
         - Expands any environment or user variables.
         - Validates that the file (if present) appears to be a valid compressed JSON archive,
           such as one used by cmd2 for persistent history.
         - Deletes the file if it's invalid.
         - Ensures the parent directory exists.
-
         Returns:
             bool: True if a history file name is defined (even if not yet created), False otherwise.
         """
@@ -330,9 +339,74 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             else:
                 # Ensure parent directory exists so cmd2 can write to it later
                 os.makedirs(os.path.dirname(self._history_file_name), exist_ok=True)
-            self._logger.info("Using history file from '{self._history_file_name}'")
+            self._logger.info(f"Using history file from '{self._history_file_name}'")
             return True
         return False  # Probably suppressed exception
+
+    def _init_toolkit_session(self) -> Optional[PromptSession]:
+        """
+        Initializes the prompt_toolkit session components: key bindings, style, and completer.
+        Returns:
+            PromptSession: if initialization occurred.
+        """
+        if self._toolkit_session:
+            return self._toolkit_session  # Already initialized
+
+        # Initialize key bindings
+        self._toolkit_kb = KeyBindings()
+
+        @self._toolkit_kb.add('/')
+        def _(event):
+            """
+            Inserts '/' and triggers completion.
+            If '/' is already present, forces a refresh of completion suggestions.
+            """
+            buffer = event.app.current_buffer
+            cursor_pos = buffer.cursor_position
+            text = buffer.text
+
+            if cursor_pos == 0 or text[cursor_pos - 1] != '/':
+                buffer.insert_text('/')
+            else:
+                buffer.insert_text(' ')
+                buffer.delete_before_cursor(1)
+
+            buffer.start_completion(select_first=True)
+
+        @self._toolkit_kb.add('.')
+        def _(event):
+            """
+            Inserts '.' and triggers autocompletion.
+            Useful for namespaced or hierarchical command patterns.
+            """
+            buffer = event.app.current_buffer
+            buffer.insert_text('.')
+            buffer.start_completion(select_first=True)
+
+        # Define style for different token categories (e.g., executable names, files)
+        self._toolkit_style = Style.from_dict({
+            'executable': 'fg:green bold', 'file': 'fg:gray'})
+
+        # Set up the custom completer
+        self._toolkit_completer = _CoreCompleter(self, logger=self._logger)
+
+        # Create the prompt-toolkit history object
+        pt_history = InMemoryHistory()
+        for item in self.history:
+            raw = item.statement.raw.strip()
+            if raw:
+                pt_history.append_string(raw)
+
+        # Create the session
+        self._toolkit_session = PromptSession(
+            completer=self._toolkit_completer,
+            key_bindings=self._toolkit_kb,
+            style=self._toolkit_style,
+            history=pt_history,
+            enable_history_search=True,
+        )
+
+        return self._toolkit_session
 
     def _remove_command(self, command_name: str, disable_functionality: bool = False,
                         disable_help: bool = False) -> None:
@@ -716,9 +790,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         arrow = "\u279C"
 
         # Final HTML-formatted string
-        return (f"<ansibrightcyan>{venv_prompt}</ansibrightcyan> "
-                f"<ansiblue>{cwd_display}</ansiblue>"
-                f"{git_branch} <ansiyellow>{arrow}</ansiyellow> ")
+        prompt_text = (f"<ansibrightcyan>{venv_prompt}</ansibrightcyan> "
+                       f"<ansiblue>{cwd_display}</ansiblue>"
+                       f"{git_branch} <ansiyellow>{arrow}</ansiyellow> ")
+
+        return prompt_text
 
     def _register_generic_complete(self):
         """
@@ -1068,55 +1144,18 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def cmdloop(self, intro: Optional[str] = None) -> None:
         """
         Custom command loop using prompt_toolkit for colored prompt, autocompletion,
-        and key-triggered path completions (e.g., on '/' and '.').
+        and key-triggered path completions (e.g., on '/' and '.'),
+        with full cmd2 command history integration.
         """
         if intro:
             self.poutput(intro)
 
-        # Create key bindings
-        kb = KeyBindings()
-
-        @kb.add('/')
-        def _(event):
-            """
-            Handle '/' keypress:
-            - Avoid duplicate slashes
-            - Always trigger completion even if '/' is already present
-            """
-            buffer = event.app.current_buffer
-            cursor_pos = buffer.cursor_position
-            text = buffer.text
-
-            if cursor_pos == 0 or text[cursor_pos - 1] != '/':
-                buffer.insert_text('/')
-            else:
-                # Force a "change" so prompt_toolkit updates completions
-                buffer.insert_text(' ')  # insert temp space
-                buffer.delete_before_cursor(1)  # immediately remove it
-
-            buffer.start_completion(select_first=True)
-
-        @kb.add('.')
-        def _(event):
-            """
-            Trigger completion after '.' — helpful for build command hierarchy.
-            """
-            buffer = event.app.current_buffer
-            buffer.insert_text('.')
-            buffer.start_completion(select_first=True)
-
-        style = Style.from_dict({'executable': 'fg:green bold', 'file': 'fg:gray'})
-
-        # Create session with completer and key bindings
-        completer = _CoreCompleter(self, logger=self._logger)
-        session = PromptSession(completer=completer, history=FileHistory(self._history_file_name), key_bindings=kb,
-                                style=style, enable_history_search=True)
+        session = self._init_toolkit_session()
 
         while True:
             try:
                 prompt_text = HTML(self._get_colored_prompt_toolkit())
                 line = session.prompt(prompt_text)
-
                 stop = self.onecmd_plus_hooks(line)
                 if stop:
                     break
@@ -1126,6 +1165,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             except EOFError:
                 break
             except Exception as toolkit_error:
-                self.perror(f"Prompt toolkit error {toolkit_error}")
+                self.perror(f"Prompt toolkit error: {toolkit_error}")
+                break
 
         self.postloop()
