@@ -1,0 +1,115 @@
+/*
+ * Configuration File for Source Tree Reorganization.
+ * Purpose: This JSON file defines the settings and mappings required to reorganize a large source tree into a new structure.
+ * It specifies the paths, file types, and other options to manage the copying and restructuring processes.
+ *
+ */
+
+{
+    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+
+    "defaults": {
+        "base_source_path": "userspace",            // Mandatory: Path to the existing source tree.
+        "base_destination_path": "userspace_new",   // Mandatory: Destination path for the new tree. Must differ from 'base_source_path'.
+        "delete_destination_on_start": true,        // Optional: Delete the entire destination directory at the start of the process. Default is false if not specified.
+        "full_debug": true,                         // Optional: Raises the logger from info -> debug which will results in extensive debug logs.
+        "break_on_errors": true,
+
+        // Optional: File types to be copied to the destination. Defaults to all types ("*") if not specified.
+        "file_types": [
+            "c",
+            "h"
+        ],
+
+        "create_grave_yard": true,      // Optional: Create a 'grave_yard' directory for each copied folder containing files that were omitted. Default is false if not specified.
+        "max_copy_depth": 3,            // Optional: Maximum depth of destination directory structure allowed. Default is unlimited (-1) if not specified.
+        "create_empty_cmake_file": true // Optional: Place an empty CMakeLists.txt placeholder in each newly created folder. Default is false if not specified.
+    },
+    // Mandatory: a list of one or more items which correlates to source and destination
+    "folders": [
+        { "source": "apps/bmd_conf",                        "destination": "n_apps/bmd_conf"                    },
+        { "source": "apps/cli_mbx",                         "destination": "n_apps/cli_mbx"                     },
+        { "source": "apps/mev_imc_cli_mbx_handler_app",     "destination": "n_apps/cli_mbx_handler"             },
+        { "source": "apps/ft_log_severity",                 "destination": "n_apps/ft_log_severity"             },
+        { "source": "ipu_project_setting",                  "destination": "n_apps/ipu_project_setting"         },
+        { "source": "apps/mev_imc_ipumgmtd",                "destination": "n_apps/ipumgmtd"                    },
+        { "source": "apps/nvm_app",                         "destination": "n_apps/nvm"                         },
+        { "source": "mev_nvm_info",                         "destination": "n_apps/nvm_info"                    },
+        { "source": "mev_imc_hwconf",                       "destination": "n_configuration/hwconf"             },
+        { "source": "mev_imc_dpcp_cli_client",              "destination": "n_datapath/dpcp_cli_client"         },
+        { "source": "mev_imc_dpcp_init",                    "destination": "n_datapath/dpcp_init"               },
+        { "source": "mev_imc_cp_pim_lib",                   "destination": "n_datapath/lib_cp_pim"              },
+        { "source": "mev_imc_cpchnl_lib",                   "destination": "n_datapath/lib_cpchnl"              },
+        { "source": "mev_imc_dpcp_lib",                     "destination": "n_datapath/lib_dpcp"                },
+        { "source": "libs/lib_elastic_handler",             "destination": "n_datapath/lib_elastic_handler"     },
+        { "source": "mev_imc_debug_lib",                    "destination": "n_demos/debug_lib"                  },
+        { "source": "demos/imc_doe",                        "destination": "n_demos/doe"                        },
+        { "source": "imc_dummy_cp",                         "destination": "n_demos/dummy_cp"                   },
+        { "source": "demos/mev_imc_em_demo",                "destination": "n_demos/em"                         },
+        { "source": "demos/mev_imc_flash_demo",             "destination": "n_demos/flash"                      },
+        { "source": "demos/mev_imc_gpio_demo",              "destination": "n_demos/gpio"                       },
+        { "source": "demos/mev_imc_htu_demo",               "destination": "n_demos/htu"                        },
+        { "source": "demos/mev_imc_i2c_demo",               "destination": "n_demos/i2c"                        },
+        { "source": "apps/sv_elastic_app",                  "destination": "n_demos/sv_elastic_app"             },
+        { "source": "demos/mev_imc_icqh_demo",              "destination": "n_demos/icqh"                       },
+        { "source": "demos/mev_imc_infra_libs_demo",        "destination": "n_demos/infra_libs"                 },
+        { "source": "demos/mev_imc_irq_demo",               "destination": "n_demos/irq"                        },
+        { "source": "demos/mev_imc_nvm_demo",               "destination": "n_demos/nvm"                        },
+        { "source": "demos/mev_imc_physs_log_fetch_demo",   "destination": "n_demos/physs_log_fetch"            },
+        { "source": "demos/rmii_demo",                      "destination": "n_demos/rmii"                       },
+        { "source": "demos/mev_imc_section_modify_demo",    "destination": "n_demos/section_modify"             },
+        { "source": "demos/mev_imc_spidev_demo",            "destination": "n_demos/spidev"                     },
+        { "source": "imc_sv_dummy_cp",                      "destination": "n_demos/sv_dummy_cp"                },
+        { "source": "demos/mev_imc_sw_timer_demo",          "destination": "n_demos/sw_timer"                   },
+        { "source": "mev_i2c_app",                          "destination": "n_demos/i2c_app"                    },
+        { "source": "scripts",                              "destination": "n_dev_scripts/scripts"              },
+        { "source": "libs/lib_infra_gt",                    "destination": "n_libs/infra_gt"                    },
+        { "source": "libs/lib_infra_hi",                    "destination": "n_libs/infra_hi"                    },
+        { "source": "libs/lib_bmd",                         "destination": "n_libs/lib_bmd"                     },
+        { "source": "mev_imc_rdma_lib",                     "destination": "n_libs/lib_rdma"                    },
+        { "source": "libs",                                 "destination": "n_libs/libs"                        },
+        { "source": "libs/lib_linux_utils",                 "destination": "n_libs/linux_utils"                 },
+        { "source": "libs/lib_logger",                      "destination": "n_libs/logger"                      },
+        { "source": "mev_imc_lm",                           "destination": "n_link/lm"                          },
+        { "source": "libs/lib_mac",                         "destination": "n_link/lib_mac"                     },
+        { "source": "mev_i2c_app",                          "destination": "n_mng/i2c_app"                      },
+        { "source": "mev_imc_mctp_lib",                     "destination": "n_mng/lib_mctp"                     },
+        { "source": "mev_imc_mng_lib",                      "destination": "n_mng/lib_mng"                      },
+        { "source": "mev_imc_mng_ncsi_lib",                 "destination": "n_mng/lib_ncsi"                     },
+        { "source": "mev_imc_mctp_hw_config",               "destination": "n_mng/mctp_hw_config"               },
+        { "source": "mev_imc_mctp_init",                    "destination": "n_mng/mctp_init"                    },
+        { "source": "mev_imc_mctp_stack",                   "destination": "n_mng/mctp_stack"                   },
+        { "source": "mev_imc_mng",                          "destination": "n_mng/mng"                          },
+        { "source": "mev_imc_mng_drv",                      "destination": "n_mng/mng_drv"                      },
+        { "source": "mev_imc_mng_extnic_handler",           "destination": "n_mng/mng_extnic_handler"           },
+        { "source": "mev_imc_mng_ncsi",                     "destination": "n_mng/mng_ncsi"                     },
+        { "source": "mev_imc_mng_pt_mgmt",                  "destination": "n_mng/mng_pt_mgmt"                  },
+        { "source": "mev_imc_mng_rmii",                     "destination": "n_mng/mng_rmii"                     },
+        { "source": "mev_imc_mng_sensors",                  "destination": "n_mng/mng_sensors"                  },
+        { "source": "mev_imc_mng_th_sens",                  "destination": "n_mng/mng_th_sens"                  },
+        { "source": "mev_imc_ncsi_handler",                 "destination": "n_mng/ncsi_handler"                 },
+        { "source": "mev_imc_al_dump",                      "destination": "n_platform/al_dump"                 },
+        { "source": "imc_ddr_agents",                       "destination": "n_platform/ddr_agents"              },
+        { "source": "mev_imc_ddr_dump",                     "destination": "n_platform/ddr_dump"                },
+        { "source": "mev_imc_dfx_unlock",                   "destination": "n_platform/dfx_unlock"              },
+        { "source": "mev_imc_hw_timer",                     "destination": "n_platform/hw_timer"                },
+        { "source": "mev_imc_physs_logger_lib",             "destination": "n_platform/lib_physs_logger"        },
+        { "source": "mev_imc_syscon_lib",                   "destination": "n_platform/lib_syscon"              },
+        { "source": "libs/lib_telemetry",                   "destination": "n_platform/lib_telemetry"           },
+        { "source": "imc_pmua",                             "destination": "n_platform/pmua"                    },
+        { "source": "mev_imc_pvt",                          "destination": "n_platform/pvt"                     },
+        { "source": "mev_imc_ras",                          "destination": "n_platform/ras"                     },
+        { "source": "mev_imc_resets_handler",               "destination": "n_platform/resets_handler"          },
+        { "source": "imc_ss_ip_logger",                     "destination": "n_platform/ss_ip_logger"            },
+        { "source": "mev_imc_ts",                           "destination": "n_platform/ts"                      },
+        { "source": "mev_imc_mt_com",                       "destination": "n_scripts/mt_com"                   },
+        { "source": "library_template",                     "destination": "n_template/lib_template"            },
+        { "source": "program_template",                     "destination": "n_template/program_template"        },
+        { "source": "service_template",                     "destination": "n_template/service_template"        },
+        { "source": "common",                               "destination": "n_us_infra/common"                  },
+        { "source": "drivers",                              "destination": "n_us_infra/drivers"                 },
+        { "source": "libs/lib_icqh",                        "destination": "n_us_infra/lib_icqh"                },
+        { "source": "libs/lib_ipumgmtd",                    "destination": "n_us_infra/lib_ipumgmtd"            },
+        { "source": "imc_vfio",                             "destination": "n_us_infra/vfio"                    }
+    ]
+}
