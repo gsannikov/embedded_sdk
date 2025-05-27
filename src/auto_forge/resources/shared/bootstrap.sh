@@ -167,14 +167,13 @@ main() {
 
 	# Optionally, immediately run the solution
 	if [[ "$run_solution" == true && $ret_val -eq 0 ]]; then
+		echo "$PWD"
 		cd "$workspace_path" || return 1
 		solution_path="$solution_name/scripts/solution"
 		if [[ ! -d "$solution_path" ]]; then
 			echo "Solution path does not exist: $solution_path" >&2
 			return 1
 		fi
-
-		cd "$workspace_path" || return 1
 
 		if [[ ! -f ".venv/bin/activate" ]]; then
 			echo "Virtual environment not found in workspace" >&2
