@@ -167,7 +167,6 @@ main() {
 
 	# Optionally, immediately run the solution
 	if [[ "$run_solution" == true && $ret_val -eq 0 ]]; then
-		echo "$PWD"
 		cd "$workspace_path" || return 1
 		solution_path="$solution_name/scripts/solution"
 		if [[ ! -d "$solution_path" ]]; then
@@ -175,14 +174,7 @@ main() {
 			return 1
 		fi
 
-		if [[ ! -f ".venv/bin/activate" ]]; then
-			echo "Virtual environment not found in workspace" >&2
-			return 1
-		fi
-
-		source .venv/bin/activate || return 1
-		local autoforge_run=(autoforge -n "$solution_name" -w . -p "$solution_path" --no-create-workspace)
-		"${autoforge_run[@]}"
+		./env.sh
 		ret_val=$?
 	fi
 
