@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Script:         auto_forge.py
 Author:         AutoForge Team
