@@ -8,164 +8,164 @@
 */
 
 {
-    // Solutions
-    "solutions": [
-        {
-            "name": "demo",
-            "description": "Demo solution",
-            "environment": "<$include>environment.jsonc",
-            "variables": "<$include>variables.jsonc",
-            "schema": "1.0",
-            "build_path": "$BUILD_OUT",
-            "workspace": "$PROJ_WORKSPACE",
-            // Toolchains used by this solution
-            "tool_chains": [
-                {
-                    "name": "x86 x64 Linux GCC Toolchain",
-                    "platform": "linux",
-                    "architecture": "x86_64",
-                    "build_system": "make",
-                    "make_version": ">=3.16",
-                    "gcc_version": ">=10.0",
-                    "required_tools": {
-                        "make": {
-                            "path": "make",
-                            "version": ">=3.16",
-                            "help": "builder/make.md"
-                        },
-                        "gcc": {
-                            "path": "gcc",
-                            "version": ">=10.0",
-                            "help": "builder/gcc-x64.md"
-                        }
-                    }
-                },
-                {
-                    "name": "AArch64 Cross Toolchain",
-                    "platform": "linux",
-                    "architecture": "aarch64",
-                    "build_system": "make",
-                    "make_version": ">=3.16",
-                    "gcc_version": ">=14.0",
-                    "tool_prefix": "aarch64-linux-gnu-",
-                    // Adjusted to match the actual Arm toolchain version
-                    "required_tools": {
-                        "make": {
-                            "path": "make",
-                            "version": ">=3.16",
-                            "help": "make.md"
-                        },
-                        "gcc": {
-                            // NOTE: this is the actual compiler name from Arm toolchain
-                            "path": "<$ref_tool_prefix>gcc",
-                            "version": ">=14.0",
-                            "help": "builder/arm_cross_gcc.md"
-                        }
-                    }
-                }
-            ],
-            // Projects
-            "projects": [
-                {
-                    "name": "btop_arm",
-                    "disabled": true,
-                    "description": "Terminal based resource monitor for ARM",
-                    "tool_chain": "<$ref_solutions[demo].tool_chains[AArch64 Cross Toolchain]>",
-                    // Per project configuration
-                    "configurations": [
-                        {
-                            "name": "debug",
-                            "menu_command": {
-                                "name": "b_btop_arm_dbg",
-                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
-                            },
-                            "build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-                            "execute_from": "$SOURCE_BASE/btop",
-                            "compiler_options": [
-                                "BUILDDIR=<$ref_build_path>",
-                                "OPTFLAGS=-O0",
-                                "WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
-                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
-                                "CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
-                                "CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
-                                "LD=<$ref_projects[].tool_chain.tool_prefix>ld",
-                                "LDFLAGS=-ldl -pthread"
-                            ],
-                            "artifacts": [
-                                "<$ref_build_path>/btop"
-                            ],
-                            "pre_build_steps": {
-                                "clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
-                            },
-                            "post_build_steps": {
-                                "move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
-                            }
-                        },
-                        {
-                            "name": "release",
-                            "data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
-                            "menu_command": {
-                                "name": "b_btop_arm_rel",
-                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
-                            },
-                            "compiler_options": [
-                                "BUILDDIR=<$ref_build_path>",
-                                "OPTFLAGS=-O3",
-                                "WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
-                                "EXTRA_CXXFLAGS=-I<$ref_build_path> -DNDEBUG",
-                                "CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
-                                "CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
-                                "LD=<$ref_projects[].tool_chain.tool_prefix>ld",
-                                "LDFLAGS=-ldl -pthread"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "name": "btop_x86",
-                    "description": "Terminal based resource monitor for x86",
-                    "tool_chain": "<$ref_solutions[demo].tool_chains[x86 x64 Linux GCC Toolchain]>",
-                    // Per project configuration
-                    "configurations": [
-                        {
-                            "name": "debug",
-                            "menu_command": {
-                                "name": "b_btop_x86_d",
-                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
-                            },
-                            "build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-                            "execute_from": "$SOURCE_BASE/btop",
-                            "compiler_options": [
-                                "BUILDDIR=<$ref_build_path>",
-                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
-                                "LDFLAGS=-ldl -pthread"
-                            ],
-                            "artifacts": [
-                                "<$ref_build_path>/btop"
-                            ],
-                            "pre_build_steps": {
-                                "clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
-                            },
-                            "post_build_steps": {
-                                "move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
-                            }
-                        },
-                        {
-                            "name": "release",
-                            "data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
-                            "menu_command": {
-                                "name": "b_btop_x86_r",
-                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
-                            },
-                            "compiler_options": [
-                                "BUILDDIR=<$ref_build_path>",
-                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
-                                "LDFLAGS=-ldl -pthread"
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
+	// Solutions
+	"solutions": [
+		{
+			"name": "demo",
+			"description": "Demo solution",
+			"environment": "<$include>environment.jsonc",
+			"variables": "<$include>variables.jsonc",
+			"schema": "1.0",
+			"build_path": "$BUILD_OUT",
+			"workspace": "$PROJ_WORKSPACE",
+			// Toolchains used by this solution
+			"tool_chains": [
+				{
+					"name": "x86 x64 Linux GCC Toolchain",
+					"platform": "linux",
+					"architecture": "x86_64",
+					"build_system": "make",
+					"make_version": ">=3.16",
+					"gcc_version": ">=10.0",
+					"required_tools": {
+						"make": {
+							"path": "make",
+							"version": ">=3.16",
+							"help": "builder/make.md"
+						},
+						"gcc": {
+							"path": "gcc",
+							"version": ">=10.0",
+							"help": "builder/gcc-x64.md"
+						}
+					}
+				},
+				{
+					"name": "AArch64 Cross Toolchain",
+					"platform": "linux",
+					"architecture": "aarch64",
+					"build_system": "make",
+					"make_version": ">=3.16",
+					"gcc_version": ">=14.0",
+					"tool_prefix": "aarch64-linux-gnu-",
+					// Adjusted to match the actual Arm toolchain version
+					"required_tools": {
+						"make": {
+							"path": "make",
+							"version": ">=3.16",
+							"help": "make.md"
+						},
+						"gcc": {
+							// NOTE: this is the actual compiler name from Arm toolchain
+							"path": "<$ref_tool_prefix>gcc",
+							"version": ">=14.0",
+							"help": "builder/arm_cross_gcc.md"
+						}
+					}
+				}
+			],
+			// Projects
+			"projects": [
+				{
+					"name": "btop_arm",
+					"disabled": true,
+					"description": "Terminal based resource monitor for ARM",
+					"tool_chain": "<$ref_solutions[demo].tool_chains[AArch64 Cross Toolchain]>",
+					// Per project configuration
+					"configurations": [
+						{
+							"name": "debug",
+							"menu_command": {
+								"name": "b_btop_arm_dbg",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
+							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
+							"execute_from": "$SOURCE_BASE/btop",
+							"compiler_options": [
+								"BUILDDIR=<$ref_build_path>",
+								"OPTFLAGS=-O0",
+								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
+								"CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
+								"LD=<$ref_projects[].tool_chain.tool_prefix>ld",
+								"LDFLAGS=-ldl -pthread"
+							],
+							"artifacts": [
+								"<$ref_build_path>/btop"
+							],
+							"pre_build_steps": {
+								"clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
+							},
+							"post_build_steps": {
+								"move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
+							}
+						},
+						{
+							"name": "release",
+							"data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
+							"menu_command": {
+								"name": "b_btop_arm_rel",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
+							"compiler_options": [
+								"BUILDDIR=<$ref_build_path>",
+								"OPTFLAGS=-O3",
+								"WARNFLAGS=-Wall -Wextra -Wno-psabi -Wfatal-errors",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path> -DNDEBUG",
+								"CC=<$ref_projects[].tool_chain.tool_prefix>gcc",
+								"CXX=<$ref_projects[].tool_chain.tool_prefix>g++",
+								"LD=<$ref_projects[].tool_chain.tool_prefix>ld",
+								"LDFLAGS=-ldl -pthread"
+							]
+						}
+					]
+				},
+				{
+					"name": "btop_x86",
+					"description": "Terminal based resource monitor for x86",
+					"tool_chain": "<$ref_solutions[demo].tool_chains[x86 x64 Linux GCC Toolchain]>",
+					// Per project configuration
+					"configurations": [
+						{
+							"name": "debug",
+							"menu_command": {
+								"name": "b_btop_x86_d",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
+							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
+							"execute_from": "$SOURCE_BASE/btop",
+							"compiler_options": [
+								"BUILDDIR=<$ref_build_path>",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"LDFLAGS=-ldl -pthread"
+							],
+							"artifacts": [
+								"<$ref_build_path>/btop"
+							],
+							"pre_build_steps": {
+								"clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
+							},
+							"post_build_steps": {
+								"move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
+							}
+						},
+						{
+							"name": "release",
+							"data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
+							"menu_command": {
+								"name": "b_btop_x86_r",
+								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+							},
+							"compiler_options": [
+								"BUILDDIR=<$ref_build_path>",
+								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
+								"LDFLAGS=-ldl -pthread"
+							]
+						}
+					]
+				}
+			]
+		}
+	]
 }

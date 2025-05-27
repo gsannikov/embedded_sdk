@@ -18,15 +18,15 @@ import sys
 from pathlib import Path
 from typing import Optional, Any
 
-# Third-party imports
+# AutoForge imports
 from colorama import Fore, Style
 
 # Local application imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
-                        PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType, AutoLogger,
-                        BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor,
-                        CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType, Registry,
-                        ToolBox, )
+                        PROJECT_LOG_FILE_NAME, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
+                        AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
+                        CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
+                        Registry, ToolBox, )
 
 
 class AutoForge(CoreModuleInterface):
@@ -47,7 +47,7 @@ class AutoForge(CoreModuleInterface):
         self._gui: Optional[CoreGUI] = None
         self._prompt: Optional[CorePrompt] = None
         self._telemetry: Optional[BuildTelemetry] = None
-        self.work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
+        self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
 
         # Startup arguments
         self._automated_mode: bool = False
@@ -91,6 +91,10 @@ class AutoForge(CoreModuleInterface):
         self.ansi_codes = self._package_configuration_data.get(
             "ansi_codes") if "ansi_codes" in self._package_configuration_data else None
 
+        # Start variables
+        self._variables: Optional[CoreVariables] = CoreVariables(workspace_path=self._workspace_path,
+                                                                 solution_name=self._solution_name)
+
         # Greetings
         print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
               f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
@@ -98,7 +102,7 @@ class AutoForge(CoreModuleInterface):
         # Initializes the logger
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
-        self._auto_logger.set_log_file_name("auto_forge.log")
+        self._auto_logger.set_log_file_name(self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE_NAME}'))
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
@@ -138,9 +142,9 @@ class AutoForge(CoreModuleInterface):
 
             # Determine AutForge work mode
             if kwargs.get("create_workspace", False):
-                self.work_mode = AutoForgeWorkModeType.ENV_CREATE
+                self._work_mode = AutoForgeWorkModeType.ENV_CREATE
             else:
-                self.work_mode = AutoForgeWorkModeType.INTERACTIVE
+                self._work_mode = AutoForgeWorkModeType.INTERACTIVE
 
         def _validate_workspace_path():
             """
@@ -157,11 +161,11 @@ class AutoForge(CoreModuleInterface):
             if not ToolBox.looks_like_unix_path(self._workspace_path):
                 raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
 
-            if self.work_mode != AutoForgeWorkModeType.ENV_CREATE and not os.path.exists(self._workspace_path):
+            if self._work_mode != AutoForgeWorkModeType.ENV_CREATE and not os.path.exists(self._workspace_path):
                 raise RuntimeError(f"workspace path '{self._workspace_path}' does not exist and creation is disabled")
 
             # If we were requested to create a workspace, the destination path must be empty
-            if (self.work_mode == AutoForgeWorkModeType.ENV_CREATE and os.path.exists(
+            if (self._work_mode == AutoForgeWorkModeType.ENV_CREATE and os.path.exists(
                     self._workspace_path) and not ToolBox.is_directory_empty(self._workspace_path)):
                 raise RuntimeError(f"path '{self._workspace_path}' is not empty while workspace creation is enabled")
 
@@ -311,10 +315,9 @@ class AutoForge(CoreModuleInterface):
 
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
             self._environment.refresh_variables()  # Update the variables instance in the environment module.
-
             self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
-            if self.work_mode == AutoForgeWorkModeType.INTERACTIVE:
+            if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
 
                 # Start user telemetry
                 telemetry_path = self._tool_box.get_expanded_path("~/.auto_forge.telemetry")
@@ -343,7 +346,7 @@ class AutoForge(CoreModuleInterface):
                 self._prompt.cmdloop(intro=prompt_intro)
                 ret_val = self._prompt.last_result
 
-            elif self.work_mode == AutoForgeWorkModeType.ENV_CREATE:
+            elif self._work_mode == AutoForgeWorkModeType.ENV_CREATE:
 
                 # ==============================================================
                 # Execute workspace creation script
@@ -374,7 +377,7 @@ class AutoForge(CoreModuleInterface):
                                                              create_path=self._workspace_path)
 
             else:
-                raise RuntimeError(f"work mode '{self.work_mode}' not supported")
+                raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
             return ret_val
 

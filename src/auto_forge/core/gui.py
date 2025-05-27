@@ -24,7 +24,7 @@ with suppress(ImportError):
     from tkinter import messagebox, ttk
     from typing import Any, Optional
 
-# AutoGorge local imports
+# AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, InputBoxButtonType, InputBoxLineType,
                         InputBoxTextType, MessageBoxType, Registry, ToolBox, )
 

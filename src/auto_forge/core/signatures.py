@@ -20,7 +20,7 @@ import zlib
 from re import Match
 from typing import Any, Optional
 
-# Internal AutoForge imports
+# AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor, CoreVariables, Registry,
                         SignatureFieldType, SignatureSchemaType, )
 

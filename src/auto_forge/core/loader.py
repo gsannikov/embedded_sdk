@@ -19,7 +19,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Optional, Union
 
-# AutoGorge local imports
+# AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CLICommandInterface, CoreModuleInterface,
                         BuilderInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
 
@@ -142,8 +142,8 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (isinstance(attr, type) and issubclass(attr, tuple(
-                            self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                        if (isinstance(attr, type) and issubclass(attr,
+                                                                  tuple(self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 

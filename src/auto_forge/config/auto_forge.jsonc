@@ -24,6 +24,62 @@
         "^━+.*?━+\\s*"
     ],
 
+
+    	"variables": [
+		{
+			"name": "HOME_BASE",
+			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
+			"description": "Locally stored project user preferences"
+		},
+		{
+			"name": "BUILD_BASE",
+			"value": "$PROJ_WORKSPACE/build",
+			"description": "Base path for compilers outputs"
+		},
+		{
+			"name": "BUILD_OUT",
+			"value": "$BUILD_BASE/out",
+			"description": "Compilation outputs and temporary files"
+		},
+		{
+			"name": "BUILD_IMAGES",
+			"value": "$BUILD_BASE/images",
+			"description": "Compiled binaries"
+		},
+		{
+			"name": "BUILD_LOGS",
+			"value": "$BUILD_BASE/logs",
+			"description": "Runtime build logs"
+		},
+		{
+			"name": "PYTHON_VENV",
+			"value": "$PROJ_WORKSPACE/.venv",
+			"description": "Python virtual environment",
+			"path_must_exist": true,
+			"create_path_if_not_exist": false
+		},
+		{
+			"name": "PROJ_BASE",
+			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
+			"description": "Project base path"
+		},
+		{
+			"name": "DOCS_BASE",
+			"value": "$PROJ_BASE/docs",
+			"description": "Project Documents"
+		},
+		{
+			"name": "SCRIPTS_BASE",
+			"value": "$PROJ_BASE/scripts",
+			"description": "Project scripts"
+		},
+		{
+			"name": "SOURCE_BASE",
+			"value": "$PROJ_BASE/fw",
+			"description": "Firmware sources base path"
+		}
+	],
+
     "essential_variables": [
 
         // List of variable names that must be defined in the "variables" section.
@@ -31,16 +87,17 @@
         // Each entry in the "variables" array must include an object with a matching "name" field.
         // Validation will fail if any of these are missing.
 
-        "HOME_BASE",
-        "BUILD_BASE",
-        "BUILD_OUT",
-        "BUILD_IMAGES",
-        "BUILD_LOGS",
-        "PYTHON_VENV",
-        "PROJ_BASE",
-        "DOCS_BASE",
-        "SCRIPTS_BASE",
-        "SOURCE_BASE"
+        //   Key                  Value                              Description                        Path must Exist/ Crate path if not exist
+        ["HOME_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Locally stored project user preferences"               ],
+        ["BUILD_BASE",      "$PROJ_WORKSPACE/build",            "Base path for compilers outputs"                       ],
+        ["BUILD_OUT",       "$BUILD_BASE/out",                  "Compilation outputs and temporary files"               ],
+        ["BUILD_IMAGES",    "$BUILD_BASE/images",               "Compiled binaries"                                     ],
+        ["BUILD_LOGS",      "$BUILD_BASE/logs",                 "Runtime build logs"                                    ],
+        ["PYTHON_VENV",     "$PROJ_WORKSPACE/.venv",            "Python virtual environment",               true, false ],
+        ["PROJ_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Project base path"                                     ],
+        ["DOCS_BASE",       "$PROJ_BASE/docs",                  "Project Documents"                                     ],
+        ["SCRIPTS_BASE",    "$PROJ_BASE/scripts",               "Project scripts"                                       ],
+        ["SOURCE_BASE",     "$PROJ_BASE/fw",                    "Firmware sources base path"                            ]
     ],
 
     "builtin_aliases": [

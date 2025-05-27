@@ -38,7 +38,7 @@ from jsonpath_ng.ext import parse
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
-# Internal AutoForge imports
+# AutoForge imports
 from auto_forge import (PROJECT_SCHEMAS_PATH, AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor,
                         CoreSignatures, CoreVariables, PrettyPrinter, Registry, ToolBox, )
 
@@ -80,7 +80,8 @@ class CoreSolution(CoreModuleInterface):
         self._root_context: Optional[dict[str, Any]] = None  # To store original, unaltered solution data
         self._caught_exception: bool = False  # Flag to manage exceptions during recursive processing
         self._signatures: Optional[CoreSignatures] = None  # Product binary signatures core class
-        self._variables: Optional[CoreVariables] = None  # Instantiate variable management library
+        self._variables: Optional[
+            CoreVariables] = CoreVariables.get_instance()  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
         self._tool_box = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
@@ -354,9 +355,7 @@ class CoreSolution(CoreModuleInterface):
 
         if self._schema_files is not None and self._schema_files.get("variables"):
             variables_schema = self._processor.preprocess(file_name=self._schema_files.get("variables"))
-        self._variables = CoreVariables(variables_config_file_name=variables_config_file_name,
-                                        solution_name=solution_name, workspace_path=self._workspace_path,
-                                        variables_schema=variables_schema)
+        self._variables.load_from_file(config_file_name=variables_config_file_name, variables_schema=variables_schema)
 
         if self._schema_files is not None and self._schema_files.get("signatures"):
             # Instantiate the optional signatures core module based on the configuration file we got

@@ -49,11 +49,11 @@ class PrettyPrinter:
         self.highlight_keys = highlight_keys or []
 
         self._json_skin = {"line_number": "dim", "line_separator": "dim", "key_default": "bold cyan",
-            "value_string": "bold white", "value_number": "cyan", "value_bool": "magenta", "value_null": "dim",
-            "punctuation": "white", "bracket": "bold white", }
+                           "value_string": "bold white", "value_number": "cyan", "value_bool": "magenta",
+                           "value_null": "dim", "punctuation": "white", "bracket": "bold white", }
 
         color_pool = ["bold green", "bold blue", "bold magenta", "bold green", "bright_blue", "bright_cyan",
-            "bright_magenta", "bright_green", "bright_white", "bold cyan", "bold white", "bright_black", ]
+                      "bright_magenta", "bright_green", "bright_white", "bold cyan", "bold white", "bright_black", ]
         self._color_map = {key: color_pool[i % len(color_pool)] for i, key in enumerate(self.highlight_keys)}
 
         self._key_pattern = re.compile(r'(\s*)"(.*?)":\s*(.*)')

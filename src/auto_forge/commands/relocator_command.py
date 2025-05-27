@@ -19,8 +19,6 @@ from typing import Any, Optional
 # AutoForge imports
 from auto_forge import (CLICommandInterface, CoreProcessor, CoreVariables, ToolBox)
 
-# Third-party
-
 AUTO_FORGE_MODULE_NAME = "relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
 AUTO_FORGE_MODULE_VERSION = "1.0"
@@ -314,7 +312,7 @@ class RelocatorCommand(CLICommandInterface):
 
             # Check if all three required arguments are present
             missing = [arg for arg, value in {'--recipe': args.recipe, '--source_path': args.source_path,
-                '--destination': args.destination}.items() if value is None]
+                                              '--destination': args.destination}.items() if value is None]
 
             if missing:
                 print(f"\nError: missing required arguments: {', '.join(missing)}")

@@ -24,8 +24,8 @@ from typing import Optional, ClassVar
 # Third-party
 from colorama import Fore, Style
 
-from auto_forge.common.local_types import FieldColorType
 # AutoForge imports (using direct import to prevent circular import errors)
+from auto_forge.common.local_types import FieldColorType
 from auto_forge.settings import PROJECT_NAME
 
 AUTO_FORGE_MODULE_NAME = "AutoLogger"
@@ -389,23 +389,23 @@ class AutoLogger:
             self._enabled_handlers = LogHandlersTypes.NO_HANDLERS
 
         if LogHandlersTypes.CONSOLE_HANDLER in handlers and self._stream_console_handler is not None:
-            self._logger.removeHandler(self._stream_console_handler)
-
-            self._console_filter = None  # Invalidate console filer
+            self._stream_console_handler.flush()
             self._stream_console_handler.close()
+            self._logger.removeHandler(self._stream_console_handler)
+            self._console_filter = None  # Invalidate console filer
             self._stream_console_handler = None
             self._enabled_handlers &= ~LogHandlersTypes.CONSOLE_HANDLER
 
         if LogHandlersTypes.FILE_HANDLER in handlers and self._stream_file_handler is not None:
-            self._logger.removeHandler(self._stream_file_handler)
+            self._stream_file_handler.flush()
             self._stream_file_handler.close()
+            self._logger.removeHandler(self._stream_file_handler)
             self._stream_file_handler = None
 
     def set_log_file_name(self, file_name: Optional[str] = None):
         """
         Sets a new log file name. If a file handler is currently enabled,
         it will be temporarily disabled and re-enabled with the new file name.
-
         Args:
             file_name (Optional[str]): The new file path. If None, keeps the current path.
         """
@@ -419,6 +419,8 @@ class AutoLogger:
         self._log_file_name = file_name or self._log_file_name
         expanded_name: str = os.path.expanduser(os.path.expandvars(self._log_file_name))
         expanded_name = os.path.normpath(expanded_name)
+        if not os.path.isabs(expanded_name):
+            expanded_name = os.path.abspath(expanded_name)
 
         # Optionally remove exiting log file
         if self._erase_exiting_file and os.path.exists(expanded_name):

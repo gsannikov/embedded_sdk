@@ -15,11 +15,12 @@ from bisect import bisect_left
 from dataclasses import asdict
 from typing import Any, Optional, Union
 
+# Third-party
 from jsonschema.validators import validate
 
-# Builtin AutoForge core libraries
-from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, AutoLogger, CoreModuleInterface, CoreProcessor,
-                        Registry, ToolBox, VariableFieldType, )
+# AutoForge imports
+from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, CoreModuleInterface, CoreProcessor, Registry,
+                        ToolBox, VariableFieldType, )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
@@ -41,54 +42,52 @@ class CoreVariables(CoreModuleInterface):
         self._variables: Optional[list[VariableFieldType]] = None  # Inner variables stored as a sorted listy of objects
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, variables_config_file_name: str, workspace_path: str, solution_name: str,
-                    variables_schema: Optional[dict] = None) -> None:
+    def _initialize(self, workspace_path: str, solution_name: str) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
-            variables_config_file_name (str): Configuration JSON file name.
             workspace_path (str): The workspace path.
             solution_name (str): Solution name.
         """
-
         try:
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._toolbox = ToolBox.get_instance()
+            self._tool_box = ToolBox.get_instance()
+            self._processor: CoreProcessor = CoreProcessor.get_instance()
             self._ignore_path_errors: bool = False
-            self._essential_variables: Optional[list[str]] = None
+            self._essential_variables: Optional[list[dict]] = None
             self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
-            self._config_file_name: Optional[str] = variables_config_file_name
-            self._base_config_file_name: Optional[str] = os.path.basename(
-                variables_config_file_name) if variables_config_file_name else None
-            self._variables_schema: Optional[dict] = variables_schema
-            self._package_configuration_data: Optional[
-                dict[str, Any]] = self.auto_forge.get_instance().get_package_configuration()
-
             self._search_keys: Optional[list[tuple[bool, str]]] = None  # Allow for faster binary search
 
-            # Create an instance of the JSON preprocessing library
-            self._processor: CoreProcessor = CoreProcessor.get_instance()
+            # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
+            self._package_configuration_data: Optional[dict[str, Any]] = (
+                self._tool_box.find_variable_in_stack(module_name='auto_forge',
+                                                      variable_name='_package_configuration_data'))
+            work_mode: Optional[AutoForgeWorkModeType] = (
+                self._tool_box.find_variable_in_stack(module_name='auto_forge', variable_name='_work_mode'))
+
+            # Set to ignore invalid path when in environment t creation mode
+            if work_mode == AutoForgeWorkModeType.ENV_CREATE:
+                self._ignore_path_errors = True
 
             # Get the workspace from AutoForge
             self._workspace_path = workspace_path
+            self._solution_name = solution_name
 
-            # Set to ignore invalid path when in environment t creation mode
-            if self.auto_forge.get_instance().work_mode == AutoForgeWorkModeType.ENV_CREATE:
-                self._ignore_path_errors = True
+            if self._package_configuration_data is None:
+                raise RuntimeError("missing package configuration data")
 
             # Get essential variables list from the package configuration
-            if self._package_configuration_data and "essential_variables" in self._package_configuration_data:
-                self._essential_variables = self._package_configuration_data["essential_variables"]
+            if "essential_variables" in self._package_configuration_data:
+                essential_variables_data: list[list] = self._package_configuration_data["essential_variables"]
+                if essential_variables_data is None:
+                    raise ValueError("could not get essential_variables from the project package configuration")
+                # Convert the raw list on a variable recognized dictionary
+                self._essential_variables = self._get_from_list(essential_variables_data)
 
-            # Build variables list
-            if self._config_file_name is not None:
-                self._load_from_file(config_file_name=variables_config_file_name, solution_name=solution_name,
-                                     rebuild=True)
-            else:
-                raise RuntimeError("variables configuration file not specified")
+            if self._essential_variables is None:
+                raise RuntimeError("missing essential_variables")
 
-            self._logger.debug(f"Initialized using '{self._base_config_file_name}'")
+            # Reset and initialize the internal database.
+            self._reset()
 
             # Persist this module instance in the global registry for centralized access
             registry = Registry.get_instance()
@@ -96,17 +95,60 @@ class CoreVariables(CoreModuleInterface):
                                      auto_forge_module_type=AutoForgeModuleType.CORE)
         except Exception as exception:
             self._variables = None
-            raise RuntimeError(f"variables file '{self._base_config_file_name}' error {exception}") from exception
+            raise RuntimeError(f"variables error {exception}") from exception
 
-    def _check_required_variable_names(self, json_data: dict):
+    @staticmethod
+    def _get_from_list(compressed_list: list[list]) -> list[dict]:
         """
-        Checks that all essential variable names are present in the JSON data.
+        Inflate a compressed list of variable entries into a list of dictionaries.
+        Each inner list must follow the field order:
+            [name, value, description, path_must_exist, create_path_if_not_exist]
+        Args:
+            compressed_list (list[list]): List of compressed variable records.
+        Returns:
+            list[dict]: List of dictionaries representing full variable records.
         """
-        if self._essential_variables is not None:
-            found_names = {v["name"] for v in json_data.get("variables", []) if "name" in v}
-            missing = set(self._essential_variables) - found_names
-            if missing:
-                raise ValueError(f"missing required variable(s): {', '.join(sorted(missing))}")
+        keys = ["name", "value", "description", "path_must_exist", "create_path_if_not_exist"]
+        defaults = [None, None, None, True, True]
+
+        if not isinstance(compressed_list, list) or not all(isinstance(row, list) for row in compressed_list):
+            raise TypeError("expected a list of lists")
+
+        result: list[dict] = []
+        for i, entry in enumerate(compressed_list):
+            if len(entry) > len(keys):
+                raise ValueError(f"too many elements in entry at index {i}: {entry}")
+
+            full_entry = entry + defaults[len(entry):]
+            result.append(dict(zip(keys, full_entry)))
+
+        return result
+
+    def _load_from_dictionary(self, var_dict: list[dict]) -> None:
+        """
+        Load variables into internal storage from a list of dictionaries.
+        Each dictionary must contain at least 'name' and 'value', and may optionally include
+        'description', 'is_path', 'path_must_exist', and 'create_path_if_not_exist'.
+        Arfs:
+            var_dict (list[dict]): List of dictionaries.
+        """
+        if not isinstance(var_dict, list) or not all(isinstance(v, dict) for v in var_dict):
+            raise TypeError("Expected a list of dictionaries representing variables.")
+
+        for i, var in enumerate(var_dict):
+            key: str = var.get("name")
+            value: str = var.get("value")
+
+            if not key or not value:
+                raise ValueError(f"Variable entry at index {i} is missing 'name' or 'value': {var}")
+
+            # Collect any unexpected fields as additional kwargs
+            known_fields = {"name", "value", "description", "is_path", "path_must_exist", "create_path_if_not_exist"}
+            extra_kwargs = {k: v for k, v in var.items() if k not in known_fields}
+
+            self.add(key=key, value=value, description=var.get("description", "Description not provided"),
+                     is_path=var.get("is_path", True), path_must_exist=var.get("path_must_exist", True),
+                     create_path_if_not_exist=var.get("create_path_if_not_exist", True), **extra_kwargs, )
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:
@@ -117,7 +159,6 @@ class CoreVariables(CoreModuleInterface):
         Returns:
             Optional[str]: The string representation of the value, or None if conversion is not possible.
         """
-
         # When it's already a string, return as-is
         if isinstance(value, str):
             return value
@@ -125,8 +166,6 @@ class CoreVariables(CoreModuleInterface):
         # None? return None explicitly
         if value is None:
             raise RuntimeError("value cannot be None")
-
-        # Try converting:
         try:
             return str(value)
         except Exception as conversion_error:
@@ -138,7 +177,6 @@ class CoreVariables(CoreModuleInterface):
         Args:
             key (str): The name of the Variable to find.
             flexible (bool): If True, allows partial matching of a variable prefix.
-
         Returns:
             Optional[int]: The index of the object if found, -1 otherwise.
         """
@@ -182,76 +220,19 @@ class CoreVariables(CoreModuleInterface):
 
     def _reset(self):
         """
-        Purge the variables list and invalidate the class member
+        Purge the variables list, invalidate all keys and reload the essentials.
         """
         with self._lock:
             self._variables = None
             self._search_keys = None
 
-    def _load_from_file(self, config_file_name: str, solution_name: str, rebuild: bool = False) -> Optional[int]:
-        """
-        Constructs or rebuilds the configuration data based on a JSONc file.
-
-        If `rebuild` is True, any existing configuration is discarded before rebuilding,
-        ensuring that the list is refreshed entirely from the raw data. If `rebuild` is False
-        and `_variables` is already initialized, the method raises a RuntimeError.
-
-        Args:
-            config_file_name(str): JSON file containing variables to load
-            solution_name (str): The name of the solution name
-            rebuild (bool): Specifies whether to forcibly rebuild the variable list even if it
-                            already exists. Defaults to False.
-
-        Returns:
-            Optional[int]: The count of variables successfully initialized and stored in the
-                           `_variables` list if the operation is successful, otherwise 0.
-        """
-        with (self._lock):
-            if self._variables is not None and not rebuild:
-                raise RuntimeError("variables dictionary exist")
-
-            # Preprocess
-            variables_data: Optional[dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
-            if variables_data is None:
-                raise RuntimeError(f"unable to load variables file: {config_file_name}")
-
-            # If a schema was specified, use it to validate the variables structure
-            if self._variables_schema is not None:
-                validate(instance=variables_data, schema=self._variables_schema)
-
-            # Validate essential variables
-            self._check_required_variable_names(json_data=variables_data)
-
-            # Extract variables, defaults and other options
-            raw_variables = variables_data.get('variables', {})
-            if raw_variables is None or len(raw_variables) == 0:
-                raise RuntimeError(f"variables file: '{config_file_name}' contain no variables")
-
-            self._base_file_name = os.path.basename(config_file_name)
-            self._base_config_file_name = os.path.basename(config_file_name)
-
-            # Invalidate the list we might have
-            if rebuild is True:
-                self._variables = None
-
             # Statically add the solution name and the workspace path
-            self.add(key="SOLUTION_NAME", value=solution_name, description="Solution name", is_path=False)
+            self.add(key="SOLUTION_NAME", value=self._solution_name, description="Solution name", is_path=False)
             self.add(key="PROJ_WORKSPACE", value=self._workspace_path, description="Workspace path",
                      create_path_if_not_exist=False)
 
-            # Process each variable from the dictionary
-            for var in raw_variables:
-                kwargs = {k: v for k, v in var.items() if
-                          k not in ('name', 'value', 'description', 'path_must_exist', 'create_path_if_not_exist')}
-
-                key = var.get('name', None)
-                variable_value = var.get('value', None)
-                if key is None or variable_value is None:
-                    raise RuntimeError(f"invalid variable without 'name' or 'value' or both in '{config_file_name}'")
-
-                self.add(key=key, value=variable_value, description=var.get('description', "Description not provided"),
-                         is_path=var.get('is_path', True), path_must_exist=var.get('path_must_exist', True),
-                         create_path_if_not_exist=var.get('create_path_if_not_exist', True), **kwargs)
+            # Load essential
+            self._load_from_dictionary(self._essential_variables)
 
     def _expand_variable_value(self, value: str) -> str:
         """
@@ -277,6 +258,46 @@ class CoreVariables(CoreModuleInterface):
             raise ValueError(f"variable ${first_unresolved} could not be expanded.")
 
         return expanded
+
+    def load_from_file(self, config_file_name: str, reset: bool = False, variables_schema: Optional[dict] = None) -> \
+            Optional[int]:
+        """
+        Constructs or rebuilds the configuration data based on a JSONc file.
+
+        If `rebuild` is True, any existing configuration is discarded before rebuilding,
+        ensuring that the list is refreshed entirely from the raw data. If `rebuild` is False
+        and `_variables` is already initialized, the method raises a RuntimeError.
+        Args:
+            config_file_name(str): JSON file containing variables to load
+            reset (bool): Specifies whether to forcibly rebuild the variable.
+            variables_schema (dict): If specified we will validate the variables against it.
+        Returns:
+            Optional[int]: The count of variables successfully initialized and stored in the
+                           `_variables` list if the operation is successful, otherwise 0.
+        """
+        with (self._lock):
+
+            # Preprocess
+            variables_root: Optional[dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
+            if variables_root is None:
+                raise RuntimeError(f"unable to load variables file: {config_file_name}")
+
+            # If a schema was specified, use it to validate the variables structure
+            if variables_schema is not None:
+                validate(instance=variables_root, schema=variables_schema)
+
+            # Extract variables, defaults and other options
+            variables_data: Optional[list[dict]] = variables_root.get('variables', [])
+            if not isinstance(variables_data, list):
+                raise RuntimeError(f"could not find list of variable in: '{config_file_name}'")
+
+            # Reset and initialize the internal database.
+            if reset:
+                self._reset()
+
+            # Load the dictionary
+            self._load_from_dictionary(variables_data)
+            return len(variables_data)
 
     def get(self, key: str, flexible: bool = False, quiet: bool = False) -> Optional[str]:
         """
@@ -374,7 +395,7 @@ class CoreVariables(CoreModuleInterface):
             new_var.value = self._expand_variable_value(value)
 
             # The variable should be treated as a path
-            if not self._toolbox.looks_like_unix_path(new_var.value):
+            if not self._tool_box.looks_like_unix_path(new_var.value):
                 raise RuntimeError(f"value '{new_var.value}' set by '{new_var.key}' does not look like a unix path")
 
             new_var.path_must_exist = path_must_exist
@@ -393,9 +414,6 @@ class CoreVariables(CoreModuleInterface):
                         if not new_var.create_path_if_not_exist:
                             raise RuntimeError(
                                 f"path '{new_var.value}' required by '{key}' does not exist and marked as must exist")
-                        else:
-                            self._logger.warning(
-                                f"Specified path: '{new_var.value}' does not exist and needs be created ")
 
         new_var.kwargs = _kwargs
 
@@ -479,7 +497,7 @@ class CoreVariables(CoreModuleInterface):
 
         # Now expand ~ and make absolute
         if expand_path:
-            expanded_text = self._toolbox.get_expanded_path(path=expanded_text, to_absolute=True)
+            expanded_text = self._tool_box.get_expanded_path(path=expanded_text, to_absolute=True)
 
         return expanded_text
 

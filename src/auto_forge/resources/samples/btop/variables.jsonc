@@ -4,61 +4,21 @@
 
     Note: This JSON-structured file supports non-standard inline comments,
     however, these comments are removed upon file loading.
+
+    Optionals:                  Type        Default		Description
+    -----------------------------------------------------------------------------------------
+    path_must_exist             boolean		true		If True, the path will be validated
+    create_path_if_not_exist	boolean		true		If True, the path will be created.
+    is_path                  	boolean		true		Whether the variable is a path or not.
 */
 
 {
 	"variables": [
 		{
-			"name": "HOME_BASE",
-			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
-			"description": "Locally stored project user preferences"
-		},
-		{
-			"name": "BUILD_BASE",
-			"value": "$PROJ_WORKSPACE/build",
-			"description": "Base path for compilers outputs"
-		},
-		{
-			"name": "BUILD_OUT",
-			"value": "$BUILD_BASE/out",
-			"description": "Compilation outputs and temporary files"
-		},
-		{
-			"name": "BUILD_IMAGES",
-			"value": "$BUILD_BASE/images",
-			"description": "Compiled binaries"
-		},
-		{
-			"name": "BUILD_LOGS",
-			"value": "$BUILD_BASE/logs",
-			"description": "Runtime build logs"
-		},
-		{
-			"name": "PYTHON_VENV",
-			"value": "$PROJ_WORKSPACE/.venv",
-			"description": "Python virtual environment",
-			"path_must_exist": true,
-			"create_path_if_not_exist": false
-		},
-		{
-			"name": "PROJ_BASE",
-			"value": "$PROJ_WORKSPACE/$SOLUTION_NAME",
-			"description": "Project base path"
-		},
-		{
-			"name": "DOCS_BASE",
-			"value": "$PROJ_BASE/docs",
-			"description": "Project Documents"
-		},
-		{
-			"name": "SCRIPTS_BASE",
-			"value": "$PROJ_BASE/scripts",
-			"description": "Project scripts"
-		},
-		{
-			"name": "SOURCE_BASE",
-			"value": "$PROJ_BASE/fw",
-			"description": "Firmware sources base path"
+			"name": "SAMPLE_VAR",
+			"value": "Example",
+			"description": "Variable example",
+			"is_path": false
 		}
 	]
 }

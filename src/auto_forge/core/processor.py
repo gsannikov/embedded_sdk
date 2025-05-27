@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Any, Optional, Union
 
-# AutoForge local imports
+# AutoForge imports
 from auto_forge import AutoForgeModuleType, CoreModuleInterface, Registry, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "Processor"

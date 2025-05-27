@@ -36,7 +36,7 @@ from urllib.parse import ParseResult, unquote, urlparse
 # Third-party
 import psutil
 
-# Retrieve our package base path from settings
+# AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
                         AutoForgeModuleType, CoreModuleInterface, MethodLocationType, XYType, )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
