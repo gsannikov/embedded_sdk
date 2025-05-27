@@ -59,23 +59,24 @@ install_autoforge() {
 #
 
 main() {
-
 	local ret_val=0
 	local workspace_path=""
-	loacl solution_name=""
+	local solution_name=""
+	local solution_path=""
 	local package=""
 	local token=""
+	local run_solution=""
 
 	# Help message function
 	display_help() {
-
 		echo
 		echo "Usage: $0 [options]"
 		echo
 		echo "  -w, --workspace [path]      Destination workspace path."
-		echo "  -n, --name [path]           Solution name to use."
+		echo "  -n, --name [name]           Solution name to use."
 		echo "  -p, --package  [path/url]   Solution to use (local path or URL)."
 		echo "  -t, --token     [token]     Optional Git token for remote solution."
+		echo "  -r, --run                   Automatically run the solution after setup."
 		echo "  -h, --help                  Display this help and exit."
 		echo
 	}
@@ -98,6 +99,10 @@ main() {
 			-t | --token)
 				token="$2"
 				shift 2
+				;;
+			-r | --run)
+				run_solution=true
+				shift
 				;;
 			-h | --help)
 				display_help
@@ -136,29 +141,51 @@ main() {
 	printf "\n\nPlease wait while AutoForge is being downloaded and installed...\r"
 	install_autoforge || return 1
 
-	# Execute AutoForge build system
+	# Construct AutoForge command
 	autoforge_cmd=(
 		python3 -m auto_forge
 		-w "$workspace_path"
 		-n "$solution_name"
 		-p "$package"
 		--create-workspace
-		--proxy-server "$HTTP_PROXY_SERVER"
 	)
 
-	# Append --git-token only if token is provided
+	if [[ -n "$HTTP_PROXY_SERVER" ]]; then
+		autoforge_cmd+=(--proxy-server "$HTTP_PROXY_SERVER")
+	fi
+
 	if [[ -n "$token" ]]; then
 		autoforge_cmd+=(--git-token "$token")
 	fi
 
-	# Running AutoForge using the specified solution
 	"${autoforge_cmd[@]}"
 	ret_val=$?
 
-	# Quietly uninstall auto_forge from the user environment, suppressing all output
+	# Quietly uninstall auto_forge from the user environment
 	pip3 uninstall -y auto_forge &>/dev/null
-
 	echo -ne '\e[?25h' # Restore cursor
+
+	# Optionally, immediately run the solution
+	if [[ "$run_solution" == true && $ret_val -eq 0 ]]; then
+		solution_path="$solution_name/scripts/solution"
+		if [[ ! -d "$solution_path" ]]; then
+			echo "Solution path does not exist: $solution_path" >&2
+			return 1
+		fi
+
+		cd "$workspace_path" || return 1
+
+		if [[ ! -f ".venv/bin/activate" ]]; then
+			echo "Virtual environment not found in workspace" >&2
+			return 1
+		fi
+
+		source .venv/bin/activate || return 1
+		local autoforge_run=(autoforge -n "$solution_name" -w . -p "$solution_path" --no-create-workspace)
+		"${autoforge_run[@]}"
+		ret_val=$?
+	fi
+
 	return $ret_val
 }
 
