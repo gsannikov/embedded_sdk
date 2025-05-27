@@ -84,11 +84,11 @@ class CoreEnvironment(CoreModuleInterface):
         self._automated_mode: bool = automated_mode  # Default execution mode
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
+        self._variables: CoreVariables = CoreVariables.get_instance()
 
         # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
-        self._package_configuration_data: Optional[
-            dict[str, Any]] = self._tool_box.find_variable_in_stack(module_name='auto_forge',
-                                                                    variable_name='_package_configuration_data')
+        self._package_configuration_data: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
+            module_name='auto_forge', variable_name='_package_configuration_data')
         # Determine the terminal width
         try:
             self._term_width = shutil.get_terminal_size().columns
@@ -297,10 +297,6 @@ class CoreEnvironment(CoreModuleInterface):
 
         except Exception:  # Propagate the exception
             raise
-
-    def refresh_variables(self):
-        """ Inform that we can refresh our local variables class instance """
-        self._variables = CoreVariables.get_instance()
 
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
                              create_as_needed: bool = False, change_dir: bool = False) -> Optional[str]:

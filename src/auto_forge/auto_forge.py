@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:         auto_forge.py
 Author:         AutoForge Team
@@ -101,9 +100,12 @@ class AutoForge(CoreModuleInterface):
               f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Initializes the logger
+        log_file = self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE_NAME}') if (
+                self._work_mode != AutoForgeWorkModeType.ENV_CREATE) else PROJECT_LOG_FILE_NAME
+
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
-        self._auto_logger.set_log_file_name(self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE_NAME}'))
+        self._auto_logger.set_log_file_name(log_file)
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
@@ -315,7 +317,6 @@ class AutoForge(CoreModuleInterface):
                                           workspace_path=self._workspace_path)
 
             self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
-            self._environment.refresh_variables()  # Update the variables instance in the environment module.
             self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
             if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
