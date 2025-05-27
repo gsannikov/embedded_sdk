@@ -33,7 +33,7 @@ PROJECT_HELP_PATH: Path = PROJECT_RESOURCES_PATH / "help"
 PROJECT_SCHEMAS_PATH: Path = PROJECT_CONFIG_PATH / "schemas"
 PROJECT_PACKAGE_BASE_PATH: Path = Path(__file__).resolve().parent.parent.parent
 PROJECT_TEMP_PREFIX: str = "__AUTO_FORGE_"  # Prefix for temporary paths and files names
-PROJECT_LOG_FILE_NAME: str = "auto_forge.log"
+PROJECT_LOG_FILE: str = "auto_forge.log"
 
 
 def auto_forge_get_info(base_path: Path):

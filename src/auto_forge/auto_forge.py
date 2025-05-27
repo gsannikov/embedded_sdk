@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # Local application imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
-                        PROJECT_LOG_FILE_NAME, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
+                        PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
                         AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
                         Registry, ToolBox, )
@@ -100,8 +100,8 @@ class AutoForge(CoreModuleInterface):
               f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
 
         # Initializes the logger
-        log_file = self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE_NAME}') if (
-                self._work_mode != AutoForgeWorkModeType.ENV_CREATE) else PROJECT_LOG_FILE_NAME
+        log_file = self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE}') if (
+                self._work_mode != AutoForgeWorkModeType.ENV_CREATE) else "setup.log"
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
@@ -110,7 +110,7 @@ class AutoForge(CoreModuleInterface):
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
 
-        # Load all builtin commands
+        # Load all built-in commands
         self._loader: Optional[CoreLoader] = CoreLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
@@ -359,7 +359,7 @@ class AutoForge(CoreModuleInterface):
                 if env_steps_file is None:
                     raise RuntimeError("an environment steps file was not specified in the solution")
 
-                # Execute suction creation steps
+                # Execute workspace creation steps
                 ret_val = self._environment.follow_steps(steps_file=env_steps_file)
                 if ret_val == 0:
                     # Lastly store the solution in the newly created workspace
