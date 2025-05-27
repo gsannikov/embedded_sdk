@@ -86,8 +86,10 @@
         // These are considered critical for proper project configuration.
         // Each entry in the "variables" array must include an object with a matching "name" field.
         // Validation will fail if any of these are missing.
+        //                                                                                               Path must Exist
+        //   Key                  Value                              Description                 Crate path if not exist
+		//--------------------------------------------------------------------------------------------------------------
 
-        //   Key                  Value                              Description                        Path must Exist/ Crate path if not exist
         ["HOME_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Locally stored project user preferences"               ],
         ["BUILD_BASE",      "$PROJ_WORKSPACE/build",            "Base path for compilers outputs"                       ],
         ["BUILD_OUT",       "$BUILD_BASE/out",                  "Compilation outputs and temporary files"               ],
