@@ -11,6 +11,7 @@ import os
 from contextlib import suppress
 from pathlib import Path
 
+# Third-party
 import toml
 
 # Determine the base directory of the project
@@ -27,7 +28,7 @@ PROJECT_SCHEMAS_PATH = PROJECT_CONFIG_PATH / "schemas"
 PROJECT_PACKAGE_BASE_PATH = Path(__file__).resolve().parent.parent.parent
 
 # Initialize default values for global variables
-PROJECT_VERSION = "1.1.7"
+PROJECT_VERSION = "1.1.8"
 PROJECT_NAME = "AutoForge"
 PROJECT_REPO = "https://github.com/emichael72/auto_forge.git"
 PROJECT_PACKAGE = "auto_forge"

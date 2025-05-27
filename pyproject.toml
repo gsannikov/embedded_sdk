@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_forge"
-version = "1.1.7"
+version = "1.1.8"
 description = "AutoForge: YABS (yet another build system tool)"
 readme = "README.md"
 authors = [{ name = "Eitan Michaelson", email = "eitanm@me.com" }]
