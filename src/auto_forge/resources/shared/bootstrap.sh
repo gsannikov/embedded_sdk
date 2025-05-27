@@ -62,10 +62,8 @@ main() {
 	local ret_val=0
 	local workspace_path=""
 	local solution_name=""
-	local solution_path=""
 	local package=""
 	local token=""
-	local run_solution=""
 
 	# Help message function
 	display_help() {
@@ -76,7 +74,6 @@ main() {
 		echo "  -n, --name [name]           Solution name to use."
 		echo "  -p, --package  [path/url]   Solution to use (local path or URL)."
 		echo "  -t, --token     [token]     Optional Git token for remote solution."
-		echo "  -r, --run                   Automatically run the solution after setup."
 		echo "  -h, --help                  Display this help and exit."
 		echo
 	}
@@ -99,10 +96,6 @@ main() {
 			-t | --token)
 				token="$2"
 				shift 2
-				;;
-			-r | --run)
-				run_solution=true
-				shift
 				;;
 			-h | --help)
 				display_help
@@ -164,20 +157,6 @@ main() {
 	# Quietly uninstall auto_forge from the user environment
 	pip3 uninstall -y auto_forge &>/dev/null
 	echo -ne '\e[?25h' # Restore cursor
-
-	# Optionally, immediately run the solution
-	if [[ "$run_solution" == true && $ret_val -eq 0 ]]; then
-		cd "$workspace_path" || return 1
-		solution_path="$solution_name/scripts/solution"
-		if [[ ! -d "$solution_path" ]]; then
-			echo "Solution path does not exist: $solution_path" >&2
-			return 1
-		fi
-
-		./env.sh
-		ret_val=$?
-	fi
-
 	return $ret_val
 }
 
