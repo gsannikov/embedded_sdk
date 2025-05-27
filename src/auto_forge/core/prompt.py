@@ -30,6 +30,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.shortcuts import print_formatted_text
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.styles import Style
 from rich.console import Console
 from rich.panel import Panel
@@ -259,6 +260,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Retrieve AutoForge package configuration
         self._package_configuration_data = self.auto_forge.get_instance().get_package_configuration()
+        if self._package_configuration_data is None:
+            raise RuntimeError("package configuration data not available")
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -283,8 +286,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             raise RuntimeError("could not finish initializing")
 
         # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
-        self.command_completion = (
-            self._package_configuration_data.get('command_completion')) if self._package_configuration_data else None
+        self.command_completion = self._package_configuration_data.get('command_completion')
         if self.command_completion is None:
             self._logger.warning("No command completion map loaded")
 
@@ -296,8 +298,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._tool_box.set_terminal_input(state=True, flush=True)
 
         # Expand and set persistent history file
-        self._history_file_name = (
-            self._package_configuration_data.get('prompt_history_file') if self._package_configuration_data else None)
+        self._history_file_name = self._package_configuration_data.get('prompt_history_file')
 
         # Perper history file
         if not self._init_history_file():
@@ -314,18 +315,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                    command_name=cmd['name'])
 
         # Exclude built-in cmd2 commands from help display without disabling their functionality
-        if self._package_configuration_data:
-            if self._package_configuration_data.get('hide_cmd2_commands', False):
-                for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set',
-                            'alias', 'quit', 'help']:
-                    self._remove_command(command_name=cmd)
+        if self._package_configuration_data.get('hide_cmd2_commands', False):
+            for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
+                        'quit', 'help']:
+                self._remove_command(command_name=cmd)
 
-            # Dynamically add built-in aliases based on a dictionary in the package configuration file
-            builtin_aliases = self._package_configuration_data.get('builtin_aliases')
-            if builtin_aliases:
-                added_aliases = self._add_dynamic_aliases(builtin_aliases)
-                if added_aliases is not None:
-                    self._logger.info(f"{added_aliases} dynamic aliases registered.")
+        # Dynamically add built-in aliases based on a dictionary in the package configuration file
+        builtin_aliases = self._package_configuration_data.get('builtin_aliases')
+        if builtin_aliases:
+            added_aliases = self._add_dynamic_aliases(builtin_aliases)
+            if added_aliases is not None:
+                self._logger.info(f"{added_aliases} dynamic aliases registered.")
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -342,9 +342,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Returns:
             bool: True if a history file name is defined (even if not yet created), False otherwise.
         """
-        self._history_file_name = (
-            self._package_configuration_data.get('prompt_history_file') if self._package_configuration_data else None)
-
+        self._history_file_name = self._package_configuration_data.get('prompt_history_file')
         if not self._history_file_name:
             return False
 
@@ -1164,7 +1162,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Create the session
         session = PromptSession(completer=completer, history=pt_history, key_bindings=kb, style=style,
-                                complete_while_typing=True)
+                                complete_while_typing=self._package_configuration_data.get('complete_while_typing',
+                                                                                           True),
+                                auto_suggest=AutoSuggestFromHistory())
+
         while True:
             try:
                 prompt_text = HTML(self._get_colored_prompt_toolkit())
