@@ -24,7 +24,7 @@ import cmd2
 from cmd2 import Statement, ansi
 from cmd2 import with_argument_list
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import Completer, Completion, CompleteEvent
+from prompt_toolkit.completion import Completer, Completion, CompleteEvent, PathCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
@@ -45,10 +45,51 @@ AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
 
 
+class _CorePathCompleter(Completer):
+    """
+        A command-specific path completer that delegates to `PathCompleter` when the input
+        line begins with the specified command name.
+        This is useful for commands like `cd`, `mkdir`, etc., where argument completion
+        should offer filesystem paths, optionally limited to directories.
+
+        Attributes:
+            _command_name (str): The CLI command this completer is associated with.
+            _path_completer (PathCompleter): Internal prompt_toolkit completer for paths.
+        """
+
+    def __init__(self, command_name: str, only_directories: bool):
+        """
+        Initialize the completer for a specific command.
+        Args:
+            command_name (str): The command to match against the beginning of input lines (e.g., "cd").
+            only_directories (bool): If True, only suggest directory names (not files).
+        """
+        self._command_name = command_name
+        self._path_completer = PathCompleter(only_directories=only_directories, expanduser=True)
+
+    def get_completions(self, document: Document, complete_event):
+        """
+        Yield path completions only if the current line starts with the specified command name.
+        Args:
+            document (Document): The document representing the current line and cursor position.
+            complete_event (CompleteEvent): The event indicating whether completion was requested.
+        Yields:
+            Completion: One or more path completions from the internal PathCompleter.
+        """
+        text = document.text_before_cursor.lstrip()
+
+        # Match against any command followed by space
+        if not text.startswith(f"{self._command_name} "):
+            return
+
+        arg = text[len(self._command_name):].lstrip()
+        sub_doc = Document(text=arg, cursor_position=len(arg))
+        yield from self._path_completer.get_completions(sub_doc, complete_event)
+
+
 class _CoreCompleter(Completer):
     """
     A context-aware tab-completer for shell-like CLI behavior using prompt_toolkit.
-
     This completer supports:
     - Executable name completion (from PATH)
     - Dynamically loaded CLI command completion
@@ -69,12 +110,10 @@ class _CoreCompleter(Completer):
     def _should_fallback_to_path_completion(self, cmd: str, arg_text: str, completer_func: Optional[callable]) -> bool:
         """
         Determines whether path completions should be triggered for a command that has no specific completer.
-
         Args:
             cmd (str): The base command name.
             arg_text (str): The partial argument text (after the command).
             completer_func (Optional[callable]): If a custom completer exists.
-
         Returns:
             bool: True if fallback to path completion should occur.
         """
@@ -97,7 +136,6 @@ class _CoreCompleter(Completer):
             self, document: Document, _complete_event: CompleteEvent) -> Iterable[Completion]:
         """
         Return completions for the current cursor position and buffer state.
-
         Supports:
         - Command name completion (built-in, dynamic, executable)
         - Per-command argument completion via `complete_<cmd>()`
@@ -150,31 +188,31 @@ class _CoreCompleter(Completer):
             begin_idx = len(text) - len(arg_text)
             end_idx = len(text)
 
-            if hasattr(self.core_prompt, f"do_{cmd}"):
-                completer_func = getattr(self.core_prompt, f"complete_{cmd}", None)
+            completer_func = getattr(self.core_prompt, f"complete_{cmd}", None)
 
-                # Special case: track build components for coloring prompt
-                if cmd == "build":
-                    parts = arg_text.split(".")
-                    self.core_prompt._parsed_build = {"solution": parts[0] if len(parts) > 0 else None,
-                                                      "project": parts[1] if len(parts) > 1 else None,
-                                                      "config": parts[2] if len(parts) > 2 else None}
+            # Special case: track build components for prompt coloring
+            if cmd == "build":
+                parts = arg_text.split(".")
+                self.core_prompt._parsed_build = {"solution": parts[0] if len(parts) > 0 else None,
+                                                  "project": parts[1] if len(parts) > 1 else None,
+                                                  "config": parts[2] if len(parts) > 2 else None}
 
-                if completer_func:
-                    try:
-                        results = completer_func(arg_text, text, begin_idx, end_idx)
-                        if results:
-                            if isinstance(results[0], str):
-                                matches = [Completion(r, start_position=-len(arg_text)) for r in results]
-                            else:
-                                matches = results
-                    except Exception as e:
-                        self._logger.debug(f"Completer error for '{cmd}': {e}")
-                elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text,
-                                                              completer_func=completer_func):
-                    meta = self.core_prompt.command_completion.get(cmd, {})
-                    matches = self.core_prompt.gather_path_matches(text=arg_text,
-                                                                   only_dirs=meta.get("only_dirs", False))
+            if completer_func:
+                try:
+                    results = completer_func(arg_text, text, begin_idx, end_idx)
+                    if results:
+                        if isinstance(results[0], str):
+                            matches = [Completion(r, start_position=-len(arg_text)) for r in results]
+                        else:
+                            matches = results
+                except Exception as e:
+                    self._logger.debug(f"Completer error for '{cmd}': {e}")
+
+            elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
+                meta = self.core_prompt.command_completion.get(cmd, {})
+                matches = self.core_prompt.gather_path_matches(text=arg_text if arg_text.strip() else ".",
+                                                               only_dirs=meta.get("only_dirs", False))
+
 
             elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
                 meta = self.core_prompt.command_completion.get(cmd, {})
@@ -219,7 +257,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
 
-        # Retrieve AutoForge packge configuration
+        # Retrieve AutoForge package configuration
         self._package_configuration_data = self.auto_forge.get_instance().get_package_configuration()
 
         # Get a logger instance
@@ -259,8 +297,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Expand and set persistent history file
         self._history_file_name = (
-            self._package_configuration_data.get('prompt_history_file')
-            if self._package_configuration_data else None)
+            self._package_configuration_data.get('prompt_history_file') if self._package_configuration_data else None)
 
         # Perper history file
         if not self._init_history_file():
@@ -306,9 +343,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             bool: True if a history file name is defined (even if not yet created), False otherwise.
         """
         self._history_file_name = (
-            self._package_configuration_data.get('prompt_history_file')
-            if self._package_configuration_data else None
-        )
+            self._package_configuration_data.get('prompt_history_file') if self._package_configuration_data else None)
 
         if not self._history_file_name:
             return False
@@ -364,7 +399,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                               patch_doc: bool = False, is_alias: bool = False) -> None:
         """
         Sets or updates metadata for any cmd2 command, including dynamic aliases.
-
         Args:
             command_name (str): Name of the command (e.g., 'hello', 'build').
             description (str, optional): Help text to associate with the command.
@@ -443,7 +477,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                      filter_type: 'Optional[AutoForgCommandType]' = None):
         """
         Print a colorized, zebra-striped summary of available commands using prompt_toolkit.
-
         Commands are grouped by type and styled using type-specific colors.
         Zebra striping improves readability, and each row is padded for consistent layout.
 
@@ -582,7 +615,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         return None
 
     def _add_dynamic_cli_commands(self) -> int:
-
         """
         Dynamically adds AutoForge dynamically loaded command to the Prompt.
         Each command is dispatched via the loader's `execute()` method using its registered name.
@@ -671,7 +703,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Return an HTML-formatted prompt string for prompt_toolkit.
         """
-
         # Function attribute (sort of C-style static variable)
         func = type(self)._get_colored_prompt_toolkit
         if not hasattr(func, "_last_cwd"):
@@ -716,43 +747,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                        f"{git_branch} <ansiyellow>{arrow}</ansiyellow> ")
 
         return prompt_text
-
-    def _register_generic_complete(self):
-        """
-        Registers default path completer for all do_* commands that don't have a custom completer.
-        Used by CoreCompleter in prompt_toolkit.
-        """
-        special_behavior = {"cd": {"only_dirs": True}, }
-
-        def make_completer(command_name: str, complete_only_dirs: bool):
-            # noinspection PyShadowingNames
-            def completer(self, text, _line, _being_idx, _end_idx):
-                return self._complete_path_with_completions(text=text, only_dirs=complete_only_dirs)
-
-            completer.__name__ = f"complete_{command_name}"
-            return completer
-
-        for attr in dir(self):
-            if not attr.startswith("do_"):
-                continue
-
-            cmd_name = attr[3:]
-            completer_attr = f"complete_{cmd_name}"
-
-            # Do not override manually defined completer
-            if hasattr(self, completer_attr):
-                continue
-
-            only_dirs = special_behavior.get(cmd_name, {}).get("only_dirs", False)
-            bound_completer = MethodType(make_completer(cmd_name, only_dirs), self)
-            setattr(self, completer_attr, bound_completer)
-
-    def _complete_path_with_completions(self, text: str, only_dirs: bool = False) -> list[Completion]:
-        """
-        Return prompt_toolkit Completion objects for filesystem path completions.
-        Supports optional filtering for directories only.
-        """
-        return self.gather_path_matches(text=text, only_dirs=only_dirs)
 
     def gather_path_matches(self, text: str, only_dirs: bool = False) -> list[Completion]:
         """
@@ -808,11 +802,58 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return sorted(completions, key=lambda c: c.text.lower())
 
-    def complete_cd(self, text: str, _line: str, _begin_idx: int, _end_idx: int) -> list[Completion]:
+    def _inject_generic_path_complete_hooks(self):
         """
-        Tab-completion for the `cd` command. Suggests directories only.
+        Automatically injects generic path completer methods for CLI commands that support
+        path completion but do not already have a custom `complete_<command>()` method.
+        The commands and their completion behavior are defined in `self.command_completion`.
+        For each command with `"path_completion": true` and no pre-defined `complete_<cmd>`,
+        this function dynamically generates and binds a completer that uses `_CorePathCompleter`.
+
+        This avoids repetitive manual completer definitions for commands like `cd`, `mkdir`, `rm`, etc.
+        Expected `self.command_completion` format:
+            {
+                "cd": {
+                    "path_completion": true,
+                    "only_dirs": true
+                },
+                "rm": {
+                    "path_completion": true,
+                    "only_dirs": false
+                }
+            }
         """
-        return self.gather_path_matches(text=text, only_dirs=True)
+        for cmd, meta in self.command_completion.items():
+            if not meta.get("path_completion"):
+                continue
+
+            completer_name = f"complete_{cmd}"
+            if hasattr(self, completer_name):
+                continue
+
+            only_dirs = meta.get("only_dirs", False)
+
+            def make_completer(command_name: str, only_directories: bool):
+                """
+                Factory for creating a `complete_<cmd>()`-style method that delegates
+                to a `_CorePathCompleter` instance.
+                Args:
+                    command_name (str): The command name to match (e.g., 'cd').
+                    only_directories (bool): Whether to limit suggestions to directories only.
+
+                Returns:
+                    function: A completer method compatible with prompt_toolkit's expectations.
+                """
+
+                def completer(_self, _text, line, _begin_idx, end_idx):
+                    event = CompleteEvent(completion_requested=True)
+                    comp = _CorePathCompleter(command_name=command_name, only_directories=only_directories)
+                    return list(comp.get_completions(Document(text=line, cursor_position=end_idx), event))
+
+                return completer
+
+            # Bind the generated completer to `self` under the expected name (e.g., complete_cd)
+            setattr(self, completer_name, MethodType(make_completer(cmd, only_dirs), self))
 
     def complete_build(self, text: str, line: str, begin_idx: int, _end_idx: int) -> list[Completion]:
         """
@@ -966,7 +1007,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Registers a user-friendly build command alias.
         Here we create a new cmd2 command alias that triggers a specific build configuration
         for the given solution, project, and configuration name.
-
         Args:
             project (str): The project name within the solution.
             configuration (str): The specific build configuration.
@@ -1112,8 +1152,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Set up the custom completer
         completer = _CoreCompleter(self, logger=self._logger)
 
-        self._register_generic_complete()
-
         # Create the prompt-toolkit history object
         pt_history = InMemoryHistory()
         for item in self.history:
@@ -1121,15 +1159,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if raw:
                 pt_history.append_string(raw)
 
-        # Create the session
-        session = PromptSession(
-            completer=completer,
-            history=pt_history,
-            key_bindings=kb,
-            style=style,
-            complete_while_typing=True
-        )
+        #  Automatically injects generic path completer methods for CLI commands
+        self._inject_generic_path_complete_hooks()
 
+        # Create the session
+        session = PromptSession(completer=completer, history=pt_history, key_bindings=kb, style=style,
+                                complete_while_typing=True)
         while True:
             try:
                 prompt_text = HTML(self._get_colored_prompt_toolkit())

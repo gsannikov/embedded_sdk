@@ -19,7 +19,8 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreEnvironment, CoreSolution, CoreVariables, ToolBox, FieldColorType)
+from auto_forge import (CLICommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreProcessor, ToolBox,
+                        PrettyPrinter, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -43,6 +44,7 @@ class SolutionCommand(CLICommandInterface):
         self._variables: Optional[CoreVariables] = None
         self._environment: Optional[CoreEnvironment] = None
         self._tool_box: Optional[ToolBox] = ToolBox.get_instance()
+        self._preprocessor: Optional[CoreProcessor] = CoreProcessor.get_instance()
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
@@ -104,6 +106,23 @@ class SolutionCommand(CLICommandInterface):
 
         console.print('\n', table, '\n')
 
+    def _show_json(self, json_path: str) -> Optional[int]:
+        """
+        show_json <path>: Load and display a JSON file with key highlighting.
+        """
+        path = Path(json_path).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"JSON file not found: '{path}'")
+
+        try:
+            json_data = self._preprocessor.preprocess(path)
+            json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path", "disabled"])
+            json_print.render(json_data)
+            return 0
+
+        except Exception as json_error:
+            raise Exception(f"Failed to load JSON: {json_error}")
+
     def _show_log(self, cheerful: bool) -> None:
         """
         Display the AutoForge logger output with color-coded fields.
@@ -111,7 +130,6 @@ class SolutionCommand(CLICommandInterface):
             cheerful (bool): If True, display the log with enhanced formatting or emotive tone.
                              Otherwise, use a more standard presentation.
         """
-
         field_colors = [FieldColorType(field_name="AutoForge", color=Fore.GREEN),
                         FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
                         FieldColorType(field_name="Loader", color=Fore.MAGENTA),
@@ -128,8 +146,10 @@ class SolutionCommand(CLICommandInterface):
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
 
-        parser.add_argument('-j', '--print-json', action='store_true',
+        parser.add_argument('-p', '--print-solution', action='store_true',
                             help='Print the processed solution JSON file to the terminal.')
+
+        parser.add_argument('-j', '--print-json', help='Pretty print any JSON file.')
 
         # Logger printout
         parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
@@ -152,8 +172,10 @@ class SolutionCommand(CLICommandInterface):
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
 
-        if args.print_json:
+        if args.print_solution:
             self._solution.show(pretty=True)  # Pretty print the solution processed JSON
+        if args.print_json:
+            self._show_json(json_path=args.print_json)
         elif args.show_environment_variables:
             self._print_variables_table()
         elif args.log:
