@@ -35,8 +35,7 @@ class Registry(CoreModuleInterface):
 
         # Register self
         self._module_info: ModuleInfoType = (
-            self.register_module(name=AUTO_FORGE_MODULE_NAME,
-                                 description=AUTO_FORGE_MODULE_DESCRIPTION,
+            self.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.COMMON))
 
     def _find_record(self, value: str, key: Optional[str] = None) -> Optional[dict[str, Any]]:
@@ -93,22 +92,14 @@ class Registry(CoreModuleInterface):
         if not record:
             raise RuntimeError(f"module '{module_name}' not found in registry")
 
-        return ModuleInfoType(
-            name=module_name,
-            description=record.get("description"),
-            class_name=record.get("class_name"),
-            class_instance=record.get("class_instance"),
+        return ModuleInfoType(name=module_name, description=record.get("description"),
+            class_name=record.get("class_name"), class_instance=record.get("class_instance"),
             auto_forge_module_type=record.get("auto_forge_module_type"),
-            python_module_type=record.get("python_module_type"),
-            version=record.get("version"),
-            class_interface_name=record.get("class_interface_name"),
-            file_name=record.get("file_name"),
-            hidden=record.get("hidden"),
-        )
+            python_module_type=record.get("python_module_type"), version=record.get("version"),
+            class_interface_name=record.get("class_interface_name"), file_name=record.get("file_name"),
+            hidden=record.get("hidden"), )
 
-    def get_modules_list(
-            self,
-            auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> list[ModuleInfoType]:
+    def get_modules_list(self, auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> list[ModuleInfoType]:
         """
         Returns a list of full module info objects that match the specified module type.
         Args:
@@ -116,12 +107,8 @@ class Registry(CoreModuleInterface):
         Returns:
             list[ModuleInfoType]: A list of full module info entries.
         """
-        return [
-            module_info
-            for name, meta in self._modules_registry.items()
-            if (module_info := self._get_module_info(name)) is not None
-               and module_info.auto_forge_module_type == auto_forge_module_type
-        ]
+        return [module_info for name, meta in self._modules_registry.items() if (module_info := self._get_module_info(
+            name)) is not None and module_info.auto_forge_module_type == auto_forge_module_type]
 
     def update_module_record(self, module_name: str, **updates: Any) -> Optional[ModuleInfoType]:
         """
@@ -145,8 +132,7 @@ class Registry(CoreModuleInterface):
         record.update(updates)
         return self._get_module_info(module_name=module_name)
 
-    def get_module_record_by_name(self, module_name: str,
-                                  case_insensitive: bool = False) -> Optional[dict[str, Any]]:
+    def get_module_record_by_name(self, module_name: str, case_insensitive: bool = False) -> Optional[dict[str, Any]]:
         """
         Retrieves a module record from the registry by its registered name.
         Args:
@@ -170,15 +156,11 @@ class Registry(CoreModuleInterface):
         else:
             return self._modules_registry.get(module_name)
 
-    def register_module(self, name: str, description: str,
-                        class_name: Optional[str] = None,
-                        class_instance: Optional[Any] = None,
-                        class_interface_name: Optional[str] = None,
+    def register_module(self, name: str, description: str, class_name: Optional[str] = None,
+                        class_instance: Optional[Any] = None, class_interface_name: Optional[str] = None,
                         auto_forge_module_type: Optional[AutoForgeModuleType] = AutoForgeModuleType.UNKNOWN,
-                        python_module_type: Optional[ModuleType] = None,
-                        version: Optional[str] = None,
-                        file_name: Optional[str] = None,
-                        hidden: Optional[bool] = False,
+                        python_module_type: Optional[ModuleType] = None, version: Optional[str] = None,
+                        file_name: Optional[str] = None, hidden: Optional[bool] = False,
                         auto_inspection: Optional[bool] = True) -> Optional[ModuleInfoType]:
         """
         Registers a module with the AutoForge system using explicit metadata arguments.
@@ -219,10 +201,9 @@ class Registry(CoreModuleInterface):
                 caller_class_object = cast(object, caller_self).__class__
 
                 # Inspect base classes and filter ABCs
-                caller_class_interfaces: Optional[list] = [
-                    base for base in inspect.getmro(caller_class_object)[1:]  # skip the actual class itself
-                    if isinstance(base, ABCMeta)
-                ]
+                caller_class_interfaces: Optional[list] = [base for base in inspect.getmro(caller_class_object)[1:]
+                    # skip the actual class itself
+                    if isinstance(base, ABCMeta)]
 
             # Resolve file and module
             if caller_class_interfaces and len(caller_class_interfaces) > 0:
@@ -233,18 +214,12 @@ class Registry(CoreModuleInterface):
             caller_python_module_type = inspect.getmodule(caller_frame)
 
         # Populate dynamic module info
-        auto_forge_module_info: ModuleInfoType = ModuleInfoType(
-            name=name,
-            description=description,
-            class_name=class_name or caller_class_name,
-            class_instance=class_instance or caller_class_instance,
+        auto_forge_module_info: ModuleInfoType = ModuleInfoType(name=name, description=description,
+            class_name=class_name or caller_class_name, class_instance=class_instance or caller_class_instance,
             auto_forge_module_type=auto_forge_module_type,
-            python_module_type=python_module_type or caller_python_module_type,
-            version=version or "0.0.0",
+            python_module_type=python_module_type or caller_python_module_type, version=version or "0.0.0",
             class_interface_name=class_interface_name or caller_class_interface_name,
-            file_name=file_name or caller_module_file_name,
-            hidden=hidden if hidden is not None else False,
-        )
+            file_name=file_name or caller_module_file_name, hidden=hidden if hidden is not None else False, )
 
         return self.register_module_by_info(auto_forge_module_info)
 
@@ -264,19 +239,14 @@ class Registry(CoreModuleInterface):
         if self.get_module_record_by_name(module_name=auto_forge_module_info.name, case_insensitive=True):
             raise RuntimeError(f"module '{auto_forge_module_info.name}' is already registered")
 
-        self._modules_registry[auto_forge_module_info.name] = {
-            "name_lower": auto_forge_module_info.name.lower(),
-            "description": auto_forge_module_info.description,
-            "class_name": auto_forge_module_info.class_name,
+        self._modules_registry[auto_forge_module_info.name] = {"name_lower": auto_forge_module_info.name.lower(),
+            "description": auto_forge_module_info.description, "class_name": auto_forge_module_info.class_name,
             "class_name_lower": auto_forge_module_info.class_name.lower() if auto_forge_module_info.class_name is not None else None,
             "class_instance": auto_forge_module_info.class_instance,
             "class_interface_name": auto_forge_module_info.class_interface_name,
             "auto_forge_module_type": auto_forge_module_info.auto_forge_module_type,
-            "python_module_type": auto_forge_module_info.python_module_type,
-            "version": auto_forge_module_info.version,
-            "file_name": auto_forge_module_info.file_name,
-            "hidden": auto_forge_module_info.hidden,
-        }
+            "python_module_type": auto_forge_module_info.python_module_type, "version": auto_forge_module_info.version,
+            "file_name": auto_forge_module_info.file_name, "hidden": auto_forge_module_info.hidden, }
         return auto_forge_module_info
 
     def find_callable_method(self, flat_method_name: str) -> Optional[callable]:

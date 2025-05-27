@@ -85,7 +85,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
 
-        # Slightly non treditional way for extracting the package configuration from the probably not yet created main AutoForge class.
+        # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
         self._package_configuration_data: Optional[
             dict[str, Any]] = self._tool_box.find_variable_in_stack(module_name='auto_forge',
                                                                     variable_name='_package_configuration_data')

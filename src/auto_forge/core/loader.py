@@ -90,12 +90,12 @@ class CoreLoader(CoreModuleInterface):
         return class_instance
 
     def probe(  # noqa: C901
-            self, paths: Union[str, Sequence[str]]) -> int:
+            self, paths: Union[str, Path, Sequence[Union[str, Path]]]) -> int:
         """
         Scans one or more paths for Python modules, searches for classes derived from known base classes,
         instantiates them, and registers them.
         Args:
-            paths (str or list of str): A single path or a list of paths to search for modules.
+            paths (str or list of str/Paths): A single path or a list of paths to search for modules.
         Returns:
             int: Number of successfully instantiated classes.
         NOTE:
@@ -103,7 +103,6 @@ class CoreLoader(CoreModuleInterface):
             It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flo
         """
-
         if isinstance(paths, str):
             paths = [paths]
         for path in paths:
@@ -143,8 +142,8 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (isinstance(attr, type) and issubclass(attr,
-                                                                  tuple(self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                        if (isinstance(attr, type) and issubclass(attr, tuple(
+                            self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 

@@ -27,14 +27,8 @@ class PrettyPrinter:
     line numbers, and optional key highlighting for enhanced terminal readability.
     """
 
-    def __init__(self,
-                 indent: int = 4,
-                 sort_keys: bool = False,
-                 console: Optional[Console] = None,
-                 numbering_width: int = 4,
-                 highlight_keys: Optional[list[str]] = None,
-                 auto_width: bool = True
-                 ):
+    def __init__(self, indent: int = 4, sort_keys: bool = False, console: Optional[Console] = None,
+                 numbering_width: int = 4, highlight_keys: Optional[list[str]] = None, auto_width: bool = True):
         """
         Pretty-prints a JSON-compatible object using native JSON formatting,
         Rich manual styling, and a configurable skin for colors and layout.
@@ -54,26 +48,13 @@ class PrettyPrinter:
         self.auto_width = auto_width
         self.highlight_keys = highlight_keys or []
 
-        self._json_skin = {
-            "line_number": "dim",
-            "line_separator": "dim",
-            "key_default": "bold cyan",
-            "value_string": "bold white",
-            "value_number": "cyan",
-            "value_bool": "magenta",
-            "value_null": "dim",
-            "punctuation": "white",
-            "bracket": "bold white",
-        }
+        self._json_skin = {"line_number": "dim", "line_separator": "dim", "key_default": "bold cyan",
+            "value_string": "bold white", "value_number": "cyan", "value_bool": "magenta", "value_null": "dim",
+            "punctuation": "white", "bracket": "bold white", }
 
-        color_pool = [
-            "bold green", "bold blue", "bold magenta", "bold green",
-            "bright_blue", "bright_cyan", "bright_magenta", "bright_green",
-            "bright_white", "bold cyan", "bold white", "bright_black",
-        ]
-        self._color_map = {
-            key: color_pool[i % len(color_pool)] for i, key in enumerate(self.highlight_keys)
-        }
+        color_pool = ["bold green", "bold blue", "bold magenta", "bold green", "bright_blue", "bright_cyan",
+            "bright_magenta", "bright_green", "bright_white", "bold cyan", "bold white", "bright_black", ]
+        self._color_map = {key: color_pool[i % len(color_pool)] for i, key in enumerate(self.highlight_keys)}
 
         self._key_pattern = re.compile(r'(\s*)"(.*?)":\s*(.*)')
         self._list_item_pattern = re.compile(r'(\s*)(".*?"|true|false|null|\d+)(,?)$')

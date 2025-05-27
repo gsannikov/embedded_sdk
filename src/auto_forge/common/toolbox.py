@@ -37,13 +37,12 @@ from urllib.parse import ParseResult, unquote, urlparse
 import psutil
 
 # Retrieve our package base path from settings
-from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, AddressInfoType, AutoForgeModuleType,
-                        CoreModuleInterface, MethodLocationType, XYType, )
+from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
+                        AutoForgeModuleType, CoreModuleInterface, MethodLocationType, XYType, )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
-AUTO_FORGE_TEMP_PATTERN = "__AUTO_FORGE_"  # Prefix for temporary path names
 
 
 class ToolBox(CoreModuleInterface):
@@ -655,7 +654,7 @@ class ToolBox(CoreModuleInterface):
             create_path (bool, optional): If True, creates a new temporary directory path.
         """
         try:
-            temp_path = tempfile.mkdtemp(prefix=AUTO_FORGE_TEMP_PATTERN)
+            temp_path = tempfile.mkdtemp(prefix=PROJECT_TEMP_PREFIX)
             if not create_path:  # Typically we're only interested ony in a temporary name without creating the path
                 os.rmdir(temp_path)
             return temp_path
@@ -672,7 +671,7 @@ class ToolBox(CoreModuleInterface):
             temp_dir = tempfile.gettempdir()
 
             for entry in os.scandir(temp_dir):
-                if entry.is_dir() and entry.name.startswith(AUTO_FORGE_TEMP_PATTERN):
+                if entry.is_dir() and entry.name.startswith(PROJECT_TEMP_PREFIX):
                     with suppress(Exception):
                         shutil.rmtree(entry.path)
 

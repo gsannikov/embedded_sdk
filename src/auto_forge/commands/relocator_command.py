@@ -313,11 +313,8 @@ class RelocatorCommand(CLICommandInterface):
         else:
 
             # Check if all three required arguments are present
-            missing = [arg for arg, value in {
-                '--recipe': args.recipe,
-                '--source_path': args.source_path,
-                '--destination': args.destination
-            }.items() if value is None]
+            missing = [arg for arg, value in {'--recipe': args.recipe, '--source_path': args.source_path,
+                '--destination': args.destination}.items() if value is None]
 
             if missing:
                 print(f"\nError: missing required arguments: {', '.join(missing)}")

@@ -19,8 +19,6 @@ from enum import Enum, auto
 from types import ModuleType
 from typing import Any, Callable, NamedTuple, Optional, TextIO
 
-# Third-party
-
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
 

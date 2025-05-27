@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script:         auto_forge.py
 Author:         AutoForge Team
@@ -334,7 +333,14 @@ class AutoForge(CoreModuleInterface):
                 self._tool_box.set_terminal_input(state=False)  # Disable user input until the prompt is active
                 self._gui: CoreGUI = CoreGUI()
                 self._prompt = CorePrompt()
-                self._prompt.cmdloop()
+
+                # Start user prompt loop
+                # noinspection SpellCheckingInspection
+                prompt_intro: str = (
+                    f"🛠️  Welcome to the \033[1m'{self._solution_name.capitalize()}'\033[0m solution!\n"
+                    f"👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n")
+
+                self._prompt.cmdloop(intro=prompt_intro)
                 ret_val = self._prompt.last_result
 
             elif self.work_mode == AutoForgeWorkModeType.ENV_CREATE:

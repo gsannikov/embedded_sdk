@@ -7,7 +7,6 @@ Description:
     interactive shell with prompt_toolkit to provide a rich command-line interface for the
     AutoForge build system.
 """
-import html
 import logging
 import os
 import stat
@@ -15,7 +14,7 @@ import subprocess
 import sys
 from collections.abc import Iterable
 from contextlib import suppress
-from itertools import cycle
+from pathlib import Path
 from types import MethodType
 from typing import Optional, Any, Union
 
@@ -24,21 +23,20 @@ import cmd2
 from cmd2 import Statement, ansi
 from cmd2 import with_argument_list
 from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import Completer, Completion, CompleteEvent, PathCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.shortcuts import print_formatted_text
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.styles import Style
 from rich.console import Console
 from rich.panel import Panel
 
 # AutoForge imports
-from auto_forge import (PROJECT_NAME, COMMAND_TYPE_COLOR_MAP, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
-                        BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
-                        ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, )
+from auto_forge import (PROJECT_NAME, AutoLogger, AutoForgCommandType, AutoForgeModuleType, BuildProfileType,
+                        CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution, ModuleInfoType, CoreVariables,
+                        ExecutionModeType, Registry, ToolBox, )
 
 # Basic types
 
@@ -331,6 +329,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
+        # Export dynamic md based help file
+        self._help_md_file = self._export_help_file()
+
     def _init_history_file(self) -> bool:
         """
         Initializes the history file path from the package configuration.
@@ -471,93 +472,71 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if hidden and alias_name not in self.hidden_commands:
             self.hidden_commands.append(alias_name)
 
-    def _show_commands_summary_table(self, show_hidden: bool = False,
-                                     filter_type: 'Optional[AutoForgCommandType]' = None):
+    def _export_help_file(self, exported_file: Optional[str] = None) -> Optional[str]:
         """
-        Print a colorized, zebra-striped summary of available commands using prompt_toolkit.
-        Commands are grouped by type and styled using type-specific colors.
-        Zebra striping improves readability, and each row is padded for consistent layout.
-
+        Export all available commands into a formatted Markdown file.
         Args:
-            show_hidden(bool, optional): Whether to show hidden commands.
-            filter_type (Optional[AutoForgCommandType]): If provided, only show commands of this type.
+            exported_file (Optional[str]): Desired path for the output. If None,
+                a unique file will be created under the system temp directory,
+                with a name starting with a common prefix.
+        Returns:
+            Optional[str]: Path to the created file if successful, else None.
         """
-        term_width = self._tool_box.get_terminal_width(default_width=100)
-        max_desc_width = term_width - 30
-        cmd_column_width = 24
-        desc_column_width = max(40, max_desc_width)
-        total_row_width = cmd_column_width + desc_column_width + 6  # bullet + spacing
+        try:
+            if exported_file:
+                output_path = Path(exported_file)
+            else:
+                output_path = Path(self._tool_box.get_temp_filename())
 
-        # noinspection SpellCheckingInspection
-        style_dict = {'header': 'bold underline fg:ansicyan', 'section': 'bold fg:ansiwhite', 'desc': 'fg:ansiwhite',
-                      'zebra-odd': 'bg:#202020', 'zebra-even': 'bg:#303030', 'bullet': 'fg:ansicyan', }
+            # Ensure the extension is '.md'
+            if output_path.suffix.lower() != ".md":
+                output_path = output_path.with_suffix(".md")
 
-        for cmd_type, color in COMMAND_TYPE_COLOR_MAP.items():
-            style_dict[f'command-{cmd_type.name.lower()}'] = f'bold fg:{color}'
+            commands_by_type = {}
 
-        style = Style.from_dict(style_dict)
-        commands_by_type = {}
+            # Collect alias-based commands
+            for cmd, meta in self._alias_metadata.items():
+                if cmd in self.hidden_commands:
+                    continue
+                cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
+                desc = meta.get("description", "No help available")
+                commands_by_type.setdefault(cmd_type, []).append((cmd, desc))
 
-        # Collect aliases
-        for cmd, meta in self._alias_metadata.items():
-            if not show_hidden and cmd in self.hidden_commands:
-                continue
-            cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
-            if filter_type is None or filter_type == cmd_type:
-                commands_by_type.setdefault(cmd_type, []).append((cmd, meta.get("description", "No help available")))
+            # Collect docstring-based commands
+            for cmd in sorted(self.get_all_commands()):
+                method = getattr(self, f'do_{cmd}', None)
+                if not method:
+                    continue
 
-        # Collect docstring-based commands
-        for cmd in sorted(self.get_all_commands()):
+                metadata = getattr(method, "command_metadata", {})
+                if metadata.get("hidden", False) and cmd not in self.hidden_commands:
+                    self.hidden_commands.append(cmd)
 
-            method = getattr(self, f'do_{cmd}', None)
+                if cmd in self.hidden_commands or cmd in self._alias_metadata:
+                    continue
 
-            # Check if the command has metadata indicating it should be hidden
-            command_metadata = getattr(method, "command_metadata", {}) if method else {}
-            if command_metadata.get("hidden", False) and cmd not in self.hidden_commands:
-                self.hidden_commands.append(cmd)
-
-            # Filter out hidden and alias commands unless show_hidden is True
-            if not show_hidden and (cmd in self.hidden_commands or cmd in self._alias_metadata):
-                continue
-
-            doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
-            cmd_type = AutoForgCommandType.MISCELLANEOUS
-            if filter_type is None or filter_type == cmd_type:
+                doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
+                cmd_type = AutoForgCommandType.MISCELLANEOUS
                 commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
 
-        # If nothing to show
-        if not commands_by_type:
-            print_formatted_text(HTML("<desc>No matching commands found.</desc>"), style=style)
-            return
+            # Write to Markdown file
+            with output_path.open("w", encoding="utf-8") as f:
+                f.write("# AutoForge Command Menu\n\n")
+                for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
+                    f.write(f"## {cmd_type.name.title()} Commands\n\n")
+                    f.write("| Command | Description |\n")
+                    f.write("|:--------|:------------|\n")
+                    for cmd, desc in sorted(commands_by_type[cmd_type]):
+                        safe_desc = desc.replace("|", "\\|")  # escape pipe characters
+                        f.write(f"| `{cmd}` | {safe_desc} |\n")
+                    f.write("\n")
 
-        print_formatted_text(HTML("<header>\nAuto🛠Forge Commands Overview\n</header>"), style=style)
-        row_stripes = cycle(['zebra-odd', 'zebra-even'])
+            self._logger.debug(f"Dynamic help file generated in {output_path.name}")
+            return str(output_path)
 
-        for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
-            section_title = f"{cmd_type.name.title()} Commands"
-            print_formatted_text(HTML(f"\n<section>{section_title}</section>"), style=style)
-
-            command_class = f"command-{cmd_type.name.lower()}"
-
-            for cmd, desc in sorted(commands_by_type[cmd_type]):
-                if len(desc) > desc_column_width:
-                    desc = desc[:desc_column_width - 3] + "..."
-
-                safe_cmd = html.escape(cmd)
-                safe_desc = html.escape(desc)
-
-                padded_cmd = f"{safe_cmd:<{cmd_column_width}}"
-                padded_desc = f"{safe_desc:<{desc_column_width}}"
-                row_class = next(row_stripes)
-
-                full_line = (f"<bullet>•</bullet> "
-                             f"<{command_class}>{padded_cmd}</{command_class}> "
-                             f"<desc>{padded_desc}</desc>")
-                full_line = full_line.ljust(total_row_width)
-
-                print_formatted_text(HTML(f"<{row_class}>{full_line}</{row_class}>"), style=style)
-
-        print()
+        except Exception as export_error:
+            self._logger.error(f"Could not export help help file {export_error}")
+            return None
 
     def _add_dynamic_aliases(self, aliases: Union[dict, list[dict]]) -> Optional[int]:
         """
@@ -997,7 +976,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if arg:
             _show_command_help()
         else:
-            self._show_commands_summary_table()
+            if self._help_md_file:
+                self._tool_box.show_help_file(self._help_md_file)
+
         return None
 
     def add_build_command(self, project: str, configuration: str, command_name: str, description: Optional[str] = None):
@@ -1098,6 +1079,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self.poutput("\nClosing session..")
         self._tool_box.set_terminal_title("Terminal")
         super().postloop()  # Always call the parent
+
+        # Remove residual MD help file
+        if self._help_md_file and os.path.isfile(self._help_md_file):
+            with suppress(Exception):
+                os.remove(self._help_md_file)
 
         telemetry = self.auto_forge.get_telemetry()
         formated_delta = telemetry.format_timedelta(telemetry.get_session_time())
