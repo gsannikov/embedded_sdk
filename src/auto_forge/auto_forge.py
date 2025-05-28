@@ -347,7 +347,7 @@ class AutoForge(CoreModuleInterface):
 
                 # Greetings earthlings, we're here!
                 self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}",
-                                          blink_pixel=XYType(x=6, y=2))
+                                          blink_pixel=XYType(x=1, y=5))
 
                 # Start blocking build system user mode shell
                 self._tool_box.set_terminal_input(state=False)  # Disable user input until the prompt is active

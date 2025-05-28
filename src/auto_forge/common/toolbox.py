@@ -1201,7 +1201,6 @@ class ToolBox(CoreModuleInterface):
             str: The flattened and formatted text.
         """
         cleared_text = "" if text is None else self.strip_ansi(text).strip()
-
         cleared_text = cleared_text.replace('\r', '\n')
 
         # Protect URLs and emails
@@ -1221,13 +1220,12 @@ class ToolBox(CoreModuleInterface):
         # Work safely
         cleared_text = re.sub(r'\n+', '.', cleared_text)
         cleared_text = re.sub(r'\.{2,}', '.', cleared_text)
-
         cleared_text = cleared_text.strip('.').strip()
 
         if not cleared_text:
             return default_text if default_text is not None else ""
 
-        # --- Capitalize sentences, but skip inside __PROTECTED__ blocks ---
+        # Capitalize sentences, but skip inside __PROTECTED__ blocks
         parts = re.split(r'(__PROTECTED_\d+__)', cleared_text)  # split into normal / protected pieces
 
         result = []
@@ -1266,6 +1264,9 @@ class ToolBox(CoreModuleInterface):
 
         # Collapse multiple spaces into a single space
         flattened_text = re.sub(r'\s{2,}', ' ', flattened_text)
+
+        # ToDo: Need to better handle than parser quirk
+        flattened_text = flattened_text.replace(':. ', ': ')
 
         # Ensure a single final dot
         flattened_text = flattened_text.strip()
@@ -1407,7 +1408,8 @@ class ToolBox(CoreModuleInterface):
             if help_file_path.stat().st_size > 64 * 1024:
                 return 1
 
-            status = subprocess.run(["python3", str(textual_viewer_tool), str(help_file_path)], env=os.environ.copy())
+            status = subprocess.run(["python3", str(textual_viewer_tool), "--markdown", str(help_file_path)],
+                                    env=os.environ.copy())
             return_code = status.returncode
 
             # Reset TTY settings
