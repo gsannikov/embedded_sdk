@@ -24,7 +24,6 @@ with suppress(ImportError):
     from textual.app import App, ComposeResult
     from textual.widgets import MarkdownViewer
     from textual import events
-    from textual.geometry import Size
 
 
     class MarkdownApp(App):
@@ -36,15 +35,9 @@ with suppress(ImportError):
             super().__init__()
             self.markdown_path = markdown_path
 
-        async def on_mount(self) -> None:
-            self.screen._current_size = Size(0, 0)
-            self.screen.refresh(layout=True)
-
         def compose(self) -> ComposeResult:
             content = Path(self.markdown_path).read_text(encoding="utf-8")
             viewer = MarkdownViewer(content)
-            viewer.styles.height = "100%"
-            viewer.styles.width = "100%"
             yield viewer
 
         async def on_key(self, event: events.Key) -> None:

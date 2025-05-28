@@ -7,13 +7,16 @@ Description:
     interactive shell with prompt_toolkit to provide a rich command-line interface for the
     AutoForge build system.
 """
+import fcntl
 import logging
 import os
 import stat
 import subprocess
 import sys
+import termios
 from collections.abc import Iterable
 from contextlib import suppress
+from itertools import islice
 from pathlib import Path
 from types import MethodType
 from typing import Optional, Any, Union
@@ -55,13 +58,14 @@ class _CorePathCompleter(Completer):
             _path_completer (PathCompleter): Internal prompt_toolkit completer for paths.
         """
 
-    def __init__(self, command_name: str, only_directories: bool):
+    def __init__(self, core_prompt: "CorePrompt", command_name: str, only_directories: bool):
         """
         Initialize the completer for a specific command.
         Args:
             command_name (str): The command to match against the beginning of input lines (e.g., "cd").
             only_directories (bool): If True, only suggest directory names (not files).
         """
+        self._core_prompt = core_prompt
         self._command_name = command_name
         self._path_completer = PathCompleter(only_directories=only_directories, expanduser=True)
 
@@ -82,7 +86,11 @@ class _CorePathCompleter(Completer):
 
         arg = text[len(self._command_name):].lstrip()
         sub_doc = Document(text=arg, cursor_position=len(arg))
-        yield from self._path_completer.get_completions(sub_doc, complete_event)
+
+        # Limit results
+        for completion in islice(self._path_completer.get_completions(sub_doc, complete_event),
+                                 self._core_prompt.max_completion_results):
+            yield completion
 
 
 class _CoreCompleter(Completer):
@@ -103,7 +111,7 @@ class _CoreCompleter(Completer):
 
     def __init__(self, core_prompt: "CorePrompt", logger: logging.Logger):
 
-        self.core_prompt = core_prompt
+        self._core_prompt = core_prompt
         self._logger = logger
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
 
@@ -120,16 +128,18 @@ class _CoreCompleter(Completer):
         if completer_func:
             return False
 
-        if self.core_prompt.command_completion is None:
+        if not self._core_prompt.path_completion_rules_metadata:
             return True
 
-        meta = self.core_prompt.command_completion.get(cmd)
+        meta = self._core_prompt.path_completion_rules_metadata.get(cmd)
         if meta:
-            return meta.get("path_completion", False)  # ← allow even if arg_text is empty
+            return meta.get("path_completion", False)  # allow even if arg_text is empty
 
         # Fallback for unlisted known commands
-        is_known_command = (cmd in self.core_prompt.executable_db or cmd in [c.name for c in
-                                                                             self.core_prompt.dynamic_cli_commands_list])
+        is_known_command = (
+                cmd in self._core_prompt.executables_metadata
+                or cmd in self._core_prompt.commands_metadata
+        )
         return is_known_command and bool(arg_text.strip())
 
     def get_completions(  # noqa: C901
@@ -147,84 +157,103 @@ class _CoreCompleter(Completer):
             It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
-        text = document.text_before_cursor
-        buffer_ends_with_space = text.endswith(" ")
-        tokens = text.strip().split()
-        matches = []
-        arg_text = ""  # Ensures it's always defined
+        try:
+            text = document.text_before_cursor
+            buffer_ends_with_space = text.endswith(" ")
+            tokens = text.strip().split()
+            matches = []
+            arg_text = ""  # Ensures it's always defined
 
-        # Case 1: Completing the first word (a command)
-        if not tokens or (len(tokens) == 1 and not buffer_ends_with_space):
-            partial = tokens[0] if tokens else ""
+            # Case 1: Completing the first word (a command)
+            if not tokens or (len(tokens) == 1 and not buffer_ends_with_space):
+                partial = tokens[0] if tokens else ""
 
-            # First-token path completion support
-            if partial.startswith(("/", "./", "../")):
-                matches = self.core_prompt.gather_path_matches(text=os.path.expanduser(partial), only_dirs=False)
-                for m in matches:
-                    yield m
-                return
+                # First-token path completion support
+                if partial.startswith(("/", "./", "../")):
+                    matches = self._core_prompt.gather_path_matches(text=os.path.expanduser(partial), only_dirs=False)
+                    for m in matches:
+                        yield m
+                    return
 
-            # Dynamic CLI commands
-            if self.core_prompt.loaded_commands:
-                for cmd in self.core_prompt.dynamic_cli_commands_list:
-                    if cmd.name.startswith(partial):
-                        matches.append(Completion(cmd.name, start_position=-len(partial), style='class:cli_commands'))
+                # Registered CLI commands
+                for cmd in self._core_prompt.commands_metadata:
+                    if cmd.startswith(partial):
+                        matches.append(Completion(cmd, start_position=-len(partial), style='class:cli_commands'))
 
-            # Built-in do_* methods
-            for name in dir(self.core_prompt):
-                if name.startswith("do_") and callable(getattr(self.core_prompt, name)):
-                    cmd_name = name[3:]
-                    if cmd_name.startswith(partial):
-                        matches.append(Completion(cmd_name, start_position=-len(partial), style='class:builtins'))
+                # Built-in do_* methods
+                for name, method in vars(self._core_prompt.__class__).items():
+                    if name.startswith("do_") and callable(method):
+                        cmd_name = name[3:]
+                        # Check if its one of the aliases that gets executed through a dynamic do_ implementation.
+                        is_known_alias = (cmd_name in self._core_prompt.aliases_metadata)
+                        if cmd_name.startswith(partial):
+                            if not is_known_alias:
+                                matches.append(
+                                    Completion(cmd_name, start_position=-len(partial), style='class:builtins'))
+                            else:
+                                matches.append(
+                                    Completion(cmd_name, start_position=-len(partial), style='class:aliases'))
 
-            # System executables (styled if executable)
-            matches += [Completion(sys_binary, start_position=-len(partial), style='class:executable') for sys_binary in
-                        self.core_prompt.executable_db if sys_binary.startswith(partial)]
+                # System executables (styled if executable)
+                matches += [Completion(sys_binary, start_position=-len(partial), style='class:executable') for
+                            sys_binary in
+                            self._core_prompt.executables_metadata if sys_binary.startswith(partial)]
 
-        # Case 2: Completing arguments for a command
-        elif len(tokens) >= 1:
+            # Case 2: Completing arguments for a command
+            elif len(tokens) >= 1:
 
-            cmd = tokens[0]
-            arg_text = text[len(cmd) + 1:] if len(text) > len(cmd) + 1 else ""
-            begin_idx = len(text) - len(arg_text)
-            end_idx = len(text)
+                cmd = tokens[0]
+                arg_text = text[len(cmd) + 1:] if len(text) > len(cmd) + 1 else ""
+                begin_idx = len(text) - len(arg_text)
+                end_idx = len(text)
 
-            completer_func = getattr(self.core_prompt, f"complete_{cmd}", None)
-            # Retrieve optional arguments hints for registered CLI commands
-            cli_command_args_list = self._loader.get_cli_command_known_args(name=cmd)
+                completer_func = getattr(self._core_prompt, f"complete_{cmd}", None)
+                # Retrieve optional arguments hints for registered CLI commands
+                cli_command_args_list = self._loader.get_cli_command_known_args(name=cmd)
 
-            if completer_func:
-                try:
-                    results = completer_func(arg_text, text, begin_idx, end_idx)
-                    if results:
-                        if isinstance(results[0], str):
-                            matches = [Completion(r, start_position=-len(arg_text)) for r in results]
-                        else:
-                            matches = results
-                except Exception as e:
-                    self._logger.debug(f"Completer error for '{cmd}': {e}")
+                if completer_func:
+                    try:
+                        results = completer_func(arg_text, text, begin_idx, end_idx)
+                        if results:
+                            if isinstance(results[0], str):
+                                matches = [Completion(r, start_position=-len(arg_text)) for r in results]
+                            else:
+                                matches = results
+                    except Exception as completer_exception:
+                        self._logger.debug(f"Completer error for '{cmd}': {completer_exception}")
 
-            elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
-                meta = self.core_prompt.command_completion.get(cmd, {})
-                matches = self.core_prompt.gather_path_matches(
-                    text=arg_text if arg_text.strip() else ".",
-                    only_dirs=meta.get("only_dirs", False)
-                )
+                elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
+                    meta = self._core_prompt.path_completion_rules_metadata.get(cmd, {})
+                    matches = self._core_prompt.gather_path_matches(
+                        text=arg_text if arg_text.strip() else ".",
+                        only_dirs=meta.get("only_dirs", False)
+                    )
 
-            elif cli_command_args_list:
-                matches = [
-                    Completion(arg, start_position=-len(arg_text))
-                    for arg in cli_command_args_list
-                    if arg.startswith(arg_text)
-                ]
+                elif cli_command_args_list:
+                    matches = [
+                        Completion(arg, start_position=-len(arg_text))
+                        for arg in cli_command_args_list
+                        if arg.startswith(arg_text)
+                    ]
 
-        # Final filtering: ensure no duplicate completions are yielded
-        seen = set()
-        for m in matches:
-            key = m.text if isinstance(m, Completion) else str(m)
-            if key not in seen:
-                seen.add(key)
-                yield m if isinstance(m, Completion) else Completion(key, start_position=-len(arg_text))
+            # Final filtering: ensure no duplicate completions and max results count are yielded
+            seen = set()
+            trimmed_matches = []
+            for m in matches:
+                key = m.text if isinstance(m, Completion) else str(m)
+                if key not in seen:
+                    seen.add(key)
+                    trimmed_matches.append(
+                        m if isinstance(m, Completion) else Completion(key, start_position=-len(arg_text)))
+                    if len(trimmed_matches) >= self._core_prompt.max_completion_results:
+                        break
+
+            for match in trimmed_matches:
+                yield match
+
+        except Exception as completer_exception:
+            error_message = f"Completer exception {completer_exception}"
+            self._core_prompt.command_loop_abort(error_message=error_message)
 
 
 class CorePrompt(CoreModuleInterface, cmd2.Cmd):
@@ -234,14 +263,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     and passthrough execution of unknown commands via the system shell.
     """
 
-    def _initialize(self, prompt: Optional[str] = None, max_completion_results: Optional[int] = 100) -> None:
+    def __init__(self, *args, **kwargs):
+
+        self._prompt_session: Optional[PromptSession] = None
+        self._loop_stop_flag = False
+        super().__init__(*args, **kwargs)
+
+    def _initialize(self, prompt: Optional[str] = None) -> None:
         """
-        Initialize the 'Prompt' class and its underlying cmd2 components.
+        Initialize the 'Prompt' class and its underlying cmd2 / prompt toolkit components.
         Args:
-            prompt (Optional[str]): Optional custom base prompt string.
-                If not specified, the lowercase project name ('autoforge') will be used
-                as the base prefix for the dynamic prompt.
-            max_completion_results (Optional[int]): Maximum number of completion results.
+            prompt (Optional[str]): Optional custom base prompt string instead of the solution name.
         """
 
         self._tool_box = ToolBox.get_instance()
@@ -251,8 +283,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_base: Optional[str] = prompt
         self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
         self._history_file_name: Optional[str] = None
+        self._aliases_metadata: dict[str, Any] = {}
+        self._path_completion_rules_metadata: dict[str, Any] = {}
+        self._cli_commands_metadata: dict[str, Any] = {}
+        self._executables_metadata: Optional[dict[str, Any]] = {}
         self._package_configuration_data: Optional[dict[str, Any]] = None
-        self._max_completion_results = max_completion_results
+        self._max_completion_results = 100
         self._last_execution_return_code: Optional[int] = 0
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
@@ -273,31 +309,26 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Get the active loaded solution
         self._loaded_solution_name = self._solution.get_loaded_solution(name_only=True)
 
-        # Dynamically added CLI commands
-        self.dynamic_cli_commands_list: list[ModuleInfoType] = []
-        self.loaded_commands = self._add_dynamic_cli_commands()
-
         # Build executables dictionary for implementation shell style fast auto completion
-        self.executable_db: Optional[dict[str, str]] = None
         if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
                                                   command=self._build_executable_index,
                                                   command_type=ExecutionModeType.PYTHON, new_lines=1) != 0:
             raise RuntimeError("could not finish initializing")
 
+        # Allow to override maximum completion results
+        self._max_completion_results = self._package_configuration_data.get('prompt_max_completion_results',
+                                                                            self._max_completion_results)
+
         # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
-        self.command_completion = self._package_configuration_data.get('command_completion')
-        if self.command_completion is None:
-            self._logger.warning("No command completion map loaded")
+        self._path_completion_rules_metadata = self._package_configuration_data.get('path_completion_rules', )
+        if not self._path_completion_rules_metadata:
+            self._logger.warning("No path completion rules loaded")
 
         # Use the primary solution name as the path base text
-        if self._prompt_base is None:
-            self._prompt_base = self._loaded_solution_name
+        self._prompt_base = self._loaded_solution_name if self._prompt_base is None else self._prompt_base
 
         # Restore keyboard and flush any residual user input
         self._tool_box.set_terminal_input(state=True, flush=True)
-
-        # Get nad expand the persistent history file
-        self._history_file_name = self._variables.expand(self._package_configuration_data.get('prompt_history_file'))
 
         # Perper history file
         if not self._init_history_file():
@@ -306,25 +337,28 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self, persistent_history_file=self._history_file_name)
 
+        #
         # Post 'cmd2' instantiation setup
+        #
+
         self.default_to_shell = True
 
+        # Adding dynamic 'build' commands based on the loaded solution tree.
         for proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
-            self.add_build_command(project=proj, configuration=cfg, description=cmd['description'],
-                                   command_name=cmd['name'])
+            self._add_build_command(project=proj, configuration=cfg, description=cmd['description'],
+                                    command_name=cmd['name'])
+
+        # Adding dynamically registered CLI commands.
+        self._add_dynamic_cli_commands()
+
+        # Adding built-in aliases based on a dictionary from the package configuration file.
+        self._add_dynamic_aliases()
 
         # Exclude built-in cmd2 commands from help display without disabling their functionality
         if self._package_configuration_data.get('hide_cmd2_commands', False):
             for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
                         'quit', 'help']:
                 self._remove_command(command_name=cmd)
-
-        # Dynamically add built-in aliases based on a dictionary in the package configuration file
-        builtin_aliases = self._package_configuration_data.get('builtin_aliases')
-        if builtin_aliases:
-            added_aliases = self._add_dynamic_aliases(builtin_aliases)
-            if added_aliases is not None:
-                self._logger.info(f"{added_aliases} dynamic aliases registered.")
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -368,7 +402,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                         disable_help: bool = False) -> None:
         """
         Hides and optionally disables a built-in cmd2 command.
-
         Args:
             command_name (str): The name of the command to hide or disable (e.g., 'quit').
             disable_functionality (bool): If True, replaces the command with a stub that prints an error.
@@ -433,11 +466,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                     cmd_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
                                     hidden: bool = False) -> None:
         """
-        Adds a dynamically defined alias command to the cmd2 application,
-        with metadata used for help display and categorization.
-
-        If alias maps directly to a known builtin command (e.g., 'q' -> 'quit'), it is registered
-        via the native cmd2 alias system to avoid collisions.
+        Adds a dynamically defined alias command to the cmd2 application with metadata used for help 
+        display and categorization. If alias maps directly to a known builtin command (e.g., 'q' -> 'quit'), 
+        it will registered via the native cmd2 alias system to avoid collisions.
+        it will be registered via the native cmd2 alias system to avoid collisions.
         """
         # Extract the root command from the target (first word)
         target_cmd_root = target_command.split()[0] if target_command else ""
@@ -457,14 +489,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         alias_func.__doc__ = description
         setattr(self.__class__, alias_func.__name__, alias_func)
 
-        # Update alias-specific metadata registry
-        if not hasattr(self, "_alias_metadata"):
-            self._alias_metadata = {}
-
-        existing = self._alias_metadata.get(alias_name, {})
-        self._alias_metadata[alias_name] = {
-            "description": description or existing.get("description", "No help available"), "type": cmd_type,
-            "target_command": existing.get("target_command"), "hidden": hidden, }
+        existing = self._aliases_metadata.get(alias_name, {})
 
         # Set metadata
         self._set_command_metadata(alias_name, description=description, command_type=cmd_type, hidden=hidden,
@@ -473,13 +498,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if hidden and alias_name not in self.hidden_commands:
             self.hidden_commands.append(alias_name)
 
-    def _export_help_file(self, exported_file: Optional[str] = None) -> Optional[str]:
+        # Register in the global aliases metadata registry
+        self._aliases_metadata[alias_name] = {
+            "description": description or existing.get("description", "No help available"), "type": cmd_type,
+            "target_command": existing.get("target_command"), "hidden": hidden, }
+
+    def _export_help_file(self, exported_file: Optional[str] = None, export_hidden: bool = True) -> Optional[str]:
         """
         Export all available commands into a formatted Markdown file.
         Args:
-            exported_file (Optional[str]): Desired path for the output. If None,
-                a unique file will be created under the system temp directory,
-                with a name starting with a common prefix.
+            exported_file (Optional[str]): Desired path for the output. If None, a unique file will be created under
+            the system temp directory, with a name starting with a common prefix.
+            export_hidden(bool): Whether to export commands hidden from the cmd2 application.
+
         Returns:
             Optional[str]: Path to the created file if successful, else None.
         """
@@ -496,8 +527,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             commands_by_type = {}
 
             # Collect alias-based commands
-            for cmd, meta in self._alias_metadata.items():
-                if cmd in self.hidden_commands:
+            for cmd, meta in self._aliases_metadata.items():
+                if not export_hidden and cmd in self.hidden_commands:
                     continue
                 cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
                 desc = meta.get("description", "No help available")
@@ -513,7 +544,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 if metadata.get("hidden", False) and cmd not in self.hidden_commands:
                     self.hidden_commands.append(cmd)
 
-                if cmd in self.hidden_commands or cmd in self._alias_metadata:
+                if cmd in self.hidden_commands or cmd in self._aliases_metadata:
                     continue
 
                 doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
@@ -525,11 +556,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 f.write("# AutoForge Command Menu\n\n")
                 for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
                     f.write(f"## {cmd_type.name.title()} Commands\n\n")
-                    f.write("| Command | Description |\n")
-                    f.write("|:--------|:------------|\n")
+                    f.write("| Command       | Description |\n")
+                    f.write("|:--------------|:------------|\n")
                     for cmd, desc in sorted(commands_by_type[cmd_type]):
                         safe_desc = desc.replace("|", "\\|")  # escape pipe characters
-                        f.write(f"| `{cmd}` | {safe_desc} |\n")
+                        f.write(f"| `{cmd:<12}` | {safe_desc} |\n")
                     f.write("\n")
 
             self._logger.debug(f"Dynamic help file generated in {output_path.name}")
@@ -539,35 +570,27 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.error(f"Could not export help help file {export_error}")
             return None
 
-    def _add_dynamic_aliases(self, aliases: Union[dict, list[dict]]) -> Optional[int]:
+    def _add_dynamic_aliases(self) -> Optional[int]:
         """
         Registers dynamically defined aliases from a dictionary or list of dictionaries.
-        Args:
-            aliases (Union[dict, list[dict]]): Either a legacy dict of {alias_name: target_command},
-                                               or a list of dictionaries, each with:
-                - alias_name (str): The alias command name (e.g., "gs")
-                - target_command (str): The actual command (e.g., "git status")
-                - description (str, optional): Help text
-                - command_type (str, optional): AutoForgCommandType name (e.g., "GIT", "SYSTEM")
-
         Returns:
             Optional[int]: Number of aliases successfully registered, or None on failure.
         """
-        count = 0
+        added_aliases_count = 0
+        builtin_aliases: Union[dict, list[dict]] = self._package_configuration_data.get('builtin_aliases')
 
-        if isinstance(aliases, dict):  # Legacy support
-            for alias_name, target_command in aliases.items():
+        if isinstance(builtin_aliases, dict):  # Legacy support
+            for alias_name, target_command in builtin_aliases.items():
                 try:
                     self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
                                                      description="No description provided",
                                                      cmd_type=AutoForgCommandType.ALIASES)
-                    count += 1
-                except Exception as e:
-                    self._logger.warning(f"Failed to add legacy alias '{alias_name}': {e}")
-            return count
+                    added_aliases_count += 1
+                except Exception as alias_add_error:
+                    self._logger.warning(f"Failed to add legacy alias '{alias_name}': {alias_add_error}")
 
-        if isinstance(aliases, list):
-            for alias in aliases:
+        elif isinstance(builtin_aliases, list):
+            for alias in builtin_aliases:
                 try:
                     alias_name = alias["alias_name"]
                     target_command = alias["target_command"]
@@ -584,33 +607,37 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
                     self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
                                                      description=description, cmd_type=cmd_type, hidden=hidden)
-                    count += 1
-                except Exception as e:
-                    self._logger.warning(f"Failed to add alias from entry {alias}: {e}")
-            return count
+                    added_aliases_count += 1
+                except Exception as alias_add_error:
+                    self._logger.warning(f"Failed to add alias from entry {alias}: {alias_add_error}")
 
-        self._logger.warning("'aliases' must be a dictionary or list of dictionaries")
-        return None
+        else:
+            self._logger.warning("'aliases' must be a dictionary or list of dictionaries")
 
-    def _add_dynamic_cli_commands(self) -> int:
+        if added_aliases_count == 0:
+            self._logger.warning("No aliases registered")
+
+        return added_aliases_count
+
+    def _add_dynamic_cli_commands(self) -> Optional[int]:
         """
         Dynamically adds AutoForge dynamically loaded command to the Prompt.
         Each command is dispatched via the loader's `execute()` method using its registered name.
         Returns:
-            int: The number of commands added.
+            int: The number of commands added or exception.
         """
         added_commands: int = 0
 
         # Get the loaded commands list from registry
-        self.dynamic_cli_commands_list = self._registry.get_modules_list(
+        cli_commands_list: list[ModuleInfoType] = self._registry.get_modules_list(
             auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND)
 
-        existing_commands = len(self.dynamic_cli_commands_list) if self.dynamic_cli_commands_list else 0
+        existing_commands = len(cli_commands_list) if cli_commands_list else 0
         if existing_commands == 0:
             self._logger.warning("No dynamic commands loaded")
             return 0
 
-        for cmd_info in self.dynamic_cli_commands_list:
+        for cmd_info in cli_commands_list:
             command_name = cmd_info.name
             command_type = AutoForgCommandType.UNKNOWN
             description = "Description not provided" if cmd_info.description is None else cmd_info.description
@@ -648,6 +675,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             added_commands += 1
             self._logger.debug(f"Command '{command_name}' was added to the prompt")
 
+            # Register in the global commands metadat registry
+            self._cli_commands_metadata[command_name] = {
+                "description": description, "type": AutoForgeModuleType.CLI_COMMAND,
+                "target_command": method_name, "hidden": hidden, }
+
             added_commands = added_commands + 1
 
         if added_commands == 0:
@@ -659,7 +691,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Scan all directories in the search path and populate self.executable_db
         with executable names mapped to their full paths.
         """
-        self.executable_db = {}
+
         seen_dirs = set()
 
         # Retrieve search path from package configuration or fall back to $PATH
@@ -680,11 +712,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                         # Only add executable files that haven't been added already
                         if (entry.is_file() and
                                 os.access(entry.path, os.X_OK) and
-                                entry.name not in self.executable_db):
+                                entry.name not in self._executables_metadata):
 
                             # Optional: filter out Windows executables when on Linux
                             if not entry.name.endswith('.exe') or os.name == 'nt':
-                                self.executable_db[entry.name] = entry.path
+                                self._executables_metadata[entry.name] = entry.path
             except OSError:
                 # Skip directories that can't be accessed
                 continue
@@ -693,6 +725,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def _get_colored_prompt_toolkit(self, active_name: Optional[str] = None) -> str:
         """
         Return an HTML-formatted prompt string for prompt_toolkit.
+        This is a betst effort to make the prpmpt look slighly like 'zsh' :)
         """
         # Function attribute (sort of C-style static variable)
         func = type(self)._get_colored_prompt_toolkit
@@ -814,7 +847,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 }
             }
         """
-        for cmd, meta in self.command_completion.items():
+        for cmd, meta in self._path_completion_rules_metadata.items():
             if not meta.get("path_completion"):
                 continue
 
@@ -838,7 +871,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
                 def completer(_self, _text, line, _begin_idx, end_idx):
                     event = CompleteEvent(completion_requested=True)
-                    comp = _CorePathCompleter(command_name=command_name, only_directories=only_directories)
+                    comp = _CorePathCompleter(core_prompt=self, command_name=command_name,
+                                              only_directories=only_directories)
                     return list(comp.get_completions(Document(text=line, cursor_position=end_idx), event))
 
                 return completer
@@ -884,10 +918,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             return completions
 
-        except Exception as e:
+        except Exception as completer_error:
             import traceback
-            self._logger.debug(f"Auto-completion error in complete_build(): {e}")
-            self._logger.debug(traceback.format_exc())
+            self._logger.debug(f"Auto-completion error in complete_build(): {completer_error}")
             return []
 
     def set_alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
@@ -910,11 +943,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
         # Expand
-        path = self._variables.expand(key=path)
+        path = self._variables.expand(key=path, quiet=True)
         try:
             if not os.path.exists(path):
                 raise RuntimeError(f"no such file or directory: {path}")
-
             if not os.path.isdir(path):
                 raise RuntimeError(f"'{path}' is not a directory")
 
@@ -922,19 +954,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         except Exception as change_path_errors:
             print(f"cd: {change_path_errors}")
-
-    def do_lss(self, args):
-        """
-        Display a directory listing using the system '/bin/ls' command.
-        Args:
-            args (str): Arguments passed directly to the 'ls' command.
-        Returns:
-            str: The output of the 'ls' command as a string.
-        """
-        try:
-            self._environment.execute_shell_command(command_and_args=f"ls {args} --color=auto -F", check=False, )
-        except Exception as exception:
-            self.perror(f"ls: {exception}")
 
     def do_help(self, arg: Any) -> None:
         """
@@ -995,7 +1014,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return None
 
-    def add_build_command(self, project: str, configuration: str, command_name: str, description: Optional[str] = None):
+    def _add_build_command(self, project: str, configuration: str, command_name: str,
+                           description: Optional[str] = None):
         """
         Registers a user-friendly build command alias.
         Here we create a new cmd2 command alias that triggers a specific build configuration
@@ -1008,7 +1028,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                                  Defaults to a generated description if not provided.
         """
         target_command = f"build {project}.{configuration}"
-
         if not description:
             description = f"Build {project}/{configuration}"
 
@@ -1103,6 +1122,46 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         formated_delta = telemetry.format_timedelta(telemetry.get_session_time())
         print(f"Total time: {formated_delta}\n")
 
+    @property
+    def path_completion_rules_metadata(self) -> {}:
+        return self._path_completion_rules_metadata
+
+    @property
+    def executables_metadata(self) -> {}:
+        return self._executables_metadata
+
+    @property
+    def commands_metadata(self) -> {}:
+        return self._cli_commands_metadata
+
+    @property
+    def aliases_metadata(self) -> {}:
+        return self._aliases_metadata
+
+    @property
+    def max_completion_results(self) -> int:
+        return self._max_completion_results
+
+    def command_loop_abort(self, error_message: Optional[str] = None) -> None:
+        """
+        Request immediate termination of the interactive prompt loop.
+        This triggers a KeyboardInterrupt in the prompt loop, causing it to exit gracefully.
+        Args:
+            error_message (Optional[str]): An optional error message to display.
+        Note:
+            This method only works on POSIX systems (Linux/macOS).
+        """
+        self._loop_stop_flag = True
+
+        try:
+            fd = sys.stdin.fileno()
+            fcntl.ioctl(fd, termios.TIOCSTI, b'\x03')  # Simulate Ctrl-C
+        except Exception as abort_error:
+            self._logger.warning(f"Failed to inject Ctrl-C to abort prompt: {abort_error}")
+
+        if error_message is not None:
+            self.perror(error_message)
+
     def cmdloop(self, intro: Optional[str] = None) -> None:
         """
         Custom command loop using prompt_toolkit for colored prompt, autocompletion,
@@ -1149,11 +1208,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             'executable': 'fg:green bold',
             'builtins': 'fg:blue bold',
             'cli_commands': 'fg:magenta italic',
+            'aliases': 'fg:purple italic',
             'file': 'fg:gray'
         })
 
         # Set up the custom completer
-        completer = _CoreCompleter(self, logger=self._logger)
+        completer = _CoreCompleter(core_prompt=self, logger=self._logger)
 
         # Create the prompt-toolkit history object
         pt_history = InMemoryHistory()
@@ -1166,16 +1226,18 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._inject_generic_path_complete_hooks()
 
         # Create the session
-        session = PromptSession(completer=completer, history=pt_history, key_bindings=kb, style=style,
-                                complete_while_typing=self._package_configuration_data.get('complete_while_typing',
-                                                                                           True),
-                                auto_suggest=AutoSuggestFromHistory())
+        self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb,
+                                             style=style,
+                                             complete_while_typing=self._package_configuration_data.get(
+                                                 'complete_while_typing',
+                                                 True),
+                                             auto_suggest=AutoSuggestFromHistory())
 
         # Start Prompt toolkit custom loop
-        while True:
+        while not self._loop_stop_flag:
             try:
                 prompt_text = HTML(self._get_colored_prompt_toolkit())
-                line = session.prompt(prompt_text)
+                line = self._prompt_session.prompt(prompt_text)
                 stop = self.onecmd_plus_hooks(line)
                 if stop:
                     break

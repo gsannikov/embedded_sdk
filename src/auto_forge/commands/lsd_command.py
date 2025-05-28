@@ -82,7 +82,6 @@ class LSDCommand(CLICommandInterface):
         Return a symbolic icon for the given file or directory.
         Args:
             ext_or_name (Path): The file or directory path.
-
         Returns:
             TerminalFileIconInfo: Icon info associated with the given file or directory.
         """
@@ -139,7 +138,6 @@ class LSDCommand(CLICommandInterface):
         Returns:
             str: A colorized and human-readable size string.
         """
-
         if size_bytes == 0:
             return "0"
 
@@ -210,6 +208,35 @@ class LSDCommand(CLICommandInterface):
 
         return max_width
 
+    def _get_formated_summary(self, total_files: int = 0, total_dirs: int = 0) -> str:
+        """
+        Gets a colorized summary of listed files and directories only when counts that are greater than zero.
+        Args:
+            total_files (int): Number of files listed.
+            total_dirs (int): Number of directories listed.
+        """
+        summary_parts = []
+        summary_text = ""
+
+        if total_files > 0:
+            summary_parts.append(
+                f"{self._ansi_codes.get('FORE_GREEN')}{total_files} file{'s' if total_files != 1 else ''}"
+                f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
+
+        if total_dirs > 0:
+            summary_parts.append(
+                f"{self._ansi_codes.get('FORE_CYAN')}{total_dirs} director{'ies' if total_dirs != 1 else 'y'}"
+                f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
+
+        if summary_parts:
+            summary_text = (
+                    f"\nSummary: {self._ansi_codes.get('STYLE_BRIGHT')}"
+                    + " • ".join(summary_parts)
+                    + self._ansi_codes.get('STYLE_RESET_ALL')
+            )
+
+        return summary_text
+
     def _lsd(self,  # noqa: C901 # Method is indeed too long, noted, thanks.
              destination_paths: list[Path], show_all: bool = False, group_directories_first: bool = False,
              disable_icons: bool = False, immediate_echo: bool = True, _show_long: Optional[bool] = False) -> Optional[
@@ -229,6 +256,8 @@ class LSDCommand(CLICommandInterface):
 
         output_lines = []
         show_header = len(destination_paths) > 1
+        total_files = 0
+        total_dirs = 0
 
         # Fields names
         size_header_text: str = 'Size'
@@ -240,6 +269,7 @@ class LSDCommand(CLICommandInterface):
         date_padded_text = date_header_text.ljust(max_date_width)
 
         for dest in destination_paths:
+            """ Loop on all files and folders in the specified path """
             dest = self._tool_box.get_expanded_path(str(dest))
             path = Path(dest)
             max_size_width = len(size_header_text)
@@ -284,17 +314,18 @@ class LSDCommand(CLICommandInterface):
                 if not show_all and entry.name.startswith("."):
                     continue
                 try:
-
                     if entry.is_dir():
                         is_dir = True
                         size_str = (f"{self._ansi_codes.get('FORE_CYAN')}{'-':<{max_size_width}}"
                                     f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
+                        total_dirs += 1
                     else:
                         size_bytes = entry.stat().st_size
                         colored = self._color_size(size_bytes)
                         plain = self._tool_box.strip_ansi(colored)
                         padding = max_size_width - len(plain)
                         size_str = colored + " " * padding if padding > 0 else colored
+                        total_files += 1
 
                 except (FileNotFoundError, PermissionError):
                     if is_dir:
@@ -341,8 +372,11 @@ class LSDCommand(CLICommandInterface):
                     sys.stdout.write(formatted_line + '\n')
                     sys.stdout.flush()
 
+        formatted_summary = self._get_formated_summary(total_files=total_files, total_dirs=total_dirs)
         if not immediate_echo:
-            return "\n".join(output_lines)
+            return "\n".join(output_lines) + '\n' + formatted_summary
+        else:
+            print(formatted_summary)
         return None
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
