@@ -40,14 +40,20 @@ class AutoForge(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
         See 'CoreModuleInterface' usage.
         """
+        self._registry: Optional[Registry] = None
         self._solution: Optional[CoreSolution] = None
-        self._solution_file: Optional[str] = None
-        self._solution_name: Optional[str] = None
+        self._tool_box: Optional[ToolBox] = None
+        self._environment: Optional[CoreEnvironment] = None
         self._variables: Optional[CoreVariables] = None
+        self._processor: Optional[CoreProcessor] = None
         self._gui: Optional[CoreGUI] = None
+        self._loader: Optional[CoreLoader] = None
         self._prompt: Optional[CorePrompt] = None
         self._telemetry: Optional[BuildTelemetry] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
+        self._auto_logger: Optional[AutoLogger] = None
+        self._solution_file: Optional[str] = None
+        self._solution_name: Optional[str] = None
 
         # Startup arguments
         self._automated_mode: bool = False
@@ -74,47 +80,51 @@ class AutoForge(CoreModuleInterface):
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
 
-        # Initialize the most basic and essential core modules, registry must come first.
-        self._registry: Registry = Registry()
-        self._tool_box: Optional[ToolBox] = ToolBox()
-        self._processor: Optional[CoreProcessor] = CoreProcessor()
+        #
+        # Initialize the most fundamental and essential core modules FIRST.
+        # These must be constructed before anything else—including the logger or any plugin infrastructure.
+        # Order matters: they form the foundation upon which the rest of the system depends.
+        #
+        self._registry = Registry()  # Must be first—anchors the core system
+        self._tool_box = ToolBox()
+        self._processor = CoreProcessor()
 
-        # Pass all received arguments down to _validate_arguments
+        # Validate startup arguments
         self._validate_arguments(*args, **kwargs)
 
-        # Start remote debugging ASAP if enabled.
+        # Start remote debugging if enabled.
         if self._remote_debugging is not None:
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
-        # Load AutoForge package configuration and several dictionaries we might need later
+        # Load package configuration and several dictionaries we might need later
         self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
-        self.ansi_codes = self._package_configuration_data.get(
-            "ansi_codes") if "ansi_codes" in self._package_configuration_data else None
+        self.ansi_codes = self._package_configuration_data.get("ansi_codes")
 
         # Start variables
-        self._variables: Optional[CoreVariables] = CoreVariables(workspace_path=self._workspace_path,
-                                                                 solution_name=self._solution_name)
-
-        # Greetings
-        print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
-              f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
+        self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name)
 
         # Initializes the logger
+        self._init_logger()
+        self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
+
+        # Load all built-in commands
+        self._loader = CoreLoader()
+        self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
+        self._environment = CoreEnvironment(workspace_path=self._workspace_path, automated_mode=self._automated_mode)
+
+    def _init_logger(self):
+        """ Construct the logger file name, initialize and start it"""
         log_file = self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE}') if (
-                self._work_mode != AutoForgeWorkModeType.ENV_CREATE) else "setup.log"
+                self._work_mode != AutoForgeWorkModeType.ENV_CREATE) else PROJECT_LOG_FILE
+
+        # Patch it with timestamp
+        log_file = self._tool_box.append_timestamp_to_path(log_file)
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
         self._auto_logger.set_log_file_name(log_file)
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
         self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
-        self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
-
-        # Load all built-in commands
-        self._loader: Optional[CoreLoader] = CoreLoader()
-        self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
-        self._environment: CoreEnvironment = CoreEnvironment(workspace_path=self._workspace_path,
-                                                             automated_mode=self._automated_mode)
 
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -286,6 +296,11 @@ class AutoForge(CoreModuleInterface):
         """
         Load a solution and fire the AutoForge shell.
         """
+
+        # Greetings
+        print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
+              f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
+
         try:
             # Remove anny previously generated autoforge temporary files.
             ToolBox.clear_residual_files()

@@ -293,6 +293,7 @@ class AutoLogger:
             self._stream_file_handler: Optional[logging.FileHandler] = None
             self._enable_console_colors: bool = console_enable_colors
             self._output_console_state: bool = console_output_state
+            self._log_file_name: Optional[str] = None
             self._exclusive: bool = exclusive
 
             # Attempt to get the cleanup regex pattern from the configuration object
@@ -303,10 +304,6 @@ class AutoLogger:
             # noinspection SpellCheckingInspection
             self._log_format: str = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
             self._date_format: str = '%d-%m %H:%M:%S'
-
-            timestamp = datetime.now().strftime('%d_%m_%H_%M_%S')
-            temp_dir = tempfile.gettempdir()
-            self._log_file_name = os.path.join(temp_dir, f"{self._name}_{timestamp}.log")
 
             try:
                 self._logger = logging.getLogger(self._name)
@@ -415,18 +412,24 @@ class AutoLogger:
         if was_enabled:
             self._disable_handlers(LogHandlersTypes.FILE_HANDLER)
 
-        # Expand and set the file name
-        self._log_file_name = file_name or self._log_file_name
-        expanded_name: str = os.path.expanduser(os.path.expandvars(self._log_file_name))
-        expanded_name = os.path.normpath(expanded_name)
-        if not os.path.isabs(expanded_name):
-            expanded_name = os.path.abspath(expanded_name)
+        if file_name is None:
+            # Generate a name in temp path of file nam was not specified
+            timestamp = datetime.now().strftime('%d_%m_%H_%M_%S')
+            temp_dir = tempfile.gettempdir()
+            log_file_name = os.path.join(temp_dir, f"{self._name}_{timestamp}.log")
+        else:
+            # Expand and set the file name
+            expanded_name: str = os.path.expanduser(os.path.expandvars(file_name))
+            expanded_name = os.path.normpath(expanded_name)
+            if not os.path.isabs(expanded_name):
+                expanded_name = os.path.abspath(expanded_name)
+            log_file_name = expanded_name
 
         # Optionally remove exiting log file
-        if self._erase_exiting_file and os.path.exists(expanded_name):
-            os.remove(expanded_name)
+        if self._erase_exiting_file and os.path.exists(log_file_name):
+            os.remove(log_file_name)
 
-        self._log_file_name = expanded_name
+        self._log_file_name = log_file_name
 
         # Re-enable if it was active before
         if was_enabled:

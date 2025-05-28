@@ -136,10 +136,7 @@ class _CoreCompleter(Completer):
             return meta.get("path_completion", False)  # allow even if arg_text is empty
 
         # Fallback for unlisted known commands
-        is_known_command = (
-                cmd in self._core_prompt.executables_metadata
-                or cmd in self._core_prompt.commands_metadata
-        )
+        is_known_command = (cmd in self._core_prompt.executables_metadata or cmd in self._core_prompt.commands_metadata)
         return is_known_command and bool(arg_text.strip())
 
     def get_completions(  # noqa: C901
@@ -196,8 +193,7 @@ class _CoreCompleter(Completer):
 
                 # System executables (styled if executable)
                 matches += [Completion(sys_binary, start_position=-len(partial), style='class:executable') for
-                            sys_binary in
-                            self._core_prompt.executables_metadata if sys_binary.startswith(partial)]
+                            sys_binary in self._core_prompt.executables_metadata if sys_binary.startswith(partial)]
 
             # Case 2: Completing arguments for a command
             elif len(tokens) >= 1:
@@ -224,17 +220,12 @@ class _CoreCompleter(Completer):
 
                 elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
                     meta = self._core_prompt.path_completion_rules_metadata.get(cmd, {})
-                    matches = self._core_prompt.gather_path_matches(
-                        text=arg_text if arg_text.strip() else ".",
-                        only_dirs=meta.get("only_dirs", False)
-                    )
+                    matches = self._core_prompt.gather_path_matches(text=arg_text if arg_text.strip() else ".",
+                        only_dirs=meta.get("only_dirs", False))
 
                 elif cli_command_args_list:
-                    matches = [
-                        Completion(arg, start_position=-len(arg_text))
-                        for arg in cli_command_args_list
-                        if arg.startswith(arg_text)
-                    ]
+                    matches = [Completion(arg, start_position=-len(arg_text)) for arg in cli_command_args_list if
+                        arg.startswith(arg_text)]
 
             # Final filtering: ensure no duplicate completions and max results count are yielded
             seen = set()
@@ -676,9 +667,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.debug(f"Command '{command_name}' was added to the prompt")
 
             # Register in the global commands metadat registry
-            self._cli_commands_metadata[command_name] = {
-                "description": description, "type": AutoForgeModuleType.CLI_COMMAND,
-                "target_command": method_name, "hidden": hidden, }
+            self._cli_commands_metadata[command_name] = {"description": description,
+                "type": AutoForgeModuleType.CLI_COMMAND, "target_command": method_name, "hidden": hidden, }
 
             added_commands = added_commands + 1
 
@@ -710,9 +700,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 with os.scandir(directory) as entries:
                     for entry in entries:
                         # Only add executable files that haven't been added already
-                        if (entry.is_file() and
-                                os.access(entry.path, os.X_OK) and
-                                entry.name not in self._executables_metadata):
+                        if (entry.is_file() and os.access(entry.path,
+                                                          os.X_OK) and entry.name not in self._executables_metadata):
 
                             # Optional: filter out Windows executables when on Linux
                             if not entry.name.endswith('.exe') or os.name == 'nt':
@@ -1204,13 +1193,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.start_completion(select_first=True)
 
         # Define style for different token categories (e.g., executable names, files)
-        style = Style.from_dict({
-            'executable': 'fg:green bold',
-            'builtins': 'fg:blue bold',
-            'cli_commands': 'fg:magenta italic',
-            'aliases': 'fg:purple italic',
-            'file': 'fg:gray'
-        })
+        style = Style.from_dict(
+            {'executable': 'fg:green bold', 'builtins': 'fg:blue bold', 'cli_commands': 'fg:magenta italic',
+                'aliases': 'fg:purple italic', 'file': 'fg:gray'})
 
         # Set up the custom completer
         completer = _CoreCompleter(core_prompt=self, logger=self._logger)
@@ -1226,12 +1211,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._inject_generic_path_complete_hooks()
 
         # Create the session
-        self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb,
-                                             style=style,
+        self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb, style=style,
                                              complete_while_typing=self._package_configuration_data.get(
-                                                 'complete_while_typing',
-                                                 True),
-                                             auto_suggest=AutoSuggestFromHistory())
+                                                 'complete_while_typing', True), auto_suggest=AutoSuggestFromHistory())
 
         # Start Prompt toolkit custom loop
         while not self._loop_stop_flag:

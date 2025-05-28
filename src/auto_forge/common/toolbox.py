@@ -28,6 +28,7 @@ import termios
 import textwrap
 import zipfile
 from contextlib import suppress
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Optional, SupportsInt, Union
@@ -1549,3 +1550,30 @@ class ToolBox(CoreModuleInterface):
                         return frame.f_locals[variable_name]
 
         return None
+
+    @staticmethod
+    def append_timestamp_to_path(file_or_path: str, date_time_format: Optional[str] = None) -> Optional[str]:
+        # noinspection SpellCheckingInspection
+        """
+        Append a timestamp to a filename or path using a standard strftime format.
+        - If the input is a file (i.e., has an extension), the timestamp is inserted before the extension.
+        - If the input is a directory or extension-less name, the timestamp is appended at the end.
+        Args:
+            file_or_path (str): The file or path to modify.
+            date_time_format (Optional[str]): strftime-compatible format string for the timestamp.
+                                              Defaults to "%d_%m_%Y_%H_%M_%S".
+        Returns:
+            Optional[str]: Modified string with the embedded timestamp, or None if an error occurs.
+        """
+        with suppress(Exception):
+            stamp_format = date_time_format or "%d_%m_%Y_%H_%M_%S"
+            timestamp = datetime.now().strftime(stamp_format)
+            path = Path(file_or_path)
+
+            if path.suffix:
+                new_name = f"{path.stem}_{timestamp}{path.suffix}"
+                return str(path.with_name(new_name))
+            else:
+                return f"{file_or_path}_{timestamp}"
+
+        return None  # Returned if an exception was suppressed
