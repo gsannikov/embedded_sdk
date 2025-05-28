@@ -131,7 +131,7 @@
 							"name": "debug",
 							"menu_command": {
 								"name": "b_btop_x86_d",
-								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+								"description": "\uD83C\uDFC0 Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
 							},
 							"build_path": "<$ref_solutions[demo].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
 							"execute_from": "$SOURCE_BASE/btop",
@@ -155,7 +155,7 @@
 							"data": "<$derived_from_solutions[demo].projects[].configurations[debug]>",
 							"menu_command": {
 								"name": "b_btop_x86_r",
-								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+								"description": "⚽ Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
 							},
 							"compiler_options": [
 								"BUILDDIR=<$ref_build_path>",

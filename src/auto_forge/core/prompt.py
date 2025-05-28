@@ -527,8 +527,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 if not export_hidden and cmd in self.hidden_commands:
                     continue
                 cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
-                doc = self._tool_box.flatten_text(meta.get("description"), default_text="No help available")
-                doc = doc.replace(':', ' ').replace("'", "").replace('  ', ' ')
+                doc = meta.get("description", "No help available")
+                # Minor string touch up
+                doc = doc.replace('\t', ' ').strip()
+                if not doc.endswith('.'):
+                    doc += '.'
                 commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
 
             # Collect docstring-based commands
@@ -545,7 +548,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     continue
 
                 doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
-                doc = doc.replace(':', ' ').replace("'", "").replace('  ', ' ')
                 cmd_type = AutoForgCommandType.MISCELLANEOUS
                 commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
 
