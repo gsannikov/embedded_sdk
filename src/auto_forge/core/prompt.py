@@ -468,7 +468,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         Adds a dynamically defined alias command to the cmd2 application with metadata used for help 
         display and categorization. If alias maps directly to a known builtin command (e.g., 'q' -> 'quit'), 
-        it will registered via the native cmd2 alias system to avoid collisions.
+        it will register via the native cmd2 alias system to avoid collisions.
         it will be registered via the native cmd2 alias system to avoid collisions.
         """
         # Extract the root command from the target (first word)

@@ -160,7 +160,7 @@ class CLICommandInterface(ABC):
         self._command_name: str = command_name
         self._args_parser: Optional[_CLICapturingArgumentParser] = None
 
-        # Slightly non treditional way for extracting the package configuration from the probably not yet created main AutoForge class.
+        # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
         self._package_configuration_data: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
             module_name='auto_forge', variable_name='_package_configuration_data')
 

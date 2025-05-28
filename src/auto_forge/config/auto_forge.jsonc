@@ -7,7 +7,7 @@
 */
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     // List of variable names that must be defined in the "variables" section.
     // These are considered critical for proper project configuration.

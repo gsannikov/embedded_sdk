@@ -448,18 +448,28 @@ class CoreVariables(CoreModuleInterface):
             """ Validate variable expressed as {VAR} """
             if not text.startswith("${") or not text.endswith("}"):
                 return False
-            var_name = text[2:-1]
-            if not var_name or "$" in var_name or "{" in var_name:
+            _var = text[2:-1]
+            if not _var or "$" in _var or "{" in _var:
                 return False
-            return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", var_name) is not None
+            return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", _var) is not None
 
-        def _expand_using_sys(exported_var: str) -> Optional[str]:
+        def _expand_using_sys(_var: str) -> Optional[str]:
             """ Expand a single variable using system environment if it's exported """
             if not allow_environment:
                 return None
-            if exported_var in os.environ:
-                return self._tool_box.get_expanded_path(os.environ[exported_var])
+            if _var in os.environ:
+                return self._tool_box.get_expanded_path(os.environ[_var])
             return None
+
+        def _resolve_var(_var: str) -> str:
+            value = self.get(key=_var, quiet=True, flexible=False)
+            if value is None:
+                value = _expand_using_sys(_var)
+            if value is None:
+                if not quiet:
+                    raise ValueError(f"variable '{_var}' could not be expanded")
+                return ""
+            return value
 
         while i < length:
             if key[i] == '$':
@@ -473,19 +483,11 @@ class CoreVariables(CoreModuleInterface):
                         if not _is_valid_shell_var_ref(candidate):
                             if not quiet:
                                 raise ValueError(f"Invalid variable syntax: {candidate}")
-                            # Treat as literal
                             result.append(key[i])
                             i += 1
                             continue
-                        var_key = candidate[2:-1]
-                        var_value = self.get(key=var_key, quiet=True, flexible=False)
-                        if var_value is None:
-                            var_value = _expand_using_sys(var_key)
-                        if var_value is None:
-                            if not quiet:
-                                raise ValueError(f"Variable '{var_key}' could not be expanded")
-                            var_value = ""
-                        result.append(var_value)
+                        var_name = candidate[2:-1]
+                        result.append(_resolve_var(var_name))
                         i = end_brace + 1
                         continue
                 else:
@@ -496,15 +498,8 @@ class CoreVariables(CoreModuleInterface):
                     while j < length and (key[j].isalnum() or key[j] == '_'):
                         j += 1
                     if j > i + 1:
-                        var_key = key[i + 1:j]
-                        var_value = self.get(key=var_key, quiet=True, flexible=False)
-                        if var_value is None:
-                            var_value = _expand_using_sys(var_key)
-                        if var_value is None:
-                            if not quiet:
-                                raise ValueError(f"Variable '{var_key}' could not be expanded")
-                            var_value = ""
-                        result.append(var_value)
+                        var_name = key[i + 1:j]
+                        result.append(_resolve_var(var_name))
                         i = j
                         continue
 
@@ -518,10 +513,7 @@ class CoreVariables(CoreModuleInterface):
         """
         Exports the internal list of VariableFieldType instances.
         Args:
-            as_env (bool): If True, returns a dictionary of {key: value} pairs
-                           suitable for subprocess environments. Only includes
-                           entries with non-empty keys and non-None values.
-
+            as_env (bool): Returns a dictionary of {key: value} pairs suitable for subprocess environments.
         Returns:
             Union[list[dict], dict[str, str]]: Either a list of dictionaries or an env-compatible dict.
         """
