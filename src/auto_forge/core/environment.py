@@ -661,7 +661,7 @@ class CoreEnvironment(CoreModuleInterface):
             return results
 
         # Expand current work directory if specified
-        cwd = self._variables.expand(text=cwd) if cwd else cwd
+        cwd = self._variables.expand(key=cwd) if cwd else cwd
 
         def _safe_quote(arg: str) -> str:
             """ Allow simple expansions or globs, quote all else """
@@ -1027,7 +1027,7 @@ class CoreEnvironment(CoreModuleInterface):
         for path in paths:
             try:
                 if self._variables and path:
-                    path = self._variables.expand(text=path, expand_path=False)
+                    path = self._variables.expand(key=path, expand_path=False)
 
                 full_path = os.path.join(self._workspace_path, path) if project_path else path
                 full_path = os.path.expanduser(os.path.expandvars(full_path))
@@ -1234,7 +1234,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Normalize and prepare the destination path
             if self._variables is not None:
-                dest_repo_path = self._variables.expand(text=dest_repo_path, expand_path=False)
+                dest_repo_path = self._variables.expand(key=dest_repo_path, expand_path=False)
 
             dest_repo_path = self.environment_variable_expand(text=dest_repo_path, to_absolute_path=True)
 
@@ -1555,7 +1555,7 @@ class CoreEnvironment(CoreModuleInterface):
             if not isinstance(msg, str) or msg == "":
                 return None
 
-            expanded_msg = self._variables.expand(text=msg, expand_path=False)
+            expanded_msg = self._variables.expand(key=msg, expand_path=False)
             if expanded_msg:
                 print(expanded_msg)
             return None

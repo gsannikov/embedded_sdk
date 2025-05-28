@@ -13,7 +13,7 @@ import io
 import os
 import sys
 from collections.abc import Sequence
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
@@ -143,7 +143,8 @@ class CoreLoader(CoreModuleInterface):
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
                         if (isinstance(attr, type) and issubclass(attr,
-                                                                  tuple(self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                                                                  tuple(
+                                                                      self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 
@@ -226,6 +227,30 @@ class CoreLoader(CoreModuleInterface):
         """
         return self._execution_output
 
+    def get_cli_command_known_args(self, name: str) -> Optional[list[str]]:
+        """
+        Attempts to retrieve the known argument list for a registered CLI command.
+        This is a best-effort method that searches the command registry for a class instance
+        matching the given command name and expected interface. If found, it invokes
+        the instance's `get_known_args()` method to retrieve the list of supported arguments.
+        Args:
+            name (str): The name of the CLI command to inspect.
+
+        Returns:
+            Optional[list[str]]: A list of known argument strings (e.g., ['--input', '-f']),
+            or None if the command is unknown or an error occurs.
+        """
+        with suppress(Exception):
+            class_instance = self._resolve_registered_instance(
+                name=name,
+                expected_type=AutoForgeModuleType.CLI_COMMAND,
+                required_method='get_known_args'
+            )
+            if class_instance:
+                return class_instance.get_known_args(raise_exceptions=False)
+
+        return None  # Unknown CLI, error, or method not implemented
+
     def execute_build(self, build_profile: BuildProfileType) -> Optional[int]:
         """
         Executes the 'build' method of a registered builder module.
@@ -238,7 +263,6 @@ class CoreLoader(CoreModuleInterface):
         class_instance = self._resolve_registered_instance(name=build_profile.build_system,
                                                            expected_type=AutoForgeModuleType.BUILDER,
                                                            required_method='build')
-
         return class_instance.build(build_profile=build_profile)
 
     def execute_command(self, name: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[

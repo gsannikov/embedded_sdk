@@ -7,11 +7,50 @@
 */
 
 {
-	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+
+    // List of variable names that must be defined in the "variables" section.
+    // These are considered critical for proper project configuration.
+    // Each entry in the "variables" array must include an object with a matching "name" field.
+    // Validation will fail if any of these are missing.
+
+    "essential_variables": [
+        //                                                                                               Path must Exist
+        //   Key                  Value                              Description                 Crate path if not exist
+	    //--------------------------------------------------------------------------------------------------------------
+
+            ["HOME_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Locally stored project user preferences"              ],
+            ["BUILD_BASE",      "$PROJ_WORKSPACE/build",            "Base path for compilers outputs"                      ],
+            ["BUILD_OUT",       "$BUILD_BASE/out",                  "Compilation outputs and temporary files"              ],
+            ["BUILD_IMAGES",    "$BUILD_BASE/images",               "Compiled binaries"                                    ],
+            ["BUILD_LOGS",      "$BUILD_BASE/logs",                 "Runtime build logs"                                   ],
+            ["PYTHON_VENV",     "$PROJ_WORKSPACE/.venv",            "Python virtual environment",         	true, false	   ],
+            ["PROJ_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Project base path"                                    ],
+            ["DOCS_BASE",       "$PROJ_BASE/docs",                  "Project Documents"                                    ],
+            ["SCRIPTS_BASE",    "$PROJ_BASE/scripts",               "Project scripts"                                      ],
+            ["SOURCE_BASE",     "$PROJ_BASE/src",                   "Sources base path"                                    ],
+            ["AF_BASE",         "$HOME/.auto_forge",                "Sources base path",                    true, true     ]
+    ],
 
     "hide_cmd2_commands": true,     // Hide cmd2 built-in commands from the user menu
     "complete_while_typing": true,  // Controls Prompt toolkit completion speed
-    "prompt_history_file": "$HOME/.auto_forge.history",
+    "prompt_history_file": "$AF_BASE/.auto_forge.history",
+
+
+    // Search paths used when the prompt attempts to autocomplete a typed command.
+    // This list typically mirrors the system's PATH variable and defines where
+    // the prompt will look for executable binaries during command completion.
+
+    "prompt_search_path": [
+        "/usr/local/sbin",
+        "/usr/local/bin",
+        "/usr/sbin",
+        "/usr/bin",
+        "/sbin",
+        "/bin",
+        "/snap/bin",
+        "$AF_BASE/bin"  // AutoForge persistent binaries path
+      ],
 
     "log_cleanup_patterns": [
 
@@ -22,28 +61,6 @@
 
         "^remote: Counting objects:\\s*",
         "^━+.*?━+\\s*"
-    ],
-
-    "essential_variables": [
-
-        // List of variable names that must be defined in the "variables" section.
-        // These are considered critical for proper project configuration.
-        // Each entry in the "variables" array must include an object with a matching "name" field.
-        // Validation will fail if any of these are missing.
-        //                                                                                               Path must Exist
-        //   Key                  Value                              Description                 Crate path if not exist
-		//--------------------------------------------------------------------------------------------------------------
-
-        ["HOME_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Locally stored project user preferences"              ],
-        ["BUILD_BASE",      "$PROJ_WORKSPACE/build",            "Base path for compilers outputs"                      ],
-        ["BUILD_OUT",       "$BUILD_BASE/out",                  "Compilation outputs and temporary files"              ],
-        ["BUILD_IMAGES",    "$BUILD_BASE/images",               "Compiled binaries"                                    ],
-        ["BUILD_LOGS",      "$BUILD_BASE/logs",                 "Runtime build logs"                                   ],
-        ["PYTHON_VENV",     "$PROJ_WORKSPACE/.venv",            "Python virtual environment",         	true, false	   ],
-        ["PROJ_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Project base path"                                    ],
-        ["DOCS_BASE",       "$PROJ_BASE/docs",                  "Project Documents"                                    ],
-        ["SCRIPTS_BASE",    "$PROJ_BASE/scripts",               "Project scripts"                                      ],
-        ["SOURCE_BASE",     "$PROJ_BASE/src",                   "Sources base path"                                    ]
     ],
 
     "builtin_aliases": [

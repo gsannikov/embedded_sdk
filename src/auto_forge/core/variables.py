@@ -10,6 +10,7 @@ Description:
 """
 
 import os
+import re
 import threading
 from bisect import bisect_left
 from dataclasses import asdict
@@ -234,31 +235,6 @@ class CoreVariables(CoreModuleInterface):
             # Load essential
             self._load_from_dictionary(self._essential_variables)
 
-    def _expand_variable_value(self, value: str) -> str:
-        """
-        Expands a given value by replacing placeholders with actual values from a dictionary
-        and by expanding variables and user home directories.
-        Args:
-            value (str): The input value to be expanded.
-        Returns:
-            str: The expanded value.
-        Notes:
-            The function uses regular expressions to identify and replace placeholders and relies on
-            `os.path.expandvars` and `os.path.expanduser` for variable and user directory expansion.
-            It iteratively replaces all placeholders until no more substitutions can be made, ensuring that
-            nested placeholders are fully expanded.
-        """
-        if not isinstance(value, str):
-            return value
-
-        # Now handle the variable expansions
-        expanded = self.expand(value)
-        if '$' in expanded and any(char.isalpha() for char in expanded.split('$')[1]):  # Check for unresolved variables
-            first_unresolved = expanded.split('$')[1].split('/')[0].split('\\')[0]
-            raise ValueError(f"variable ${first_unresolved} could not be expanded.")
-
-        return expanded
-
     def load_from_file(self, config_file_name: str, reset: bool = False, variables_schema: Optional[dict] = None) -> \
             Optional[int]:
         """
@@ -392,7 +368,7 @@ class CoreVariables(CoreModuleInterface):
             new_var.value = value
         else:
             new_var.is_path = True
-            new_var.value = self._expand_variable_value(value)
+            new_var.value = self.expand(value)
 
             # The variable should be treated as a path
             if not self._tool_box.looks_like_unix_path(new_var.value):
@@ -447,59 +423,96 @@ class CoreVariables(CoreModuleInterface):
             self._variables.pop(index)  # Remove it
             self._refresh()  # Update the list and the search dictionary
 
-    def expand(self, text: str, expand_path: bool = True) -> str:
+    def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]:
         """
         Expands variables embedded within the input text and resolves the path.
         Supports both $VAR and ${VAR} syntax, correctly handling adjacent expansions.
         Args:
-            text (str): The text to expand.
-            expand_path (bool): If true, treat the input as path and expand accordingly
+            key (str): The text to expand.
+            allow_environment (bool): Use the system environment when a variable is not internally resolved.
+            quiet (bool): If False, expansion misses will result in raising an exception.
+        Returns:
+            str: The expanded text, or None if input is invalid.
         """
-
-        if text:
-            text = text.strip()
-
-        if not text:
-            return ""
+        if not isinstance(key, str):
+            return None
+        key = key.strip()
+        if not key:
+            return None
 
         result = []
         i = 0
-        length = len(text)
+        length = len(key)
+
+        def _is_valid_shell_var_ref(text: str) -> bool:
+            """ Validate variable expressed as {VAR} """
+            if not text.startswith("${") or not text.endswith("}"):
+                return False
+            var_name = text[2:-1]
+            if not var_name or "$" in var_name or "{" in var_name:
+                return False
+            return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", var_name) is not None
+
+        def _expand_using_sys(exported_var: str) -> Optional[str]:
+            """ Expand a single variable using system environment if it's exported """
+            if not allow_environment:
+                return None
+            if exported_var in os.environ:
+                return self._tool_box.get_expanded_path(os.environ[exported_var])
+            return None
 
         while i < length:
-            if text[i] == '$':
-                if i + 1 < length and text[i + 1] == '{':
-                    # ${VAR}
-                    end_brace = text.find('}', i + 2)
+            if key[i] == '$':
+                #
+                # Handle variables like '${VAR}'
+                #
+                if i + 1 < length and key[i + 1] == '{':
+                    end_brace = key.find('}', i + 2)
                     if end_brace != -1:
-                        var_key = text[i + 2:end_brace]
-                        var_value = self.get(key=var_key, quiet=True, flexible=True)
-                        result.append(var_value if var_value is not None else text[i:end_brace + 1])
+                        candidate = key[i:end_brace + 1]
+                        if not _is_valid_shell_var_ref(candidate):
+                            if not quiet:
+                                raise ValueError(f"Invalid variable syntax: {candidate}")
+                            # Treat as literal
+                            result.append(key[i])
+                            i += 1
+                            continue
+                        var_key = candidate[2:-1]
+                        var_value = self.get(key=var_key, quiet=True, flexible=False)
+                        if var_value is None:
+                            var_value = _expand_using_sys(var_key)
+                        if var_value is None:
+                            if not quiet:
+                                raise ValueError(f"Variable '{var_key}' could not be expanded")
+                            var_value = ""
+                        result.append(var_value)
                         i = end_brace + 1
                         continue
                 else:
-                    # $VAR
+                    #
+                    # Handle variables like '$VAR'
+                    #
                     j = i + 1
-                    while j < length and (text[j].isalnum() or text[j] == '_'):
+                    while j < length and (key[j].isalnum() or key[j] == '_'):
                         j += 1
                     if j > i + 1:
-                        var_key = text[i + 1:j]
-                        var_value = self.get(key=var_key, quiet=True, flexible=True)
-                        result.append(var_value if var_value is not None else text[i:j])
+                        var_key = key[i + 1:j]
+                        var_value = self.get(key=var_key, quiet=True, flexible=False)
+                        if var_value is None:
+                            var_value = _expand_using_sys(var_key)
+                        if var_value is None:
+                            if not quiet:
+                                raise ValueError(f"Variable '{var_key}' could not be expanded")
+                            var_value = ""
+                        result.append(var_value)
                         i = j
                         continue
 
-            # Normal character
-            result.append(text[i])
+            # Append literal character
+            result.append(key[i])
             i += 1
 
-        expanded_text = ''.join(result)
-
-        # Now expand ~ and make absolute
-        if expand_path:
-            expanded_text = self._tool_box.get_expanded_path(path=expanded_text, to_absolute=True)
-
-        return expanded_text
+        return ''.join(result)
 
     def export(self, as_env: bool = False) -> Union[list[dict], dict[str, str]]:
         """

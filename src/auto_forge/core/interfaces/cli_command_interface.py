@@ -22,6 +22,7 @@ import shlex
 import sys
 import time
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from typing import IO, Any, Optional
 
 # AutoForge imports
@@ -122,7 +123,6 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         final_help = "\n".join(final_lines)
         final_help = final_help.replace("optional arguments:", "Optional Arguments:")
         final_help = final_help.replace("show this help message and exit", "Show this help message and exit.")
-
         print('\n' + final_help + '\n')
 
     def print_usage(self, _file: Optional[IO[str]] = None) -> None:
@@ -158,6 +158,7 @@ class CLICommandInterface(ABC):
         self._raise_exceptions = raise_exceptions if raise_exceptions else False
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
+        self._args_parser: Optional[_CLICapturingArgumentParser] = None
 
         # Slightly non treditional way for extracting the package configuration from the probably not yet created main AutoForge class.
         self._package_configuration_data: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
@@ -187,6 +188,28 @@ class CLICommandInterface(ABC):
 
         super().__init__()
 
+    def _create_parser(self) -> Optional[_CLICapturingArgumentParser]:
+        """
+        Call the mandatory implementation of  create_parser() to create parser instance and store it globally.
+        Returns:
+            _CLICapturingArgumentParser: arg parser instance or exception on error.
+        """
+        if not self._args_parser:
+            with suppress(Exception):
+                self._args_parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
+                    prog=self._module_info.name,
+                    description=self._module_info.description)
+                self.create_parser(self._args_parser)
+
+                # Make sure we always support version
+                self._args_parser.add_argument("-v", "--version", action="store_true", help="Show version and exit.")
+                return self._args_parser
+
+        if self._args_parser is None:
+            raise RuntimeError("failed to create parser instance")
+
+        return None
+
     def get_last_error(self) -> Optional[str]:
         """
         Returns the last recorded error message, if an error occurred during the previous execution.
@@ -212,10 +235,37 @@ class CLICommandInterface(ABC):
         """
         self._module_info = command_info
 
+    def get_known_args(self, raise_exceptions: bool = False) -> Optional[list[str]]:
+        """
+        Returns a concise list of known command-line arguments defined in the internal ArgumentParser.
+        This can be used for autocompletion or shell suggestions.
+        Args:
+            raise_exceptions (bool): If True, re-raises any exceptions encountered. Otherwise, returns None on error.
+        Returns:
+            Optional[list[str]]: A list of option strings (e.g., ['--input', '-f']) or None if an error occurs.
+        """
+        try:
+            # Ensure the argument parser is initialized
+            self._create_parser()
+
+            long_options = []
+            for action in self._args_parser._actions:
+                long_form = next((opt for opt in action.option_strings if opt.startswith("--")), None)
+                if long_form:
+                    long_options.append(long_form)
+                elif action.option_strings:
+                    long_options.append(action.option_strings[0])  # fallback to short if no long
+            return long_options
+
+
+        except Exception as parser_exception:
+            if raise_exceptions:
+                raise RuntimeError("failed to extract known arguments") from parser_exception
+            return None
+
     def execute(self, flat_args: Optional[str] = None, **kwargs: Any) -> Optional[int]:
         """
         Executes the command using either a shell-style string or structured kwargs.
-
         Args:
             flat_args (Optional[str]): If provided, a raw shell-style string (e.g., "--flag -v").
             **kwargs: Alternatively, keyword-style argument values (e.g., flag=True, count=3).
@@ -227,13 +277,8 @@ class CLICommandInterface(ABC):
         self._last_error = None
         return_value: int = 1
 
-        # Call the mandatory implementation create_parser() to create parser instance if it's not created
-        parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(prog=self._module_info.name,
-                                                                          description=self._module_info.description)
-        self.create_parser(parser)
-
-        # Make sure we always support version
-        parser.add_argument("-v", "--version", action="store_true", help="Show version and exit.")
+        # Ensure the argument parser is initialized.
+        self._create_parser()
 
         if flat_args is not None:
             args_list = shlex.split(flat_args.strip())
@@ -252,17 +297,17 @@ class CLICommandInterface(ABC):
                 print(f"AutoForge '{self._module_info.name}' version {self._module_info.version}")
                 return_value = 0
             else:
-                args = parser.parse_args(args_list)
+                args = self._args_parser.parse_args(args_list)
                 return_value = self.run(args)
 
             # Auto print help when no arguments provided
             if return_value == self.COMMAND_ERROR_NO_ARGUMENTS:
-                parser.print_help()
+                self._args_parser.print_help()
 
 
         except SystemExit:
 
-            self._last_error = parser.get_error_message()
+            self._last_error = self._args_parser.get_error_message()
             self._last_exception = None
         except Exception as execution_exception:
             self._last_error = str(execution_exception).strip()

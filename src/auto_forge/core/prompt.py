@@ -39,7 +39,6 @@ from auto_forge import (PROJECT_NAME, AutoLogger, AutoForgCommandType, AutoForge
                         ExecutionModeType, Registry, ToolBox, )
 
 # Basic types
-
 AUTO_FORGE_MODULE_NAME = "Prompt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
 
@@ -103,8 +102,10 @@ class _CoreCompleter(Completer):
     """
 
     def __init__(self, core_prompt: "CorePrompt", logger: logging.Logger):
+
         self.core_prompt = core_prompt
         self._logger = logger
+        self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
 
     def _should_fallback_to_path_completion(self, cmd: str, arg_text: str, completer_func: Optional[callable]) -> bool:
         """
@@ -163,38 +164,34 @@ class _CoreCompleter(Completer):
                     yield m
                 return
 
-            # System executables (styled if executable)
-            matches += [Completion(cmd, start_position=-len(partial), style='class:executable') for cmd in
-                        self.core_prompt.executable_db if cmd.startswith(partial)]
-
             # Dynamic CLI commands
             if self.core_prompt.loaded_commands:
                 for cmd in self.core_prompt.dynamic_cli_commands_list:
                     if cmd.name.startswith(partial):
-                        matches.append(Completion(cmd.name, start_position=-len(partial)))
+                        matches.append(Completion(cmd.name, start_position=-len(partial), style='class:cli_commands'))
 
             # Built-in do_* methods
             for name in dir(self.core_prompt):
                 if name.startswith("do_") and callable(getattr(self.core_prompt, name)):
                     cmd_name = name[3:]
                     if cmd_name.startswith(partial):
-                        matches.append(Completion(cmd_name, start_position=-len(partial)))
+                        matches.append(Completion(cmd_name, start_position=-len(partial), style='class:builtins'))
+
+            # System executables (styled if executable)
+            matches += [Completion(sys_binary, start_position=-len(partial), style='class:executable') for sys_binary in
+                        self.core_prompt.executable_db if sys_binary.startswith(partial)]
 
         # Case 2: Completing arguments for a command
         elif len(tokens) >= 1:
+
             cmd = tokens[0]
             arg_text = text[len(cmd) + 1:] if len(text) > len(cmd) + 1 else ""
             begin_idx = len(text) - len(arg_text)
             end_idx = len(text)
 
             completer_func = getattr(self.core_prompt, f"complete_{cmd}", None)
-
-            # Special case: track build components for prompt coloring
-            if cmd == "build":
-                parts = arg_text.split(".")
-                self.core_prompt._parsed_build = {"solution": parts[0] if len(parts) > 0 else None,
-                                                  "project": parts[1] if len(parts) > 1 else None,
-                                                  "config": parts[2] if len(parts) > 2 else None}
+            # Retrieve optional arguments hints for registered CLI commands
+            cli_command_args_list = self._loader.get_cli_command_known_args(name=cmd)
 
             if completer_func:
                 try:
@@ -209,13 +206,17 @@ class _CoreCompleter(Completer):
 
             elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
                 meta = self.core_prompt.command_completion.get(cmd, {})
-                matches = self.core_prompt.gather_path_matches(text=arg_text if arg_text.strip() else ".",
-                                                               only_dirs=meta.get("only_dirs", False))
+                matches = self.core_prompt.gather_path_matches(
+                    text=arg_text if arg_text.strip() else ".",
+                    only_dirs=meta.get("only_dirs", False)
+                )
 
-
-            elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
-                meta = self.core_prompt.command_completion.get(cmd, {})
-                matches = self.core_prompt.gather_path_matches(text=arg_text, only_dirs=meta.get("only_dirs", False))
+            elif cli_command_args_list:
+                matches = [
+                    Completion(arg, start_position=-len(arg_text))
+                    for arg in cli_command_args_list
+                    if arg.startswith(arg_text)
+                ]
 
         # Final filtering: ensure no duplicate completions are yielded
         seen = set()
@@ -295,8 +296,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Restore keyboard and flush any residual user input
         self._tool_box.set_terminal_input(state=True, flush=True)
 
-        # Expand and set persistent history file
-        self._history_file_name = self._package_configuration_data.get('prompt_history_file')
+        # Get nad expand the persistent history file
+        self._history_file_name = self._variables.expand(self._package_configuration_data.get('prompt_history_file'))
 
         # Perper history file
         if not self._init_history_file():
@@ -655,13 +656,20 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def _build_executable_index(self) -> None:
         """
-        Scan all PATH directories and populate self._executable_db
+        Scan all directories in the search path and populate self.executable_db
         with executable names mapped to their full paths.
         """
         self.executable_db = {}
         seen_dirs = set()
 
-        for directory in os.environ.get("PATH", "").split(os.pathsep):
+        # Retrieve search path from package configuration or fall back to $PATH
+        search_path = self._package_configuration_data.get('prompt_search_path')
+        if not search_path:
+            search_path = os.environ.get("PATH", "").split(os.pathsep)
+
+        # Expand each path
+        for directory in search_path:
+            directory = self._variables.expand(key=directory, quiet=True)
             if not directory or directory in seen_dirs:
                 continue
             seen_dirs.add(directory)
@@ -669,11 +677,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             try:
                 with os.scandir(directory) as entries:
                     for entry in entries:
-                        if (entry.name not in self.executable_db and entry.is_file() and os.access(entry.path,
-                                                                                                   os.X_OK)):
-                            self.executable_db[entry.name] = entry.path
+                        # Only add executable files that haven't been added already
+                        if (entry.is_file() and
+                                os.access(entry.path, os.X_OK) and
+                                entry.name not in self.executable_db):
+
+                            # Optional: filter out Windows executables when on Linux
+                            if not entry.name.endswith('.exe') or os.name == 'nt':
+                                self.executable_db[entry.name] = entry.path
             except OSError:
-                continue  # skip unreadable dirs
+                # Skip directories that can't be accessed
+                continue
 
     # noinspection SpellCheckingInspection
     def _get_colored_prompt_toolkit(self, active_name: Optional[str] = None) -> str:
@@ -896,7 +910,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
         # Expand
-        path = self._variables.expand(text=path)
+        path = self._variables.expand(key=path)
         try:
             if not os.path.exists(path):
                 raise RuntimeError(f"no such file or directory: {path}")
@@ -1131,7 +1145,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.start_completion(select_first=True)
 
         # Define style for different token categories (e.g., executable names, files)
-        style = Style.from_dict({'executable': 'fg:green bold', 'file': 'fg:gray'})
+        style = Style.from_dict({
+            'executable': 'fg:green bold',
+            'builtins': 'fg:blue bold',
+            'cli_commands': 'fg:magenta italic',
+            'file': 'fg:gray'
+        })
 
         # Set up the custom completer
         completer = _CoreCompleter(self, logger=self._logger)
@@ -1152,6 +1171,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                                                                            True),
                                 auto_suggest=AutoSuggestFromHistory())
 
+        # Start Prompt toolkit custom loop
         while True:
             try:
                 prompt_text = HTML(self._get_colored_prompt_toolkit())
