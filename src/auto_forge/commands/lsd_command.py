@@ -230,7 +230,7 @@ class LSDCommand(CLICommandInterface):
 
         if summary_parts:
             summary_text = (
-                    f"\nSummary: {self._ansi_codes.get('STYLE_BRIGHT')}"
+                    f"Summary: {self._ansi_codes.get('STYLE_BRIGHT')}"
                     + " • ".join(summary_parts)
                     + self._ansi_codes.get('STYLE_RESET_ALL')
             )
@@ -376,7 +376,7 @@ class LSDCommand(CLICommandInterface):
         if not immediate_echo:
             return "\n".join(output_lines) + '\n' + formatted_summary
         else:
-            print(formatted_summary)
+            print('\n' + formatted_summary)
         return None
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:

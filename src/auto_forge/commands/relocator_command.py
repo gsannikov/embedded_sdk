@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreProcessor, CoreVariables, ToolBox)
+from auto_forge import (CLICommandInterface, CoreProcessor, CoreVariables, AutoForgCommandType, ToolBox)
 
 AUTO_FORGE_MODULE_NAME = "relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
@@ -118,14 +118,13 @@ class RelocatorCommand(CLICommandInterface):
         # Deserialize data
         self._relocate_defaults: Optional[_RelocateDefaults] = None
         self._relocated_folders: Optional[list[_RelocateFolder]] = None
-
         self._relocate_folders_count: Optional[int] = 0
 
         # Extract optional parameters
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions,command_type=AutoForgCommandType.AUTOMATION)
 
     def _reset(self) -> None:
         """

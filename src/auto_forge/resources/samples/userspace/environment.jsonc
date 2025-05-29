@@ -87,18 +87,6 @@
             }
         },
         {
-            "description": "Creating essential paths",
-            "method": "path_create",
-            "arguments": {
-                "paths": [
-                    "build",
-                    "build/logs",
-                    "$SOLUTION_NAME/fw",
-                    "$SOLUTION_NAME/scripts"
-                ]
-            }
-        },
-        {
             "description": "Creating Python virtual environment",
             "method": "python_virtualenv_create",
             "arguments": {

@@ -15,25 +15,29 @@
     // Validation will fail if any of these are missing.
 
     "essential_variables": [
-        //                                                                                               Path must Exist
-        //   Key                  Value                              Description                 Crate path if not exist
-	    //--------------------------------------------------------------------------------------------------------------
+        //                                                                                                              Path must Exist (default true)
+        //   Key                    Value                                       Description                             Crate path if not exist (default true)
+	    //-----------------------------------------------------------------------------------------------------------------------------------------------------
 
-            ["HOME_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Locally stored project user preferences"              ],
-            ["BUILD_BASE",      "$PROJ_WORKSPACE/build",            "Base path for compilers outputs"                      ],
-            ["BUILD_OUT",       "$BUILD_BASE/out",                  "Compilation outputs and temporary files"              ],
-            ["BUILD_IMAGES",    "$BUILD_BASE/images",               "Compiled binaries"                                    ],
-            ["BUILD_LOGS",      "$BUILD_BASE/logs",                 "Runtime build logs"                                   ],
-            ["PYTHON_VENV",     "$PROJ_WORKSPACE/.venv",            "Python virtual environment",         	true, false	   ],
-            ["PROJ_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Project base path"                                    ],
-            ["DOCS_BASE",       "$PROJ_BASE/docs",                  "Project Documents"                                    ],
-            ["SCRIPTS_BASE",    "$PROJ_BASE/scripts",               "Project scripts"                                      ],
-            ["SOURCE_BASE",     "$PROJ_BASE/src",                   "Sources base path"                                    ],
-            ["AF_BASE",         "$HOME/.auto_forge",                "Sources base path",                    true, true     ]
+            ["AF_BASE",             "$HOME/.auto_forge",                        "AutoForge persistent directory"                                ],
+            ["AF_BIN",              "$AF_BASE/bin",                             "AutoForge persistent solution directory"                       ],
+            ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                  "AutoForge persistent solution directory"                       ],
+            ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                    "AutoForge persistent solution directory"                       ],
+            ["HOME_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Locally stored project user preferences"                       ],
+            ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                    "Base path for compilers outputs"                               ],
+            ["BUILD_OUT",           "$BUILD_BASE/out",                          "Compilation outputs and temporary files"                       ],
+            ["BUILD_IMAGES",        "$BUILD_BASE/images",                       "Compiled binaries"                                             ],
+            ["BUILD_LOGS",          "$BUILD_BASE/logs",                         "Runtime build logs"                                            ],
+            ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",                  "Foreign non versioned resources"                               ],
+            ["PYTHON_VENV",         "$PROJ_WORKSPACE/.venv",                    "Python virtual environment",         	        true, false	    ],
+            ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Project base path"                                             ],
+            ["DOCS_BASE",           "$PROJ_BASE/docs",                          "Project Documents"                                             ],
+            ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                       "Project scripts"                                               ],
+            ["SOURCE_BASE",         "$PROJ_BASE/src",                           "Sources base path"                                             ]
     ],
 
-    "hide_cmd2_commands": true,     // Hide cmd2 built-in commands from the user menu
-    "complete_while_typing": true,  // Controls Prompt toolkit completion speed
+    "hide_cmd2_native_commands": false,                     // Hide cmd2 built-in commands from the user menu
+    "complete_while_typing": true,                          // Controls Prompt toolkit completion speed
     "prompt_history_file": "$AF_BASE/.auto_forge.history",
     "prompt_max_completion_results": 100,
 
@@ -49,7 +53,8 @@
         "/sbin",
         "/bin",
         "/snap/bin",
-        "$AF_BASE/bin"  // AutoForge persistent binaries path
+        "$AF_BIN/",         // AutoForge persistent binaries path
+        "$AF_SOLUTION_BIN"  // AutoForge persistent solution specific binaries
       ],
 
     "log_cleanup_patterns": [

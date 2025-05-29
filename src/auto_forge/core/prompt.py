@@ -281,7 +281,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._executables_metadata: Optional[dict[str, Any]] = {}
         self._package_configuration_data: Optional[dict[str, Any]] = None
         self._max_completion_results = 100
-        self._last_execution_return_code: Optional[int] = 0
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
 
@@ -334,6 +333,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         #
 
         self.default_to_shell = True
+        self.last_result = 0
 
         # Adding dynamic 'build' commands based on the loaded solution tree.
         for proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
@@ -347,7 +347,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._add_dynamic_aliases()
 
         # Exclude built-in cmd2 commands from help display without disabling their functionality
-        if self._package_configuration_data.get('hide_cmd2_commands', False):
+        if self._package_configuration_data.get('hide_cmd2_native_commands', False):
             for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
                         'quit', 'help']:
                 self._remove_command(command_name=cmd)
@@ -448,7 +448,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 func.command_metadata = {}
 
             func.command_metadata.update(
-                {"description": description, "type": command_type, "hidden": hidden, "is_alias": is_alias, })
+                {"description": description, "command_type": command_type, "hidden": hidden, "is_alias": is_alias, })
 
             if patch_doc and description:
                 with suppress(AttributeError, TypeError):
@@ -492,7 +492,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Register in the global aliases metadata registry
         self._aliases_metadata[alias_name] = {
-            "description": description or existing.get("description", "No help available"), "type": cmd_type,
+            "description": description or existing.get("description", "No help available"), "command_type": cmd_type,
             "target_command": existing.get("target_command"), "hidden": hidden, }
 
     def _export_help_file(self, exported_file: Optional[str] = None, export_hidden: bool = True) -> Optional[str]:
@@ -523,11 +523,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             commands_by_type = {}
 
             # Collect alias-based commands
-            for cmd, meta in self._aliases_metadata.items():
+            for cmd, metadata in self._aliases_metadata.items():
                 if not export_hidden and cmd in self.hidden_commands:
                     continue
-                cmd_type = meta.get("type", AutoForgCommandType.MISCELLANEOUS)
-                doc = meta.get("description", "No help available")
+                cmd_type = metadata.get("command_type", AutoForgCommandType.BUILTIN)
+                doc = metadata.get("description", "No help available")
                 # Minor string touch up
                 doc = doc.replace('\t', ' ').strip()
                 if not doc.endswith('.'):
@@ -547,8 +547,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 if cmd in self.hidden_commands or cmd in self._aliases_metadata:
                     continue
 
+                cmd_type = metadata.get("command_type", AutoForgCommandType.BUILTIN)
                 doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
-                cmd_type = AutoForgCommandType.MISCELLANEOUS
                 commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
 
             # Write to Markdown file
@@ -638,7 +638,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return added_aliases_count
 
-    def _add_dynamic_cli_commands(self) -> Optional[int]:
+    def _add_dynamic_cli_commands(self):
         """
         Dynamically adds AutoForge dynamically loaded command to the Prompt.
         Each command is dispatched via the loader's `execute()` method using its registered name.
@@ -658,7 +658,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         for cmd_info in cli_commands_list:
             command_name = cmd_info.name
-            command_type = AutoForgCommandType.UNKNOWN
+            command_type = cmd_info.command_type
             description = "Description not provided" if cmd_info.description is None else cmd_info.description
             hidden = cmd_info.hidden
 
@@ -675,11 +675,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                             raise RuntimeError(f"command {name} has an unsupported arguments type")
 
                         result = self._loader.execute_command(name, args)
-                        self._last_execution_return_code = result
-                        return 0
-                    except Exception as e:
-                        self.perror(f"{e}")
-                        return 0
+                        self.last_result = result if isinstance(result, int) else 0
+                    except Exception as cli_execution_error:
+                        self.perror(f"{cli_execution_error}")
+                        self.last_result = 1
 
                 dynamic_cmd.__doc__ = doc
                 return dynamic_cmd
@@ -696,7 +695,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             # Register in the global commands metadat registry
             self._cli_commands_metadata[command_name] = {"description": description,
-                                                         "type": AutoForgeModuleType.CLI_COMMAND,
+                                                         "command_type": command_type,
                                                          "target_command": method_name, "hidden": hidden, }
 
             added_commands = added_commands + 1
@@ -964,6 +963,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         else:
             self.aliases[alias_name] = alias_definition
 
+    def do_echo(self, arg: str):
+        """
+        Smart override of shell 'echo':
+        - Intercepts `echo $?` to show last_result from cmd2.
+        - Defers all other echo invocations to the system shell.
+        """
+        arg = arg.strip()
+
+        if arg == "$?":
+            self.poutput(str(self.last_result))
+            self.last_result = 0  # echo succeeded
+            return None
+
+        stmt = self.statement_parser.parse(f"echo {arg}")
+        return self.default(stmt)
+
     def do_cd(self, path: str):
         """
         This method mimics the behavior of the shell 'cd' command and changing the current working directory and
@@ -980,9 +995,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 raise RuntimeError(f"'{path}' is not a directory")
 
             os.chdir(path)
+            self.last_result = 0  # Set return code explicitly
 
-        except Exception as change_path_errors:
-            print(f"cd: {change_path_errors}")
+        except Exception as change_dir_error:
+            self.perror(f"cd: {change_dir_error}")
+            self.last_result = 1  # Set return code explicitly
 
     def do_help(self, arg: Any) -> None:
         """
@@ -1120,7 +1137,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             var_env = self._variables.export(as_env=True)
 
             results = self._environment.execute_shell_command(command_and_args=statement.command_and_args, env=var_env)
-            self.last_result = results.response
+            self.last_result = results.return_code
 
         except KeyboardInterrupt:
             pass

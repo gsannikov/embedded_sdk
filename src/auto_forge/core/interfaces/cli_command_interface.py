@@ -26,7 +26,7 @@ from contextlib import suppress
 from typing import IO, Any, Optional
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, AutoLogger, ModuleInfoType
+from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, AutoForgCommandType)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 from auto_forge.common.toolbox import ToolBox
 
@@ -43,9 +43,7 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         Args and kwargs are passed directly to the base ArgumentParser constructor.
         """
         self._tool_box = ToolBox.get_instance()
-
         self.error_output = io.StringIO()
-
         super().__init__(*args, **kwargs)
 
     def exit(self, status=0, message=None):
@@ -142,7 +140,8 @@ class CLICommandInterface(ABC):
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
     def __init__(self, command_name: Optional[str] = None, raise_exceptions: Optional[bool] = False,
-                 hidden: Optional[bool] = False):
+                 hidden: Optional[bool] = False,
+                 command_type: Optional[AutoForgCommandType] = AutoForgCommandType.MISCELLANEOUS, ):
         """
         Initializes the CLICommand and prepares its argument parser using
         the name and description provided by the subclass.
@@ -153,7 +152,7 @@ class CLICommandInterface(ABC):
         """
 
         self._tool_box = ToolBox.get_instance()  # Gets the toolbox class instance
-        self._last_error: Optional[str] = None
+        self._last_error_message: Optional[str] = None
         self._last_exception: Optional[Exception] = None
         self._raise_exceptions = raise_exceptions if raise_exceptions else False
         self._hidden = hidden if hidden else False
@@ -180,7 +179,8 @@ class CLICommandInterface(ABC):
         self._module_info: ModuleInfoType = (
             registry.register_module(name=command_name, description=caller_module_description,
                                      version=caller_module_version,
-                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND, hidden=self._hidden))
+                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND, hidden=self._hidden,
+                                     command_type=command_type))
 
         # Optional tool initialization logic
         if not self.initialize() and self._raise_exceptions:
@@ -216,7 +216,7 @@ class CLICommandInterface(ABC):
         Returns:
             Optional[str]: The error message string, or None if no error was recorded.
         """
-        return self._last_error
+        return self._last_error_message
 
     def get_info(self) -> ModuleInfoType:
         """
@@ -274,7 +274,7 @@ class CLICommandInterface(ABC):
             int: 0 on success, non-zero on failure (e.g., usage error).
         """
         # Invalidate last error
-        self._last_error = None
+        self._last_error_message = None
         return_value: int = 1
 
         # Ensure the argument parser is initialized.
@@ -303,25 +303,25 @@ class CLICommandInterface(ABC):
             # Auto print help when no arguments provided
             if return_value == self.COMMAND_ERROR_NO_ARGUMENTS:
                 self._args_parser.print_help()
-
+                return_value = 1
 
         except SystemExit:
-
-            self._last_error = self._args_parser.get_error_message()
+            self._last_error_message = self._args_parser.get_error_message()
             self._last_exception = None
         except Exception as execution_exception:
-            self._last_error = str(execution_exception).strip()
+            self._last_error_message = str(execution_exception).strip()
             self._last_exception = execution_exception
         finally:
             time.sleep(0.1)
-            if self._last_error is not None:
+            if return_value and self._last_error_message is not None:
                 if self._raise_exceptions:
                     if self._last_exception:
-                        raise RuntimeError(self._last_error) from self._last_exception
+                        raise RuntimeError(self._last_error_message) from self._last_exception
                     else:
-                        raise RuntimeError(self._last_error)
+                        raise RuntimeError(self._last_error_message)
                 else:
-                    print(self._last_error)
+                    print(self._last_error_message)
+
             sys.stdout.flush()
         return return_value
 

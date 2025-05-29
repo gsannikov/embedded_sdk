@@ -195,7 +195,8 @@ class CoreLoader(CoreModuleInterface):
                                                                       class_instance=command_instance,
                                                                       class_interface_name=interface_name,
                                                                       python_module_type=python_module_type,
-                                                                      file_name=file)
+                                                                      file_name=file,
+                                                                      command_type=module_info.command_type, )
 
                     if module_info is None:
                         self._logger.warning(f"Command '{command_name}' could not be update in the registry. Skipping")

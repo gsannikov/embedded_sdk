@@ -15,7 +15,7 @@ from types import ModuleType
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType
+from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType, AutoForgCommandType
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
@@ -97,7 +97,8 @@ class Registry(CoreModuleInterface):
                               auto_forge_module_type=record.get("auto_forge_module_type"),
                               python_module_type=record.get("python_module_type"), version=record.get("version"),
                               class_interface_name=record.get("class_interface_name"),
-                              file_name=record.get("file_name"), hidden=record.get("hidden"), )
+                              file_name=record.get("file_name"), hidden=record.get("hidden"),
+                              command_type=record.get("command_type"))
 
     def get_modules_list(self, auto_forge_module_type=AutoForgeModuleType.UNKNOWN) -> list[ModuleInfoType]:
         """
@@ -161,6 +162,7 @@ class Registry(CoreModuleInterface):
                         auto_forge_module_type: Optional[AutoForgeModuleType] = AutoForgeModuleType.UNKNOWN,
                         python_module_type: Optional[ModuleType] = None, version: Optional[str] = None,
                         file_name: Optional[str] = None, hidden: Optional[bool] = False,
+                        command_type: Optional[AutoForgCommandType] = AutoForgCommandType.UNKNOWN,
                         auto_inspection: Optional[bool] = True) -> Optional[ModuleInfoType]:
         """
         Registers a module with the AutoForge system using explicit metadata arguments.
@@ -175,7 +177,8 @@ class Registry(CoreModuleInterface):
             version (Optional[str], optional): The version of the module.
             file_name (Optional[str]): The file name of the module.
             hidden (Optional[bool]): OOptional attributes, applicable for CLI commands.
-            auto_inspection (Optional[bool]): If True, performs auto inspection to get the r requited info.
+            command_type (Optional[AutoForgCommandType], optional): The command type of the module.
+            auto_inspection (Optional[bool]): If True, performs auto inspection to get the reqwired info.
         Returns:
             ModuleInfoType: if the module was successfully registered, exception otherwise.
         """
@@ -222,7 +225,8 @@ class Registry(CoreModuleInterface):
                                                                 version=version or "0.0.0",
                                                                 class_interface_name=class_interface_name or caller_class_interface_name,
                                                                 file_name=file_name or caller_module_file_name,
-                                                                hidden=hidden if hidden is not None else False, )
+                                                                hidden=hidden if hidden is not None else False,
+                                                                command_type=command_type, )
 
         return self.register_module_by_info(auto_forge_module_info)
 
@@ -252,7 +256,8 @@ class Registry(CoreModuleInterface):
                                                                "python_module_type": auto_forge_module_info.python_module_type,
                                                                "version": auto_forge_module_info.version,
                                                                "file_name": auto_forge_module_info.file_name,
-                                                               "hidden": auto_forge_module_info.hidden, }
+                                                               "hidden": auto_forge_module_info.hidden,
+                                                               "command_type": auto_forge_module_info.command_type, }
         return auto_forge_module_info
 
     def find_callable_method(self, flat_method_name: str) -> Optional[callable]:

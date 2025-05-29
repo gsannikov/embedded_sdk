@@ -62,6 +62,7 @@ class AutoForgCommandType(Enum):
     MISCELLANEOUS = 9
     SHELL = 10
     ALIASES = 11
+    BUILTIN = 12
 
 
 # @formatter:off
@@ -96,6 +97,7 @@ class ModuleInfoType(NamedTuple):
     file_name: Optional[str] = None
     version: Optional[str] = None
     hidden: bool = False  # Applicable for commands
+    command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN
 
 
 class ValidationMethodType(Enum):

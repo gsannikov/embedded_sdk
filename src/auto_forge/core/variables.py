@@ -13,6 +13,7 @@ import os
 import re
 import threading
 from bisect import bisect_left
+from contextlib import suppress
 from dataclasses import asdict
 from typing import Any, Optional, Union
 
@@ -482,7 +483,7 @@ class CoreVariables(CoreModuleInterface):
                         candidate = key[i:end_brace + 1]
                         if not _is_valid_shell_var_ref(candidate):
                             if not quiet:
-                                raise ValueError(f"Invalid variable syntax: {candidate}")
+                                raise ValueError(f"invalid variable syntax: {candidate}")
                             result.append(key[i])
                             i += 1
                             continue
@@ -500,6 +501,21 @@ class CoreVariables(CoreModuleInterface):
                     if j > i + 1:
                         var_name = key[i + 1:j]
                         result.append(_resolve_var(var_name))
+                        i = j
+                        continue
+            elif key[i] == '~':
+                #
+                # Expand '~' to the user's home directory, only if at start or after a separator
+                #
+                if i == 0 or not (key[i - 1].isalnum() or key[i - 1] in ['_', '$', '}']):
+                    j = i + 1
+                    # Capture optional username: ~ or ~user
+                    while j < length and (key[j].isalnum() or key[j] in ('-', '_')):
+                        j += 1
+                    username = key[i + 1:j]
+                    with suppress(Exception):
+                        home = os.path.expanduser(f"~{username}")
+                        result.append(home)
                         i = j
                         continue
 

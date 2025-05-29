@@ -68,13 +68,19 @@ class SolutionCommand(CLICommandInterface):
             return "[dim]-[/]"
 
         var_list: list = self._variables.export()
-        project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
+        project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE')
+        solution_name: Optional[str] = self._variables.get('SOLUTION_NAME')
+        home_directory = self._tool_box.get_expanded_path(path="$HOME")
+
+        if not isinstance(project_workspace, str) or not isinstance(solution_name, str):
+            print("Error: could not get our solution name or project workspace or both")
+            return
 
         if not isinstance(var_list, list) or not var_list:
             print("Error: no variables to display.")
             return
 
-        table = Table(title="Managed Variables", box=box.ROUNDED)
+        table = Table(title=f"{solution_name.capitalize()}: Managed Variables", box=box.ROUNDED)
 
         # Define columns based on VariableFieldType
         table.add_column("Key", style="bold cyan", no_wrap=True)
@@ -91,14 +97,18 @@ class SolutionCommand(CLICommandInterface):
 
             # Build styled value text
             value_text = Text()
-            if project_workspace and is_path and isinstance(value, str) and value.startswith(project_workspace):
-                try:
+            try:
+                if is_path and isinstance(value, str) and value.startswith(project_workspace):
                     rel_path = Path(value).relative_to(project_workspace)
-                    value_text.append("<ws>", style="blue")
+                    value_text.append("$", style="blue")
                     value_text.append(f"/{rel_path}")
-                except ValueError:
+                elif is_path and isinstance(value, str) and value.startswith(home_directory):
+                    rel_path = Path(value).relative_to(home_directory)
+                    value_text.append("~", style="purple")
+                    value_text.append(f"/{rel_path}")
+                else:
                     value_text = Text(str(value))
-            else:
+            except ValueError:
                 value_text = Text(str(value))
 
             table.add_row(key, value_text, description, _bool_emoji(is_path),
