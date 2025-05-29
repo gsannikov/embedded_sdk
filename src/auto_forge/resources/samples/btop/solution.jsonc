@@ -13,7 +13,7 @@
 		{
 			"name": "demo",
 			"description": "Demo solution",
-			"environment": "<$include>environment.jsonc",
+			"create_environment_sequence": "<$include>environment.jsonc",
 			"variables": "<$include>variables.jsonc",
 			"schema": "1.0",
 			"build_path": "$BUILD_OUT",

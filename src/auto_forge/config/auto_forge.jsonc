@@ -54,7 +54,8 @@
         "/bin",
         "/snap/bin",
         "$AF_BIN/",         // AutoForge persistent binaries path
-        "$AF_SOLUTION_BIN"  // AutoForge persistent solution specific binaries
+        "$AF_SOLUTION_BIN", // AutoForge persistent solution specific binaries
+        "$HOME/bin"
       ],
 
     "log_cleanup_patterns": [

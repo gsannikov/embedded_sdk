@@ -10,6 +10,7 @@ Description:
 import fcntl
 import logging
 import os
+import shlex
 import stat
 import subprocess
 import sys
@@ -72,23 +73,31 @@ class _CorePathCompleter(Completer):
 
     def get_completions(self, document: Document, complete_event):
         """
-        Yield path completions only if the current line starts with the specified command name.
-        Args:
-            document (Document): The document representing the current line and cursor position.
-            complete_event (CompleteEvent): The event indicating whether completion was requested.
-        Yields:
-            Completion: One or more path completions from the internal PathCompleter.
+        Yield path completions for a shell-like command, skipping flags like '-rf'.
         """
         text = document.text_before_cursor.lstrip()
 
-        # Match against any command followed by space
-        if not text.startswith(f"{self._command_name} "):
+        try:
+            tokens = shlex.split(text)
+        except ValueError:
+            return  # Unbalanced quotes, etc.
+
+        if not tokens or tokens[0] != self._command_name:
             return
 
-        arg = text[len(self._command_name):].lstrip()
-        sub_doc = Document(text=arg, cursor_position=len(arg))
+        # Find the token we're completing
+        if text.endswith(" "):
+            # Cursor is after a space => start new arg
+            arg = ""
+        else:
+            arg = tokens[-1]
 
-        # Limit results
+        # If the current token is a flag (starts with -), skip completion
+        if arg.startswith("-"):
+            return
+
+        # Delegate to the internal PathCompleter
+        sub_doc = Document(text=arg, cursor_position=len(arg))
         for completion in islice(self._path_completer.get_completions(sub_doc, complete_event),
                                  self._core_prompt.max_completion_results):
             yield completion

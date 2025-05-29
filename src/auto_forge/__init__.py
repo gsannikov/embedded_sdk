@@ -27,7 +27,8 @@ from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType,
                                            FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
                                            MessageBoxType, MethodLocationType, ModuleInfoType, SignatureFieldType,
                                            SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType, TerminalTeeStream,
-                                           ThreadGuru, ValidationMethodType, VariableFieldType, XYType)
+                                           ThreadGuru, ValidationMethodType, VariableFieldType, XYType,
+                                           SysInfoPackageManagerType, SysInfoLinuxDistroType)
 
 # Interfaces
 from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -39,6 +40,7 @@ from auto_forge.common.registry import Registry
 from auto_forge.common.toolbox import ToolBox
 from auto_forge.common.progress_tracker import ProgressTracker
 from auto_forge.common.pretty_printer import PrettyPrinter
+from auto_forge.common.system_info import SystemInfo
 
 # Core / common modules
 from auto_forge.core.processor import CoreProcessor
@@ -58,7 +60,7 @@ from auto_forge.auto_forge import auto_forge_main as main
 __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
            "BuilderInterface", "BuilderToolChainInterface", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
            "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader",
-           "CoreModuleInterface",
+           "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType",
            "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
            "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
            "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType", "PROJECT_BASE_PATH",
@@ -67,7 +69,7 @@ __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "Aut
            "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH",
            "PROJECT_TEMP_PREFIX",
            "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",
-           "Registry",
+           "SystemInfo", "Registry",
            "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "TerminalAnsiGuru",
            "TerminalEchoType", "TerminalTeeStream", "ThreadGuru", "ToolBox", "ValidationMethodType",
            "VariableFieldType",

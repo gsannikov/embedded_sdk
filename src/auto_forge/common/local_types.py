@@ -29,8 +29,8 @@ class AutoForgeWorkModeType(Enum):
     """
     UNKNOWN = 0
     INTERACTIVE = 1  # Normal interactive shell
-    AUTOMATED = 2  # Non-interactive - running in automation mode.
-    ENV_CREATE = 3  # Environment creation mode
+    NON_INTERACTIVE = 3  # Running non interactively, typically automation when running steps
+    CI = 4  # Continuous integration mode
 
 
 class AutoForgeModuleType(Enum):
@@ -254,6 +254,51 @@ class VariableFieldType:
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None
     kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
+
+
+class SysInfoPackageManagerType(str, Enum):
+    """
+    Enum representing common system package managers, based on their CLI command names.
+    """
+    APT = "apt"
+    DNF = "dnf"
+    YUM = "yum"
+    PACMAN = "pacman"
+    ZYPPER = "zypper"
+    APK = "apk"
+    BREW = "brew"
+    CHOCO = "choco"
+
+
+# noinspection SpellCheckingInspection
+class SysInfoLinuxDistroType(str, Enum):
+    """
+    Enum representing major Linux distributions, normalized by ID values found in /etc/os-release.
+    """
+    UBUNTU = "ubuntu"
+    DEBIAN = "debian"
+    FEDORA = "fedora"
+    CENTOS = "centos"
+    RHEL = "rhel"
+    ROCKY = "rocky"
+    ALMA = "almalinux"
+    ARCH = "arch"
+    MANJARO = "manjaro"
+    SUSE = "opensuse"
+    ALPINE = "alpine"
+    AMAZON = "amzn"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_id(cls, distro_id: str) -> "SysInfoLinuxDistroType":
+        """
+        Map a raw distro ID string to a LinuxDistroType enum value.
+        Defaults to UNKNOWN if not recognized.
+        """
+        try:
+            return cls(distro_id.lower())
+        except ValueError:
+            return cls.UNKNOWN
 
 
 class TerminalEchoType(Enum):

@@ -67,7 +67,7 @@ class CoreVariables(CoreModuleInterface):
                 self._tool_box.find_variable_in_stack(module_name='auto_forge', variable_name='_work_mode'))
 
             # Set to ignore invalid path when in environment t creation mode
-            if work_mode == AutoForgeWorkModeType.ENV_CREATE:
+            if work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:
                 self._ignore_path_errors = True
 
             # Get the workspace from AutoForge

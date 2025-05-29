@@ -292,7 +292,7 @@ class AutoLogger:
             self._stream_console_handler: Optional[logging.StreamHandler] = None
             self._stream_file_handler: Optional[logging.FileHandler] = None
             self._enable_console_colors: bool = console_enable_colors
-            self._output_console_state: bool = console_output_state
+            self._output_stdout: bool = console_output_state
             self._log_file_name: Optional[str] = None
             self._exclusive: bool = exclusive
 
@@ -353,7 +353,7 @@ class AutoLogger:
                                                                     handler=LogHandlersTypes.CONSOLE_HANDLER))
 
             pause_filer = _PausableFilter()
-            pause_filer.enabled = self._output_console_state
+            pause_filer.enabled = self._output_stdout
 
             self._stream_console_handler = logging.StreamHandler(sys.stdout)
             self._stream_console_handler.setFormatter(formatter)
@@ -574,10 +574,10 @@ class AutoLogger:
         if target_logger == AutoLogger.get_base_logger():
             local_instance = AutoLogger.get_instance()
             if local_instance is not None:
-                local_instance._output_console_state = state
+                local_instance._output_stdout = state
 
     def get_logger(self, name: Optional[str] = None, log_level: Optional[int] = None,
-                   output_console_state: Optional[bool] = None) -> logging.Logger:
+                   console_stdout: Optional[bool] = None) -> logging.Logger:
         """
         Returns a logger instance. If a name is provided, returns a named logger
         sharing the same handlers and config as the AutoLogger.
@@ -585,7 +585,7 @@ class AutoLogger:
         Args:
             name (Optional[str]): Custom display name for the logger (overrides .name).
             log_level (Optional[int]): Override for logger level.
-            output_console_state (Optional[bool]): Sets the initial state of the console conditional streamer.
+            console_stdout (Optional[bool]): Sets the initial state of the console streamer.
 
         Returns:
             logging.Logger: Configured logger instance.
@@ -609,12 +609,11 @@ class AutoLogger:
             returned_instance: logging.Logger = custom_logger
 
         # Use the base logger console state flag if not specified
-        if output_console_state is None:
-            output_console_state = self._output_console_state
+        if console_stdout is None:
+            console_stdout = self._output_stdout
 
         # Set initial output state
-        self.set_output_enabled(logger=returned_instance, state=output_console_state)
-
+        self.set_output_enabled(logger=returned_instance, state=console_stdout)
         return returned_instance
 
     def is_console_colors_enabled(self) -> Optional[bool]:

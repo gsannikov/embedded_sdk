@@ -16,7 +16,6 @@ import inspect
 import json
 import logging
 import os
-import platform
 import pty
 import re
 import select
@@ -41,7 +40,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
-                        ValidationMethodType, TerminalEchoType, )
+                        ValidationMethodType, TerminalEchoType)
 from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -63,61 +62,30 @@ class CoreEnvironment(CoreModuleInterface):
         self._status_title_length: int = 80
         self._status_add_time_prefix: bool = True
         self._status_new_line: bool = False
+        self._running_sequence: bool = False
         self._tracker: Optional[ProgressTracker] = None
         self._variables: Optional[CoreVariables] = None
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, automated_mode: Optional[bool] = False) -> None:
+    def _initialize(self, workspace_path: str, package_configuration_data: dict[str, Any]) -> None:
         """
-        Initialize the 'Environment' class, collect few system properties and prepare for execution a 'steps' file.
-        Args:
-            workspace_path(str): The workspace path.
-            automated_mode(boo, Optional): Specify if we're running in automation mode.
+        Initialize the 'Environment' class.
         """
-
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
         self._package_manager: Optional[str] = None
-        self._workspace_path: Optional[str] = workspace_path
+        self._workspace_path: str = workspace_path
         self._default_execution_time: float = 30.0  # Time allowed for executed shell command
         self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
-        self._automated_mode: bool = automated_mode  # Default execution mode
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
+        self._package_configuration_data: dict[str, Any] = package_configuration_data
 
-        # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
-        self._package_configuration_data: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
-            module_name='auto_forge', variable_name='_package_configuration_data')
-        # Determine the terminal width
-        try:
-            self._term_width = shutil.get_terminal_size().columns
-        except OSError:
-            self._term_width = 100  # fallback default if terminal size can't be determined
-
-        # Use project config list for the interactive commands if available, else fallback to default list
-        self._interactive_commands = (
-            self._package_configuration_data.get('interactive_commands')) if self._package_configuration_data else None
-        if not self._interactive_commands:
-            self._interactive_commands = ["cat", "htop", "top", "vim", "less", "nano", "vi", "clear"]
-
-        # Determine which package manager is available on the system.
-        if shutil.which("apt"):
-            self._package_manager = "apt"
-        elif shutil.which("dnf"):
-            self._package_manager = "dnf"
-
-        # Get the system type (e.g., 'Linux', 'Windows', 'Darwin')
-        self._system_type = platform.system().lower()
-        self._is_wsl = "wsl" in platform.release().lower()
-
-        # Get extended distro info when we're running under Linux
-        if self._system_type == "linux":
-            self._linux_distro, self._linux_version = self._get_linux_distro()
-
-        # Normalize workspace path
-        if self._workspace_path:
-            self._workspace_path = self.environment_variable_expand(text=self._workspace_path, to_absolute_path=True)
+        # Get the interactive commands from package configuration or use defaults if not available
+        self._interactive_commands = self._package_configuration_data.get('interactive_commands',
+                                                                          ["cat", "htop", "top", "vim", "less", "nano",
+                                                                           "vi", "clear"])
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -130,7 +98,7 @@ class CoreEnvironment(CoreModuleInterface):
         Args:
             text (str): The text to print.
         """
-        if not self._automated_mode and isinstance(text, str):
+        if not self._running_sequence and isinstance(text, str):
             print(text)
 
     @staticmethod
@@ -632,6 +600,12 @@ class CoreEnvironment(CoreModuleInterface):
         timeout = self._default_execution_time if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
 
+        # Determine the terminal width
+        try:
+            term_width = shutil.get_terminal_size().columns
+        except OSError:
+            term_width = 100  # fallback default if terminal size can't be determined
+
         # Create merged environment where AutoForge variables override exising
         proc_env: dict[str, str] = os.environ.copy()
         if env:
@@ -722,7 +696,7 @@ class CoreEnvironment(CoreModuleInterface):
                 elif "error:" in line:
                     line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
                 else:
-                    max_len = max(10, self._term_width - 10)
+                    max_len = max(10, term_width - 10)
                     line = line[:max_len]
 
                 if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
@@ -1536,11 +1510,11 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as exception:
             raise RuntimeError(f"failed to create .config in {create_path}: {exception}") from exception
 
-    def follow_steps(self, steps_file: str, tracker: Optional[ProgressTracker] = None) -> Optional[int]:
+    def run_sequence(self, sequence_file: str, tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
-            steps_file (str): Path to the steps JSON file.
+            sequence_file (str): Path to a JSON file which holds structured sequence of operation to execute.
             tracker (Optional[ProgressTracker]): A progress tracker instance to, else a local one will be carted.
         Returns:
             int: Exit code of the function.
@@ -1551,7 +1525,6 @@ class CoreEnvironment(CoreModuleInterface):
 
         def _expand_and_print(msg: Optional[Any]) -> None:
             """ Expands an input if it's a string, resolve inner variables and finally print thed results."""
-
             if not isinstance(msg, str) or msg == "":
                 return None
 
@@ -1562,13 +1535,14 @@ class CoreEnvironment(CoreModuleInterface):
 
         try:
 
+            self._running_sequence = True
             # Expand, convert to absolute path and verify
-            steps_file = self.environment_variable_expand(text=steps_file, to_absolute_path=True)
-            if not os.path.exists(steps_file):
-                raise RuntimeError(f"steps file '{steps_file}' does not exist")
+            sequence_file = self.environment_variable_expand(text=sequence_file, to_absolute_path=True)
+            if not os.path.exists(sequence_file):
+                raise RuntimeError(f"steps file '{sequence_file}' does not exist")
 
             # Process as JSON
-            steps_schema = self._processor.preprocess(steps_file)
+            steps_schema = self._processor.preprocess(sequence_file)
             self._steps_data = steps_schema.get("steps")
 
             # Attempt to get status view defaults
@@ -1623,8 +1597,10 @@ class CoreEnvironment(CoreModuleInterface):
             if status_on_error is not None:
                 print(status_on_error)
 
-            raise RuntimeError(f"'{os.path.basename(steps_file)}' at step {step_number} {steps_error}") from steps_error
+            raise RuntimeError(
+                f"'{os.path.basename(sequence_file)}' at step {step_number} {steps_error}") from steps_error
         finally:
+            self._running_sequence = False
             # Restore terminal cursor on exit
             os.chdir(local_path)  # Restore initial path
             self._tracker = None

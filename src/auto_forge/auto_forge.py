@@ -26,7 +26,7 @@ from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SH
                         PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
                         AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
-                        Registry, ToolBox, )
+                        Registry, ToolBox, SystemInfo)
 
 
 class AutoForge(CoreModuleInterface):
@@ -54,12 +54,14 @@ class AutoForge(CoreModuleInterface):
         self._auto_logger: Optional[AutoLogger] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
+        self._steps_file: Optional[str] = None
 
         # Startup arguments
-        self._automated_mode: bool = False
         self._package_configuration_data: Optional[dict[str, Any]] = None
         self._workspace_path: Optional[str] = None
-        self._automation_macro: Optional[str] = None
+        self._workspace_exist: Optional[bool] = None
+        self._run_command_name: Optional[str] = None
+        self._run_sequence_ref_name: Optional[str] = None
         self._solution_package_path: Optional[str] = None
         self._solution_package_file: Optional[str] = None
         self._solution_url: Optional[str] = None
@@ -75,7 +77,7 @@ class AutoForge(CoreModuleInterface):
         Depending on the context, this may involve:
         - Creating a new workspace, or loading an existing one.
         - Load the solution file from either a local path, local file or a git URL.
-        - Run in non-interactive (automation) mode and execute automation macro.
+        - Exec command and exit  in non interactive mode.
         Args:
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
@@ -88,6 +90,7 @@ class AutoForge(CoreModuleInterface):
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
         self._processor = CoreProcessor()
+        self._sys_info: dict = SystemInfo().as_dict()
 
         # Validate startup arguments
         self._validate_arguments(*args, **kwargs)
@@ -110,29 +113,43 @@ class AutoForge(CoreModuleInterface):
         # Load all built-in commands
         self._loader = CoreLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
-        self._environment = CoreEnvironment(workspace_path=self._workspace_path, automated_mode=self._automated_mode)
+
+        # Start the environment core module
+        self._environment = CoreEnvironment(workspace_path=self._workspace_path,
+                                            package_configuration_data=self._package_configuration_data)
 
     def _init_logger(self):
         """ Construct the logger file name, initialize and start it"""
-        log_file = self._variables.expand(f'$BUILD_LOGS/{PROJECT_LOG_FILE}') if (
-                self._work_mode != AutoForgeWorkModeType.ENV_CREATE) else PROJECT_LOG_FILE
 
-        # Patch it with timestamp
-        log_file = self._tool_box.append_timestamp_to_path(log_file)
+        allow_console_output = False
+
+        # Determine if we have a workspace which could she log file
+        logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
+        if logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path, raise_exception=False):
+            log_file = os.path.join(logs_workspace_path, PROJECT_LOG_FILE)
+            # Patch it with timestamp so we will have dedicated log for each build system run.
+            log_file = self._tool_box.append_timestamp_to_path(log_file)
+        else:
+            # No workspace use plain log file name
+            log_file = PROJECT_LOG_FILE
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
         self._auto_logger.set_log_file_name(log_file)
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-        self._logger: logging.Logger = self._auto_logger.get_logger(output_console_state=self._automated_mode)
+
+        # Enable console logger when in continuos integration mode
+        if self._work_mode == AutoForgeWorkModeType.CI:
+            allow_console_output = True
+
+        self._logger: logging.Logger = self._auto_logger.get_logger(console_stdout=allow_console_output)
 
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
         """
         Validate command-line arguments and set the AutoForge session execution mode.
         Depending on the inputs, AutoForge will either:
-        - Start an interactive user shell, or
-        - Enter automated mode and execute the provided automation script.
+        - Start an interactive user shell, or non-interactive command runner mode.
         - Any validation error will immediately raise an exception and consequently terminate AutoForge.
         Args:
             kwargs: Arguments passed from the command line, validated and analyzed internally.
@@ -143,9 +160,14 @@ class AutoForge(CoreModuleInterface):
 
         # Get all arguments from kwargs
         def _init_arguments():
-            self._solution_name = kwargs.get("solution_name")
-            self._workspace_path = kwargs.get("workspace_path")
-            self._automation_macro = kwargs.get("automation_macro")
+            self._solution_name = kwargs.get("solution_name")  # Required argument
+            self._workspace_path = kwargs.get("workspace_path")  # Required argument
+
+            # Non interactive operations specifier, could be either a single command or reference to
+            # a solution properties which provide the actual OpenSolaris sequence
+            self._run_sequence_ref_name = kwargs.get("run_sequence")
+            self._run_command_name = kwargs.get("run_command")
+
             self._solution_url = kwargs.get("solution_url")
             self._git_token = kwargs.get("git_token")
             nonlocal solution_package, remote_debugging, proxy_server
@@ -153,42 +175,17 @@ class AutoForge(CoreModuleInterface):
             remote_debugging = kwargs.get("remote_debugging")
             proxy_server = kwargs.get("proxy_server")
 
-            # Determine AutForge work mode
-            if kwargs.get("create_workspace", False):
-                self._work_mode = AutoForgeWorkModeType.ENV_CREATE
-            else:
-                self._work_mode = AutoForgeWorkModeType.INTERACTIVE
-
-        def _validate_workspace_path():
-            """
-            Workspace creation behavior:
-            - If the workspace path does not exist and creation is enabled (default), AutoForge will create it
-                based on the solution package instructions.
-            - If the workspace exists and creation is disabled, AutoForge will load the existing workspace.
-            - If the workspace does not exist and creation is disabled, an exception will be raised.
-            """
-
-            if self._workspace_path is None:
-                raise ValueError("workspace path must be provided.")
-            self._workspace_path = ToolBox.get_expanded_path(self._workspace_path)
+            # Expand and check if the workspace exists
+            self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
             if not ToolBox.looks_like_unix_path(self._workspace_path):
                 raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
+            self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
 
-            if self._work_mode != AutoForgeWorkModeType.ENV_CREATE and not os.path.exists(self._workspace_path):
-                raise RuntimeError(f"workspace path '{self._workspace_path}' does not exist and creation is disabled")
-
-            # If we were requested to create a workspace, the destination path must be empty
-            if (self._work_mode == AutoForgeWorkModeType.ENV_CREATE and os.path.exists(
-                    self._workspace_path) and not ToolBox.is_directory_empty(self._workspace_path)):
-                raise RuntimeError(f"path '{self._workspace_path}' is not empty while workspace creation is enabled")
-
-        def _validate_macro():
-            if self._automation_macro is not None:
-                self._automation_macro = ToolBox.get_expanded_path(self._automation_macro)
-                if not os.path.isfile(self._automation_macro):
-                    raise ValueError(
-                        f"automation macro path '{self._automation_macro}' does not exist or is not a file")
-                self._automated_mode = True
+            # Set non-interactive mode if we have either --run-command ot --run_sequence
+            if self._run_sequence_ref_name or self._run_command_name:
+                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE
+            else:
+                self._work_mode = AutoForgeWorkModeType.INTERACTIVE
 
         def _validate_solution_package():
             """
@@ -227,7 +224,6 @@ class AutoForge(CoreModuleInterface):
             AutoForge allows optionally specifying a Git URL, which will later be used to retrieve solution files.
             The URL must have a valid structure and must point to a path (not to a single file)
             """
-
             if not self._solution_url:
                 return
             is_url_path = ToolBox.is_url_path(self._solution_url)
@@ -253,8 +249,6 @@ class AutoForge(CoreModuleInterface):
         remote_debugging = None
         proxy_server = None
         _init_arguments()
-        _validate_workspace_path()
-        _validate_macro()
         _validate_solution_package()
         _validate_solution_url()
         _validate_network_options()
@@ -296,10 +290,7 @@ class AutoForge(CoreModuleInterface):
         """
         Load a solution and fire the AutoForge shell.
         """
-
-        # Greetings
-        print(f"{self.ansi_codes.get('SCREEN_CLS_SB')}\n\n"
-              f"{AutoForge.who_we_are()} v{PROJECT_VERSION} starting...\n")
+        return_code = 1
 
         try:
             # Remove anny previously generated autoforge temporary files.
@@ -327,18 +318,16 @@ class AutoForge(CoreModuleInterface):
 
             # Loads the solution file with multiple parsing passes and comprehensive structural validation.
             # Also initializes the core variables module as part of the process.
-
             self._solution = CoreSolution(solution_config_file_name=solution_file, solution_name=self._solution_name,
                                           workspace_path=self._workspace_path)
 
-            self._variables = CoreVariables.get_instance()  # Get an instanced of the singleton variables class
             self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
-            if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
+            # Start user telemetry
+            telemetry_path = self._variables.expand("$AF_SOLUTION_BASE/telemetry.log")
+            self._telemetry = BuildTelemetry.load(telemetry_path)
 
-                # Start user telemetry
-                telemetry_path = self._tool_box.get_expanded_path("~/.auto_forge.telemetry")
-                self._telemetry = BuildTelemetry.load(telemetry_path)
+            if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
 
                 # ==============================================================
                 # User interactive shell.
@@ -361,42 +350,56 @@ class AutoForge(CoreModuleInterface):
                     f"👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n")
 
                 self._prompt.cmdloop(intro=prompt_intro)
-                ret_val = self._prompt.last_result
+                return_code = self._prompt.last_result
 
-            elif self._work_mode == AutoForgeWorkModeType.ENV_CREATE:
+            elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:
 
                 # ==============================================================
-                # Execute workspace creation script
-                # Follow workspace setup steps as defined by the solution.
+                #  Execute a command or sequence of operations in non
+                #  interactive mode and exit.
                 # ==============================================================
 
-                env_steps_file: Optional[str] = self._solution.get_arbitrary_item('environment', deep_search=True)
-                if env_steps_file is None:
-                    raise RuntimeError("an environment steps file was not specified in the solution")
+                if self._run_sequence_ref_name is not None:
 
-                # Execute workspace creation steps
-                ret_val = self._environment.follow_steps(steps_file=env_steps_file)
-                if ret_val == 0:
-                    # Lastly store the solution in the newly created workspace
-                    scripts_path = self._variables.get(key="SCRIPTS_BASE")
-                    if scripts_path is not None:
-                        solution_destination_path = os.path.join(scripts_path, 'solution')
-                        env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
+                    # ==============================================================
+                    #  Running sequence of operations.
+                    # ==============================================================
 
-                        self._tool_box.cp(pattern=f'{self._solution_package_path}/*.jsonc',
-                                          dest_dir=f'{solution_destination_path}')
+                    sequence_file_name: Optional[str] = self._solution.get_arbitrary_item(self._run_sequence_ref_name)
+                    if sequence_file_name is None:
+                        raise RuntimeError(
+                            f"sequence ref name '{self._run_sequence_ref_name}' was not found in solution '{self._solution_name}'")
+                    sequence_file_name = self._variables.expand(sequence_file_name)
+                    if self._tool_box.validate_path(text=sequence_file_name, raise_exception=False):
+                        raise RuntimeError(
+                            f"specified sequence file '{sequence_file_name}' in solution '{self._solution_name}' is invalid")
 
-                        # Place the build system default initiator script
-                        self._tool_box.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=f'{self._workspace_path}')
+                    # Execute workspace creation steps
+                    return_code = self._environment.run_sequence(sequence_file=sequence_file_name)
+                    if return_code == 0:
+                        # Lastly store the solution in the newly created workspace
+                        scripts_path = self._variables.get(key="SCRIPTS_BASE")
+                        if scripts_path is not None:
+                            solution_destination_path = os.path.join(scripts_path, 'solution')
+                            env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
 
-                        # Finally, create a hidden '.config' file in the solution directory with essential metadata.
-                        self._environment.create_config_file(solution_name=self._solution_name,
-                                                             create_path=self._workspace_path)
+                            self._tool_box.cp(pattern=f'{self._solution_package_path}/*.jsonc',
+                                              dest_dir=f'{solution_destination_path}')
+
+                            # Place the build system default initiator script
+                            self._tool_box.cp(pattern=f'{env_starter_file.__str__()}',
+                                              dest_dir=f'{self._workspace_path}')
+
+                            # Finally, create a hidden '.config' file in the solution directory with essential metadata.
+                            self._environment.create_config_file(solution_name=self._solution_name,
+                                                                 create_path=self._workspace_path)
+                elif self._run_command_name:
+                    raise RuntimeError(f"running command '{self._run_command_name}' is not yet implemented")
 
             else:
                 raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
-            return ret_val
+            return return_code
 
         except Exception:  # Propagate
             raise
@@ -436,24 +439,26 @@ def auto_forge_main() -> Optional[int]:
 
         # AutoForge requires a solution to operate. This can be provided either as a pre-existing local ZIP archive,
         # or as a Git URL pointing to a directory containing the necessary solution JSON files.
-        group = parser.add_mutually_exclusive_group(required=True)
 
-        group.add_argument("-p", "--solution-package", required=False,
-                           help=("Path to a local AutoForge solution. This can be either:\n"
-                                 "- A path to an existing .zip archive file.\n"
-                                 "- A path to an existing directory containing solution files.\n"
-                                 "- A Github URL pointing to git path which contains the solution files.\n"
-                                 "The provided path will be validated at runtime."))
+        parser.add_argument("-p", "--solution-package", required=True,
+                            help=("Path to a local AutoForge solution. This can be either:\n"
+                                  "- A path to an existing .zip archive file.\n"
+                                  "- A path to an existing directory containing solution files.\n"
+                                  "- A Github URL pointing to git path which contains the solution files.\n"
+                                  "The provided path will be validated at runtime."))
 
-        # Optional arguments and flags
-        parser.add_argument("--create-workspace", dest="create_workspace", action="store_true", default=True,
-                            help="Create the workspace if it does not exist (default: True).")
-        parser.add_argument("--no-create-workspace", dest="create_workspace", action="store_false",
-                            help="Do not create the workspace if it does not exist (raises an error instead).")
+        # AutoForge supports two mutually exclusive non-interactive modes:
+        # (1) Running step recipe data (typically used to set up a fresh workspace),
+        # (2) Running a single command from an existing workspace.
+        # Only one of these modes may be used at a time.
 
-        parser.add_argument("--automation-macro", type=str, required=False,
-                            help="Path to a JSON file defining an automatic flow to execute after loading the workspace.")
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument("-s", "--run_sequence", type=str, required=False,
+                           help="Solution properties name which points to a sequence of operations")
+        group.add_argument("-r", "--run-command", type=str, required=False,
+                           help="Name of known command which will be executed")
 
+        # Other optional configuration arguments
         parser.add_argument("--remote-debugging", type=str, required=False,
                             help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)")
 
