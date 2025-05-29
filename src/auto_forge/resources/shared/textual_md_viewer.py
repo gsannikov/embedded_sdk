@@ -42,7 +42,6 @@ with suppress(ImportError):
 
         async def on_mount(self) -> None:
             """Go to the first path when the app starts."""
-            print(self.theme)
             try:
                 await self.markdown_viewer.go(self.path)
             except FileNotFoundError:
