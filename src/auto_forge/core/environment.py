@@ -1530,6 +1530,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             expanded_msg = self._variables.expand(key=msg)
             if expanded_msg:
+                sys.stdout.write('\033[2K')  # Erase the entire line
                 print(expanded_msg)
             return None
 
