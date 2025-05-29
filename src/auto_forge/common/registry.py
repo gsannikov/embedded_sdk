@@ -178,7 +178,7 @@ class Registry(CoreModuleInterface):
             file_name (Optional[str]): The file name of the module.
             hidden (Optional[bool]): OOptional attributes, applicable for CLI commands.
             command_type (Optional[AutoForgCommandType], optional): The command type of the module.
-            auto_inspection (Optional[bool]): If True, performs auto inspection to get the reqwired info.
+            auto_inspection (Optional[bool]): If True, performs auto inspection to get the required info.
         Returns:
             ModuleInfoType: if the module was successfully registered, exception otherwise.
         """

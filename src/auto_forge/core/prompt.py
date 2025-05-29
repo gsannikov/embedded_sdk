@@ -294,7 +294,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
 
         # Retrieve AutoForge package configuration
-        self._package_configuration_data = self.auto_forge.get_instance().get_package_configuration()
+        self._package_configuration_data = self.auto_forge.get_instance().package_configuration
         if self._package_configuration_data is None:
             raise RuntimeError("package configuration data not available")
 
@@ -1173,8 +1173,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             with suppress(Exception):
                 os.remove(self._help_md_file)
 
-        telemetry = self.auto_forge.get_telemetry()
-        formated_delta = telemetry.format_timedelta(telemetry.get_session_time())
+        formated_delta = self.auto_forge.telemetry.format_timedelta(self.auto_forge.telemetry.get_session_time())
         print(f"Total time: {formated_delta}\n")
 
     @property

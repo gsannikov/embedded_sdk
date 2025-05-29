@@ -147,7 +147,7 @@ class SolutionCommand(CLICommandInterface):
                         FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
                         FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
 
-        self._solution.auto_forge.get_root_logger().show(cheerful=cheerful, field_colors=field_colors)
+        self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -184,7 +184,7 @@ class SolutionCommand(CLICommandInterface):
 
         if args.print_solution:
             self._solution.show(pretty=True)  # Pretty print the solution processed JSON
-        if args.print_json:
+        elif args.print_json:
             self._show_json(json_path=args.print_json)
         elif args.show_environment_variables:
             self._print_variables_table()

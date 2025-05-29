@@ -306,6 +306,34 @@ class CoreSolution(CoreModuleInterface):
 
         return copy.deepcopy(self._solution_data)
 
+    def get_sequence_by_name(self, sequence_name: str) -> Optional[dict[str, Any]]:
+        """
+        Retrieve a sequence dictionary from the loaded solution by its name.
+        The referenced value may be either a dictionary (inline sequence) or a string
+        pointing to a file path. In the latter case, the string will be expanded and
+        treated as a path to a JSON-compatible file that will be preprocessed and loaded.
+
+        Args:
+            sequence_name (str): The name of the sequence to retrieve.
+        Returns:
+            dict[str, Any] or None: The resolved sequence dictionary, or None if not found.
+        """
+        sequence_ref: Optional[Any] = self.get_arbitrary_item(sequence_name)
+
+        if not isinstance(sequence_ref, (str, dict)):
+            raise ValueError(
+                f"Sequence reference '{sequence_name}' in solution '{self.solution_name}' "
+                f"must be of type str or dict."
+            )
+
+        if isinstance(sequence_ref, str):
+            expanded_path = self._variables.expand(key=sequence_ref)
+            if not os.path.exists(expanded_path):
+                raise RuntimeError(f"Sequence include file '{expanded_path}' does not exist.")
+            return self._processor.preprocess(expanded_path)
+
+        return sequence_ref
+
     def _preprocess(self, solution_file_name: str, solution_name: str) -> None:
         """
         Process the JSON configuration file to resolve references and variables.
@@ -1070,6 +1098,10 @@ class CoreSolution(CoreModuleInterface):
             return result
 
         return None
+
+    @property
+    def solution_name(self) -> str:
+        return self._solution_name
 
 
 # -----------------------------------------------------------------------------

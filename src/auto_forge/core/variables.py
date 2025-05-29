@@ -44,12 +44,14 @@ class CoreVariables(CoreModuleInterface):
         self._variables: Optional[list[VariableFieldType]] = None  # Inner variables stored as a sorted listy of objects
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, solution_name: str) -> None:
+    def _initialize(self, workspace_path: str, solution_name: str, package_configuration_data: dict[str, Any],
+                    work_mode: AutoForgeWorkModeType) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
             workspace_path (str): The workspace path.
             solution_name (str): Solution name.
+            package_configuration_data (dict[str, Any]): Package configuration data.
         """
         try:
             self._tool_box = ToolBox.get_instance()
@@ -59,12 +61,8 @@ class CoreVariables(CoreModuleInterface):
             self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
             self._search_keys: Optional[list[tuple[bool, str]]] = None  # Allow for faster binary search
 
-            # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
-            self._package_configuration_data: Optional[dict[str, Any]] = (
-                self._tool_box.find_variable_in_stack(module_name='auto_forge',
-                                                      variable_name='_package_configuration_data'))
-            work_mode: Optional[AutoForgeWorkModeType] = (
-                self._tool_box.find_variable_in_stack(module_name='auto_forge', variable_name='_work_mode'))
+            # Store package configuration
+            self._package_configuration_data: dict[str, Any] = package_configuration_data
 
             # Set to ignore invalid path when in environment t creation mode
             if work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:

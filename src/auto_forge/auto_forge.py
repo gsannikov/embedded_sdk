@@ -104,7 +104,9 @@ class AutoForge(CoreModuleInterface):
         self.ansi_codes = self._package_configuration_data.get("ansi_codes")
 
         # Start variables
-        self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name)
+        self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
+                                        package_configuration_data=self._package_configuration_data,
+                                        work_mode=self._work_mode)
 
         # Initializes the logger
         self._init_logger()
@@ -274,15 +276,18 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
-    def get_package_configuration(self) -> Optional[dict[str, Any]]:
+    @property
+    def package_configuration(self) -> Optional[dict[str, Any]]:
         """ Returns the package configuration processed JSON """
         return self._package_configuration_data
 
-    def get_telemetry(self) -> Optional[BuildTelemetry]:
+    @property
+    def telemetry(self) -> Optional[BuildTelemetry]:
         """ Returns the AutoForge telemetry class instance """
         return self._telemetry
 
-    def get_root_logger(self) -> Optional[AutoLogger]:
+    @property
+    def root_logger(self) -> Optional[AutoLogger]:
         """ AutoForge root logger instance """
         return self._auto_logger
 
@@ -365,17 +370,13 @@ class AutoForge(CoreModuleInterface):
                     #  Running sequence of operations.
                     # ==============================================================
 
-                    sequence_file_name: Optional[str] = self._solution.get_arbitrary_item(self._run_sequence_ref_name)
-                    if sequence_file_name is None:
-                        raise RuntimeError(
-                            f"sequence ref name '{self._run_sequence_ref_name}' was not found in solution '{self._solution_name}'")
-                    sequence_file_name = self._variables.expand(sequence_file_name)
-                    if self._tool_box.validate_path(text=sequence_file_name, raise_exception=False):
-                        raise RuntimeError(
-                            f"specified sequence file '{sequence_file_name}' in solution '{self._solution_name}' is invalid")
+                    # Get the sequence dictionary from the solution
+                    sequence_data = self._solution.get_sequence_by_name(sequence_name=self._run_sequence_ref_name)
+                    if not isinstance(sequence_data, dict):
+                        raise ValueError(
+                            f"sequence reference name '{self._run_sequence_ref_name}' was not found in '{self._solution_name}'")
 
-                    # Execute workspace creation steps
-                    return_code = self._environment.run_sequence(sequence_file=sequence_file_name)
+                    return_code = self._environment.run_sequence(sequence_data=sequence_data)
                     if return_code == 0:
                         # Lastly store the solution in the newly created workspace
                         scripts_path = self._variables.get(key="SCRIPTS_BASE")
@@ -394,6 +395,11 @@ class AutoForge(CoreModuleInterface):
                             self._environment.create_config_file(solution_name=self._solution_name,
                                                                  create_path=self._workspace_path)
                 elif self._run_command_name:
+
+                    # ==============================================================
+                    #  Running command in non interactive mode.
+                    # ==============================================================
+
                     raise RuntimeError(f"running command '{self._run_command_name}' is not yet implemented")
 
             else:

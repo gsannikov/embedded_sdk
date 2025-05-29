@@ -39,9 +39,12 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
-                        CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
+                        CoreProcessor, CommandResultType, ExecutionModeType,
+                        ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType)
-from auto_forge.core.variables import CoreVariables  # Runtime import to prevent circular import
+
+# Delayed import, prevent circular errors.
+from auto_forge.core.variables import CoreVariables
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -71,6 +74,9 @@ class CoreEnvironment(CoreModuleInterface):
     def _initialize(self, workspace_path: str, package_configuration_data: dict[str, Any]) -> None:
         """
         Initialize the 'Environment' class.
+        Args:
+            workspace_path: path to the workspace directory to initialize.
+            package_configuration_data: dictionary with package configuration data.
         """
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
         self._package_manager: Optional[str] = None
@@ -152,7 +158,7 @@ class CoreEnvironment(CoreModuleInterface):
             Optional[str]: Full path to the resolved Python executable.
         """
         if venv_path:
-            venv_path = self.environment_variable_expand(text=venv_path.strip())
+            venv_path = self._variables.expand(key=venv_path.strip())
             python_executable = os.path.join(venv_path, 'bin', 'python')
         else:
             python_executable = shutil.which("python")
@@ -275,7 +281,6 @@ class CoreEnvironment(CoreModuleInterface):
             must_be_empty (bool): If true, the workspace path will be checked that it's empty, defaults to False.
             create_as_needed (bool): If true, the workspace path will be created, defaults to False.
             change_dir (bool): If true, switch to the workspace directory, defaults to False.
-
         Returns:
             str: The workspace expanded and verified path.
         """
@@ -284,9 +289,8 @@ class CoreEnvironment(CoreModuleInterface):
             if self._workspace_path is None:
                 raise RuntimeError("stored 'workspace path' cannot be None")
 
-            # Expand environment variables and user home shortcuts in the path
-            self._workspace_path = self.environment_variable_expand(text=self._workspace_path, to_absolute_path=True)
-
+            # Expand as needed
+            self._workspace_path = self._variables.expand(key=self._workspace_path)
             # Safeguard against deleting important directories
             if delete_existing:
                 self.path_erase(path=self._workspace_path, allow_non_empty=True)
@@ -315,7 +319,7 @@ class CoreEnvironment(CoreModuleInterface):
         Args:
             path (str): The directory path to append to PATH.
         """
-        path = self.environment_variable_expand(path)
+        path = self._variables.expand(path)
         # Get the current PATH environment variable
         current_path = os.environ.get('PATH', '')
 
@@ -945,11 +949,11 @@ class CoreEnvironment(CoreModuleInterface):
         try:
 
             # Normalize the input path before comparing
-            normalized_path = self.environment_variable_expand(text=path, to_absolute_path=True)
+            expanded_path = self._variables.expand(key=path)
 
-            if not os.path.exists(normalized_path):
+            if not os.path.exists(expanded_path):
                 if raise_exception_if_not_exist:
-                    raise FileNotFoundError(f"'{normalized_path}' does not exist")
+                    raise FileNotFoundError(f"'{expanded_path}' does not exist")
                 return  # Exit without raising exception
 
             # Prevent deletion of very high-level directories, adjust the level as necessary
@@ -961,8 +965,8 @@ class CoreEnvironment(CoreModuleInterface):
             important_paths = [home_path,  # Never delete home directory
                                os.path.join(home_path, "Documents"), os.path.join(home_path, "Desktop"), ]
 
-            if normalized_path in map(os.path.abspath, important_paths):
-                raise RuntimeError(f"refusing to delete important or protected directory: '{normalized_path}'")
+            if expanded_path in map(os.path.abspath, important_paths):
+                raise RuntimeError(f"refusing to delete important or protected directory: '{expanded_path}'")
 
             if not allow_non_empty and os.listdir(path):
                 raise IsADirectoryError(f"directory '{path}' is not empty, delete canceled")
@@ -1031,12 +1035,12 @@ class CoreEnvironment(CoreModuleInterface):
             or None if an exception was raised.
         """
         try:
-            expanded_path = self.environment_variable_expand(text=venv_path, to_absolute_path=True)
+            expanded_path = self._variables.expand(key=venv_path)
 
             # Verify inputs
             if python_binary_path is not None:
-                expanded_python_binary_path = self.environment_variable_expand(text=python_binary_path,
-                                                                               to_absolute_path=True)
+                expanded_python_binary_path = self._variables.expand(key=python_binary_path)
+
                 self._tool_box.validate_path(expanded_python_binary_path)
                 python_binary = os.path.join(expanded_python_binary_path, f"python{python_version}")
             else:
@@ -1210,7 +1214,7 @@ class CoreEnvironment(CoreModuleInterface):
             if self._variables is not None:
                 dest_repo_path = self._variables.expand(key=dest_repo_path)
 
-            dest_repo_path = self.environment_variable_expand(text=dest_repo_path, to_absolute_path=True)
+            dest_repo_path = self._variables.expand(key=dest_repo_path)
 
             # Optionally clear the destination path
             self.path_erase(path=dest_repo_path, allow_non_empty=clear_destination_path)
@@ -1245,7 +1249,7 @@ class CoreEnvironment(CoreModuleInterface):
         try:
             # Validate and prepare the repository path
             normalized_repo_path = self._tool_box.normalize_text(dest_repo_path)
-            dest_repo_path = self.environment_variable_expand(text=normalized_repo_path, to_absolute_path=True)
+            dest_repo_path = self._variables.expand(key=normalized_repo_path)
             command = "git"
 
             if not os.path.exists(dest_repo_path):
@@ -1304,8 +1308,7 @@ class CoreEnvironment(CoreModuleInterface):
         if destination_file_name is None:
             destination_file_name = self._tool_box.get_temp_filename()
 
-        destination_file_name = CoreEnvironment.environment_variable_expand(text=destination_file_name,
-                                                                            to_absolute_path=True)
+        destination_file_name = self._variables.expand(key=destination_file_name)
 
         # Make sure we got something that look like path that points to a filed name
         is_destination_path = self._tool_box.looks_like_unix_path(destination_file_name)
@@ -1403,7 +1406,7 @@ class CoreEnvironment(CoreModuleInterface):
                     is_destination_path = True
                 else:
                     # Expand the provided destination string as needed
-                    destination = self.environment_variable_expand(text=destination, to_absolute_path=True)
+                    destination = self._variables.expand(key=destination)
                     # Try to detect if destination looks like a path
                     is_destination_path = self._tool_box.looks_like_unix_path(destination)
 
@@ -1510,11 +1513,12 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as exception:
             raise RuntimeError(f"failed to create .config in {create_path}: {exception}") from exception
 
-    def run_sequence(self, sequence_file: str, tracker: Optional[ProgressTracker] = None) -> Optional[int]:
+    def run_sequence(self, sequence_data: dict[str, Any],
+                     tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
-            sequence_file (str): Path to a JSON file which holds structured sequence of operation to execute.
+            sequence_data (dict[str,Any]): Structured sequences dictionary to execute.
             tracker (Optional[ProgressTracker]): A progress tracker instance to, else a local one will be carted.
         Returns:
             int: Exit code of the function.
@@ -1537,26 +1541,19 @@ class CoreEnvironment(CoreModuleInterface):
         try:
 
             self._running_sequence = True
-            # Expand, convert to absolute path and verify
-            sequence_file = self.environment_variable_expand(text=sequence_file, to_absolute_path=True)
-            if not os.path.exists(sequence_file):
-                raise RuntimeError(f"steps file '{sequence_file}' does not exist")
-
-            # Process as JSON
-            steps_schema = self._processor.preprocess(sequence_file)
-            self._steps_data = steps_schema.get("steps")
+            self._steps_data = sequence_data.get("steps")
 
             # Attempt to get status view defaults
-            self._status_new_line = steps_schema.get("status_new_line", self._status_new_line)
-            self._status_title_length = steps_schema.get("status_title_length", self._status_title_length)
-            self._status_add_time_prefix = steps_schema.get("status_add_time_prefix", self._status_add_time_prefix)
+            self._status_new_line = sequence_data.get("status_new_line", self._status_new_line)
+            self._status_title_length = sequence_data.get("status_title_length", self._status_title_length)
+            self._status_add_time_prefix = sequence_data.get("status_add_time_prefix", self._status_add_time_prefix)
 
             # Initialize a track instance
             self._tracker = tracker if tracker is not None else ProgressTracker(title_length=self._status_title_length,
                                                                                 add_time_prefix=self._status_add_time_prefix)
 
             # User optional greetings messages
-            _expand_and_print(steps_schema.get("status_pre_message"))
+            _expand_and_print(sequence_data.get("status_pre_message"))
 
             # Move to the workspace path if exist as early as possible
             if os.path.exists(self._workspace_path):
@@ -1590,7 +1587,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             # User optional signoff messages
             self._tracker.set_end()
-            _expand_and_print(steps_schema.get("status_post_message"))
+            _expand_and_print(sequence_data.get("status_post_message"))
             return 0
 
         except Exception as steps_error:
@@ -1599,7 +1596,7 @@ class CoreEnvironment(CoreModuleInterface):
                 print(status_on_error)
 
             raise RuntimeError(
-                f"'{os.path.basename(sequence_file)}' at step {step_number} {steps_error}") from steps_error
+                f"'step {step_number} {steps_error}") from steps_error
         finally:
             self._running_sequence = False
             # Restore terminal cursor on exit
