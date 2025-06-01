@@ -831,9 +831,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if branch:
                 git_branch = f' <ansired>{branch}</ansired>'
 
+        # Determine venv_prompt color: bright red if outside workspace, else bright cyan
+        if workspace and not cwd.startswith(workspace):
+            venv_color = "ansibrightred"
+        else:
+            venv_color = "ansibrightcyan"
+
         # Final prompt ➜
         arrow = "\u279C"
-        prompt_text = (f"<ansibrightcyan>{venv_prompt}</ansibrightcyan> "
+        prompt_text = (f"<{venv_color}>{venv_prompt}</{venv_color}> "
                        f"<ansiblue>{cwd_display}</ansiblue>{git_branch} "
                        f"<ansiyellow>{arrow}</ansiyellow> ")
 
