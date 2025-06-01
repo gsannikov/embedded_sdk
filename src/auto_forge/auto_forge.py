@@ -77,7 +77,7 @@ class AutoForge(CoreModuleInterface):
         Depending on the context, this may involve:
         - Creating a new workspace, or loading an existing one.
         - Load the solution file from either a local path, local file or a git URL.
-        - Exec command and exit  in non interactive mode.
+        - Exec command and exit  in non-interactive mode.
         Args:
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
@@ -165,7 +165,7 @@ class AutoForge(CoreModuleInterface):
             self._solution_name = kwargs.get("solution_name")  # Required argument
             self._workspace_path = kwargs.get("workspace_path")  # Required argument
 
-            # Non interactive operations specifier, could be either a single command or reference to
+            # Non-interactive operations specifier, could be either a single command or reference to
             # a solution properties which provide the actual OpenSolaris sequence
             self._run_sequence_ref_name = kwargs.get("run_sequence")
             self._run_command_name = kwargs.get("run_command")
@@ -360,7 +360,7 @@ class AutoForge(CoreModuleInterface):
             elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:
 
                 # ==============================================================
-                #  Execute a command or sequence of operations in non
+                #  Execute a command or sequence of operations in non-
                 #  interactive mode and exit.
                 # ==============================================================
 

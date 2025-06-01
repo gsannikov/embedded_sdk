@@ -124,7 +124,8 @@ class RelocatorCommand(CLICommandInterface):
         raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions,command_type=AutoForgCommandType.AUTOMATION)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions,
+                         command_type=AutoForgCommandType.AUTOMATION)
 
     def _reset(self) -> None:
         """

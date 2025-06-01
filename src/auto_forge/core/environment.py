@@ -39,8 +39,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
-                        CoreProcessor, CommandResultType, ExecutionModeType,
-                        ProgressTracker, Registry, ToolBox,
+                        CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType)
 
 # Delayed import, prevent circular errors.
@@ -1513,8 +1512,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as exception:
             raise RuntimeError(f"failed to create .config in {create_path}: {exception}") from exception
 
-    def run_sequence(self, sequence_data: dict[str, Any],
-                     tracker: Optional[ProgressTracker] = None) -> Optional[int]:
+    def run_sequence(self, sequence_data: dict[str, Any], tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
 `       Load the steps JSON file and execute them sequentially, exit loop on any error.
         Args:
@@ -1595,8 +1593,7 @@ class CoreEnvironment(CoreModuleInterface):
             if status_on_error is not None:
                 print(status_on_error)
 
-            raise RuntimeError(
-                f"'step {step_number} {steps_error}") from steps_error
+            raise RuntimeError(f"'step {step_number} {steps_error}") from steps_error
         finally:
             self._running_sequence = False
             # Restore terminal cursor on exit

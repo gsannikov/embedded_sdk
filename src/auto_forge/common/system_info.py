@@ -162,21 +162,12 @@ class SystemInfo:
         Returns:
             dict: A dictionary containing all detected system attributes, suitable for serialization or logging.
         """
-        return {
-            "system_type": self._system_type,
-            "is_wsl": self._is_wsl,
-            "is_docker": self._is_docker,
-            "architecture": self._architecture,
-            "python_version": self._python_version,
-            "hostname": self._hostname,
-            "username": self._username,
-            "package_manager": self._package_manager if self._package_manager else None,
-            "linux_distro": self._linux_distro if self._linux_distro else None,
-            "linux_version": self._linux_version,
-            "total_memory_mb": self._total_memory_mb,
-            "virtualization": self._virtualization,
-            "uptime_sec": self._uptime,
-        }
+        return {"system_type": self._system_type, "is_wsl": self._is_wsl, "is_docker": self._is_docker,
+            "architecture": self._architecture, "python_version": self._python_version, "hostname": self._hostname,
+            "username": self._username, "package_manager": self._package_manager if self._package_manager else None,
+            "linux_distro": self._linux_distro if self._linux_distro else None, "linux_version": self._linux_version,
+            "total_memory_mb": self._total_memory_mb, "virtualization": self._virtualization,
+            "uptime_sec": self._uptime, }
 
     def __str__(self) -> str:
         """

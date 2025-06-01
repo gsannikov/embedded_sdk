@@ -703,8 +703,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.debug(f"Command '{command_name}' was added to the prompt")
 
             # Register in the global commands metadat registry
-            self._cli_commands_metadata[command_name] = {"description": description,
-                                                         "command_type": command_type,
+            self._cli_commands_metadata[command_name] = {"description": description, "command_type": command_type,
                                                          "target_command": method_name, "hidden": hidden, }
 
             added_commands = added_commands + 1

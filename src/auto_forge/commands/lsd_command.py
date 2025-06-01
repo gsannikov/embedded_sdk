@@ -229,11 +229,8 @@ class LSDCommand(CLICommandInterface):
                 f"{self._ansi_codes.get('STYLE_RESET_ALL')}")
 
         if summary_parts:
-            summary_text = (
-                    f"Summary: {self._ansi_codes.get('STYLE_BRIGHT')}"
-                    + " • ".join(summary_parts)
-                    + self._ansi_codes.get('STYLE_RESET_ALL')
-            )
+            summary_text = (f"Summary: {self._ansi_codes.get('STYLE_BRIGHT')}" + " • ".join(
+                summary_parts) + self._ansi_codes.get('STYLE_RESET_ALL'))
 
         return summary_text
 

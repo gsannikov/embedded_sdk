@@ -142,9 +142,8 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (isinstance(attr, type) and issubclass(attr,
-                                                                  tuple(
-                                                                      self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                        if (isinstance(attr, type) and issubclass(attr, tuple(
+                            self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 
@@ -242,11 +241,8 @@ class CoreLoader(CoreModuleInterface):
             or None if the command is unknown or an error occurs.
         """
         with suppress(Exception):
-            class_instance = self._resolve_registered_instance(
-                name=name,
-                expected_type=AutoForgeModuleType.CLI_COMMAND,
-                required_method='get_known_args'
-            )
+            class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.CLI_COMMAND,
+                required_method='get_known_args')
             if class_instance:
                 return class_instance.get_known_args(raise_exceptions=False)
 
