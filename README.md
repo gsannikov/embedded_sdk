@@ -29,7 +29,7 @@ To use it, copy and paste the command below into your terminal.
 curl -sSL \
   -H "Cache-Control: no-store" \
   "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh" \
-  | bash -s -- -w ./ws -s https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/top
+  | bash -s -- -n demo -w ws -s create_environment_sequence -p https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/btop
 ```
 
 ### Installing the package.
