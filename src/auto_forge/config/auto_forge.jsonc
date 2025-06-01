@@ -7,7 +7,7 @@
 */
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     // List of variable names that must be defined in the "variables" section.
     // These are considered critical for proper project configuration.
@@ -20,9 +20,9 @@
 	    //-----------------------------------------------------------------------------------------------------------------------------------------------------
 
             ["AF_BASE",             "$HOME/.auto_forge",                        "AutoForge persistent directory"                                ],
-            ["AF_BIN",              "$AF_BASE/bin",                             "AutoForge persistent solution directory"                       ],
-            ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                  "AutoForge persistent solution directory"                       ],
-            ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                    "AutoForge persistent solution directory"                       ],
+            ["AF_BIN",              "$AF_BASE/bin",                             "AutoForge persistent binaries"                                 ],
+            ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                  "AutoForge persistent solution resources"                       ],
+            ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                    "AutoForge persistent solution binaries"                        ],
             ["HOME_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Locally stored project user preferences"                       ],
             ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                    "Base path for compilers outputs"                               ],
             ["BUILD_OUT",           "$BUILD_BASE/out",                          "Compilation outputs and temporary files"                       ],
@@ -33,6 +33,7 @@
             ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Project base path"                                             ],
             ["DOCS_BASE",           "$PROJ_BASE/docs",                          "Project Documents"                                             ],
             ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                       "Project scripts"                                               ],
+            ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                   "Solution JSON configuration files"                             ],
             ["SOURCE_BASE",         "$PROJ_BASE/src",                           "Sources base path"                                             ]
     ],
 
@@ -40,6 +41,12 @@
     "complete_while_typing": true,                          // Controls Prompt toolkit completion speed
     "prompt_history_file": "$AF_BASE/.auto_forge.history",
     "prompt_max_completion_results": 100,
+
+    // Expected location of solution files in an installed environment.
+    // This variable is read during an early initialization stage, please avoid using any local variables
+    // other than the workspace path and the solution name.
+    "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
+
 
     // Search paths used when the prompt attempts to autocomplete a typed command.
     // This list typically mirrors the system's PATH variable and defines where

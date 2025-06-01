@@ -92,16 +92,16 @@ class AutoForge(CoreModuleInterface):
         self._processor = CoreProcessor()
         self._sys_info: dict = SystemInfo().as_dict()
 
+        # Load package configuration and several dictionaries we might need later
+        self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
+        self.ansi_codes = self._package_configuration_data.get("ansi_codes")
+
         # Validate startup arguments
         self._validate_arguments(*args, **kwargs)
 
         # Start remote debugging if enabled.
         if self._remote_debugging is not None:
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
-
-        # Load package configuration and several dictionaries we might need later
-        self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
-        self.ansi_codes = self._package_configuration_data.get("ansi_codes")
 
         # Start variables
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
@@ -170,13 +170,6 @@ class AutoForge(CoreModuleInterface):
             self._run_sequence_ref_name = kwargs.get("run_sequence")
             self._run_command_name = kwargs.get("run_command")
 
-            self._solution_url = kwargs.get("solution_url")
-            self._git_token = kwargs.get("git_token")
-            nonlocal solution_package, remote_debugging, proxy_server
-            solution_package = kwargs.get("solution_package")
-            remote_debugging = kwargs.get("remote_debugging")
-            proxy_server = kwargs.get("proxy_server")
-
             # Expand and check if the workspace exists
             self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
             if not ToolBox.looks_like_unix_path(self._workspace_path):
@@ -198,61 +191,76 @@ class AutoForge(CoreModuleInterface):
             - A GitHub URL pointing to git path which contains the solution files.
             Validation ensures that the provided path exists and matches one of the acc
             """
+
+            solution_package: Optional[str] = kwargs.get("solution_package", None)
+
+            # When we don't get the solution package from the argument we try to resolve using the package configuration.
+            if not isinstance(solution_package, str):
+                local_package_files = self._package_configuration_data.get("local_solution_package_files")
+                if isinstance(local_package_files, str):
+                    solution_package = local_package_files.strip().replace("$PROJ_WORKSPACE",
+                                                                           self._workspace_path).replace(
+                        "$SOLUTION_NAME", self._solution_name)
+
+            # By now we should have a valid package path
             if not isinstance(solution_package, str):
                 return
 
             if ToolBox.is_url(solution_package):
-                self._solution_url = solution_package
-                return
-            solution_package_path = ToolBox.get_expanded_path(solution_package)
-            if ToolBox.looks_like_unix_path(solution_package_path):
-                if os.path.isdir(solution_package_path):
-                    self._solution_package_path = solution_package_path
-                    self._solution_package_file = None
+                _validate_solution_url(solution_url=solution_package)
+            else:
+                solution_package_path = ToolBox.get_expanded_path(solution_package)
+                if ToolBox.looks_like_unix_path(solution_package_path):
+                    if os.path.isdir(solution_package_path):
+                        self._solution_package_path = solution_package_path
+                        self._solution_package_file = None
+                    elif os.path.isfile(solution_package_path) and solution_package_path.lower().endswith(".zip"):
+                        self._solution_package_file = solution_package_path
+                        self._solution_package_path = None
+                    else:
+                        raise ValueError(f"package '{solution_package_path}' must be a directory or a .zip file")
                 elif os.path.isfile(solution_package_path) and solution_package_path.lower().endswith(".zip"):
                     self._solution_package_file = solution_package_path
                     self._solution_package_path = None
                 else:
-                    raise ValueError(f"package '{solution_package_path}' must be a directory or a .zip file")
-            elif os.path.isfile(solution_package_path) and solution_package_path.lower().endswith(".zip"):
-                self._solution_package_file = solution_package_path
-                self._solution_package_path = None
-            else:
-                raise ValueError(f"package '{solution_package_path}' is a directory or a .zip file")
+                    raise ValueError(f"package '{solution_package_path}' is a directory or a .zip file")
 
-        def _validate_solution_url():
+        def _validate_solution_url(solution_url: str):
             """
             Solution URL validation:
             AutoForge allows optionally specifying a Git URL, which will later be used to retrieve solution files.
             The URL must have a valid structure and must point to a path (not to a single file)
             """
-            if not self._solution_url:
-                return
-            is_url_path = ToolBox.is_url_path(self._solution_url)
-            if is_url_path is None:
-                raise RuntimeError(f"the specified URL '{self._solution_url}' is not a valid Git URL")
-            if not is_url_path:
-                raise RuntimeError(f"the specified URL '{self._solution_url}' does not point to a valid path")
+
+            if isinstance(solution_url, str):
+                is_url_path = ToolBox.is_url_path(solution_url)
+                if is_url_path is None:
+                    raise RuntimeError(f"the specified URL '{solution_url}' is not a valid Git URL")
+                elif not is_url_path:
+                    raise RuntimeError(f"the specified URL '{solution_url}' does not point to a valid path")
+                else:
+                    self._solution_url = solution_url
+                    self._git_token = kwargs.get("git_token", None)
 
         def _validate_network_options():
-            if remote_debugging:
+
+            remote_debugging: Optional[str] = kwargs.get("remote_debugging", None)
+            proxy_server: Optional[str] = kwargs.get("proxy_server", None)
+
+            if isinstance(remote_debugging, str):
                 self._remote_debugging = ToolBox.get_address_and_port(remote_debugging)
                 if self._remote_debugging is None:
                     raise ValueError(f"the specified remote debugging address '{remote_debugging}' is invalid. "
                                      f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)")
-            if proxy_server:
+            if isinstance(proxy_server, str):
                 self._proxy_server = ToolBox.get_address_and_port(proxy_server)
                 if self._proxy_server is None:
                     raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
                                      f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)")
 
         # Orchestrate
-        solution_package = None
-        remote_debugging = None
-        proxy_server = None
         _init_arguments()
         _validate_solution_package()
-        _validate_solution_url()
         _validate_network_options()
 
     @staticmethod
@@ -446,12 +454,13 @@ def auto_forge_main() -> Optional[int]:
         # AutoForge requires a solution to operate. This can be provided either as a pre-existing local ZIP archive,
         # or as a Git URL pointing to a directory containing the necessary solution JSON files.
 
-        parser.add_argument("-p", "--solution-package", required=True,
-                            help=("Path to a local AutoForge solution. This can be either:\n"
-                                  "- A path to an existing .zip archive file.\n"
-                                  "- A path to an existing directory containing solution files.\n"
-                                  "- A Github URL pointing to git path which contains the solution files.\n"
-                                  "The provided path will be validated at runtime."))
+        parser.add_argument("-p", "--solution-package", required=False,
+                            help=("Path to an AutoForge solution package. This can be either:\n"
+                                  "- Path to an existing .zip archive file.\n"
+                                  "- Path to an existing directory containing solution files.\n"
+                                  "- Github URL pointing to git path which contains the solution files.\n"
+                                  "The package path will be validated at runtime, if not specified, the solution will "
+                                  "be searched for in the local solution workspace path under 'scripts/solution'"))
 
         # AutoForge supports two mutually exclusive non-interactive modes:
         # (1) Running step recipe data (typically used to set up a fresh workspace),
