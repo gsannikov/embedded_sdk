@@ -352,8 +352,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Adding dynamically registered CLI commands.
         self._add_dynamic_cli_commands()
 
-        # Adding built-in aliases based on a dictionary from the package configuration file.
-        self._add_dynamic_aliases()
+        # Adding built-in aliases based on a dictionary from the package configuration file, and then
+        # solution proprietary aliases.
+        self._add_dynamic_aliases(self._package_configuration_data.get('builtin_aliases'))
+        self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases"))
 
         # Exclude built-in cmd2 commands from help display without disabling their functionality
         if self._package_configuration_data.get('hide_cmd2_native_commands', False):
@@ -427,6 +429,20 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if disable_help:
             setattr(self, f"help_{command_name}", lambda _self: None)
             setattr(self, f"complete_{command_name}", lambda *_: [])
+
+    def _is_command_exist(self, command_or_alias: str) -> bool:
+        """
+        Check if the given command or alias exists in either alias or CLI command metadata.
+        Args:
+            command_or_alias (str): The name to check.
+        Returns:
+            bool: True if the command or alias exists, False otherwise.
+        """
+        if command_or_alias in self._aliases_metadata:
+            return True
+        if command_or_alias in self._cli_commands_metadata:
+            return True
+        return False
 
     def _set_command_metadata(self, command_name: str, description: Optional[str] = None,
                               command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN, hidden: bool = False,
@@ -504,7 +520,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             "description": description or existing.get("description", "No help available"), "command_type": cmd_type,
             "target_command": existing.get("target_command"), "hidden": hidden, }
 
-    def _export_help_file(self, exported_file: Optional[str] = None, export_hidden: bool = True) -> Optional[str]:
+    def _export_help_file(self, exported_file: Optional[str] = None, export_hidden: bool = False) -> Optional[str]:
         """
         Export all available commands into a formatted Markdown file.
         Args:
@@ -541,7 +557,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 doc = doc.replace('\t', ' ').strip()
                 if not doc.endswith('.'):
                     doc += '.'
-                commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
+
+                # Append if not exist
+                if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
+                    commands_by_type[cmd_type].append((cmd, doc))
 
             # Collect docstring-based commands
             for cmd in sorted(self.get_all_commands()):
@@ -553,12 +572,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 if metadata.get("hidden", False) and cmd not in self.hidden_commands:
                     self.hidden_commands.append(cmd)
 
-                if cmd in self.hidden_commands or cmd in self._aliases_metadata:
+                # Append if not exist
+                if not export_hidden and (cmd in self.hidden_commands or cmd in self._aliases_metadata):
                     continue
 
                 cmd_type = metadata.get("command_type", AutoForgCommandType.BUILTIN)
                 doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
-                commands_by_type.setdefault(cmd_type, []).append((cmd, doc))
+                if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
+                    commands_by_type[cmd_type].append((cmd, doc))
 
             # Write to Markdown file
             with output_path.open("w", encoding="utf-8") as f:
@@ -598,18 +619,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.error(f"Could not export help help file {export_error}")
             return None
 
-    def _add_dynamic_aliases(self) -> Optional[int]:
+    def _add_dynamic_aliases(self, aliases: Optional[Union[dict, list[dict]]]) -> Optional[int]:
         """
         Registers dynamically defined aliases from a dictionary or list of dictionaries.
         Returns:
             Optional[int]: Number of aliases successfully registered, or None on failure.
         """
-        added_aliases_count = 0
-        builtin_aliases: Union[dict, list[dict]] = self._package_configuration_data.get('builtin_aliases')
 
-        if isinstance(builtin_aliases, dict):  # Legacy support
-            for alias_name, target_command in builtin_aliases.items():
+        added_aliases_count = 0
+
+        if isinstance(aliases, dict):  # Legacy support
+            for alias_name, target_command in aliases.items():
                 try:
+                    # Filter existing
+                    if self._is_command_exist(command_or_alias=alias_name):
+                        self._logger.warning(f"Duplicate alias '{alias_name}' already exists.")
+                        continue
+
                     self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
                                                      description="No description provided",
                                                      cmd_type=AutoForgCommandType.ALIASES)
@@ -617,14 +643,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 except Exception as alias_add_error:
                     self._logger.warning(f"Failed to add legacy alias '{alias_name}': {alias_add_error}")
 
-        elif isinstance(builtin_aliases, list):
-            for alias in builtin_aliases:
+        elif isinstance(aliases, list):
+            for alias in aliases:
                 try:
                     alias_name = alias["alias_name"]
                     target_command = alias["target_command"]
                     description = alias.get("description", "No description provided")
                     cmd_type_str = alias.get("command_type", "ALIASES")
                     hidden = alias.get("hidden", False)
+
+                    # Filter existing
+                    if self._is_command_exist(command_or_alias=alias_name):
+                        self._logger.warning(f"Duplicate alias '{alias_name}' already exists.")
+                        continue
 
                     try:
                         cmd_type = AutoForgCommandType[cmd_type_str.upper()]

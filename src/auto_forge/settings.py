@@ -15,7 +15,7 @@ from pathlib import Path
 import toml
 
 # Initialize default values for global variables
-PROJECT_VERSION: str = "1.1.9"
+PROJECT_VERSION: str = "1.2.0"
 PROJECT_NAME: str = "AutoForge"
 PROJECT_REPO: str = "https://github.com/emichael72/auto_forge.git"
 PROJECT_PACKAGE: str = "auto_forge"

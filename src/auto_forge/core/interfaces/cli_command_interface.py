@@ -172,7 +172,7 @@ class CLICommandInterface(ABC):
 
         self._command_name: str = command_name if command_name is not None else caller_module_name
         # Create a command dedicated logger instance
-        self._logger = AutoLogger().get_logger(name=command_name)
+        self._logger = AutoLogger().get_logger(name=command_name.capitalize())
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -197,8 +197,7 @@ class CLICommandInterface(ABC):
         if not self._args_parser:
             with suppress(Exception):
                 self._args_parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
-                    prog=self._module_info.name,
-                    description=self._module_info.description)
+                    prog=self._module_info.name, description=self._module_info.description)
                 self.create_parser(self._args_parser)
 
                 # Make sure we always support version

@@ -321,10 +321,8 @@ class CoreSolution(CoreModuleInterface):
         sequence_ref: Optional[Any] = self.get_arbitrary_item(sequence_name)
 
         if not isinstance(sequence_ref, (str, dict)):
-            raise ValueError(
-                f"Sequence reference '{sequence_name}' in solution '{self.solution_name}' "
-                f"must be of type str or dict."
-            )
+            raise ValueError(f"Sequence reference '{sequence_name}' in solution '{self.solution_name}' "
+                             f"must be of type str or dict.")
 
         if isinstance(sequence_ref, str):
             expanded_path = self._variables.expand(key=sequence_ref)
