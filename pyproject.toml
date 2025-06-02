@@ -34,7 +34,7 @@ dependencies = ["packaging>=20.0",
     "prompt_toolkit>=3.0.43",
     "jmespath>=0.10.0,<1.0.0",
     "textual>=0.40.0",
-    "cmd2>=2.4.3"]
+    "cmd2==2.3.3"]
 
 [project.urls]
 homepage = "https://github.com/emichael72/auto_forge.git"
