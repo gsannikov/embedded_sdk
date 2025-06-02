@@ -9,11 +9,9 @@
     "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     "defaults": {
-        "base_source_path": "userspace",            // Mandatory: Path to the existing source tree.
-        "base_destination_path": "userspace_new",   // Mandatory: Destination path for the new tree. Must differ from 'base_source_path'.
         "delete_destination_on_start": true,        // Optional: Delete the entire destination directory at the start of the process. Default is false if not specified.
         "full_debug": true,                         // Optional: Raises the logger from info -> debug which will results in extensive debug logs.
-        "break_on_errors": true,
+        "break_on_errors": false,
 
         // Optional: File types to be copied to the destination. Defaults to all types ("*") if not specified.
         "file_types": [

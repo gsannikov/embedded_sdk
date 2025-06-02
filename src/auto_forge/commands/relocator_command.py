@@ -223,6 +223,30 @@ class RelocatorCommand(CLICommandInterface):
             # Re-raise the exception explicitly for future extension (e.g., logging or wrapping)
             raise load_error from load_error
 
+    def _safe_copy_file(self, src_path: str, dest_path: str, relative_src: str, relative_dest: str, fatal=False,
+                        log_level="debug"):
+        """
+        Attempt to copy a file from src_path to dest_path, creating parent directories if needed.
+        Logs the copy operation at the specified level and handles exceptions based on the 'fatal' flag.
+        Args:
+            src_path (str): Absolute source file path.
+            dest_path (str): Absolute destination file path.
+            relative_src (str): Source path relative to the base source folder (for logging).
+            relative_dest (str): Destination path relative to the base destination folder (for logging).
+            fatal (bool): If True, raises RuntimeError on failure. Otherwise logs the error.
+            log_level (str): Logging method to use for successful copies (e.g., 'debug', 'info').
+        """
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        try:
+            shutil.copy2(src_path, dest_path)
+            getattr(self._logger, log_level)(f"Copying {relative_src} to {relative_dest}")
+        except Exception as copy_error:
+            msg = f"Failed to copy '{relative_src}' to '{relative_dest}' {copy_error}"
+            if fatal:
+                raise RuntimeError(msg)
+            else:
+                self._logger.error(msg)
+
     def _relocate(self, **kwargs: Any) -> bool:
         """
         Execute the loaded relocation recipe and reconstruct the destination tree accordingly.
@@ -234,6 +258,8 @@ class RelocatorCommand(CLICommandInterface):
         Returns:
             bool: True if relocation was successful, False otherwise.
         """
+        processed_folders = 0
+
         try:
             source_path: Optional[str] = kwargs.get("source_path")
             destination_path: Optional[str] = kwargs.get("destination_path")
@@ -268,7 +294,7 @@ class RelocatorCommand(CLICommandInterface):
                 if os.path.exists(destination_path):
                     try:
                         shutil.rmtree(destination_path)
-                        self._logger.debug(f"deleted existing destination directory: '{destination_path}'")
+                        self._logger.debug(f"Deleting existing destination: '{destination_path}'")
                     except Exception as exception:
                         raise RuntimeError(f"failed to delete destination directory: {exception}") from exception
             else:
@@ -280,13 +306,15 @@ class RelocatorCommand(CLICommandInterface):
 
             # Process each folder entry
             for folder in self._relocated_folders:
+                processed_folders += 1
                 os.makedirs(folder.destination, exist_ok=True)
-                self._logger.debug(f"Processing {folder.raw_source} -> {folder.raw_destination}")
+                self._logger.debug(f"Processing {folder.raw_source}")
 
                 max_depth = folder.max_copy_depth
                 base_level = folder.source.count(os.sep)
 
-                for root, _dirs, files in os.walk(folder.source):
+                AutoLogger().set_output_enabled(logger=self._logger,state=True)
+                for root, _, files in os.walk(folder.source):
                     copied_files = 0
                     current_depth = root.count(os.sep) - base_level
                     if max_depth != -1 and current_depth > max_depth:
@@ -297,40 +325,38 @@ class RelocatorCommand(CLICommandInterface):
                         relative_src_path = os.path.relpath(src_path, self._relocate_defaults.source_path)
                         relative_path = os.path.relpath(root, folder.source)
 
-                        # Determine if file matches allowed file types
+                        # Files we have to copy
                         if '*' in folder.file_types or any(
                                 file.endswith(f".{ft}") for ft in folder.file_types if ft != '*'):
                             dest_path = os.path.join(folder.destination, relative_path, file)
-                            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                            shutil.copy2(src_path, dest_path)
-                            copied_files = copied_files + 1
-
                             relative_dest = os.path.relpath(dest_path, self._relocate_defaults.destination_path)
-                            self._logger.debug(f"{relative_src_path} -> {relative_dest}")
+                            self._safe_copy_file(
+                                src_path, dest_path, relative_src_path, relative_dest,
+                                fatal=self._relocate_defaults.break_on_errors
+                            )
+                            copied_files += 1
 
+                        # Not part of the list, see if we have a garve yard
                         elif folder.create_grave_yard:
-                            # Create graveyard directory if needed
-                            graveyard_path = os.path.join(folder.destination, "grave_yard")
-                            os.makedirs(graveyard_path, exist_ok=True)
-
-                            # Copy unmatched file to graveyard
-                            graveyard_file_path = os.path.join(graveyard_path, relative_path, file)
-                            os.makedirs(os.path.dirname(graveyard_file_path), exist_ok=True)
-                            shutil.copy2(src_path, graveyard_file_path)
-
-                            relative_graveyard_file_path = os.path.relpath(graveyard_file_path,
-                                                                           self._relocate_defaults.destination_path)
-                            self._logger.info(f"{relative_src_path} -> {relative_graveyard_file_path}")
+                            graveyard_path = os.path.join(folder.destination, "grave_yard", relative_path, file)
+                            relative_graveyard = os.path.relpath(graveyard_path,
+                                                                 self._relocate_defaults.destination_path)
+                            self._safe_copy_file(
+                                src_path, graveyard_path, relative_src_path, relative_graveyard,
+                                fatal=self._relocate_defaults.break_on_errors, log_level="info"
+                            )
 
                     if copied_files == 0:
-                        self._logger.warning(f"0 files copied in {folder.raw_source} -> {folder.raw_destination}")
+                        self._logger.warning(f"No files copied from {folder.raw_source}to {folder.raw_destination}")
 
             print(f"Total {len(self._relocated_folders)} folders processed.")
             return True
 
         except Exception as relocate_error:
             # Re-raise for upstream error handling; can be enhanced for logging
-            raise relocate_error from relocate_error
+            raise RuntimeError(f"{relocate_error} @ #{processed_folders}") from relocate_error
+        finally:
+            AutoLogger().set_output_enabled(logger=self._logger, state=False)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
