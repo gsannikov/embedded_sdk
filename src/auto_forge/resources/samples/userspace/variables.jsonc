@@ -13,12 +13,12 @@
 */
 
 {
-	"variables": [
-		{
-			"name": "SAMPLE_VAR",
-			"value": "Example",
-			"description": "Variable example",
-			"is_path": false
-		}
-	]
+    "variables": [
+        {
+            "name": "SAMPLE_VAR",
+            "value": "Example",
+            "description": "Variable example",
+            "is_path": false
+        }
+    ]
 }

@@ -20,19 +20,19 @@ show_auto_forge() {
 
 	local pip_bin
 	pip_bin=$(command -v pip) || {
-		echo "? pip not found in PATH." >&2
+		echo "Error: pip not found in PATH." >&2
 		return 1
 	}
 
 	local awk_bin
 	awk_bin=$(command -v awk) || {
-		echo "? awk not found in PATH." >&2
+		echo "Error: awk not found in PATH." >&2
 		return 1
 	}
 
 	local info
 	info="$("$pip_bin" list)" || {
-		echo "? Failed to run pip list." >&2
+		echo "Error: Failed to run pip list." >&2
 		return 1
 	}
 

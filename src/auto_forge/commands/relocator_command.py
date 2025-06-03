@@ -13,6 +13,7 @@ import argparse
 import logging
 import os
 import shutil
+import stat
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -177,6 +178,7 @@ class RelocatorCommand(CLICommandInterface):
         - Files named 'root.*' are handled using these rules:
             - The last two segments of the filename form the actual filename.
             - The segments between 'root' and the filename define nested directories.
+        - Files ending in '.sh' will be set as executable (chmod +x).
 
         Examples:
             root.build.sh                      -> destination_path/build.sh
@@ -218,12 +220,20 @@ class RelocatorCommand(CLICommandInterface):
                 dest_path = os.path.join(dest_dir, filename)
 
                 shutil.copy2(src_path, dest_path)
+
+                # Make .sh files executable
+                if dest_path.endswith(".sh"):
+                    current_mode = os.stat(dest_path).st_mode
+                    os.chmod(dest_path, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
                 total_copied += 1
                 if verbose:
                     print(f"Copied: {src_path} -> {dest_path}")
 
             return total_copied
 
+        except Exception as copy_error:
+            raise RuntimeError(f"Copy exception: {copy_error}")
         finally:
             if temp_dir:
                 temp_dir.cleanup()
