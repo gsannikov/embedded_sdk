@@ -13,6 +13,8 @@ import argparse
 import logging
 import os
 import shutil
+import tempfile
+import zipfile
 from dataclasses import dataclass
 from logging import Logger
 from typing import Any, Optional
@@ -166,6 +168,66 @@ class RelocatorCommand(CLICommandInterface):
         self._relocated_folders = None
         self._relocate_folders_count = 0
 
+    @staticmethod
+    def _copy_root_files(source: str, destination_path: str, verbose: bool = False) -> int:
+        """
+        Copy files starting with 'root.' from source_path to destination_path.
+
+        - If source_path is a ZIP file, it is extracted to a temporary directory and files are taken from there.
+        - Files named 'root.*' are handled using these rules:
+            - The last two segments of the filename form the actual filename.
+            - The segments between 'root' and the filename define nested directories.
+
+        Examples:
+            root.build.sh                      -> destination_path/build.sh
+            root.cmake.env.cmake               -> destination_path/cmake/env.cmake
+            root.cmake.n_libs.logger.CMakeLists.txt -> destination_path/cmake/n_libs/logger/CMakeLists.txt
+        """
+        is_zip = zipfile.is_zipfile(source)
+        temp_dir = None
+
+        try:
+            if is_zip:
+                temp_dir = tempfile.TemporaryDirectory()
+                if verbose:
+                    print(f"Extracting ZIP archive: {source} -> {temp_dir.name}")
+                with zipfile.ZipFile(source, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir.name)
+                working_path = temp_dir.name
+            else:
+                working_path = source
+
+            total_copied = 0
+            for entry in os.listdir(working_path):
+                if not entry.startswith("root."):
+                    continue
+
+                parts = entry.split(".")[1:]  # Remove 'root'
+                if len(parts) < 2:
+                    if verbose:
+                        print(f"Skipping malformed filename: {entry}")
+                    continue
+
+                filename = ".".join(parts[-2:])  # e.g., 'build.sh'
+                subdir_parts = parts[:-2]  # e.g., ['cmake', 'n_libs', 'logger']
+
+                dest_dir = os.path.join(destination_path, *subdir_parts)
+                os.makedirs(dest_dir, exist_ok=True)
+
+                src_path = os.path.join(working_path, entry)
+                dest_path = os.path.join(dest_dir, filename)
+
+                shutil.copy2(src_path, dest_path)
+                total_copied += 1
+                if verbose:
+                    print(f"Copied: {src_path} -> {dest_path}")
+
+            return total_copied
+
+        finally:
+            if temp_dir:
+                temp_dir.cleanup()
+
     def _load_recipe(self, recipe_file: str, source_path: str, destination_path: str) -> None:
         """
         Load, parse, and validate a relocation recipe from a JSON file using JSONProcessorLib.
@@ -250,7 +312,7 @@ class RelocatorCommand(CLICommandInterface):
             else:
                 self._logger.error(msg)
 
-    def _relocate(self, **kwargs: Any) -> bool:
+    def _relocate(self, **kwargs: Any) -> Optional[int]:
         """
         Execute the loaded relocation recipe and reconstruct the destination tree accordingly.
         Args:
@@ -370,7 +432,7 @@ class RelocatorCommand(CLICommandInterface):
                     print()
 
             print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
-            return True
+            return 0
 
         except Exception as relocate_error:
             # Re-raise for upstream error handling; can be enhanced for logging
@@ -385,11 +447,14 @@ class RelocatorCommand(CLICommandInterface):
         Args:
             parser (argparse.ArgumentParser): The parser to extend.
         """
-        parser.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
-        parser.add_argument("-s", "--source_path",
-                            help="Source path containing the structure we would like to refactor.")
-        parser.add_argument("-d", "--destination",
-                            help="Destination path which the new structured project will be created in.")
+
+        group = parser.add_mutually_exclusive_group(required=False)
+        group.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
+        group.add_argument("-c", "--root_copy", action="store_true", help="Deploy files using the 'root copy' logic")
+
+        parser.add_argument("-t", "--tutorial", action="store_true", help="Show the relocator tool tutorial.")
+        parser.add_argument("-s", "--source_path", help="Source path to be refactored.")
+        parser.add_argument("-d", "--destination", help="Destination path for the structured project.")
 
         parser.add_argument("-vv", "--verbose", action="store_true",
                             help="Show more information while running the recipe.")
@@ -403,21 +468,30 @@ class RelocatorCommand(CLICommandInterface):
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
-        return_value: int = 0
+
+        # Enforce that either --tutorial OR both --source_path and --destination are provided
+        if not args.tutorial:
+            if not args.source_path or not args.destination:
+                raise RuntimeError(
+                    "Either --tutorial must be provided, or both --source_path and --destination must be set.")
 
         # Handle arguments
         if args.tutorial:
             self._tool_box.show_help_file(help_file_relative_path='commands/relocator.md')
+            return 0
+
+        if not args.recipe and not args.root_copy:
+            raise RuntimeError(
+                "Either --recipe or --root_copy must be set.")
+
+        if args.recipe:
+            return_value = self._relocate(recipe_file=args.recipe, source_path=args.source_path,
+                                          destination_path=args.destination,
+                                          verbose=args.verbose)
+        elif args.root_copy:
+            return_value = self._copy_root_files(source=args.source_path, destination_path=args.destination,
+                                                 verbose=args.verbose)
         else:
-
-            # Check if all three required arguments are present
-            missing = [arg for arg, value in {'--recipe': args.recipe, '--source_path': args.source_path,
-                                              '--destination': args.destination}.items() if value is None]
-
-            if missing:
-                print(f"\nError: missing required arguments: {', '.join(missing)}")
-            else:
-                self._relocate(recipe_file=args.recipe, source_path=args.source_path, destination_path=args.destination,
-                               verbose=args.verbose)
+            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

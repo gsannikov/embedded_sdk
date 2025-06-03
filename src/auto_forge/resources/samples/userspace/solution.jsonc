@@ -8,96 +8,103 @@
 */
 
 {
-	// Solutions
-	"solutions": [
-		{
-			"name": "userspace",
-			"description": "Userspace CMake port",
-			"create_environment_sequence": "<$include>environment.jsonc",
-			// Solution specific commands which will be added to the builtin commands and the 'build' commands.
-			"aliases": [
-				{
-					"alias_name": "refact",
-					"target_command": "relocator --recipe relocate.jsonc --source_path $SOURCE_BASE/userspace --destination $SOURCE_BASE/userspace_cmake",
-					"description": "Refactor the userspace repo into a new structure",
-					"command_type": "AUTOMATION",
-					"hidden": false
-				}
-			],
-			"variables": "<$include>variables.jsonc",
-			"schema": "1.0",
-			"build_path": "$BUILD_OUT",
-			"workspace": "$PROJ_WORKSPACE",
-			// Toolchains used by this solution
-			"tool_chains": [
-				{
-					"name": "x86 x64 Linux GCC Toolchain",
-					"platform": "linux",
-					"architecture": "x86_64",
-					"build_system": "make",
-					"make_version": ">=3.16",
-					"gcc_version": ">=10.0",
-					"required_tools": {
-						"make": {
-							"path": "make",
-							"version": ">=3.16",
-							"help": "builder/make.md"
-						},
-						"gcc": {
-							"path": "gcc",
-							"version": ">=10.0",
-							"help": "builder/gcc-x64.md"
-						}
-					}
-				}
-			],
-			// Projects
-			"projects": [
-				{
-					"name": "intel_x64",
-					"description": "Intel x64 compilation of the userspavce project.",
-					"tool_chain": "<$ref_solutions[].tool_chains[x86 x64 Linux GCC Toolchain]>",
-					// Per-project configuration
-					"configurations": [
-						{
-							"name": "debug",
-							"menu_command": {
-								"name": "busd",
-								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
-							},
-							"build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-							"execute_from": "$SOURCE_BASE/userspace",
-							"compiler_options": [
-								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
-								"LDFLAGS=-ldl -pthread"
-							],
-							"artifacts": [
-								"<$ref_build_path>/userspace"
-							],
-							"pre_build_steps": {
-								"clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
-							},
-							"post_build_steps": {
-								"move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
-							}
-						},
-						{
-							"name": "release",
-							"data": "<$derived_from_solutions[].projects[].configurations[debug]>",
-							"menu_command": {
-								"name": "busr",
-								"description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
-							},
-							"compiler_options": [
-								"BUILDDIR=<$ref_build_path>",
-								"EXTRA_CXXFLAGS=-I<$ref_build_path>",
-								"LDFLAGS=-ldl -pthread"
-							]
-						}
-					]
-				}
-			]
-		}
-	]
+    // Solutions
+    "solutions": [
+        {
+            "name": "userspace",
+            "description": "Userspace CMake port",
+            "create_environment_sequence": "<$include>environment.jsonc",
+            // Solution specific commands which will be added to the builtin commands and the 'build' commands.
+            "aliases": [
+                {
+                    "alias_name": "refact",
+                    "target_command": "relocator --recipe relocate.jsonc --source_path $SOURCE_BASE/userspace --destination $SOURCE_BASE/userspace_cmake",
+                    "description": "Refactor the userspace repo into a new structure",
+                    "command_type": "AUTOMATION",
+                    "hidden": false
+                },
+                {
+                    "alias_name": "deploy",
+                    "target_command": "relocator --root_copy --source_path $SCRIPTS_SOLUTION/root_deploy.zip --destination $SOURCE_BASE/userspace_cmake",
+                    "description": "Deploy CMake files in a refactored project",
+                    "command_type": "AUTOMATION",
+                    "hidden": false
+                }
+            ],
+            "variables": "<$include>variables.jsonc",
+            "schema": "1.0",
+            "build_path": "$BUILD_OUT",
+            "workspace": "$PROJ_WORKSPACE",
+            // Toolchains used by this solution
+            "tool_chains": [
+                {
+                    "name": "x86 x64 Linux GCC Toolchain",
+                    "platform": "linux",
+                    "architecture": "x86_64",
+                    "build_system": "make",
+                    "make_version": ">=3.16",
+                    "gcc_version": ">=10.0",
+                    "required_tools": {
+                        "make": {
+                            "path": "make",
+                            "version": ">=3.16",
+                            "help": "builder/make.md"
+                        },
+                        "gcc": {
+                            "path": "gcc",
+                            "version": ">=10.0",
+                            "help": "builder/gcc-x64.md"
+                        }
+                    }
+                }
+            ],
+            // Projects
+            "projects": [
+                {
+                    "name": "intel_x64",
+                    "description": "Intel x64 compilation of the userspavce project.",
+                    "tool_chain": "<$ref_solutions[].tool_chains[x86 x64 Linux GCC Toolchain]>",
+                    // Per-project configuration
+                    "configurations": [
+                        {
+                            "name": "debug",
+                            "menu_command": {
+                                "name": "busd",
+                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                            },
+                            "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
+                            "execute_from": "$SOURCE_BASE/userspace",
+                            "compiler_options": [
+                                "BUILDDIR=<$ref_build_path>",
+                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
+                                "LDFLAGS=-ldl -pthread"
+                            ],
+                            "artifacts": [
+                                "<$ref_build_path>/userspace"
+                            ],
+                            "pre_build_steps": {
+                                "clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
+                            },
+                            "post_build_steps": {
+                                "move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
+                            }
+                        },
+                        {
+                            "name": "release",
+                            "data": "<$derived_from_solutions[].projects[].configurations[debug]>",
+                            "menu_command": {
+                                "name": "busr",
+                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                            },
+                            "compiler_options": [
+                                "BUILDDIR=<$ref_build_path>",
+                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
+                                "LDFLAGS=-ldl -pthread"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
 }

@@ -21,6 +21,10 @@ import os
 import random
 import re
 import shutil
+import threading
+import signal
+import socket
+import time
 import string
 import subprocess
 import sys
@@ -260,12 +264,12 @@ class ToolBox(CoreModuleInterface):
         except ValueError as value_error:
             raise ValueError(f"invalid input: {seconds} cannot be converted to a float") from value_error
 
-        def _pluralize(time, unit):
+        def _pluralize(_time, _unit):
             """ Returns a string with the unit correctly pluralized based on the time. """
-            if time == 1:
-                return f"{time} {unit}"
+            if _time == 1:
+                return f"{_time} {_unit}"
             else:
-                return f"{time} {unit}s"
+                return f"{_time} {_unit}s"
 
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
