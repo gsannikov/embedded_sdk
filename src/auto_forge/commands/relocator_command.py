@@ -317,15 +317,24 @@ class RelocatorCommand(CLICommandInterface):
             # Process each folder entry
             for folder in self._relocated_folders:
                 processed_folders_count += 1
+                depth_from_root = 0
                 os.makedirs(folder.destination, exist_ok=True)
-                self._logger.debug(f"Processing '{folder.raw_source}' -> '{folder.raw_destination}'")
+                self._logger.info(f"Processing '{folder.raw_source}' -> '{folder.raw_destination}'")
 
                 max_depth = folder.max_copy_depth
                 base_level = folder.source.count(os.sep)
 
                 for root, _, files in os.walk(folder.source):
                     copied_files_count = 0
+                    copied_graveyard_files_count = 0
+                    depth_from_root = depth_from_root + 1
                     current_depth = root.count(os.sep) - base_level
+
+                    relative_source_root = os.path.relpath(root, self._relocate_defaults.source_path)
+
+                    if depth_from_root > 1:
+                        self._logger.info(f"> Processing '{relative_source_root}'")
+
                     if max_depth != -1 and current_depth > max_depth:
                         raise RuntimeError(f"exceeded maximum copy depth ({max_depth}) at '{root}'")
 
@@ -347,17 +356,20 @@ class RelocatorCommand(CLICommandInterface):
                         # Not part of the list, see if we have a garve yard
                         elif folder.create_grave_yard:
                             graveyard_path = os.path.join(folder.destination, "grave_yard", relative_path, file)
-                            relative_graveyard = os.path.relpath(graveyard_path,
-                                                                 self._relocate_defaults.destination_path)
+                            relative_dest = os.path.relpath(graveyard_path, self._relocate_defaults.destination_path)
                             self._safe_copy_file(src_path=src_path, dest_path=graveyard_path, relative_src=relative_src,
-                                                 relative_dest=relative_graveyard, is_source=False,
+                                                 relative_dest=relative_dest, is_source=False,
                                                  fatal=self._relocate_defaults.break_on_errors, log_level="debug")
+                            copied_graveyard_files_count = copied_graveyard_files_count + 1
 
-                    processed_files_count = processed_files_count + copied_files_count
+                    processed_files_count = processed_files_count + (copied_files_count + copied_graveyard_files_count)
                     self._logger.info(
-                        f"Total {copied_files_count} files copied from '{folder.raw_source}' to '{folder.raw_destination}'")
+                        f"Total {copied_files_count} files copied and {copied_graveyard_files_count} sent to graveyard.")
 
-            print(f"Done, total {processed_files_count} files in {processed_folders_count} folders ware processed.\n")
+                if verbose:
+                    print()
+
+            print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
             return True
 
         except Exception as relocate_error:
