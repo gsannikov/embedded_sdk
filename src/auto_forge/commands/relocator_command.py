@@ -223,8 +223,8 @@ class RelocatorCommand(CLICommandInterface):
             # Re-raise the exception explicitly for future extension (e.g., logging or wrapping)
             raise load_error from load_error
 
-    def _safe_copy_file(self, src_path: str, dest_path: str, relative_src: str, relative_dest: str, fatal=False,
-                        log_level="debug"):
+    def _safe_copy_file(self, src_path: str, dest_path: str, relative_src: str, relative_dest: str,
+                        is_source: bool = True, fatal=False, log_level="debug"):
         """
         Attempt to copy a file from src_path to dest_path, creating parent directories if needed.
         Logs the copy operation at the specified level and handles exceptions based on the 'fatal' flag.
@@ -233,13 +233,16 @@ class RelocatorCommand(CLICommandInterface):
             dest_path (str): Absolute destination file path.
             relative_src (str): Source path relative to the base source folder (for logging).
             relative_dest (str): Destination path relative to the base destination folder (for logging).
-            fatal (bool): If True, raises RuntimeError on failure. Otherwise logs the error.
+            is_source (bool): Specifies if it's a source or grave-yard item,
+            fatal (bool): If True, raises RuntimeError on failure. Otherwise, logs the error.
             log_level (str): Logging method to use for successful copies (e.g., 'debug', 'info').
         """
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         try:
             shutil.copy2(src_path, dest_path)
-            getattr(self._logger, log_level)(f"Copying {relative_src} to {relative_dest}")
+            file_name = os.path.basename(src_path)
+            if is_source:
+                getattr(self._logger, log_level)(f"Copying '{file_name}'")
         except Exception as copy_error:
             msg = f"Failed to copy '{relative_src}' to '{relative_dest}' {copy_error}"
             if fatal:
@@ -258,7 +261,9 @@ class RelocatorCommand(CLICommandInterface):
         Returns:
             bool: True if relocation was successful, False otherwise.
         """
-        processed_folders = 0
+        processed_folders_count = 0
+        processed_files_count = 0
+        verbose: bool = kwargs.get("verbose", False)
 
         try:
             source_path: Optional[str] = kwargs.get("source_path")
@@ -301,28 +306,32 @@ class RelocatorCommand(CLICommandInterface):
                 if os.path.exists(destination_path):
                     raise RuntimeError(f"destination '{destination_path}' already exists.")
 
+            print(f"\nStarting relocation process for {len(self._relocated_folders)} paths..")
+
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
 
+            if verbose:
+                AutoLogger().set_output_enabled(logger=self._logger, state=True)
+
             # Process each folder entry
             for folder in self._relocated_folders:
-                processed_folders += 1
+                processed_folders_count += 1
                 os.makedirs(folder.destination, exist_ok=True)
-                self._logger.debug(f"Processing {folder.raw_source}")
+                self._logger.debug(f"Processing '{folder.raw_source}' -> '{folder.raw_destination}'")
 
                 max_depth = folder.max_copy_depth
                 base_level = folder.source.count(os.sep)
 
-                AutoLogger().set_output_enabled(logger=self._logger,state=True)
                 for root, _, files in os.walk(folder.source):
-                    copied_files = 0
+                    copied_files_count = 0
                     current_depth = root.count(os.sep) - base_level
                     if max_depth != -1 and current_depth > max_depth:
                         raise RuntimeError(f"exceeded maximum copy depth ({max_depth}) at '{root}'")
 
                     for file in files:
                         src_path = os.path.join(root, file)
-                        relative_src_path = os.path.relpath(src_path, self._relocate_defaults.source_path)
+                        relative_src = os.path.relpath(src_path, self._relocate_defaults.source_path)
                         relative_path = os.path.relpath(root, folder.source)
 
                         # Files we have to copy
@@ -330,33 +339,33 @@ class RelocatorCommand(CLICommandInterface):
                                 file.endswith(f".{ft}") for ft in folder.file_types if ft != '*'):
                             dest_path = os.path.join(folder.destination, relative_path, file)
                             relative_dest = os.path.relpath(dest_path, self._relocate_defaults.destination_path)
-                            self._safe_copy_file(
-                                src_path, dest_path, relative_src_path, relative_dest,
-                                fatal=self._relocate_defaults.break_on_errors
-                            )
-                            copied_files += 1
+                            self._safe_copy_file(src_path=src_path, dest_path=dest_path, relative_src=relative_src,
+                                                 relative_dest=relative_dest, is_source=True,
+                                                 fatal=self._relocate_defaults.break_on_errors)
+                            copied_files_count += 1
 
                         # Not part of the list, see if we have a garve yard
                         elif folder.create_grave_yard:
                             graveyard_path = os.path.join(folder.destination, "grave_yard", relative_path, file)
                             relative_graveyard = os.path.relpath(graveyard_path,
                                                                  self._relocate_defaults.destination_path)
-                            self._safe_copy_file(
-                                src_path, graveyard_path, relative_src_path, relative_graveyard,
-                                fatal=self._relocate_defaults.break_on_errors, log_level="info"
-                            )
+                            self._safe_copy_file(src_path=src_path, dest_path=graveyard_path, relative_src=relative_src,
+                                                 relative_dest=relative_graveyard, is_source=False,
+                                                 fatal=self._relocate_defaults.break_on_errors, log_level="debug")
 
-                    if copied_files == 0:
-                        self._logger.warning(f"No files copied from {folder.raw_source}to {folder.raw_destination}")
+                    processed_files_count = processed_files_count + copied_files_count
+                    self._logger.info(
+                        f"Total {copied_files_count} files copied from '{folder.raw_source}' to '{folder.raw_destination}'")
 
-            print(f"Total {len(self._relocated_folders)} folders processed.")
+            print(f"Done, total {processed_files_count} files in {processed_folders_count} folders ware processed.\n")
             return True
 
         except Exception as relocate_error:
             # Re-raise for upstream error handling; can be enhanced for logging
-            raise RuntimeError(f"{relocate_error} @ #{processed_folders}") from relocate_error
+            raise RuntimeError(f"{relocate_error} @ #{processed_folders_count}") from relocate_error
         finally:
-            AutoLogger().set_output_enabled(logger=self._logger, state=False)
+            if verbose:
+                AutoLogger().set_output_enabled(logger=self._logger, state=False)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -366,10 +375,12 @@ class RelocatorCommand(CLICommandInterface):
         """
         parser.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
         parser.add_argument("-s", "--source_path",
-                            help="Source path containing the structure we would like to refactor")
+                            help="Source path containing the structure we would like to refactor.")
         parser.add_argument("-d", "--destination",
-                            help="Destination path which the new structured project will be created in")
+                            help="Destination path which the new structured project will be created in.")
 
+        parser.add_argument("-vv", "--verbose", action="store_true",
+                            help="Show more information while running the recipe.")
         parser.add_argument("-t", "--tutorial", action="store_true", help="Show the relocator tool tutorial.")
 
     def run(self, args: argparse.Namespace) -> int:
@@ -394,6 +405,7 @@ class RelocatorCommand(CLICommandInterface):
             if missing:
                 print(f"\nError: missing required arguments: {', '.join(missing)}")
             else:
-                self._relocate(recipe_file=args.recipe, source_path=args.source_path, destination_path=args.destination)
+                self._relocate(recipe_file=args.recipe, source_path=args.source_path, destination_path=args.destination,
+                               verbose=args.verbose)
 
         return return_value

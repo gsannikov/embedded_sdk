@@ -16,6 +16,7 @@ import importlib.util
 import inspect
 import json
 import lzma
+import math
 import os
 import random
 import re
@@ -84,6 +85,38 @@ class ToolBox(CoreModuleInterface):
         for i in range(0, len(hex_values), bytes_per_line):
             output.append(' '.join(hex_values[i:i + bytes_per_line]))
         print("\n".join(output) + "\n")
+
+    @staticmethod
+    def print_lolcat(text: str, freq: float = None, spread: float = 1, seed: float = 64738):
+        """
+        Print text to terminal with rainbow 24-bit color effect (like lolcat).
+
+        Parameters:
+            text (str): The text to print.
+            freq (float, optional): Frequency of the rainbow hue changes.
+            spread (float, optional): Spread factor controlling how quickly colors change across characters.
+            seed (float, optional): Phase base offset (applied to all channels).
+        """
+        if freq is None:
+            freq = random.uniform(0.05, 0.25)
+        if spread is None:
+            spread = random.uniform(2.0, 6.0)
+        if seed is None:
+            seed = random.uniform(0, 2 * math.pi)
+
+        # Randomize channel-specific phase shifts
+        phase_r = seed + random.uniform(0, 2 * math.pi)
+        phase_g = seed + random.uniform(0, 2 * math.pi)
+        phase_b = seed + random.uniform(0, 2 * math.pi)
+
+        for i, char in enumerate(text):
+            x = i / spread
+            r = int(math.sin(freq * x + phase_r) * 127 + 128)
+            g = int(math.sin(freq * x + phase_g) * 127 + 128)
+            b = int(math.sin(freq * x + phase_b) * 127 + 128)
+            sys.stdout.write(f"\033[38;2;{r};{g};{b}m{char}")
+        sys.stdout.write("\033[0m")
+        sys.stdout.flush()
 
     @staticmethod
     def set_realtime_priority(priority: int = 10):

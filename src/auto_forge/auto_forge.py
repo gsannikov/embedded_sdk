@@ -357,12 +357,7 @@ class AutoForge(CoreModuleInterface):
                 self._prompt = CorePrompt()
 
                 # Start user prompt loop
-                # noinspection SpellCheckingInspection
-                prompt_intro: str = (
-                    f"🛠️  Welcome to the \033[1m'{self._solution_name.capitalize()}'\033[0m solution!\n"
-                    f"👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n")
-
-                self._prompt.cmdloop(intro=prompt_intro)
+                self._prompt.cmdloop()
                 return_code = self._prompt.last_result
 
             elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:

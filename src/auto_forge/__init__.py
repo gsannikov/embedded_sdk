@@ -39,7 +39,7 @@ from auto_forge.core.interfaces.builder_interfcae import (BuilderInterface, Buil
 from auto_forge.common.registry import Registry
 from auto_forge.common.toolbox import ToolBox
 from auto_forge.common.progress_tracker import ProgressTracker
-from auto_forge.common.pretty_printer import PrettyPrinter
+from auto_forge.common.pretty_json_printer import PrettyPrinter
 from auto_forge.common.system_info import SystemInfo
 
 # Core / common modules

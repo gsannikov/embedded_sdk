@@ -798,6 +798,20 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 continue
 
     # noinspection SpellCheckingInspection
+    def _print_colored_prompt_intro(self, cheerful: bool = True):
+        """
+        Print the prompt welcome message with optional colorful effects.
+        Parameters:
+            cheerful (bool): If True, display the solution name with rainbow colors.
+        """
+        solution_name = self._solution.solution_name.capitalize()
+        sys.stdout.write("🛠️  Welcome to the '")
+
+        self._tool_box.print_lolcat(solution_name) if cheerful else sys.stdout.write(solution_name)
+        sys.stdout.write("' solution!\n👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n\n")
+        sys.stdout.flush()
+
+    # noinspection SpellCheckingInspection
     def _get_colored_prompt_toolkit(self, active_name: Optional[str] = None) -> str:
         """
         Return an HTML-formatted prompt string for prompt_toolkit.
@@ -1256,6 +1270,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         if intro:
             self.poutput(intro)
+        else:
+            self._print_colored_prompt_intro(cheerful=True)
 
         # Initialize key bindings
         kb = KeyBindings()
