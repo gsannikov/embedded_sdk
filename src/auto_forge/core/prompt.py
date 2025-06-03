@@ -39,9 +39,9 @@ from rich.console import Console
 from rich.panel import Panel
 
 # AutoForge imports
-from auto_forge import (PROJECT_NAME, AutoLogger, AutoForgCommandType, AutoForgeModuleType, BuildProfileType,
-                        CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution, ModuleInfoType, CoreVariables,
-                        ExecutionModeType, Registry, ToolBox, )
+from auto_forge import (PROJECT_NAME, PROJECT_VERSION, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
+                        BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
+                        ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, )
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Prompt"
@@ -346,8 +346,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Adding dynamic 'build' commands based on the loaded solution tree.
         for proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
-            self._add_build_command(project=proj, configuration=cfg, description=cmd['description'],
-                                    command_name=cmd['name'])
+            self._add_dynamic_build_command(project=proj, configuration=cfg, description=cmd['description'],
+                                            command_name=cmd['name'])
 
         # Adding dynamically registered CLI commands.
         self._add_dynamic_cli_commands()
@@ -743,6 +743,26 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.warning("No dynamic commands loaded")
         return added_commands
 
+    def _add_dynamic_build_command(self, project: str, configuration: str, command_name: str,
+                                   description: Optional[str] = None):
+        """
+        Registers a user-friendly build command alias.
+        Here we create a new cmd2 command alias that triggers a specific build configuration
+        for the given solution, project, and configuration name.
+        Args:
+            project (str): The project name within the solution.
+            configuration (str): The specific build configuration.
+            command_name (str): The alias command name to be added.
+            description (Optional[str]): A description of the command to be shown in help.
+                                                 Defaults to a generated description if not provided.
+        """
+        target_command = f"build {project}.{configuration}"
+        if not description:
+            description = f"Build {project}/{configuration}"
+
+        self._add_alias_with_description(alias_name=command_name, description=description,
+                                         target_command=target_command, cmd_type=AutoForgCommandType.BUILD)
+
     def _build_executable_index(self) -> None:
         """
         Scan all directories in the search path and populate self.executable_db
@@ -845,60 +865,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return prompt_text
 
-    def gather_path_matches(self, text: str, only_dirs: bool = False) -> list[Completion]:
-        """
-        Generate Completion objects for filesystem path suggestions.
-        - Supports directory-only filtering
-        - Uses display and display_meta for UI clarity
-        - Prevents repeated completions of the same folder
-        """
-        raw_text = text.strip().strip('"').strip("'")
-
-        # Not normalizing here; we want raw trailing slashes to preserve user intent
-        dirname, partial = os.path.split(raw_text)
-        dirname = dirname or "."
-
-        # Normalize separately for safe comparisons
-        normalized_input_path = ""
-        with suppress(Exception):
-            normalized_input_path = os.path.normpath(os.path.expanduser(self._variables.expand(raw_text)))
-
-        try:
-            entries = os.listdir(os.path.expanduser(dirname))
-        except OSError:
-            return []
-
-        completions = []
-        for entry in entries:
-            full_path = os.path.join(os.path.expanduser(dirname), entry)
-
-            try:
-                is_dir = os.path.isdir(full_path)
-                is_exec = os.path.isfile(full_path) and os.access(full_path, os.X_OK)
-            except FileNotFoundError:
-                continue
-
-            if only_dirs and not is_dir:
-                continue
-            if partial and not entry.startswith(partial):
-                continue
-            if not partial and not (raw_text.endswith(os.sep) or raw_text == ""):
-                continue
-
-            try:
-                if os.path.samefile(os.path.normpath(full_path), normalized_input_path):
-                    continue
-            except FileNotFoundError:
-                continue
-
-            insertion = entry + (os.sep if is_dir else "")
-            display = insertion
-            style = "class:executable" if is_exec else ("class:directory" if is_dir else "class:file")
-
-            completions.append(Completion(text=insertion, start_position=-len(partial), display=display, style=style))
-
-        return sorted(completions, key=lambda c: c.text.lower())
-
     def _inject_generic_path_complete_hooks(self):
         """
         Automatically injects generic path completer methods for CLI commands that support
@@ -953,6 +919,60 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Bind the generated completer to `self` under the expected name (e.g., complete_cd)
             setattr(self, completer_name, MethodType(make_completer(cmd, only_dirs), self))
 
+    def gather_path_matches(self, text: str, only_dirs: bool = False) -> list[Completion]:
+        """
+        Generate Completion objects for filesystem path suggestions.
+        - Supports directory-only filtering
+        - Uses display and display_meta for UI clarity
+        - Prevents repeated completions of the same folder
+        """
+        raw_text = text.strip().strip('"').strip("'")
+
+        # Not normalizing here; we want raw trailing slashes to preserve user intent
+        dirname, partial = os.path.split(raw_text)
+        dirname = dirname or "."
+
+        # Normalize separately for safe comparisons
+        normalized_input_path = ""
+        with suppress(Exception):
+            normalized_input_path = os.path.normpath(os.path.expanduser(self._variables.expand(raw_text)))
+
+        try:
+            entries = os.listdir(os.path.expanduser(dirname))
+        except OSError:
+            return []
+
+        completions = []
+        for entry in entries:
+            full_path = os.path.join(os.path.expanduser(dirname), entry)
+
+            try:
+                is_dir = os.path.isdir(full_path)
+                is_exec = os.path.isfile(full_path) and os.access(full_path, os.X_OK)
+            except FileNotFoundError:
+                continue
+
+            if only_dirs and not is_dir:
+                continue
+            if partial and not entry.startswith(partial):
+                continue
+            if not partial and not (raw_text.endswith(os.sep) or raw_text == ""):
+                continue
+
+            try:
+                if os.path.samefile(os.path.normpath(full_path), normalized_input_path):
+                    continue
+            except FileNotFoundError:
+                continue
+
+            insertion = entry + (os.sep if is_dir else "")
+            display = insertion
+            style = "class:executable" if is_exec else ("class:directory" if is_dir else "class:file")
+
+            completions.append(Completion(text=insertion, start_position=-len(partial), display=display, style=style))
+
+        return sorted(completions, key=lambda c: c.text.lower())
+
     def complete_build(self, text: str, line: str, begin_idx: int, _end_idx: int) -> list[Completion]:
         """
         Completes the 'build' command in progressive dot-separated segments:
@@ -996,17 +1016,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.debug(f"Auto-completion error in complete_build(): {completer_error}")
             return []
 
-    def set_alias(self, alias_name: str, alias_definition: Optional[str]) -> None:
+    # noinspection PyMethodMayBeStatic
+    def do_version(self, _arg: str):
         """
-        Add or delete an alias.
-        Args:
-            alias_name (str): The alias name.
-            alias_definition (Optional[str]): The alias definition; if None, the alias will be deleted.
+        Show package version information.
         """
-        if alias_definition is None:
-            self.aliases.pop(alias_name, None)  # delete safely if exists
-        else:
-            self.aliases[alias_name] = alias_definition
+        print(f"\n{PROJECT_NAME} ver. {PROJECT_VERSION}")
+        print(f"cmd2: {cmd2.__version__}\n")
 
     def do_echo(self, arg: str):
         """
@@ -1104,26 +1120,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 self._tool_box.show_help_file(self._help_md_file)
 
         return None
-
-    def _add_build_command(self, project: str, configuration: str, command_name: str,
-                           description: Optional[str] = None):
-        """
-        Registers a user-friendly build command alias.
-        Here we create a new cmd2 command alias that triggers a specific build configuration
-        for the given solution, project, and configuration name.
-        Args:
-            project (str): The project name within the solution.
-            configuration (str): The specific build configuration.
-            command_name (str): The alias command name to be added.
-            description (Optional[str]): A description of the command to be shown in help.
-                                                 Defaults to a generated description if not provided.
-        """
-        target_command = f"build {project}.{configuration}"
-        if not description:
-            description = f"Build {project}/{configuration}"
-
-        self._add_alias_with_description(alias_name=command_name, description=description,
-                                         target_command=target_command, cmd_type=AutoForgCommandType.BUILD)
 
     def do_build(self, arg: str):
         """

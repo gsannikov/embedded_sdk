@@ -474,7 +474,7 @@ def auto_forge_main() -> Optional[int]:
                            help="Name of known command which will be executed")
 
         # Other optional configuration arguments
-        parser.add_argument("-d","--remote-debugging", type=str, required=False,
+        parser.add_argument("-d", "--remote-debugging", type=str, required=False,
                             help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)")
 
         parser.add_argument("--proxy-server", type=str, required=False,
