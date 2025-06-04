@@ -25,7 +25,7 @@ from auto_forge import (CLICommandInterface, CoreProcessor, CoreVariables, AutoF
 
 AUTO_FORGE_MODULE_NAME = "relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
-AUTO_FORGE_MODULE_VERSION = "1.1"
+AUTO_FORGE_MODULE_VERSION = "1.2"
 
 
 @dataclass
@@ -169,10 +169,9 @@ class RelocatorCommand(CLICommandInterface):
         self._relocated_folders = None
         self._relocate_folders_count = 0
 
-    @staticmethod
-    def _copy_root_files(source: str, destination_path: str, verbose: bool = False) -> int:
+    def _deploy_files(self, source: str, destination_path: str, verbose: bool = False) -> int:
         """
-        Copy files starting with 'root.' from source_path to destination_path.
+        Deploy files starting with 'root.' from source_path to destination_path.
 
         - If source_path is a ZIP file, it is extracted to a temporary directory and files are taken from there.
         - Files named 'root.*' are handled using these rules:
@@ -186,28 +185,31 @@ class RelocatorCommand(CLICommandInterface):
             root.cmake.n_libs.logger.CMakeLists.txt -> destination_path/cmake/n_libs/logger/CMakeLists.txt
         """
         is_zip = zipfile.is_zipfile(source)
+        workspace_path = self._variables.get(key="PROJ_WORKSPACE")
+        total_deployed = 0
         temp_dir = None
+
+        # Allow console logger if verbose was specified
+        if verbose:
+            AutoLogger().set_output_enabled(logger=self._logger, state=True)
 
         try:
             if is_zip:
                 temp_dir = tempfile.TemporaryDirectory()
-                if verbose:
-                    print(f"Extracting ZIP archive: {source} -> {temp_dir.name}")
+                self._logger.debug(f"Extracting ZIP deploy archive: {os.path.basename(source)} -> {temp_dir.name}")
                 with zipfile.ZipFile(source, 'r') as zip_ref:
                     zip_ref.extractall(temp_dir.name)
                 working_path = temp_dir.name
             else:
                 working_path = source
 
-            total_copied = 0
             for entry in os.listdir(working_path):
                 if not entry.startswith("root."):
                     continue
 
                 parts = entry.split(".")[1:]  # Remove 'root'
                 if len(parts) < 2:
-                    if verbose:
-                        print(f"Skipping malformed filename: {entry}")
+                    self._logger.warning(f"Skipping malformed deployed filename: '{entry}'")
                     continue
 
                 filename = ".".join(parts[-2:])  # e.g., 'build.sh'
@@ -226,17 +228,20 @@ class RelocatorCommand(CLICommandInterface):
                     current_mode = os.stat(dest_path).st_mode
                     os.chmod(dest_path, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
-                total_copied += 1
-                if verbose:
-                    print(f"Copied: {src_path} -> {dest_path}")
+                total_deployed += 1
+                relative_dest_path = os.path.relpath(dest_path, workspace_path)
+                self._logger.debug(f"Deploying: '{os.path.basename(src_path)}' to '{relative_dest_path}'")
 
-            return total_copied
+            print(f"Done, total {total_deployed} files ware deployed.\n")
+            return total_deployed
 
         except Exception as copy_error:
-            raise RuntimeError(f"Copy exception: {copy_error}")
+            raise RuntimeError(f"Deploy exception: {copy_error}")
         finally:
             if temp_dir:
                 temp_dir.cleanup()
+            if verbose:  # Shutdown console logger
+                AutoLogger().set_output_enabled(logger=self._logger, state=False)
 
     def _load_recipe(self, recipe_file: str, source_path: str, destination_path: str) -> None:
         """
@@ -383,6 +388,7 @@ class RelocatorCommand(CLICommandInterface):
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
 
+            # Allow console logger if verbose was specified
             if verbose:
                 AutoLogger().set_output_enabled(logger=self._logger, state=True)
 
@@ -499,8 +505,8 @@ class RelocatorCommand(CLICommandInterface):
                                           destination_path=args.destination,
                                           verbose=args.verbose)
         elif args.root_copy:
-            return_value = self._copy_root_files(source=args.source_path, destination_path=args.destination,
-                                                 verbose=args.verbose)
+            return_value = self._deploy_files(source=args.source_path, destination_path=args.destination,
+                                              verbose=args.verbose)
         else:
             return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 

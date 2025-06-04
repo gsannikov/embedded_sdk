@@ -368,7 +368,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Export dynamic md based help file
-        self._help_md_file = self._export_help_file()
+        self._help_md_file = self._export_help_file(exported_file=f"$BUILD_LOGS/help.md")
 
     def _init_history_file(self) -> bool:
         """
@@ -1075,6 +1075,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         except Exception as change_dir_error:
             self.perror(f"cd: {change_dir_error}")
             self.last_result = 1  # Set return code explicitly
+
+    def do_motd(self, _arg: Any) -> None:
+        """
+        Display the AutoForge greeting file ("motd").
+        This is the equivalent of a classic "message of the day" - a friendly introduction
+        for developers and CI engineers.
+        """
+        self._tool_box.show_help_file("motd/motd.md")
 
     def do_help(self, arg: Any) -> None:
         """

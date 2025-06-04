@@ -42,30 +42,6 @@
             }
         },
         {
-            "description": "Looking for 'make'",
-            "method": "validate_prerequisite",
-            "arguments": {
-                "command": "make",
-                "arguments": "--version"
-            }
-        },
-        {
-            "description": "Looking for 'gcc'",
-            "method": "validate_prerequisite",
-            "arguments": {
-                "command": "gcc",
-                "arguments": "--version"
-            }
-        },
-        {
-            "description": "Looking for 'g++'",
-            "method": "validate_prerequisite",
-            "arguments": {
-                "command": "g++",
-                "arguments": "--version"
-            }
-        },
-        {
             "description": "Getting git access token using 'dt'",
             "method": "execute_shell_command",
             "status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",

@@ -107,9 +107,7 @@
                                 "-DCMAKE_C_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>gcc",
                                 "-DCMAKE_CXX_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>g++",
                                 "-DCMAKE_SYSROOT=<$ref_tool_sysroot>",
-                                "-DCMAKE_FIND_ROOT_PATH=<$ref_tool_sysroot>",
                                 "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
-                                "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY",
                                 "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
                             ]
                         },
