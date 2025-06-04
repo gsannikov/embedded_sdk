@@ -18,15 +18,14 @@ import sys
 from pathlib import Path
 from typing import Optional, Any
 
-# AutoForge imports
-from colorama import Fore, Style
-
 # Local application imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
                         PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
                         AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
                         Registry, ToolBox, SystemInfo)
+# AutoForge imports
+from colorama import Fore, Style
 
 
 class AutoForge(CoreModuleInterface):
@@ -388,8 +387,10 @@ class AutoForge(CoreModuleInterface):
                             solution_destination_path = os.path.join(scripts_path, 'solution')
                             env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
 
-                            self._tool_box.cp(pattern=f'{self._solution_package_path}/*.jsonc',
-                                              dest_dir=f'{solution_destination_path}')
+                            # Move all project specific jsons along with any zip files to the destination path
+                            self._tool_box.cp(
+                                pattern=f'{self._solution_package_path}/*.json*,{self._solution_package_path}/*.zip',
+                                dest_dir=f'{solution_destination_path}')
 
                             # Place the build system default initiator script
                             self._tool_box.cp(pattern=f'{env_starter_file.__str__()}',
