@@ -156,9 +156,9 @@ class CoreEnvironment(CoreModuleInterface):
         """
         if venv_path:
             venv_path = self._variables.expand(key=venv_path.strip())
-            python_executable = os.path.join(venv_path, 'bin', 'python')
+            python_executable = os.path.join(venv_path, 'bin', 'python3')
         else:
-            python_executable = shutil.which("python")
+            python_executable = shutil.which("python3")
 
         if not python_executable or not os.path.exists(python_executable):
             raise RuntimeError(f"Python executable not found at: '{python_executable}'")
