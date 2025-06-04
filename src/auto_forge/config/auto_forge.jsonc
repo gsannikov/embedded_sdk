@@ -42,6 +42,7 @@
     "complete_while_typing": true,                          // Controls Prompt toolkit completion speed
     "prompt_history_file": "$AF_BASE/.auto_forge.history",
     "prompt_max_completion_results": 100,
+    "git_token_environment_var": "GITHUB_TOKEN",
 
     // Expected location of solution files in an installed environment.
     // This variable is read during an early initialization stage, please avoid using any local variables

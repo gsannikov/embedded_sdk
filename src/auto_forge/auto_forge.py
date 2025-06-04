@@ -239,7 +239,11 @@ class AutoForge(CoreModuleInterface):
                     raise RuntimeError(f"the specified URL '{solution_url}' does not point to a valid path")
                 else:
                     self._solution_url = solution_url
-                    self._git_token = kwargs.get("git_token", None)
+                    self._git_token = kwargs.get("git_token")
+                    if not self._git_token:
+                        # If we have 'git_token_environment_var' use to try and get the token from the user environment
+                        git_token_var_name = self._package_configuration_data.get("git_token_environment_var")
+                        self._git_token = os.environ.get(git_token_var_name) if git_token_var_name else None
 
         def _validate_network_options():
 
