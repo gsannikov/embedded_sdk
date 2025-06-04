@@ -32,6 +32,22 @@ curl -sSL \
   | bash -s -- -n demo -w ws -s create_environment_sequence -p https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/btop
 ```
 
+The following link installs the 'userspace' solution.
+To use it, copy and paste the command below into your terminal.
+
+```bash
+curl -sSL   -H "Cache-Control: no-store" \
+  "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh" \
+   | bash -s -- -n userspace -w ws -s create_environment_sequence -p https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/userspace
+```
+### Installing CMake and Ninja on Fedora
+
+To install both CMake and Ninja, run:
+
+```bash
+sudo dnf install cmake ninja-build
+```
+
 ### Installing the package.
 
 To install the latest AutoForge package use the following command:
