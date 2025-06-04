@@ -34,15 +34,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
-# Third-party
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
+# Third-party
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -1317,6 +1316,9 @@ class CoreEnvironment(CoreModuleInterface):
 
         if url is None:
             raise RuntimeError(f"URL '{url}' is not a valid URL")
+
+        if token:
+            self._logger.debug(f"Using GIT Token {token}")
 
         # We're getting a pth so the URL is expected to point to git path
         is_url_path = self._tool_box.is_url_path(url)
