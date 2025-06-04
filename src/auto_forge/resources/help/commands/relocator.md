@@ -21,28 +21,37 @@ The configuration file consists of two main sections:
 
 ```jsonc
 {
-  "defaults": {
-    "delete_destination_on_start": true,
-    "full_debug": true,
-    "file_types": ["c", "h"],
-    "create_grave_yard": true,
-    "max_copy_depth": 3,
-    "create_empty_cmake_file": true
-  },
-  "folders": [
-    {
-      "description": "Management related modules",
-      "source": "libs/lib_mac",
-      "destination": "mng/lib_mac",
-      "file_types": ["c", "h", "txt"]
+    "defaults": {
+        "delete_destination_on_start": true,
+        "full_debug": true,
+        "file_types": [
+            "c",
+            "h"
+        ],
+        "create_grave_yard": true,
+        "max_copy_depth": 3,
+        "create_empty_cmake_file": true
     },
-    {
-      "description": "Management related modules",
-      "source": "mev_i2c_app",
-      "destination": "mng/i2c_app",
-      "file_types": ["c"]
-    }
-  ]
+    "folders": [
+        {
+            "description": "Management related modules",
+            "source": "libs/lib_mac",
+            "destination": "mng/lib_mac",
+            "file_types": [
+                "c",
+                "h",
+                "txt"
+            ]
+        },
+        {
+            "description": "Management related modules",
+            "source": "mev_i2c_app",
+            "destination": "mng/i2c_app",
+            "file_types": [
+                "c"
+            ]
+        }
+    ]
 }
 ```
 

@@ -1,4 +1,4 @@
-# GCC x86_64 Native Toolchain Help
+# GCC x86_64 Native Toolchain Guide
 
 This guide explains how to install and troubleshoot the native x64 GCC toolchain on Linux systems.
 

@@ -119,12 +119,9 @@ Fix:
 ```cmake
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
-
 set(CMAKE_C_COMPILER   aarch64-none-linux-gnu-gcc)
 set(CMAKE_CXX_COMPILER aarch64-none-linux-gnu-g++)
-
 set(CMAKE_FIND_ROOT_PATH /opt/arm-gnu-toolchain/current/aarch64-none-linux-gnu)
-
 set(CMAKE_SYSROOT /opt/arm-gnu-toolchain/current/aarch64-none-linux-gnu)
 ```
 

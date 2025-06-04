@@ -6,8 +6,7 @@ The AutoForge Solution Configuration File defines a structured, modular, and dyn
 and hardware build environments. Inspired by systems like Microsoft Visual Studio, it allows multiple projects and
 configurations to coexist under a single top-level solution.
 
-This document explains how to author a solution file, reference other elements dynamically, and use conditional logic to
-create flexible, maintainable build definitions.
+This document explains how to author a solution file, reference other elements dynamically to create flexible, maintainable build definitions.
 
 ---
 
@@ -104,42 +103,6 @@ Configurations can inherit from others using the `data` key.
 ```
 
 The system merges the referenced configuration and applies any overrides.
-
----
-
-## Conditional Logic
-
-The configuration supports conditional blocks and inline expressions for context-sensitive behavior.
-
-### Inline Ternary
-
-```jsonc
-"tool_prefix": "<$if_env:USE_CUSTOM_TOOLCHAIN ? custom- : default->"
-```
-
-### Block Conditional
-
-```jsonc
-"tool_config": "<$if_env:USE_CUSTOM_TOOLCHAIN>"
-  {
-    "tool_prefix": "custom-",
-    "path": "<$if_env:DEBUG>/custom/debug<$else>/custom/release<$endif>",
-    "features": ["fast", "portable"]
-  }
-"<$else>"
-  {
-    "tool_prefix": "default-",
-    "path": "/usr/bin",
-    "features": ["stable"]
-  }
-"<$endif>"
-```
-
-### Conditional Evaluation Types
-
-- `env:VAR` — Check if an environment variable is set
-- `sh:command` — Check result of a shell command
-- `file:/path` — Check file existence
 
 ---
 
