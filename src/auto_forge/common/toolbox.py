@@ -38,7 +38,6 @@ from urllib.parse import ParseResult, unquote, urlparse
 
 # Third-party
 import psutil
-
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
                         AutoForgeModuleType, CoreModuleInterface, MethodLocationType, XYType, )
@@ -1368,20 +1367,27 @@ class ToolBox(CoreModuleInterface):
         return doc.strip()
 
     @staticmethod
-    def cp(pattern: str, dest_dir: str):
+    def cp(pattern: Union[str, list[str]], dest_dir: str):
         """
-        Copies files matching a wildcard pattern to the destination directory.\
+        Copies files matching one or more wildcard patterns to the destination directory.
         If the destination directory does not exist, it will be created.
         Metadata such as timestamps and permissions are preserved.
 
         Args:
-            pattern (str): Wildcard pattern (e.g. 'a/*.txt', 'a/*.*').
+            pattern (Union[str, List[str]]): Wildcard pattern(s) (e.g. '*.txt' or ['*.json', '*.zip']).
             dest_dir (str): Target directory to copy files into.
         """
-        # Expand the pattern into a list of matching files
-        matched_files = glob.glob(pattern)
+        if isinstance(pattern, str):
+            patterns = [p.strip() for p in pattern.split(",")]
+        else:
+            patterns = pattern
+
+        matched_files = []
+        for pat in patterns:
+            matched_files.extend(glob.glob(pat))
+
         if not matched_files:
-            raise FileNotFoundError(f"no files match pattern: {pattern}")
+            raise FileNotFoundError(f"no files match pattern(s): {patterns}")
 
         os.makedirs(dest_dir, exist_ok=True)
 
