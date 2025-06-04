@@ -21,7 +21,7 @@ from typing import Any, Optional, Union
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CLICommandInterface, CoreModuleInterface,
-                        BuilderInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
+                        BuilderRunnerInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Loader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load supported modules"
@@ -51,7 +51,7 @@ class CoreLoader(CoreModuleInterface):
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {CLICommandInterface: "CLICommandInterface",
-                                      BuilderInterface: "BuilderInterface", }
+                                      BuilderRunnerInterface: "BuilderRunnerInterface", }
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -64,17 +64,13 @@ class CoreLoader(CoreModuleInterface):
             name (str): The name of the registered module.
             expected_type (AutoForgeModuleType): The expected module type (e.g., BUILDER, CLI_COMMAND).
             required_method (str): The method the instance must implement (e.g., 'build', 'execute').
-
         Returns:
             Any: The validated class instance.
-
-        Raises:
-            RuntimeError: If lookup fails, type mismatch, or method is missing.
         """
 
         module_record = self._registry.get_module_record_by_name(module_name=name.strip())
         if module_record is None:
-            raise RuntimeError(f"module '{name}' is not recognized")
+            raise RuntimeError(f"'{name}' was not recognized as a registered module")
 
         module_type = module_record.get("auto_forge_module_type", AutoForgeModuleType.UNKNOWN)
         if module_type is not expected_type:
@@ -143,7 +139,7 @@ class CoreLoader(CoreModuleInterface):
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
                         if (isinstance(attr, type) and issubclass(attr, tuple(
-                            self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                                self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 
@@ -242,7 +238,7 @@ class CoreLoader(CoreModuleInterface):
         """
         with suppress(Exception):
             class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.CLI_COMMAND,
-                required_method='get_known_args')
+                                                               required_method='get_known_args')
             if class_instance:
                 return class_instance.get_known_args(raise_exceptions=False)
 

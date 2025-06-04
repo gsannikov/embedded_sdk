@@ -10,17 +10,18 @@ Description:
 
 import inspect
 import logging
+import os
 import re
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from contextlib import suppress
-from typing import Optional
+from typing import Optional, Tuple
 
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType
+from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType, CommandResultType)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 from auto_forge.common.toolbox import ToolBox
 
@@ -28,29 +29,66 @@ AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
 
 
-class BuilderToolChainInterface(ABC):
+class BuilderToolChain:
     """
     Abstract base class for toolchain definitions.
     Implementing classes must provide 'validate()' to check structural and semantic correctness.
     Common resolution logic is built-in.
     """
 
-    def __init__(self, toolchain: dict[str, object], builder_instance: Optional["BuilderInterface"]) -> None:
+    def __init__(self, toolchain: dict[str, object], builder_instance: Optional["BuilderRunnerInterface"]) -> None:
         self._toolchain = toolchain
         self._resolved_tools: dict[str, str] = {}
         self._tool_box = ToolBox().get_instance()
         self._builder_instance = builder_instance
 
-        # Delegate validation to concrete class
-        self.validate()
+    def validate(self, show_help_on_error: bool = False) -> Optional[bool]:
+        """
+        Validates the toolchain structure and required tools specified by the solution.
+        For each tool:
+          - Attempts to resolve the binary using the defined path.
+          - Confirms the version requirement is met.
+          - Optionally shows help (Markdown-rendered) if validation fails.
+        Args:
+            show_help_on_error (bool): Show help message if validation fails.
+        Return:
+            bool: True if validation passes, otherwise an exception is raised.
+        """
+        required_keys = {"name", "platform", "architecture", "build_system", "required_tools"}
+        missing = required_keys - self._toolchain.keys()
+        if missing:
+            raise ValueError(f"missing top-level toolchain keys: {missing}")
 
-    @abstractmethod
-    def validate(self) -> None:
-        """
-        Perform structural and semantic validation of the toolchain.
-        Must populate self._resolved_tools with valid tools or raise an exception.
-        """
-        raise NotImplementedError("must implement 'validate'")
+        tools = self._toolchain["required_tools"]
+        if not isinstance(tools, dict) or not tools:
+            raise ValueError("'required_tools' must be a non-empty dictionary")
+
+        for name, definition in tools.items():
+            if not isinstance(definition, dict):
+                raise ValueError(f"Tool '{name}' definition must be a dictionary")
+
+            tool_path = definition.get("path")
+            version_expr = definition.get("version")
+            help_path = definition.get("help")
+
+            if not tool_path or not version_expr:
+                raise ValueError(f"toolchain element '{tool_path}' must define 'path' and 'version' fields")
+
+            resolved_t_tool_path = self._resolve_tool([tool_path], version_expr)
+            if not resolved_t_tool_path:
+                # If we have to auto show help
+                if show_help_on_error:
+                    if help_path:
+                        if self._tool_box.show_help_file(help_path) != 0:
+                            self._builder_instance.print_message(
+                                message=f"Error displaying help file '{help_path}' see log for details",
+                                log_level=logging.WARNING)
+                # Break the build
+                raise RuntimeError(f"missing toolchain component: {name}")
+
+            self._resolved_tools[name] = resolved_t_tool_path
+
+        return True
 
     def get_tool(self, tool_name: str) -> Optional[str]:
         """
@@ -69,40 +107,70 @@ class BuilderToolChainInterface(ABC):
 
     def _resolve_tool(self, candidates: list[str], version_expr: str) -> Optional[str]:
         """
-        Attempts to find a binary from the candidates list that meets the version requirement.
+        Attempts to locate a binary from the provided list of candidates that satisfies the required version expression.
+        Args:
+            candidates: A list of binary names or absolute paths to check.
+            version_expr: A version requirement string (e.g., ">=3.2").
+        Returns:
+            The resolved binary path if found and version is valid, otherwise None.
         """
         for binary in candidates:
-            path = shutil.which(binary) if not binary.startswith("/") else binary
-            if path and self._version_ok(path, version_expr):
-                return path
+            path = binary if os.path.isabs(binary) else shutil.which(binary)
+
+            if not path:
+                self._builder_instance.print_message(
+                    message=f"Toolchain item '{binary}' not found.",
+                    log_level=logging.ERROR
+                )
+                continue
+
+            version_ok, detected_version = self._version_ok(path, version_expr)
+            if not version_ok:
+                base_name = os.path.basename(path)
+                if detected_version:
+                    msg = (
+                        f"Toolchain item '{base_name}' version {detected_version} "
+                        f"does not satisfy required {version_expr}."
+                    )
+                else:
+                    msg = f"Toolchain item '{base_name}' version could not be determined."
+                self._builder_instance.print_message(message=msg, log_level=logging.ERROR)
+                continue
+            return path
         return None
 
     @staticmethod
-    def _version_ok(binary_path: str, version_expr: str) -> bool:
+    def _version_ok(binary_path: str, version_expr: str) -> Tuple[bool, Optional[str]]:
         """
-        Checks if the binary at binary_path meets the version constraint (e.g., ">=10.0").
-        Returns False if version can't be parsed or the check fails.
+        Checks whether the binary at binary_path satisfies the version constraint (e.g., ">=10.0").
+        Returns:
+            A tuple of (is_satisfied: bool, detected_version: str or None).
         """
         with suppress(Exception):
-            output = subprocess.check_output([binary_path, "--version"], stderr=subprocess.STDOUT, text=True)
+            output = subprocess.check_output(
+                [binary_path, "--version"],
+                stderr=subprocess.STDOUT,
+                text=True
+            )
             match = re.search(r"\d+(\.\d+)+", output)
             if not match:
-                return False
-            current_version = tuple(map(int, match.group(0).split(".")))
+                return False, None
+
+            detected_version_str = match.group(0)
+            detected_version = tuple(map(int, detected_version_str.split(".")))
             required_version = tuple(map(int, version_expr[2:].split(".")))
 
             if version_expr.startswith(">="):
-                return current_version >= required_version
+                return detected_version >= required_version, detected_version_str
             elif version_expr.startswith(">"):
-                return current_version > required_version
+                return detected_version > required_version, detected_version_str
             elif version_expr.startswith("=="):
-                return current_version == required_version
-            return False
+                return detected_version == required_version, detected_version_str
 
-        return False
+        return False, None
 
 
-class BuilderInterface(ABC):
+class BuilderRunnerInterface(ABC):
     """
     Abstract base class for builder instances that can be dynamically registered and executed by AutoForge.
     """
@@ -165,6 +233,28 @@ class BuilderInterface(ABC):
             raise RuntimeError('command info not initialized, make sure call set_info() first')
 
         return self._module_info
+
+    def print_build_results(self, results: Optional[CommandResultType], raise_exception: bool = True) -> Optional[int]:
+        """
+        Handle and report the result of a build command.
+        Args:
+            results: The command result object containing return code and optional response.
+            raise_exception: Whether to raise an exception if the build failed.
+        Returns:
+            The return code if results are provided; otherwise, None.
+        """
+        if results is None:
+            return 1  # Error
+
+        if results.return_code != 0:
+            self.print_message(message=f"Build failed with error code: {results.return_code}", log_level=logging.ERROR)
+            if results.response:
+                self.print_message(message=f"Build response: {results.response}", log_level=logging.ERROR)
+
+            if raise_exception:
+                raise RuntimeError(f"Build failed with return code: {results.return_code}")
+
+        return results.return_code
 
     def print_message(self, message: str, bare_text: bool = False, log_level: Optional[int] = logging.DEBUG) -> None:
         """

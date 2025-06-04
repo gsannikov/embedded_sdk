@@ -12,53 +12,73 @@ Note:
     This file must not be optimized and sorted by PyCharm,
     >> Order does matter here! <<
 """
-# @formatter:off
-from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_FILE, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH,
-                       PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH, PROJECT_BUILDERS_PATH,
-                       PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO,
-                       PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE)
+import traceback
 
-from auto_forge.logger import (AutoLogger, LogHandlersTypes)
+# Third-party
+import pyperclip
 
-# Basic types
-from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
-                                           AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
-                                           COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType, ExceptionGuru,
-                                           FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
-                                           MessageBoxType, MethodLocationType, ModuleInfoType, SignatureFieldType,
-                                           SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType, TerminalTeeStream,
-                                           ThreadGuru, ValidationMethodType, VariableFieldType, XYType,
-                                           SysInfoPackageManagerType, SysInfoLinuxDistroType)
+try:
 
-# Interfaces
-from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
-from auto_forge.core.interfaces.builder_interfcae import (BuilderInterface, BuilderToolChainInterface)
+    # Disable clipboard access to prevent pyperclip/cmd2 errors in WSL or headless environments
+    pyperclip.determine_clipboard()
+    pyperclip.set_clipboard("no")
 
-# Common modules
-from auto_forge.common.registry import Registry
-from auto_forge.common.toolbox import ToolBox
-from auto_forge.common.progress_tracker import ProgressTracker
-from auto_forge.common.pretty_json_printer import PrettyPrinter
-from auto_forge.common.system_info import SystemInfo
+    from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_FILE, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH,
+                           PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH, PROJECT_BUILDERS_PATH,
+                           PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO,
+                           PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE)
 
-# Core / common modules
-from auto_forge.core.processor import CoreProcessor
-from auto_forge.core.loader import CoreLoader
-from auto_forge.core.environment import CoreEnvironment
-from auto_forge.core.variables import CoreVariables
-from auto_forge.core.gui import CoreGUI
-from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
-from auto_forge.core.solution import CoreSolution
-from auto_forge.core.prompt import CorePrompt
+    from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
-# AutoForg main
-from auto_forge.auto_forge import auto_forge_main as main
-# @formatter:on
+    # Basic types
+    from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
+                                               AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
+                                               COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType,
+                                               ExceptionGuru,
+                                               FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
+                                               MessageBoxType, MethodLocationType, ModuleInfoType, SignatureFieldType,
+                                               SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType,
+                                               TerminalTeeStream,
+                                               ThreadGuru, ValidationMethodType, VariableFieldType, XYType,
+                                               SysInfoPackageManagerType, SysInfoLinuxDistroType)
+
+    # Interfaces
+    from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
+    from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
+    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
+
+    # Common modules
+    from auto_forge.common.registry import Registry
+    from auto_forge.common.toolbox import ToolBox
+    from auto_forge.common.progress_tracker import ProgressTracker
+    from auto_forge.common.pretty_json_printer import PrettyPrinter
+    from auto_forge.common.system_info import SystemInfo
+
+    # Core / common modules
+    from auto_forge.core.processor import CoreProcessor
+    from auto_forge.core.loader import CoreLoader
+    from auto_forge.core.environment import CoreEnvironment
+    from auto_forge.core.variables import CoreVariables
+    from auto_forge.core.gui import CoreGUI
+    from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
+    from auto_forge.core.solution import CoreSolution
+    from auto_forge.core.prompt import CorePrompt
+
+    # AutoForg main
+    from auto_forge.auto_forge import auto_forge_main as main
+
+
+except ImportError as import_error:
+    print(f"Critical Exception: failed to import: {import_error.name}")
+    traceback.print_exc()
+    raise import_error from import_error
+except Exception as exception:
+    print(f"Critical Unexpected error: {exception}")
+    raise exception from exception
 
 # Exported symbols
 __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
-           "BuilderInterface", "BuilderToolChainInterface", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
+           "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
            "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader",
            "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType",
            "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",

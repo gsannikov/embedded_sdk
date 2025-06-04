@@ -1,14 +1,14 @@
 """
-Script:         make_builder.py
+Script:         cmake_builder.py
 Author:         AutoForge Team
 
 Description:
-    A builder implementation tailored for handling Make-based build systems.
+    A builder implementation tailored for handling CMake-based builds, with or without Ninja.
     It provides the `_MakeToolChain` class, a concrete implementation of the `BuilderToolChainInterface`,
     which validates and resolves tools required for Make-driven workflows.
 
 Classes:
-    - _MakeToolChain: Validates and resolves required tools for Make-based toolchains.
+    - _CMakeToolChain: Validates and resolves required tools for Make-based toolchains.
 """
 
 import logging
@@ -24,17 +24,17 @@ from colorama import Fore, Style
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType,
                         CoreEnvironment, CorePrompt, )
 
-AUTO_FORGE_MODULE_NAME = "make"
-AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
+AUTO_FORGE_MODULE_NAME = "cmake"
+AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
-class MakeBuilder(BuilderRunnerInterface):
+class CMakeBuilder(BuilderRunnerInterface):
     """
-    Implementation of the BuilderRunnerInterface for Make-based builds.
-    This builder executes the 'make' command using a validated toolchain and configuration
+    Implementation of the BuilderInterface for CMake-based builds.
+    This builder executes the 'cmake'  or 'ninja' command using a validated toolchain and configuration
     provided by the surrounding build context. It is intended for use with projects that
-    define their build process via Makefiles.
+    define their build process via CMakeFiles.txt files.
     """
 
     def __init__(self, **_kwargs: Any):
@@ -49,6 +49,26 @@ class MakeBuilder(BuilderRunnerInterface):
         self._toolchain: Optional[BuilderToolChain] = None
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
+
+    @staticmethod
+    def _is_cmake_configuration_command(cmd: list[str]) -> bool:
+        """
+        Determine if the given command is a CMake configuration command (phase 1 of a two-phase build).
+
+        This identifies commands that:
+        - Use '-G', '-S', or '-B'
+        - Include any '-D' definitions (e.g., -DCMAKE_C_COMPILER)
+
+        These indicate the command is setting up a build system (typically generating build.ninja or Makefiles),
+        not executing the actual build (which is done by Ninja or `cmake --build`).
+        Returns:
+            True if this is a CMake configuration command, False otherwise.
+        """
+        return (
+                "cmake" in cmd[0]
+                and any(flag in cmd for flag in ("-G", "-S", "-B"))
+                or any(arg.startswith("-D") for arg in cmd)
+        )
 
     def _execute_build(  # noqa: C901
             self, build_profile: BuildProfileType) -> Optional[int]:
@@ -92,7 +112,8 @@ class MakeBuilder(BuilderRunnerInterface):
                                f"{Style.RESET_ALL}/{build_profile.config_name}")
 
         # Gets the exact compiler path from the toolchain class
-        build_command = self._toolchain.get_tool('make')
+        ninja_build_command = self._toolchain.get_tool('ninja')
+        build_command = self._toolchain.get_tool('cmake')
         self.print_message(f"Build of '{build_target_string}' for {architecture} starting...")
 
         # Process pre-build steps if specified
@@ -111,31 +132,54 @@ class MakeBuilder(BuilderRunnerInterface):
 
         if not build_path.is_dir():
             raise ValueError(f"build path is not a directory: '{build_path}'")
+        cmake_options = (
+            build_profile.tool_chain_data
+            .get("required_tools", {})
+            .get("cmake", {})
+            .get("options", [])
+        )
 
         compiler_options = config["compiler_options"]
         artifacts = config["artifacts"]
 
-        # Prepare the 'make' command line
-        command_line = [build_command, *compiler_options]
+        # Merge cmake specific options from the tool chain with the build configuration options into  single list
+        if cmake_options and compiler_options:
+            merged_options = cmake_options + compiler_options
+        else:
+            merged_options = cmake_options or compiler_options or []
 
-        # Execute
+        # Prepare the 'cmake' command line
+        command_line = [build_command, *merged_options]
+        is_config_step = self._is_cmake_configuration_command(cmd=command_line)
+
+        # Execute CMake, note that pending on the compilation options this could a single run or the first run
+        # out of 2 when building with Ninja.
         try:
             self.print_message(message=f"Executing build in '{execute_from}'")
             results = self._environment.execute_shell_command(command_and_args=command_line,
-                                                              echo_type=TerminalEchoType.SINGLE_LINE,
+                                                              echo_type=TerminalEchoType.LINE,
                                                               cwd=str(execute_from),
                                                               leading_text=build_profile.terminal_leading_text)
 
         except Exception as execution_error:
             raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
 
-        # Validate expected return code
-        if results.return_code != 0:
-            self.print_message(message=f"Build failed with error: {results.return_code}", log_level=logging.ERROR)
-            if results.response:
-                self.print_message(message=f"Build response: {results.response}", log_level=logging.ERROR)
+        # Validate CMaKE results
+        self.print_build_results(results=results, raise_exception=True)
 
-            raise RuntimeError(f"build returned unexpected result code: {results.return_code}")
+        # Check if the previous step was configuration and if so verify that we have Ninja
+        if is_config_step and ninja_build_command is not None:
+            try:
+                ninja_command_line = f"{ninja_build_command} -C {str(build_path)} -v"
+                results = self._environment.execute_shell_command(command_and_args=ninja_command_line,
+                                                                  echo_type=TerminalEchoType.LINE,
+                                                                  cwd=str(execute_from),
+                                                                  leading_text=build_profile.terminal_leading_text)
+            except Exception as execution_error:
+                raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
+
+            # Validate CMaKE results
+            self.print_build_results(results=results, raise_exception=True)
 
         # Process post build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
@@ -199,12 +243,14 @@ class MakeBuilder(BuilderRunnerInterface):
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.
         """
+        build_status = 0
 
         try:
             print()
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
-            build_status = self._execute_build(build_profile=build_profile)
+            if self._toolchain.validate():
+                build_status = self._execute_build(build_profile=build_profile)
 
         except Exception as build_error:
             self.print_message(message=f"{build_error}", log_level=logging.ERROR)

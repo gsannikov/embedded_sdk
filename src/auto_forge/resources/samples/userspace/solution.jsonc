@@ -38,22 +38,46 @@
             // Toolchains used by this solution
             "tool_chains": [
                 {
-                    "name": "x86 x64 Linux GCC Toolchain",
+                    "name": "Linaro AArch64 Cross Toolchain",
+                    // The following assumes that the Linaro AArch64 toolchain is available under the
+                    // AutoForge persistent path, typically located at '$HOME/.auto_forge'..
                     "platform": "linux",
-                    "architecture": "x86_64",
-                    "build_system": "make",
-                    "make_version": ">=3.16",
-                    "gcc_version": ">=10.0",
+                    "description": "https://releases.linaro.org/components/toolchain/binaries/7.1-2017.05/",
+                    "architecture": "aarch64",
+                    "build_system": "cmake",
+                    "tool_prefix": "aarch64-linux-gnu-",
+                    "tool_base_path": "$AF_TOOL_CHAINS/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu",
+                    "tool_bins_path": "<$ref_tool_base_path>/bin",
+                    "tool_sysroot": "<$ref_tool_base_path>/aarch64-linux-gnu/libc",
+                    // Sysroot is provided by Linaro
                     "required_tools": {
-                        "make": {
-                            "path": "make",
-                            "version": ">=3.16",
-                            "help": "builder/make.md"
+                        "cmake": {
+                            "path": "cmake",
+                            "version": ">=3.2",
+                            "help": "builder/cmake.md",
+                            "options": [
+                                "-G",
+                                "Ninja",
+                                "-DCMAKE_SYSTEM_NAME=Linux",
+                                "-DCMAKE_SYSTEM_PROCESSOR=aarch64",
+                                "-DCMAKE_C_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>gcc",
+                                "-DCMAKE_CXX_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>g++",
+                                "-DCMAKE_SYSROOT=<$ref_tool_sysroot>",
+                                "-DCMAKE_FIND_ROOT_PATH=<$ref_tool_sysroot>",
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY",
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
+                            ]
                         },
                         "gcc": {
-                            "path": "gcc",
-                            "version": ">=10.0",
-                            "help": "builder/gcc-x64.md"
+                            "path": "<$ref_tool_base_path>/bin/<$ref_tool_prefix>gcc",
+                            "version": ">=7.5",
+                            "help": "builder/arm_cross_gcc.md"
+                        },
+                        "ninja": {
+                            "path": "ninja",
+                            "version": ">=1.10",
+                            "help": "builder/ninja.md"
                         }
                     }
                 }
@@ -61,45 +85,56 @@
             // Projects
             "projects": [
                 {
-                    "name": "intel_x64",
-                    "description": "Intel x64 compilation of the userspavce project.",
-                    "tool_chain": "<$ref_solutions[].tool_chains[x86 x64 Linux GCC Toolchain]>",
+                    "name": "zephyr_build",
+                    "description": "ARM64 compilation of the userspace project.",
+                    "tool_chain": "<$ref_solutions[].tool_chains[Linaro AArch64 Cross Toolchain]>",
                     // Per-project configuration
                     "configurations": [
                         {
                             "name": "debug",
                             "menu_command": {
-                                "name": "busd",
-                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                                "name": "usd",
+                                "description": "Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
-                            "execute_from": "$SOURCE_BASE/userspace",
+                            "execute_from": "$SOURCE_BASE/userspace_cmake",
                             "compiler_options": [
-                                "BUILDDIR=<$ref_build_path>",
-                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
-                                "LDFLAGS=-ldl -pthread"
+                                "-S .",
+                                "-B <$ref_build_path>",
+                                "-DCMAKE_BUILD_TYPE=Debug",
+                                "-DMMG=1",
+                                "-DSOURCES_ROOT_PATH=<$ref_execute_from>",
+                                "-DDO_COMPILE_INFRA=1",
+                                "-DZEPHYR_BUILD=1",
+                                // Explicit debug flags
+                                "-DCMAKE_C_FLAGS_DEBUG=-O0 -g3 -ggdb",
+                                "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
                             ],
                             "artifacts": [
                                 "<$ref_build_path>/userspace"
                             ],
                             "pre_build_steps": {
                                 "clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
-                            },
-                            "post_build_steps": {
-                                "move artifacts": "!cp <$ref_execute_from>/bin/btop <$ref_artifacts[0]>"
                             }
                         },
                         {
                             "name": "release",
                             "data": "<$derived_from_solutions[].projects[].configurations[debug]>",
                             "menu_command": {
-                                "name": "busr",
-                                "description": "Build <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                                "name": "usr",
+                                "description": "Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "compiler_options": [
-                                "BUILDDIR=<$ref_build_path>",
-                                "EXTRA_CXXFLAGS=-I<$ref_build_path>",
-                                "LDFLAGS=-ldl -pthread"
+                                "-S .",
+                                "-B <$ref_build_path>",
+                                "-DCMAKE_BUILD_TYPE=Release",
+                                "-DMMG=1",
+                                "-DSOURCES_ROOT_PATH=<$ref_execute_from>",
+                                "-DDO_COMPILE_INFRA=1",
+                                "-DZEPHYR_BUILD=1",
+                                // Explicit release optimization flags
+                                "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG",
+                                "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
                             ]
                         }
                     ]

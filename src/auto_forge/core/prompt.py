@@ -1145,40 +1145,45 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         and toolchain data, the solution is queried to retrieve the relevant configuration.
         """
 
-        build_profile = BuildProfileType()
-        target = arg.strip()
+        try:
+            build_profile = BuildProfileType()
+            target = arg.strip()
 
-        if not target or "." not in target:
-            self.perror("Expected: <project>.<configuration>")
-            return
+            if not target or "." not in target:
+                self.perror("Expected: <project>.<configuration>")
+                return
 
-        parts = target.split(".")
-        if len(parts) != 2:
-            self.perror("Expected exactly 2 parts: <project>.<configuration>")
-            return
-        build_profile.solution_name = self._loaded_solution_name
-        build_profile.project_name, build_profile.config_name = parts
-        build_profile.build_dot_notation = (f"{build_profile.solution_name}."
-                                            f"{build_profile.project_name}.{build_profile.config_name}")
+            parts = target.split(".")
+            if len(parts) != 2:
+                self.perror("Expected exactly 2 parts: <project>.<configuration>")
+                return
+            build_profile.solution_name = self._loaded_solution_name
+            build_profile.project_name, build_profile.config_name = parts
+            build_profile.build_dot_notation = (f"{build_profile.solution_name}."
+                                                f"{build_profile.project_name}.{build_profile.config_name}")
 
-        # Fetch build configuration data from the solution
-        build_profile.config_data = self._solution.query_configurations(project_name=build_profile.project_name,
-                                                                        configuration_name=build_profile.config_name)
-        if build_profile.config_data:
-            project_data: Optional[dict[str, Any]] = (
-                self._solution.query_projects(project_name=build_profile.project_name))
-            if project_data:
-                build_profile.tool_chain_data = project_data.get("tool_chain")
-                build_profile.build_system = (
-                    build_profile.tool_chain_data.get("build_system")) if build_profile.tool_chain_data else None
+            # Fetch build configuration data from the solution
+            build_profile.config_data = self._solution.query_configurations(project_name=build_profile.project_name,
+                                                                            configuration_name=build_profile.config_name)
+            if build_profile.config_data:
+                project_data: Optional[dict[str, Any]] = (
+                    self._solution.query_projects(project_name=build_profile.project_name))
+                if project_data:
+                    build_profile.tool_chain_data = project_data.get("tool_chain")
+                    build_profile.build_system = (
+                        build_profile.tool_chain_data.get("build_system")) if build_profile.tool_chain_data else None
 
-        # The tool china field 'build_system' will be used to pick the registered builder for this specific solution branch.
-        if build_profile.build_system:
+            # The tool china field 'build_system' will be used to pick the registered builder for this specific solution branch.
+            if build_profile.build_system:
 
-            self._logger.debug(f"Building {build_profile.build_dot_notation}, using '{build_profile.build_system}'")
-            self._loader.execute_build(build_profile=build_profile)
-        else:
-            self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation};")
+                self._logger.debug(f"Building {build_profile.build_dot_notation}, using '{build_profile.build_system}'")
+                self._loader.execute_build(build_profile=build_profile)
+            else:
+                self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation};")
+
+        except Exception as build_error:
+            self.perror(f"Build Exception: {build_error}")
+            self._logger.exception(build_error)
 
     def default(self, statement: Statement) -> None:
         """
