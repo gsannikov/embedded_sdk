@@ -537,6 +537,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         try:
             if exported_file:
+                exported_file = self._variables.expand(exported_file)
                 output_path = Path(exported_file)
             else:
                 output_path = Path(self._tool_box.get_temp_filename())
