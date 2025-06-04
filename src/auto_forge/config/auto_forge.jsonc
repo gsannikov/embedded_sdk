@@ -7,7 +7,7 @@
 */
 
 {
-	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     // List of variable names that must be defined in the "variables" section.
     // These are considered critical for proper project configuration.
@@ -21,6 +21,7 @@
 
             ["AF_BASE",             "$HOME/.auto_forge",                        "AutoForge persistent directory"                                ],
             ["AF_BIN",              "$AF_BASE/bin",                             "AutoForge persistent binaries"                                 ],
+            ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",                     "AutoForge persistent tool-chains"                              ],
             ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                  "AutoForge persistent solution resources"                       ],
             ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                    "AutoForge persistent solution binaries"                        ],
             ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Solution root directory"                                       ],
@@ -90,9 +91,9 @@
         { "alias_name": "showsln",  "target_command": "sln -p",                            "description": "\uD83D\uDD0E Show resolved solution JSON",               "command_type": "UTILITY"  },
         { "alias_name": "allenv",   "target_command": "sln -e",                            "description": "\uD83D\uDD0E Show managed variables tables",             "command_type": "UTILITY"  },
         { "alias_name": "j",        "target_command": "sln -j",                            "description": "\uD83E\uDD8B JSON pretty viewer",                        "command_type": "SYSTEM"   },
-        { "alias_name": "ls",       "target_command": "lsd -g",                            "description": "\uD83D\uDDC4\uFE0F List files (fancy) using 'lsd'",      "command_type": "SYSTEM"   },
+        { "alias_name": "ls",       "target_command": "/bin/ls --color=auto -F",           "description": "\uD83D\uDDC4\uFE0F List (short) using built-in 'ls",     "command_type": "SYSTEM"   },
         { "alias_name": "ll",       "target_command": "/bin/ls -la --color=auto -F",       "description": "\uD83D\uDDC4\uFE0F List (long) using built-in 'ls'",     "command_type": "SYSTEM"   },
-        { "alias_name": "l",        "target_command": "/bin/ls --color=auto -F",           "description": "\uD83D\uDDC4\uFE0F List (short) using built-in 'ls",     "command_type": "SYSTEM"   },
+        { "alias_name": "l",        "target_command": "lsd -g",                            "description": "\uD83D\uDDC4\uFE0F List files (fancy) using 'lsd'",      "command_type": "SYSTEM"   },
         { "alias_name": "exit",     "target_command": "quit",                              "description": "Exit the shell",                                         "command_type": "SYSTEM",  "hidden": true },
         { "alias_name": "x",        "target_command": "quit",                              "description": "Exit the shell",                                         "command_type": "SYSTEM",  "hidden": true },
         { "alias_name": "q",        "target_command": "quit",                              "description": "Exit the shell",                                         "command_type": "SYSTEM",  "hidden": true },
