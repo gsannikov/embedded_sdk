@@ -1343,9 +1343,13 @@ class CoreEnvironment(CoreModuleInterface):
                 os.remove(destination_file_name)
 
         # Gets the files list
-        files: list = self.url_get(url=url, destination=None, proxy=proxy, token=token).extra_data
+        results = self.url_get(url=url, destination=None, proxy=proxy, token=token)
+        if results.return_code != 0 or results.extra_data is None:
+            raise RuntimeError("could not get path listing for remote URL")
+
+        files: list = results.extra_data
         if not isinstance(files, list):
-            raise RuntimeError("could not get listing for remote URL")
+            raise RuntimeError("path listing did not return a list")
 
         # Define temporary paths to work on
         destination_temp_path = self._tool_box.get_temp_pathname()
