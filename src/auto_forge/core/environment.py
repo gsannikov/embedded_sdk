@@ -32,7 +32,10 @@ from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, Tuple
+
+# Third-party
+from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
@@ -40,8 +43,6 @@ from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLo
                         ValidationMethodType, TerminalEchoType)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
-# Third-party
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -142,6 +143,32 @@ class CoreEnvironment(CoreModuleInterface):
         # If anything failed (file missing, parsing error), return None
         return None
 
+    @staticmethod
+    def _get_default_python_info() -> Optional[Tuple[str, str]]:
+        """
+        Returns the path and version of the default Python 3 interpreter if found.
+        Returns:
+            Optional[Tuple[str, str]]: (interpreter_path, version_string) or None if not found.
+        """
+        python_executable = shutil.which("python3")
+        if not python_executable:
+            return None
+
+        try:
+            result = subprocess.run(
+                [python_executable, "--version"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True
+            )
+            # Example output: "Python 3.9.18"
+            version_parts = result.stdout.strip().split()
+            if len(version_parts) == 2 and version_parts[0].lower() == "python":
+                major_minor = ".".join(version_parts[1].split(".")[:2])
+                return python_executable, major_minor
+        except (subprocess.SubprocessError, OSError):
+            pass
+
+        return None
+
     def _get_python_binary_path(self, venv_path: Optional[str] = None) -> Optional[str]:
         """
         Determines the path to the Python executable.
@@ -156,7 +183,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         if venv_path:
             venv_path = self._variables.expand(key=venv_path.strip())
-            python_executable = os.path.join(venv_path, 'bin', 'python3')
+            python_executable = os.path.join(venv_path, 'bin', 'python')
         else:
             python_executable = shutil.which("python3")
 
@@ -1043,49 +1070,46 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as decompress_error:
             raise decompress_error from decompress_error
 
-    def python_virtualenv_create(self, venv_path: str, python_version: Optional[str],
-                                 python_binary_path: Optional[str] = None) -> Optional[CommandResultType]:
+    def python_virtualenv_create(self, venv_path: str, python_version: Optional[str] = None) -> Optional[
+        CommandResultType]:
         """
-        Initialize a Python virtual environment using a specified Python interpreter.
+        Create a Python virtual environment using a specified or default Python interpreter.
         Args:
-            venv_path (str): The directory path where the virtual environment will be created.
-            python_version (str): The Python interpreter to use (e.g., '3', '3.9').
-            python_binary_path (Optional[str]): Optional explicit path to the Python binary.
+            venv_path (str): Destination directory for the virtual environment.
+            python_version (Optional[str]): Desired Python version (e.g., "3.9").
+                                            If not specified, the system default Python 3 interpreter is used.
         Returns:
-            Optional[CommandResultType]: A result object containing the command output and return code,
-            or None if an exception was raised.
+            Optional[CommandResultType]: Result object with command output and return code, or None on failure..
         """
         try:
-            expanded_path = self._variables.expand(key=venv_path)
+            venv_expanded_path = self._variables.expand(key=venv_path)
 
-            # Verify inputs
-            if python_binary_path is not None:
-                expanded_python_binary_path = self._variables.expand(key=python_binary_path)
-
-                self._tool_box.validate_path(expanded_python_binary_path)
-                python_binary = os.path.join(expanded_python_binary_path, f"python{python_version}")
+            if python_version is None:
+                default_info = self._get_default_python_info()
+                if not default_info:
+                    raise RuntimeError("Failed to locate default Python interpreter and version.")
+                python_binary, python_version = default_info
             else:
-                expanded_python_binary_path = None
-                python_binary = f"python{python_version}"
-
-            if not os.path.exists(python_binary):
-                python_binary = shutil.which(python_binary)
+                python_binary = shutil.which(f"python{python_version}")
                 if not python_binary:
-                    raise RuntimeError(f"Python binary version '{python_version}' could not be found")
+                    raise RuntimeError(f"Python interpreter for version '{python_version}' was not found.")
 
-            full_py_venv_path = self.path_create(expanded_path, erase_if_exist=True, project_path=True)
+            self._logger.debug(
+                f"Using Python '{python_binary}' (version {python_version}) to create venv at '{venv_expanded_path}'")
 
-            command = python_binary
-            arguments = f"-m venv {full_py_venv_path}"
-            results = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments),
-                cwd=expanded_python_binary_path)
+            created_venv_path = self.path_create(venv_expanded_path, erase_if_exist=True, project_path=True)
+            if created_venv_path is None:
+                raise RuntimeError(f"Could not create virtual environment path '{venv_expanded_path}'")
 
-            return results
+            command_and_args = self._flatten_command(
+                command=python_binary,
+                arguments=f"-m venv {created_venv_path}"
+            )
 
-        except Exception as py_venv_error:
-            raise Exception(
-                f"could not create virtual environment in '{venv_path}' {py_venv_error!s}") from py_venv_error
+            return self.execute_shell_command(command_and_args=command_and_args)
+
+        except Exception as py_error:
+            raise Exception(f"Failed to create virtual environment at '{venv_path}': {py_error}") from py_error
 
     def python_update_pip(self, venv_path: Optional[str] = None) -> Optional[CommandResultType]:
         """
