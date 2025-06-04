@@ -78,7 +78,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path
-        self._default_execution_time: float = 30.0  # Time allowed for executed shell command
+        self._default_execution_time: float = 60.0  # Time allowed for executed shell command
         self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
