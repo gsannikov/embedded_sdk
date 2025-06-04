@@ -846,7 +846,8 @@ class ToolBox(CoreModuleInterface):
             else:
                 raise ValueError(f"Unsupported archive format for file '{archive_path}'.")
         except Exception as decompress_error:
-            raise Exception(f"Failed to extract '{archive_path}': {decompress_error}") from decompress_error
+            raise Exception(
+                f"Failed to extract '{archive_path}' to '{destination_path}': {decompress_error}") from decompress_error
 
         return destination_path
 

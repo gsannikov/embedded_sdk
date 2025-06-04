@@ -317,7 +317,7 @@ class AutoForge(CoreModuleInterface):
                                                             proxy_host=self._proxy_server, token=self._git_token))
 
             if self._solution_package_file is not None and self._solution_package_path is None:
-                self._solution_package_path = ToolBox.uncompress_file(self._solution_package_file)
+                self._solution_package_path = ToolBox.uncompress_file(archive_path=self._solution_package_file)
 
             self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
 
