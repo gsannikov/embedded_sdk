@@ -120,6 +120,7 @@ class ProgressTracker:
             str: The formatted string ready for display.
         """
 
+        text = text.strip() if text is not None else ""  # Basic normalizing
         input_len = len(ToolBox.strip_ansi(text).strip())
 
         time_string = datetime.now().strftime("%H:%M:%S ") if self._add_time_prefix else ""
@@ -154,6 +155,7 @@ class ProgressTracker:
         if self._state != _TrackerState.PRE:
             return False
 
+        text = text.strip() if text is not None else ""  # Basic normalizing
         # Set default new line behaviour when not specified explicitly
         if new_line is None:
             new_line = self._default_new_line
@@ -184,6 +186,7 @@ class ProgressTracker:
         if self._state != _TrackerState.BODY:
             return False
 
+        text = text.strip() if text is not None else ""  # Basic normalizing
         current_time = time.time() * 1000  # Get current time in milliseconds
         if current_time - self._last_update_time < self._min_update_interval_ms:
             return False  # Exit if the minimum interval has not passed
@@ -216,23 +219,28 @@ class ProgressTracker:
         self._last_update_time = current_time
         return True
 
-    def set_result(self, text: str, status_code: Optional[int] = None) -> bool:
+    def set_result(self, text: str, status_code: Optional[int] = None, erase_line_to_end: bool = True) -> bool:
         """
         Sets the result message with an optional status code and decides whether to add a new line.
         Args:
             text (str): The result message to display.
             status_code (Optional[int]): The status code to determine message color.
+            erase_line_to_end (bool): Whether to erase the line to end, default st True.
         """
         if self._state != _TrackerState.BODY:
             return False
+
+        text = text.strip() if text is not None else ""  # Basic normalizing
 
         self._ansi_term.restore_cursor_position()
         color = Fore.GREEN if status_code == 0 else Fore.RED
         text = f"{color}{text}{Style.RESET_ALL}" if status_code is not None else text
 
         sys.stdout.write(text)
+        if erase_line_to_end:
+            self._ansi_term.erase_line_to_end()
+
         sys.stdout.flush()
-        self._ansi_term.erase_line_to_end()
         self._pre_text = None
         self._state = _TrackerState.PRE
 
@@ -264,7 +272,7 @@ class ProgressTracker:
         """ Flush stdout buffers and restore the curser """
         sys.stdout.write('\r')
         self._ansi_term.erase_line_to_end()
-        sys.stdout.write('\r\n')
+        sys.stdout.write('\n')
         sys.stdout.flush()
         self._ansi_term.set_cursor_visibility(True)
 

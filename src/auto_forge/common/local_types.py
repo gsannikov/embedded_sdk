@@ -128,6 +128,10 @@ class CommandResultType(NamedTuple):
     """ Generic type for executed command results """
     response: Optional[str] = None  # Command output
     return_code: int = 1  # Command returned integer value, initialized to error.
+    extra_value: Optional[
+        int] = None  # Optional additional return value, for ex. HTTP status from a method that handles downloads.
+    extra_data: Optional[
+        Any] = None  # Optional additional return data, could be anything.
 
 
 class XYType(NamedTuple):

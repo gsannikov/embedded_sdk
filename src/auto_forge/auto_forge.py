@@ -278,7 +278,8 @@ class AutoForge(CoreModuleInterface):
             import pydevd_pycharm
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
-                pydevd_pycharm.settrace(host=host, port=port, stdoutToServer=False, stderrToServer=False, suspend=False)
+                pydevd_pycharm.settrace(host=host, port=port, stdoutToServer=True, stderrToServer=True, suspend=False,
+                                        trace_only_current_thread=True)
 
         except Exception as exception:
             if abort_execution:
@@ -316,7 +317,7 @@ class AutoForge(CoreModuleInterface):
                                                             proxy_host=self._proxy_server, token=self._git_token))
 
             if self._solution_package_file is not None and self._solution_package_path is None:
-                self._solution_package_path = ToolBox.unzip_file(self._solution_package_file)
+                self._solution_package_path = ToolBox.uncompress_file(self._solution_package_file)
 
             self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
 
@@ -494,7 +495,7 @@ def auto_forge_main() -> Optional[int]:
         logger_instance = AutoLogger.get_base_logger()
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
-        print(f"\n\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
+        print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
 
     finally:
         ToolBox.set_terminal_input(state=True, flush=True)  # Restore terminal input

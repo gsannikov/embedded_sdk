@@ -24,6 +24,7 @@ import shutil
 import string
 import subprocess
 import sys
+import tarfile
 import tempfile
 import termios
 import textwrap
@@ -32,7 +33,7 @@ from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional, SupportsInt, Union
+from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
 
 # Third-party
@@ -799,33 +800,53 @@ class ToolBox(CoreModuleInterface):
         return False, None  # Returns False and None if an exception occurs
 
     @staticmethod
-    def unzip_file(zip_file_name: str, destination_path: Optional[str] = None) -> Optional[str]:
+    def uncompress_file(archive_path: str, destination_path: Optional[str] = None, delete_after: bool = False,
+                        update_progress: Optional[Callable[..., Any]] = None) -> Optional[str]:
         """
-        Unzips a zip archive into a destination directory.
+        Extracts a compressed archive (zip, tar, tar.gz, tar.bz2, etc.) into a destination directory.
+
         Args:
-            zip_file_name (str): Path to the zip file to extract.
-            destination_path (Optional[str], optional): Path where contents should be extracted.
-                If None, the archive directory will be used.
+            archive_path (str): Path to the archive file to extract.
+            destination_path (Optional[str]): Directory to extract to (defaults to archive directory).
+            delete_after (bool): If True, deletes the archive after successful extraction.
+            update_progress (Optional[Callable[[str], None]]): Optional callback to report extraction progress.
+
         Returns:
             str: Path to the directory where files were extracted.
         """
-
-        zip_file_name = ToolBox.get_expanded_path(zip_file_name)
-        if not os.path.isfile(zip_file_name):
-            raise FileNotFoundError(f"Zip file '{zip_file_name}' does not exist or is not a file.")
+        archive_path = ToolBox.get_expanded_path(archive_path)
+        if not os.path.isfile(archive_path):
+            raise FileNotFoundError(f"Archive '{archive_path}' does not exist or is not a file.")
 
         if destination_path is None:
-            # Use the archive path when not specified
-            destination_path = os.path.dirname(zip_file_name)
+            destination_path = os.path.dirname(archive_path)
         else:
             destination_path = ToolBox.get_expanded_path(destination_path)
+
         try:
-            with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
-                zip_ref.extractall(destination_path)
-        except zipfile.BadZipFile as zip_error:
-            raise zipfile.BadZipFile(f"Failed to extract '{zip_file_name}': {zip_error}") from zip_error
-        except Exception as exception:
-            raise Exception(f"Unexpected error while extracting '{zip_file_name}': {exception}") from exception
+            if zipfile.is_zipfile(archive_path):
+                with zipfile.ZipFile(archive_path, 'r') as zf:
+                    for member in zf.filelist:
+                        if update_progress:
+                            update_progress(f"{member.filename}")
+                        zf.extract(member, path=destination_path)
+
+            elif tarfile.is_tarfile(archive_path):
+                with tarfile.open(archive_path, 'r:*') as tf:
+                    while True:
+                        member = tf.next()
+                        if member is None:
+                            break
+                        if update_progress:
+                            update_progress(f"{member.name}")
+                        tf.extract(member, path=destination_path)
+
+            if delete_after:
+                os.remove(archive_path)
+            else:
+                raise ValueError(f"Unsupported archive format for file '{archive_path}'.")
+        except Exception as decompress_error:
+            raise Exception(f"Failed to extract '{archive_path}': {decompress_error}") from decompress_error
 
         return destination_path
 

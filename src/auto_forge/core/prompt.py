@@ -41,7 +41,7 @@ from rich.panel import Panel
 # AutoForge imports
 from auto_forge import (PROJECT_NAME, PROJECT_VERSION, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
                         BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
-                        ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, )
+                        TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, )
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Prompt"
@@ -1191,7 +1191,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Export local variables to an environment mapping
             var_env = self._variables.export(as_env=True)
 
-            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args, env=var_env)
+            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args, env=var_env,
+                                                              echo_type=TerminalEchoType.LINE)
             self.last_result = results.return_code
 
         except KeyboardInterrupt:

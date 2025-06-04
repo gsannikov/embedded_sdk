@@ -41,7 +41,6 @@ from colorama import Fore, Style
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType)
-
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
 
@@ -262,7 +261,7 @@ class CoreEnvironment(CoreModuleInterface):
                 command = f"dnf list --available {package_name}"
                 search_pattern = package_name
 
-            results = self.execute_shell_command(command_and_args=command, echo_type=TerminalEchoType.NONE)
+            results = self.execute_shell_command(command_and_args=command)
             if not results.response or search_pattern not in results.response:
                 raise OSError(f"system package '{package_name}' not validated using {self._package_manager}")
 
@@ -530,8 +529,7 @@ class CoreEnvironment(CoreModuleInterface):
             try:
                 if command_type == ExecutionModeType.SHELL:
                     self.execute_shell_command(
-                        command_and_args=self._flatten_command(command=command, arguments=arguments),
-                        echo_type=TerminalEchoType.NONE, timeout=timeout)
+                        command_and_args=self._flatten_command(command=command, arguments=arguments), timeout=timeout)
                     result_container['code'] = 0
 
                 elif command_type == ExecutionModeType.PYTHON:
@@ -573,7 +571,7 @@ class CoreEnvironment(CoreModuleInterface):
 
     def execute_shell_command(  # noqa: C901
             self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
-            echo_type: TerminalEchoType = TerminalEchoType.LINE, leading_text: Optional[str] = None,
+            echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
             use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True, shell: bool = True,
             cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None) -> Optional[CommandResultType]:
         """
@@ -791,7 +789,7 @@ class CoreEnvironment(CoreModuleInterface):
 
                             # Track it if we have a tracker instate
                             if text_line and self._tracker is not None:
-                                self._tracker.set_body_in_place(text=text_line)
+                                self._tracker.set_body_in_place(text=text_line.strip())
                 else:
                     # No data ready to read — check if process exited
                     if process.poll() is not None:
@@ -877,8 +875,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Execute a process and check its response
             if validation_method == ValidationMethodType.EXECUTE_PROCESS:
                 results = self.execute_shell_command(
-                    command_and_args=self._flatten_command(command=command, arguments=arguments),
-                    echo_type=TerminalEchoType.NONE, cwd=cwd)
+                    command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=cwd)
 
                 if expected_response:
                     if results.response is None:
@@ -1021,6 +1018,31 @@ class CoreEnvironment(CoreModuleInterface):
 
         return last_full_path  # Return the path of the last directory successfully created
 
+    def decompress(self, archive_path: str, destination_path: Optional[str] = None) -> Optional[CommandResultType]:
+        """
+        Decompresses an archive using the ToolBox utility and returns a CommandResultType.
+        Args:
+            archive_path (str): Path to the archive file to decompress.
+            destination_path (Optional[str]): Optional destination directory for extracted content.
+        Returns:
+            CommandResultType: A structured result containing the extraction path and status code.
+        """
+        expanded_archive_path: str = self._variables.expand(key=archive_path)
+        expanded_destination_path: Optional[str] = (
+            self._variables.expand(key=destination_path) if destination_path else None
+        )
+
+        try:
+            extracted_path = self._tool_box.uncompress_file(
+                archive_path=expanded_archive_path,
+                destination_path=expanded_destination_path,
+                delete_after=True, update_progress=self._tracker.set_body_in_place
+            )
+            return CommandResultType(response=extracted_path, return_code=0)
+
+        except Exception as decompress_error:
+            raise decompress_error from decompress_error
+
     def python_virtualenv_create(self, venv_path: str, python_version: Optional[str],
                                  python_binary_path: Optional[str] = None) -> Optional[CommandResultType]:
         """
@@ -1057,7 +1079,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"-m venv {full_py_venv_path}"
             results = self.execute_shell_command(
                 command_and_args=self._flatten_command(command=command, arguments=arguments),
-                echo_type=TerminalEchoType.NONE, cwd=expanded_python_binary_path)
+                cwd=expanded_python_binary_path)
 
             return results
 
@@ -1082,7 +1104,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = "-m pip install --upgrade pip"
             command_and_args = self._flatten_command(command=command, arguments=arguments)
 
-            results = self.execute_shell_command(command_and_args=command_and_args, echo_type=TerminalEchoType.NONE)
+            results = self.execute_shell_command(command_and_args=command_and_args)
             return results
 
         except Exception as py_env_error:
@@ -1117,7 +1139,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Execute the command
             results = (
                 self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments),
-                                           echo_type=TerminalEchoType.NONE, shell=False))
+                                           shell=False))
             return results
 
         except Exception as python_pip_error:
@@ -1147,8 +1169,7 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Execute the command
             results = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments), shell=False,
-                echo_type=TerminalEchoType.NONE)
+                command_and_args=self._flatten_command(command=command, arguments=arguments), shell=False)
 
             return results
 
@@ -1177,8 +1198,8 @@ class CoreEnvironment(CoreModuleInterface):
             # Construct and execute the command
             arguments = f"-m pip show {package}"
             results = (
-                self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments),
-                                           echo_type=TerminalEchoType.NONE))
+                self.execute_shell_command(
+                    command_and_args=self._flatten_command(command=command, arguments=arguments)))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1222,8 +1243,7 @@ class CoreEnvironment(CoreModuleInterface):
             command = "git"
             arguments = f"clone --progress {repo_url} {dest_repo_path}"
             command_result = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments), timeout=timeout,
-                echo_type=TerminalEchoType.NONE)
+                command_and_args=self._flatten_command(command=command, arguments=arguments), timeout=timeout)
 
             return command_result
 
@@ -1259,7 +1279,7 @@ class CoreEnvironment(CoreModuleInterface):
                 arguments = "pull"
                 results = self.execute_shell_command(
                     command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=dest_repo_path,
-                    timeout=timeout, echo_type=TerminalEchoType.NONE)
+                    timeout=timeout)
                 if results.return_code != 0:
                     raise RuntimeError(f"git 'pull'' failed with exit code {results.return_code}")
 
@@ -1267,7 +1287,7 @@ class CoreEnvironment(CoreModuleInterface):
             arguments = f"checkout {revision}"
             results = self.execute_shell_command(
                 command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=dest_repo_path,
-                timeout=timeout, echo_type=TerminalEchoType.NONE)
+                timeout=timeout)
             return results
 
         except Exception as py_git_error:
@@ -1323,7 +1343,7 @@ class CoreEnvironment(CoreModuleInterface):
                 os.remove(destination_file_name)
 
         # Gets the files list
-        files: list = self.url_get(url=url, destination=None, proxy=proxy, token=token)
+        files: list = self.url_get(url=url, destination=None, proxy=proxy, token=token).extra_data
         if not isinstance(files, list):
             raise RuntimeError("could not get listing for remote URL")
 
@@ -1346,7 +1366,9 @@ class CoreEnvironment(CoreModuleInterface):
 
                 # Use the provided download function
                 file_url = self._tool_box.normalize_to_github_api_url(url=file_url)
-                self.url_get(url=file_url, proxy=proxy, token=token, destination=local_filename)
+                results = self.url_get(url=file_url, proxy=proxy, token=token, destination=local_filename)
+                if results.return_code != 0:
+                    raise RuntimeError(f"HTTP operation failed with exit code {results.return_code}")
 
             # After all files are downloaded, zip them
             with zipfile.ZipFile(destination_file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -1366,7 +1388,7 @@ class CoreEnvironment(CoreModuleInterface):
     def url_get(  # noqa: C901 # Acceptable complexity
             self, url: str, destination: Optional[str] = None, delete_if_exist: Optional[bool] = False,
             proxy: Optional[str] = None, token: Optional[str] = None, timeout: Optional[float] = None,
-            extra_headers: Optional[dict] = None) -> Optional[Any]:
+            extra_headers: Optional[dict] = None) -> Optional[CommandResultType]:
         """
         Downloads a file / list of files from a specified URL to a specified local path, with optional authentication,
         proxy support, and additional HTTP headers. When verbosity is on the download progress is shown.
@@ -1380,7 +1402,7 @@ class CoreEnvironment(CoreModuleInterface):
             extra_headers (Optional[dict]): Additional headers to include in the download request.
 
         Returns:
-            Any - based on the context or exception on error.
+            CommandResultType, optional - or exception on error.
         """
         remote_file: Optional[str] = None
         destination_file: Optional[str] = None
@@ -1450,7 +1472,7 @@ class CoreEnvironment(CoreModuleInterface):
                 if content_length is None or is_url_path:
                     content = response.read()
                     if is_url_path:
-                        # When the UTL points to a path, return the file listing
+                        # When the URL points to a path, return the file listing
                         files = json.loads(content.decode('utf-8'))
                         return files
                     else:
@@ -1458,7 +1480,9 @@ class CoreEnvironment(CoreModuleInterface):
                             f.write(content)
 
                         written_bytes = len(content)
-                        return written_bytes
+                        return CommandResultType(response=url, return_code=0, extra_value=written_bytes,
+                                                 extra_data=content)
+
                 else:
                     total_size = int(response.getheader('Content-Length').strip())
                     downloaded_size = 0
@@ -1481,7 +1505,11 @@ class CoreEnvironment(CoreModuleInterface):
                                 self._tracker.set_body_in_place(text=percentage_text)
 
                 self._logger.debug(f"Total {total_size} bytes downloaded and written")
-                return downloaded_size
+                if total_size > 0:
+                    return CommandResultType(response=destination_file, return_code=0, extra_value=downloaded_size)
+                else:
+                    # Received 0 bytes, this is probably not the desired results
+                    return CommandResultType(response=destination_file, return_code=1, extra_value=downloaded_size)
 
         except Exception as download_error:
             raise RuntimeError(f"download error '{remote_file or url}', {download_error}") from download_error
@@ -1549,6 +1577,7 @@ class CoreEnvironment(CoreModuleInterface):
             # Initialize a track instance
             self._tracker = tracker if tracker is not None else ProgressTracker(title_length=self._status_title_length,
                                                                                 add_time_prefix=self._status_add_time_prefix)
+            # min_update_interval_ms=50)
 
             # User optional greetings messages
             _expand_and_print(sequence_data.get("status_pre_message"))
@@ -1589,11 +1618,12 @@ class CoreEnvironment(CoreModuleInterface):
             return 0
 
         except Exception as steps_error:
-            self._tracker.set_result(text="Error\n", status_code=1)
+            self._tracker.set_result(text="Error", status_code=1)
+            print()
             if status_on_error is not None:
                 print(status_on_error)
 
-            raise RuntimeError(f"'step {step_number} {steps_error}") from steps_error
+            raise RuntimeError(f"'step {step_number + 1} {steps_error}") from steps_error
         finally:
             self._running_sequence = False
             # Restore terminal cursor on exit
