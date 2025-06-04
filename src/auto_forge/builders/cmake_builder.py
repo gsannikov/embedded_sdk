@@ -170,7 +170,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Check if the previous step was configuration and if so verify that we have Ninja
         if is_config_step and ninja_build_command is not None:
             try:
-                ninja_command_line = f"{ninja_build_command} -C {str(build_path)} -v"
+                ninja_command_line = f"{ninja_build_command} -C {str(build_path)}"
                 results = self._environment.execute_shell_command(command_and_args=ninja_command_line,
                                                                   echo_type=TerminalEchoType.LINE,
                                                                   cwd=str(execute_from),
@@ -243,21 +243,21 @@ class CMakeBuilder(BuilderRunnerInterface):
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.
         """
-        build_status = 0
-
         try:
             print()
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
-            if self._toolchain.validate():
-                build_status = self._execute_build(build_profile=build_profile)
+
+            if not self._toolchain.validate():
+                self.print_message(message="Toolchain validation failed", log_level=logging.ERROR)
+                return 1
+
+            return self._execute_build(build_profile=build_profile)
 
         except Exception as build_error:
             self.print_message(message=f"{build_error}", log_level=logging.ERROR)
-            build_status = 1
+            return 1
 
         finally:
             self._tool_box.set_cursor(visible=True)
             print()
-
-        return build_status

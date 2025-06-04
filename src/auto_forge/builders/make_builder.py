@@ -199,19 +199,21 @@ class MakeBuilder(BuilderRunnerInterface):
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.
         """
-
         try:
             print()
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
-            build_status = self._execute_build(build_profile=build_profile)
+
+            if not self._toolchain.validate():
+                self.print_message(message="Toolchain validation failed", log_level=logging.ERROR)
+                return 1
+
+            return self._execute_build(build_profile=build_profile)
 
         except Exception as build_error:
             self.print_message(message=f"{build_error}", log_level=logging.ERROR)
-            build_status = 1
+            return 1
 
         finally:
             self._tool_box.set_cursor(visible=True)
             print()
-
-        return build_status
