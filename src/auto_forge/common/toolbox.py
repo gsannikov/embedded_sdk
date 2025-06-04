@@ -830,6 +830,8 @@ class ToolBox(CoreModuleInterface):
                         if update_progress:
                             update_progress(f"{member.filename}")
                         zf.extract(member, path=destination_path)
+                if delete_after:
+                    os.remove(archive_path)
 
             elif tarfile.is_tarfile(archive_path):
                 with tarfile.open(archive_path, 'r:*') as tf:
@@ -840,11 +842,11 @@ class ToolBox(CoreModuleInterface):
                         if update_progress:
                             update_progress(f"{member.name}")
                         tf.extract(member, path=destination_path)
-
-            if delete_after:
-                os.remove(archive_path)
+                if delete_after:
+                    os.remove(archive_path)
             else:
                 raise ValueError(f"Unsupported archive format for file '{archive_path}'.")
+
         except Exception as decompress_error:
             raise Exception(
                 f"Failed to extract '{archive_path}' to '{destination_path}': {decompress_error}") from decompress_error
