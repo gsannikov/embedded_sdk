@@ -15,10 +15,9 @@
 {
     "variables": [
         {
-            "name": "SAMPLE_VAR",
-            "value": "Example",
-            "description": "Variable example",
-            "is_path": false
+            "name": "USERSPACE_LEGACY",
+            "value": "$HOME/projects/mmg_new_repo/sources",
+            "description": "Userspace legacy repo"
         }
     ]
 }

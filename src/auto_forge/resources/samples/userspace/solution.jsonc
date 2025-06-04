@@ -145,7 +145,7 @@
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Debug",
                                 "-DMMG=1",
-                                "-DSOURCES_ROOT_PATH=<$ref_execute_from>",
+                                "-DSOURCES_ROOT_PATH=$USERSPACE_LEGACY",
                                 "-DDO_COMPILE_INFRA=1",
                                 "-DZEPHYR_BUILD=1",
                                 // Explicit debug flags
@@ -153,7 +153,7 @@
                                 "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
                             ],
                             "artifacts": [
-                                "<$ref_build_path>/userspace"
+                                "<$ref_build_path>/n_libs/logger/liblogger.a"
                             ],
                             "pre_build_steps": {
                                 "clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
@@ -171,7 +171,7 @@
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Release",
                                 "-DMMG=1",
-                                "-DSOURCES_ROOT_PATH=<$ref_execute_from>",
+                                "-DSOURCES_ROOT_PATH=$USERSPACE_LEGACY",
                                 "-DDO_COMPILE_INFRA=1",
                                 "-DZEPHYR_BUILD=1",
                                 // Explicit release optimization flags
