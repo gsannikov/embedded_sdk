@@ -24,12 +24,12 @@
             }
         },
         {
-            "description": "Looking for 'python' 3.8.0 or grater",
+            "description": "Looking for 'python' 3.9.0 or grater",
             "method": "validate_prerequisite",
             "arguments": {
                 "command": "python3",
                 "arguments": "--version",
-                "expected_response": "Python 3.8.0",
+                "expected_response": "Python 3.9.0",
                 "allow_greater_decimal": true
             }
         },
@@ -67,7 +67,6 @@
             "method": "python_virtualenv_create",
             "arguments": {
                 "venv_path": ".venv",
-                "python_version": "3.9"
             }
         },
         {
