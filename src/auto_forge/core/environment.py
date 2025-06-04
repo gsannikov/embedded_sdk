@@ -1478,11 +1478,11 @@ class CoreEnvironment(CoreModuleInterface):
                     if is_url_path:
                         # When the URL points to a path, return the file listing
                         files = json.loads(content.decode('utf-8'))
-                        return files
+                        return CommandResultType(response=url, return_code=0, extra_data=files,
+                                                 extra_value=content_length)
                     else:
                         with open(destination_file, 'wb') as f:
                             f.write(content)
-
                         written_bytes = len(content)
                         return CommandResultType(response=url, return_code=0, extra_value=written_bytes,
                                                  extra_data=content)
