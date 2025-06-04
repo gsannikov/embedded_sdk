@@ -163,6 +163,7 @@ class CoreEnvironment(CoreModuleInterface):
         if not python_executable or not os.path.exists(python_executable):
             raise RuntimeError(f"Python executable not found at: '{python_executable}'")
 
+        self._logger.debug(f"Python executable found: '{python_executable}'")
         return python_executable
 
     @staticmethod
@@ -1070,7 +1071,7 @@ class CoreEnvironment(CoreModuleInterface):
             if not os.path.exists(python_binary):
                 python_binary = shutil.which(python_binary)
                 if not python_binary:
-                    raise RuntimeError(f"Python binary '{python_binary}' could not be found")
+                    raise RuntimeError(f"Python binary version '{python_version}' could not be found")
 
             full_py_venv_path = self.path_create(expanded_path, erase_if_exist=True, project_path=True)
 
@@ -1097,11 +1098,11 @@ class CoreEnvironment(CoreModuleInterface):
         """
         try:
             # Determines the path to the Python executable.
-            command = self._get_python_binary_path(venv_path=venv_path)
+            python_binary = self._get_python_binary_path(venv_path=venv_path)
 
             # Construct the command to update pip
             arguments = "-m pip install --upgrade pip"
-            command_and_args = self._flatten_command(command=command, arguments=arguments)
+            command_and_args = self._flatten_command(command=python_binary, arguments=arguments)
 
             results = self.execute_shell_command(command_and_args=command_and_args)
             return results
