@@ -49,7 +49,6 @@
     // other than the workspace path and the solution name.
     "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
 
-
     // Search paths used when the prompt attempts to autocomplete a typed command.
     // This list typically mirrors the system's PATH variable and defines where
     // the prompt will look for executable binaries during command completion.
