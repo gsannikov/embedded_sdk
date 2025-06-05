@@ -151,9 +151,10 @@
 		{
 			"description": "Create a shell alias to the solution",
 			"method": "create_alias",
-			"alias": "us",
-			// Handy terminal shortcut
-			"command": "PROJ_WORKSPACE/env.sh"
+			"arguments": {
+				"alias": "us",
+				"command": "PROJ_WORKSPACE/env.sh"
+			}
 		}
 	]
 }
