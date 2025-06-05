@@ -1581,6 +1581,7 @@ class CoreEnvironment(CoreModuleInterface):
             int: Exit code of the function.
         """
         step_number: int = 0
+        step_had_error = False
         local_path = os.path.abspath(os.getcwd())  # Store initial path
         status_on_error: Optional[str] = None
 
@@ -1625,22 +1626,35 @@ class CoreEnvironment(CoreModuleInterface):
                 # Allow to skip a step when 'disabled' exist and set to True
                 if step.get("disabled", False):
                     continue
-
+                    
+                # What to do if the step failed
+                action_on_error = step.get("action_on _error","break")
+                
                 # Friendlier message to print if the step has failed
                 status_on_error = step.get("status_on_error")
                 self._tracker.set_pre(text=step.get('description'), new_line=status_new_line)
 
                 # Execute the method
-                results = self.execute_python_method(method_name=step.get("method"), arguments=step.get("arguments"))
-
-                # Handle command output capture to a variable
-                store_key = step.get('response_store_key', None)
-                # Store the command response as a value If it's a string, and we got the skey name from the JSON
-                if results.response and store_key is not None:
-                    self._logger.debug(f"Storing value '{results.response}' in '{store_key}'")
-                    self._tool_box.store_value(key=store_key, value=results.response)
-
-                self._tracker.set_result(text="OK", status_code=0)
+                try:
+                    results = self.execute_python_method(method_name=step.get("method"), arguments=step.get("arguments"))
+                except Exception as execution_error:
+                    if status_on_error == "break":
+                        raise execution_error from execution_error
+                    else:
+                        self._tracker.set_result(text="WARNING", status_code=2)
+                        self._logger.error(f"'Error in step {step_number + 1} {steps_error} -  was suppressed by configuration")
+                        step_had_error = True
+                        
+                if not step_had_error:
+                    # Handle command output capture to a variable
+                    store_key = step.get('response_store_key', None)
+                    # Store the command response as a value If it's a string, and we got the skey name from the JSON
+                    if results.response and store_key is not None:
+                        self._logger.debug(f"Storing value '{results.response}' in '{store_key}'")
+                        self._tool_box.store_value(key=store_key, value=results.response)
+    
+                    self._tracker.set_result(text="OK", status_code=0)
+                
                 step_number = step_number + 1
 
             # User optional signoff messages
