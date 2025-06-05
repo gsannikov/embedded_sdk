@@ -10,6 +10,7 @@
 	"status_title_length": 60,
 	"status_add_time_prefix": true,
 	"status_new_line": true,
+	// Enables multi-line status output instead of in-place updates
 	"status_pre_message": "\n\nHello, welcome to the '$SOLUTION_NAME' solution setup..",
 	"status_post_message": "\n\nSetup is completed.\n",
 	"steps": [
@@ -18,7 +19,7 @@
 			"method": "validate_prerequisite",
 			"status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
 			"action_on_error": "resume",
-			// Any of: break, resume, default is 'break'
+			// Recommended: use 'break' or omit this field in production
 			"arguments": {
 				"command": "dt",
 				"arguments": "version",
@@ -46,8 +47,9 @@
 		{
 			"description": "Getting git access token using 'dt'",
 			"method": "execute_shell_command",
-			"action_on_error": "resume",
 			"status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",
+			"action_on_error": "resume",
+			// Recommended: use 'break' or omit this field in production
 			"arguments": {
 				"command_and_args": "dt github print-token",
 				"cwd": "$HOME/bin"
@@ -137,6 +139,8 @@
 		{
 			"description": "Cloning 'userspace'",
 			"method": "git_clone_repo",
+			"action_on_error": "resume",
+			// Recommended: use 'break' or omit this field in production
 			"arguments": {
 				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
 				"dest_repo_path": "$SOURCE_BASE/userspace",

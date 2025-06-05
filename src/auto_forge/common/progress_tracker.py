@@ -233,7 +233,18 @@ class ProgressTracker:
         text = text.strip() if text is not None else ""  # Basic normalizing
 
         self._ansi_term.restore_cursor_position()
-        color = Fore.GREEN if status_code == 0 else Fore.RED
+
+        if status_code == 0:
+            color = Fore.GREEN
+        else:
+            # Set color according to context is possible
+            if text.lower().startswith("error"):
+                color = Fore.RED
+            elif text.lower().startswith("warning"):
+                color = Fore.YELLOW
+            else:
+                color = Fore.MAGENTA  # Bad status we just don't know exactly what
+
         text = f"{color}{text}{Style.RESET_ALL}" if status_code is not None else text
 
         sys.stdout.write(text)
