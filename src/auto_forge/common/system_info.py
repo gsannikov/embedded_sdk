@@ -68,7 +68,8 @@ class SystemInfo(CoreModuleInterface):
         self._virtualization: Optional[str] = self._detect_virtualization()
         self._git_name: Optional[str] = None
         self._git_email: Optional[str] = None
-        self._gfx:str= self._get_desktop_and_gfx()
+        self._gfx: str = self._get_desktop_and_gfx()
+        self._info_data: Optional[dict] = None
 
         # Try to fish the email and the fill name from git
         self._git_name, self._git_email = self._get_git_user_info()
@@ -77,6 +78,22 @@ class SystemInfo(CoreModuleInterface):
             self._linux_distro, self._linux_version = self._get_linux_distro()
 
         self._total_memory_mb: Optional[int] = self._get_total_memory()
+
+        # Pack into a dictionary
+        self._info_data = {"system_type": self._system_type, "is_wsl": self._is_wsl, "is_docker": self._is_docker,
+                           "architecture": self._architecture, "python_version": self._python_version,
+                           "python venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
+                           "ip_address": self._ip_address if self._ip_address else None, "is_admin": self._is_admin,
+                           "username": self._username,
+                           "package_manager": self._package_manager.name if self._package_manager else None,
+                           "linux_distro": self._linux_distro.name if self._linux_distro else None,
+                           "linux_version": self._linux_version, "total_memory_mb": self._total_memory_mb,
+                           "linux_kernel_version": self._linux_kernel_version,
+                           "linux_shell": self._linux_shell if self._linux_shell else None,
+                           "virtualization": self._virtualization,
+                           "full_name": self._git_name if self._git_name else None,
+                           "email_address": self._git_email if self._git_email else None, "uptime_sec": self._uptime,
+                           "gfx": self._gfx, }
 
     @staticmethod
     def _get_linux_distro() -> Tuple[SysInfoLinuxDistroType, str]:
@@ -323,26 +340,6 @@ class SystemInfo(CoreModuleInterface):
         # An error occurred while retrieving kernel information
         return None
 
-    def _get_as_dictionary(self) -> dict:
-        """
-        Return a dictionary of collected system information.
-        Returns:
-            dict: A dictionary containing all detected system attributes, suitable for serialization or logging.
-        """
-        return {"system_type": self._system_type, "is_wsl": self._is_wsl, "is_docker": self._is_docker,
-                "architecture": self._architecture, "python_version": self._python_version,
-                "python venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
-                "ip_address": self._ip_address if self._ip_address else None, "is_admin": self._is_admin,
-                "username": self._username,
-                "package_manager": self._package_manager.name if self._package_manager else None,
-                "linux_distro": self._linux_distro.name if self._linux_distro else None,
-                "linux_version": self._linux_version, "total_memory_mb": self._total_memory_mb,
-                "linux_kernel_version": self._linux_kernel_version,
-                "linux_shell": self._linux_shell if self._linux_shell else None, "virtualization": self._virtualization,
-                "full_name": self._git_name if self._git_name else None,
-                "email_address": self._git_email if self._git_email else None, "uptime_sec": self._uptime,
-                "gfx": self._gfx,}
-
     def __str__(self) -> str:
         """
         Return a human-readable, formatted string of system information.
@@ -354,19 +351,16 @@ class SystemInfo(CoreModuleInterface):
             return key.replace('_', ' ').title()
 
         info_summary = "\n".join(
-            f"{beautify_key(k):20}: {v if v is not None else 'N/A'}" for k, v in self._get_as_dictionary().items())
+            f"{beautify_key(k):20}: {v if v is not None else 'N/A'}" for k, v in self._info_data.items())
 
         return f"System Information:\n{info_summary}"
 
     @property
-    def get(self) -> Optional[dict]:
+    def get_data(self) -> Optional[dict]:
         """ Return a dictionary containing the collected information """
-        return self._get_as_dictionary()
+        return self._info_data
 
-    @classmethod
-    def linux_shell(cls) -> None:
-        """
-        Marks this module as fully initialized and ready.
-        Delegates to the internal singleton system.
-        """
+    @property
+    def linux_shell(self) -> None:
+        """ Returns the detected Linux user default shell """
         return SystemInfo._detect_login_shell()

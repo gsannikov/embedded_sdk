@@ -489,7 +489,6 @@ def auto_forge_main() -> Optional[int]:
                             help="Optional GitHub token to use for authenticating HTTP requests.")
 
         args = parser.parse_args()
-
         # Instantiate AutoForge, pass all arguments
         auto_forge: AutoForge = AutoForge(**vars(args))
         return auto_forge.forge()

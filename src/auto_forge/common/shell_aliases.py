@@ -69,6 +69,7 @@ class ShellAliases(CoreModuleInterface):
         self._shell_type: LinuxShellType = LinuxShellType.UNKNOWN
         self._home_dir: Path = Path.home()
         self._rc_files_backup_path: Optional[Path] = Path(rc_files_backup_path) if rc_files_backup_path else None
+        self._sys_info: SystemInfo = SystemInfo().get_instance()
 
         if prefix_comment is None:
             # Generate default comments with dynamic date in MM-DD-YY format
@@ -305,7 +306,7 @@ class ShellAliases(CoreModuleInterface):
                 self._tool_box = ToolBox.get_instance()
 
             # Use user-specified shell or detect from environment
-            shell_bin = shutil.which(forced_shell) if forced_shell else SystemInfo.linux_shell()
+            shell_bin = shutil.which(forced_shell) if forced_shell else self._sys_info.linux_shell
             if not shell_bin:
                 return False
 

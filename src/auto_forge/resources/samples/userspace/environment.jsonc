@@ -86,7 +86,7 @@
 			"method": "python_package_add",
 			"arguments": {
 				"venv_path": ".venv",
-				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython setuptools wheel"
+				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython wheel"
 			}
 		},
 		{
