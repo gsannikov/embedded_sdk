@@ -40,7 +40,7 @@ from jsonschema.validators import validate
 
 # AutoForge imports
 from auto_forge import (PROJECT_SCHEMAS_PATH, AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor,
-                        CoreSignatures, CoreVariables, PrettyPrinter, Registry, ToolBox, )
+                        CoreSignatures, CoreVariables, Registry, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
@@ -273,20 +273,6 @@ class CoreSolution(CoreModuleInterface):
                         yield proj_name, cfg_name, menu_cmd
 
         return generator()
-
-    def show(self, pretty: bool = False):
-        """
-        Prints the loaded solution as a formated JSON string
-        Args:
-            pretty (bool): If True, prints pretty formatted JSON string with colors.
-        """
-        if not self._solution_loaded:
-            raise RuntimeError("no solution is currently loaded")
-        if not pretty:
-            print(json.dumps(self._solution_data, indent=4))
-        else:
-            json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path", "disabled"])
-            json_print.render(self._solution_data)
 
     def get_loaded_solution(self, name_only: bool = False) -> Optional[Union[dict[str, Any], str]]:
         """

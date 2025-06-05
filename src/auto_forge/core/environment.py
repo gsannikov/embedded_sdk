@@ -35,14 +35,13 @@ from typing import Any, Callable, Optional, Union, Tuple
 # Third-party
 import fcntl
 import select
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -343,13 +342,22 @@ class CoreEnvironment(CoreModuleInterface):
 
     def create_alias(self, alias: str, command: str) -> Optional[CommandResultType]:
         """
-        Create update or delete a shell alias using the ShellAliases Core module
+        Create / update a shell alias using the ShellAliases Core module
+        Args:
+            alias (str): The shell alias name.
+            command (str): The shell alias command.
+        Returns:
+            CommandResultType: The result object containing the command output and return code,
         """
 
         return_code: int = 1
 
+        # It's better to pass the expanded variable, since most of our environment is local
+        # and won't be available to the shell after we exit.
+        expanded_command = self._variables.expand(key=command)
+
         # Create and commit, we need both to succeed
-        if self._shell_aliases.create(alias=alias, command=command) and self._shell_aliases.commit():
+        if self._shell_aliases.create(alias=alias, command=expanded_command) and self._shell_aliases.commit():
             return_code = 0
 
         return CommandResultType(response=alias, return_code=return_code)
@@ -1232,8 +1240,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
-            results = (self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments)))
+            results = (
+            self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments)))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text

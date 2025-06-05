@@ -41,7 +41,7 @@ import termios
 
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
-                        AutoForgeModuleType, CoreModuleInterface, MethodLocationType, XYType, )
+                        AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType, )
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
@@ -1524,19 +1524,76 @@ class ToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
+    def show_json_file(json_path_or_data: Union[str, dict], title: Optional[str] = None) -> int:
+        """
+        Displays a JSON file using the textual json tree viewer.
+        Args:
+            json_path_or_data (str,dict): path to the JSON or data structure.
+            title (str): The title to show in the terminal viewer.
+        Returns:
+            int: 0 on success, 1 on error or suppressed failure.
+        """
+
+        json_file_path: Optional[Path] = None
+        json_viewer_tool: Path = PROJECT_VIEWERS_PATH / "json_viewer.py"
+        json_file_created: bool = False
+
+        if not json_viewer_tool.exists():
+            return 1
+
+        with suppress(Exception):
+
+            if isinstance(json_path_or_data, str):
+                json_file_path = Path(json_path_or_data)
+
+            elif isinstance(json_path_or_data, dict):
+                # Pretty print the dictionary to a JSON string
+                json_string = json.dumps(json_path_or_data, indent=4, ensure_ascii=False)
+                # Create a temporary file
+                with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json', encoding='utf-8') as temp_f:
+                    temp_f.write(json_string)
+                    # Get the path of the temporary file
+                    json_file_path = Path(temp_f.name)
+                    json_file_created = True
+
+            if not json_file_path:
+                return 1
+
+            if json_file_path.suffix.lower() != ".json" or not json_file_path.exists():
+                json_file_created and os.remove(json_file_path)  # Delete temporary file
+                return 1
+
+            command = ["python3", str(json_viewer_tool), "--json", str(json_file_path)]
+            # Conditionally add the --title argument
+            if title is not None:
+                command.extend(["--title", title])
+
+            status = subprocess.run(command, env=os.environ.copy())
+            return_code = status.returncode
+            # Reset TTY settings
+            os.system("stty sane")
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            json_file_created and os.remove(json_file_path)  # Delete temporary file
+            return return_code
+
+        return 1  # If anything failed silently
+
+    @staticmethod
     def show_help_file(help_file_relative_path: str) -> int:
         """
-        Displays a markdown help file using the textual viewer tool.
+        Displays a markdown help file using the textual markdown viewer.
         Args:
             help_file_relative_path (str): Relative path to the help file under PROJECT_HELP_PATH.
         Returns:
             int: 0 on success, 1 on error or suppressed failure.
         """
-        textual_viewer_tool: Path = PROJECT_SHARED_PATH / "textual_md_viewer.py"
+        help_viewer_tool: Path = PROJECT_VIEWERS_PATH / "help_viewer.py"
         help_file_path: Path = PROJECT_HELP_PATH / help_file_relative_path
 
         with suppress(Exception):
-            if not textual_viewer_tool.exists():
+            if not help_viewer_tool.exists():
                 return 1
 
             if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
@@ -1545,7 +1602,7 @@ class ToolBox(CoreModuleInterface):
             if help_file_path.stat().st_size > 64 * 1024:
                 return 1
 
-            status = subprocess.run(["python3", str(textual_viewer_tool), "--markdown", str(help_file_path)],
+            status = subprocess.run(["python3", str(help_viewer_tool), "--markdown", str(help_file_path)],
                                     env=os.environ.copy())
             return_code = status.returncode
 

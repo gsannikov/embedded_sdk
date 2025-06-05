@@ -20,7 +20,7 @@ from rich.text import Text
 
 # AutoForge imports
 from auto_forge import (CLICommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreProcessor, ToolBox,
-                        PrettyPrinter, FieldColorType)
+                        FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -116,23 +116,6 @@ class SolutionCommand(CLICommandInterface):
 
         console.print('\n', table, '\n')
 
-    def _show_json(self, json_path: str) -> Optional[int]:
-        """
-        show_json <path>: Load and display a JSON file with key highlighting.
-        """
-        path = Path(json_path).expanduser()
-        if not path.is_file():
-            raise FileNotFoundError(f"JSON file not found: '{path}'")
-
-        try:
-            json_data = self._preprocessor.preprocess(path)
-            json_print = PrettyPrinter(indent=4, highlight_keys=["name", "build_path", "disabled"])
-            json_print.render(json_data)
-            return 0
-
-        except Exception as json_error:
-            raise Exception(f"Failed to load JSON: {json_error}")
-
     def _show_log(self, cheerful: bool) -> None:
         """
         Display the AutoForge logger output with color-coded fields.
@@ -155,11 +138,10 @@ class SolutionCommand(CLICommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
-
         parser.add_argument('-p', '--print-solution', action='store_true',
                             help='Print the processed solution JSON file to the terminal.')
 
-        parser.add_argument('-j', '--print-json', help='Pretty print any JSON file.')
+        parser.add_argument('-j', '--print-json', help='JSON file Viewer.')
 
         # Logger printout
         parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
@@ -183,9 +165,11 @@ class SolutionCommand(CLICommandInterface):
         self._variables: CoreVariables = CoreVariables.get_instance()
 
         if args.print_solution:
-            self._solution.show(pretty=True)  # Pretty print the solution processed JSON
+            self._tool_box.show_json_file(json_path_or_data=self._solution.get_loaded_solution(name_only=False),
+                                          title="Solution Viewer")
+
         elif args.print_json:
-            self._show_json(json_path=args.print_json)
+            self._tool_box.show_json_file(json_path_or_data=args.print_json, title="JSON Viewer")
         elif args.show_environment_variables:
             self._print_variables_table()
         elif args.log:

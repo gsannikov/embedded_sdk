@@ -30,6 +30,7 @@ PROJECT_RESOURCES_PATH: Path = PROJECT_BASE_PATH / "resources"
 PROJECT_SHARED_PATH: Path = PROJECT_RESOURCES_PATH / "shared"
 PROJECT_SAMPLES_PATH: Path = PROJECT_RESOURCES_PATH / "samples"
 PROJECT_HELP_PATH: Path = PROJECT_RESOURCES_PATH / "help"
+PROJECT_VIEWERS_PATH: Path = PROJECT_SHARED_PATH / "viewers"
 PROJECT_SCHEMAS_PATH: Path = PROJECT_CONFIG_PATH / "schemas"
 PROJECT_PACKAGE_BASE_PATH: Path = Path(__file__).resolve().parent.parent.parent
 PROJECT_TEMP_PREFIX: str = "__AUTO_FORGE_"  # Prefix for temporary paths and files names
@@ -59,15 +60,6 @@ def auto_forge_get_info(base_path: Path):
         os.environ['AUTO_FORGE_VERSION'] = str(PROJECT_VERSION)
         os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
-        os.environ['AUTO_FORGE_PROJECT_CONFIG_FILE'] = str(PROJECT_CONFIG_FILE)
-        os.environ['AUTO_FORGE_PROJECT_COMMANDS_PATH'] = str(PROJECT_COMMANDS_PATH)
-        os.environ['AUTO_FORGE_PROJECT_BUILDERS_PATH'] = str(PROJECT_BUILDERS_PATH)
-        os.environ['AUTO_FORGE_PROJECT_RESOURCES_PATH'] = str(PROJECT_RESOURCES_PATH)
-        os.environ['AUTO_FORGE_PROJECT_SHARED_PATH'] = str(PROJECT_SHARED_PATH)
-        os.environ['AUTO_FORGE_PROJECT_SAMPLES_PATH'] = str(PROJECT_SAMPLES_PATH)
-        os.environ['AUTO_FORGE_PROJECT_HELP_PATH'] = str(PROJECT_HELP_PATH)
-        os.environ['AUTO_FORGE_PROJECT_SCHEMAS_PATH'] = str(PROJECT_SCHEMAS_PATH)
-        os.environ['AUTO_FORGE_PROJECT_PACKAGE_BASE_PATH'] = str(PROJECT_PACKAGE_BASE_PATH)
 
         # Try to open and load the TOML file
         with open(file=toml_path) as toml_file:

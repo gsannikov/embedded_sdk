@@ -25,8 +25,8 @@ try:
 
     from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_FILE, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH,
                            PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH, PROJECT_BUILDERS_PATH,
-                           PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO,
-                           PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE)
+                           PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_VIEWERS_PATH, PROJECT_NAME,
+                           PROJECT_REPO, PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE, )
 
     from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
@@ -87,7 +87,7 @@ __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "Aut
            "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE",
            "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO", "LinuxShellType",
            "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_TEMP_PREFIX", "PROJECT_SCHEMAS_PATH",
-           "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker", "SystemInfo", "Registry",
-           "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "TerminalAnsiGuru",
-           "TerminalEchoType", "TerminalTeeStream", "ThreadGuru", "ToolBox", "ValidationMethodType",
+           "PROJECT_VIEWERS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",
+           "SystemInfo", "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType",
+           "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ThreadGuru", "ToolBox", "ValidationMethodType",
            "VariableFieldType", "XYType", "main"]
