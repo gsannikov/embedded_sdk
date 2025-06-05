@@ -34,13 +34,12 @@ try:
     from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
                                                AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
                                                COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType,
-                                               ExceptionGuru,
-                                               FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
-                                               MessageBoxType, MethodLocationType, ModuleInfoType, SignatureFieldType,
+                                               ExceptionGuru, SequenceErrorActionType, FieldColorType,
+                                               InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType,
+                                               MethodLocationType, ModuleInfoType, SignatureFieldType,
                                                SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType,
-                                               TerminalTeeStream,
-                                               ThreadGuru, ValidationMethodType, VariableFieldType, XYType,
-                                               SysInfoPackageManagerType, SysInfoLinuxDistroType)
+                                               TerminalTeeStream, ThreadGuru, ValidationMethodType, VariableFieldType,
+                                               XYType, SysInfoPackageManagerType, SysInfoLinuxDistroType)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -69,28 +68,25 @@ try:
 
 
 except ImportError as import_error:
-    print(f"Critical Exception: failed to import: {import_error.name}")
+    print(f"Critical Startup Exception: failed to import: {import_error.name}")
     traceback.print_exc()
     raise import_error from import_error
 except Exception as exception:
-    print(f"Critical Unexpected error: {exception}")
+    print(f"Critical Startup Unexpected error: {exception}")
     raise exception from exception
 
 # Exported symbols
 __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
            "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
            "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader",
-           "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType",
+           "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType", "SequenceErrorActionType",
            "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
            "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
            "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType", "PROJECT_BASE_PATH",
            "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE",
-           "PROJECT_HELP_PATH", "PROJECT_LOG_FILE",
-           "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH",
-           "PROJECT_TEMP_PREFIX",
-           "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",
-           "SystemInfo", "Registry",
+           "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
+           "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_TEMP_PREFIX", "PROJECT_SCHEMAS_PATH",
+           "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker", "SystemInfo", "Registry",
            "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "TerminalAnsiGuru",
            "TerminalEchoType", "TerminalTeeStream", "ThreadGuru", "ToolBox", "ValidationMethodType",
-           "VariableFieldType",
-           "XYType", "main"]
+           "VariableFieldType", "XYType", "main"]

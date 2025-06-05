@@ -1643,3 +1643,22 @@ class ToolBox(CoreModuleInterface):
                 return f"{file_or_path}_{timestamp}"
 
         return None  # Returned if an exception was suppressed
+
+    @staticmethod
+    def has_nested_list(obj, require_non_empty_lists=False):
+        """
+        Check if the object is a dictionary with one or more top-level list values.
+        Args:
+            obj (Any): Object to inspect.
+            require_non_empty_lists (bool): If True, only consider non-empty top-level lists.
+        Returns:
+            bool: True if a matching list is found at the top level, else False.
+        """
+        if not isinstance(obj, dict):
+            return False
+
+        for value in obj.values():
+            if isinstance(value, list):
+                if not require_non_empty_lists or len(value) > 0:
+                    return True
+        return False

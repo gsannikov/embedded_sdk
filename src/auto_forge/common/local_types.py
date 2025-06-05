@@ -83,6 +83,34 @@ COMMAND_TYPE_COLOR_MAP = {
 }
 # @formatter:on
 
+class SequenceErrorActionType(Enum):
+    """Enum for error actions, storing both int value and string label."""
+    DEFAULT = (0, "default")
+    BREAK = (1, "break")
+    RESUME = (2, "resume")
+
+    def __new__(cls, value, label):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.label = label
+        return obj
+
+    def __str__(self):
+        return self.label
+
+    @classmethod
+    def from_label(cls, label: Optional[str] = None) -> "SequenceErrorActionType":
+        """Convert string label to enum; return DEFAULT if label is None or invalid."""
+        if not label:
+            return cls.DEFAULT
+
+        label = label.strip().lower()
+        for member in cls:
+            if member.label == label:
+                return member
+        return cls.DEFAULT
+
+
 class ModuleInfoType(NamedTuple):
     """
     Define a named tuple type for AutoForge registered modules.
@@ -130,8 +158,7 @@ class CommandResultType(NamedTuple):
     return_code: int = 1  # Command returned integer value, initialized to error.
     extra_value: Optional[
         int] = None  # Optional additional return value, for ex. HTTP status from a method that handles downloads.
-    extra_data: Optional[
-        Any] = None  # Optional additional return data, could be anything.
+    extra_data: Optional[Any] = None  # Optional additional return data, could be anything.
 
 
 class XYType(NamedTuple):

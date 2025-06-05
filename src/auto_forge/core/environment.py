@@ -40,7 +40,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
-                        ValidationMethodType, TerminalEchoType)
+                        ValidationMethodType, TerminalEchoType, SequenceErrorActionType)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
 
@@ -155,10 +155,8 @@ class CoreEnvironment(CoreModuleInterface):
             return None
 
         try:
-            result = subprocess.run(
-                [python_executable, "--version"],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=True
-            )
+            result = subprocess.run([python_executable, "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, check=True)
             # Example output: "Python 3.9.18"
             version_parts = result.stdout.strip().split()
             if len(version_parts) == 2 and version_parts[0].lower() == "python":
@@ -1056,15 +1054,13 @@ class CoreEnvironment(CoreModuleInterface):
         """
         expanded_archive_path: str = self._variables.expand(key=archive_path)
         expanded_destination_path: Optional[str] = (
-            self._variables.expand(key=destination_path) if destination_path else None
-        )
+            self._variables.expand(key=destination_path) if destination_path else None)
 
         try:
-            extracted_path = self._tool_box.uncompress_file(
-                archive_path=expanded_archive_path,
-                destination_path=expanded_destination_path,
-                delete_after=True, update_progress=self._tracker.set_body_in_place
-            )
+            extracted_path = self._tool_box.uncompress_file(archive_path=expanded_archive_path,
+                                                            destination_path=expanded_destination_path,
+                                                            delete_after=True,
+                                                            update_progress=self._tracker.set_body_in_place)
             return CommandResultType(response=extracted_path, return_code=0)
 
         except Exception as decompress_error:
@@ -1079,7 +1075,7 @@ class CoreEnvironment(CoreModuleInterface):
             python_version (Optional[str]): Desired Python version (e.g., "3.9").
                                             If not specified, the system default Python 3 interpreter is used.
         Returns:
-            Optional[CommandResultType]: Result object with command output and return code, or None on failure..
+            Optional[CommandResultType]: Result object with command output and return code, or None on failure.
         """
         try:
             venv_expanded_path = self._variables.expand(key=venv_path)
@@ -1101,10 +1097,7 @@ class CoreEnvironment(CoreModuleInterface):
             if created_venv_path is None:
                 raise RuntimeError(f"Could not create virtual environment path '{venv_expanded_path}'")
 
-            command_and_args = self._flatten_command(
-                command=python_binary,
-                arguments=f"-m venv {created_venv_path}"
-            )
+            command_and_args = self._flatten_command(command=python_binary, arguments=f"-m venv {created_venv_path}")
 
             return self.execute_shell_command(command_and_args=command_and_args)
 
@@ -1221,9 +1214,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
-            results = (
-                self.execute_shell_command(
-                    command_and_args=self._flatten_command(command=command, arguments=arguments)))
+            results = (self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=arguments)))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1573,91 +1565,90 @@ class CoreEnvironment(CoreModuleInterface):
 
     def run_sequence(self, sequence_data: dict[str, Any], tracker: Optional[ProgressTracker] = None) -> Optional[int]:
         """
-`       Load the steps JSON file and execute them sequentially, exit loop on any error.
+        Load and execute a sequence of steps from a structured dictionary.
+        Each step is processed in order, and execution stops or resumes based on error policy.
+
         Args:
-            sequence_data (dict[str,Any]): Structured sequences dictionary to execute.
-            tracker (Optional[ProgressTracker]): A progress tracker instance to, else a local one will be carted.
+            sequence_data (dict[str, Any]): A dictionary containing the execution sequence definition.
+            tracker (Optional[ProgressTracker]): An optional progress tracker. If not provided, a local one will be created.
+
         Returns:
-            int: Exit code of the function.
+            Optional[int]: Exit code. 0 on success, 1 on error.
         """
         step_number: int = 0
-        step_had_error = False
-        local_path = os.path.abspath(os.getcwd())  # Store initial path
+        last_step_results: Optional[CommandResultType] = None
+        original_path = os.path.abspath(os.getcwd())  # Store entry path
         status_on_error: Optional[str] = None
 
-        def _expand_and_print(msg: Optional[Any]) -> None:
-            """ Expands an input if it's a string, resolve inner variables and finally print thed results."""
-            if not isinstance(msg, str) or msg == "":
-                return None
+        if not self._tool_box.has_nested_list(sequence_data, require_non_empty_lists=True):
+            raise ValueError(
+                "Sequence data appears to be invalid — expected a dictionary with a non-empty nested list of steps.")
 
+        def _expand_and_print(msg: Optional[Any]) -> None:
+            """Expand and print a string after resolving inner variables."""
+            if not isinstance(msg, str) or not msg.strip():
+                return
             expanded_msg = self._variables.expand(key=msg)
             if expanded_msg:
-                sys.stdout.write('\033[2K')  # Erase the entire line
+                sys.stdout.write('\033[2K')  # Clear the current line
                 print(expanded_msg)
-            return None
 
         try:
-
             self._running_sequence = True
-            self._steps_data = sequence_data.get("steps")
+            self._steps_data = sequence_data.get("steps", [])
 
-            # Attempt to get status view defaults
+            if not isinstance(self._steps_data, list) or not self._steps_data:
+                raise ValueError("No valid steps found in the provided sequence.")
+
+            # Set up status view configuration
             self._status_new_line = sequence_data.get("status_new_line", self._status_new_line)
             self._status_title_length = sequence_data.get("status_title_length", self._status_title_length)
             self._status_add_time_prefix = sequence_data.get("status_add_time_prefix", self._status_add_time_prefix)
 
-            # Initialize a track instance
-            self._tracker = tracker if tracker is not None else ProgressTracker(title_length=self._status_title_length,
-                                                                                add_time_prefix=self._status_add_time_prefix)
-            # min_update_interval_ms=50)
+            # Initialize progress tracker
+            self._tracker = tracker if tracker else ProgressTracker(title_length=self._status_title_length,
+                                                                    add_time_prefix=self._status_add_time_prefix)
 
-            # User optional greetings messages
+            # Optional pre-message
             _expand_and_print(sequence_data.get("status_pre_message"))
 
-            # Move to the workspace path if exist as early as possible
+            # Switch to workspace directory if available
             if os.path.exists(self._workspace_path):
                 os.chdir(self._workspace_path)
 
+            # Step-by-step execution loop
             for step in self._steps_data:
-
-                # Allow a step to temporary override in place status output behaviour
                 status_new_line: bool = step.get("status_new_line", self._status_new_line)
 
-                # Allow to skip a step when 'disabled' exist and set to True
                 if step.get("disabled", False):
                     continue
-                    
-                # What to do if the step failed
-                action_on_error = step.get("action_on _error","break")
-                
-                # Friendlier message to print if the step has failed
+
+                action_on_error: SequenceErrorActionType = SequenceErrorActionType.from_label(
+                    step.get("action_on_error"))
                 status_on_error = step.get("status_on_error")
-                self._tracker.set_pre(text=step.get('description'), new_line=status_new_line)
 
-                # Execute the method
+                self._tracker.set_pre(text=step.get("description"), new_line=status_new_line)
+
                 try:
-                    results = self.execute_python_method(method_name=step.get("method"), arguments=step.get("arguments"))
+                    last_step_results = self.execute_python_method(method_name=step.get("method"),
+                                                                   arguments=step.get("arguments"))
                 except Exception as execution_error:
-                    if status_on_error == "break":
+                    if action_on_error == SequenceErrorActionType.BREAK:
                         raise execution_error from execution_error
-                    else:
+                    elif action_on_error in (SequenceErrorActionType.DEFAULT, SequenceErrorActionType.RESUME):
                         self._tracker.set_result(text="WARNING", status_code=2)
-                        self._logger.error(f"'Error in step {step_number + 1} {steps_error} -  was suppressed by configuration")
-                        step_had_error = True
-                        
-                if not step_had_error:
-                    # Handle command output capture to a variable
-                    store_key = step.get('response_store_key', None)
-                    # Store the command response as a value If it's a string, and we got the skey name from the JSON
-                    if results.response and store_key is not None:
-                        self._logger.debug(f"Storing value '{results.response}' in '{store_key}'")
-                        self._tool_box.store_value(key=store_key, value=results.response)
-    
-                    self._tracker.set_result(text="OK", status_code=0)
-                
-                step_number = step_number + 1
+                        self._logger.warning(f"Ignored error during step {step_number + 1}: {execution_error}")
 
-            # User optional signoff messages
+                if last_step_results and last_step_results.return_code == 0:
+                    store_key = step.get("response_store_key")
+                    if store_key and last_step_results.response:
+                        self._logger.debug(f"Storing value '{last_step_results.response}' in '{store_key}'")
+                        self._tool_box.store_value(key=store_key, value=last_step_results.response)
+
+                    self._tracker.set_result(text="OK", status_code=0)
+
+                step_number += 1
+
             self._tracker.set_end()
             _expand_and_print(sequence_data.get("status_post_message"))
             return 0
@@ -1665,12 +1656,11 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as steps_error:
             self._tracker.set_result(text="Error", status_code=1)
             print()
-            if status_on_error is not None:
+            if status_on_error:
                 print(status_on_error)
+            raise RuntimeError(f"Step {step_number + 1} failed: {steps_error}") from steps_error
 
-            raise RuntimeError(f"'step {step_number + 1} {steps_error}") from steps_error
         finally:
             self._running_sequence = False
-            # Restore terminal cursor on exit
-            os.chdir(local_path)  # Restore initial path
+            os.chdir(original_path)  # Restore original path
             self._tracker = None
