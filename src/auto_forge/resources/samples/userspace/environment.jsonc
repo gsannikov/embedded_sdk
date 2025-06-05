@@ -17,6 +17,7 @@
             "description": "Looking for 'dt'",
             "method": "validate_prerequisite",
             "status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
+            "action_on _error": "resume" // Ant of: break, resume, default : break
             "arguments": {
                 "command": "dt",
                 "arguments": "version",
