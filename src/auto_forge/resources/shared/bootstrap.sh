@@ -131,13 +131,13 @@ main() {
 		fi
 	done
 
-	# Install AutoForge using pip
+	# Install Auto Forge using pip
 	clear
 	echo -ne '\e[?25l' # Hide cursor
-	printf "\n\nPlease wait while 🛠️ AutoForge is being downloaded and installed...\r"
+	printf "\n\nPlease wait while  🛠️  AutoForge is being downloaded and installed...\r"
 	install_autoforge || return 1
 
-	# Construct AutoForge command
+	# Construct the Package arguments
 	autoforge_cmd=(
 		python3 -m auto_forge
 		-w "$workspace_path"

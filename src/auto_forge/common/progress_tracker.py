@@ -25,11 +25,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-# Third-party
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import TerminalAnsiGuru, ToolBox
+# Third-party
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
@@ -239,9 +238,9 @@ class ProgressTracker:
         else:
             # Set color according to context is possible
             if text.lower().startswith("error"):
-                color = Fore.RED
+                color = Fore.LIGHTRED_EX
             elif text.lower().startswith("warning"):
-                color = Fore.YELLOW
+                color = Fore.LIGHTYELLOW_EX
             else:
                 color = Fore.MAGENTA  # Bad status we just don't know exactly what
 

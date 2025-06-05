@@ -35,14 +35,13 @@ from typing import Any, Callable, Optional, Union, Tuple
 # Third-party
 import fcntl
 import select
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -1230,8 +1229,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
-            results = (self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments)))
+            results = (
+            self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments)))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1657,7 +1656,6 @@ class CoreEnvironment(CoreModuleInterface):
                         self._tracker.set_result(text="WARNING", status_code=2)
                         warning_msg = f"Ignored error during step {step_number + 1}: {execution_error}"
                         warnings_count = warnings_count + 1
-                        print(f"\n{warning_msg}")
                         self._logger.warning(warning_msg)
 
                 if last_step_results and last_step_results.return_code == 0:
