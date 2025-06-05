@@ -34,7 +34,7 @@ try:
     from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
                                                AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
                                                COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType,
-                                               ExceptionGuru, SequenceErrorActionType, FieldColorType,
+                                               ExceptionGuru, SequenceErrorActionType, FieldColorType, LinuxShellType,
                                                InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType,
                                                MethodLocationType, ModuleInfoType, SignatureFieldType,
                                                SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType,
@@ -52,6 +52,7 @@ try:
     from auto_forge.common.progress_tracker import ProgressTracker
     from auto_forge.common.pretty_json_printer import PrettyPrinter
     from auto_forge.common.system_info import SystemInfo
+    from auto_forge.common.shell_aliases import ShellAliases
 
     # Core / common modules
     from auto_forge.core.processor import CoreProcessor
@@ -78,13 +79,13 @@ except Exception as exception:
 # Exported symbols
 __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
            "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
-           "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader",
+           "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "ShellAliases",
            "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType", "SequenceErrorActionType",
            "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
            "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
            "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType", "PROJECT_BASE_PATH",
            "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE",
-           "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
+           "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO", "LinuxShellType",
            "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_TEMP_PREFIX", "PROJECT_SCHEMAS_PATH",
            "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker", "SystemInfo", "Registry",
            "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "TerminalAnsiGuru",

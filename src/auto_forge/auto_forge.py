@@ -18,14 +18,15 @@ import sys
 from pathlib import Path
 from typing import Optional, Any
 
-# Local application imports
+# Third-party
+from colorama import Fore, Style
+
+# AutoForge imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
                         PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
                         AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
-                        Registry, ToolBox, SystemInfo)
-# AutoForge imports
-from colorama import Fore, Style
+                        Registry, ToolBox, SystemInfo, ShellAliases)
 
 
 class AutoForge(CoreModuleInterface):
@@ -54,6 +55,8 @@ class AutoForge(CoreModuleInterface):
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
         self._steps_file: Optional[str] = None
+        self._sys_info: Optional[SystemInfo] = None
+        self._shell_aliases: Optional[ShellAliases] = None
 
         # Startup arguments
         self._package_configuration_data: Optional[dict[str, Any]] = None
@@ -89,7 +92,8 @@ class AutoForge(CoreModuleInterface):
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
         self._processor = CoreProcessor()
-        self._sys_info: dict = SystemInfo().as_dict()
+        self._sys_info = SystemInfo()
+        self._shell_aliases = ShellAliases()
 
         # Load package configuration and several dictionaries we might need later
         self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
@@ -110,11 +114,11 @@ class AutoForge(CoreModuleInterface):
         # Initializes the logger
         self._init_logger()
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
+        self._logger.info(self._sys_info)
 
         # Load all built-in commands
         self._loader = CoreLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
-
         # Start the environment core module
         self._environment = CoreEnvironment(workspace_path=self._workspace_path,
                                             package_configuration_data=self._package_configuration_data)

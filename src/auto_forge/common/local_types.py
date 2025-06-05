@@ -332,6 +332,14 @@ class SysInfoLinuxDistroType(str, Enum):
             return cls.UNKNOWN
 
 
+class LinuxShellType(Enum):
+    """Enumeration of Linux shells that this class can handle."""
+    UNKNOWN = 0
+    BASH = 1
+    ZSH = 2
+    FISH = 3
+
+
 class TerminalEchoType(Enum):
     """
     Defines how data is being echoed to the terminal from a forked process.

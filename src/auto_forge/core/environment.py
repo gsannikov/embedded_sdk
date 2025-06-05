@@ -32,15 +32,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional, Union, Tuple
 
+# Third-party
 import fcntl
 import select
-# Third-party
 from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
-                        ValidationMethodType, TerminalEchoType, SequenceErrorActionType)
+                        ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
 
@@ -84,6 +84,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
+        self._shell_aliases: ShellAliases = ShellAliases.get_instance()
         self._package_configuration_data: dict[str, Any] = package_configuration_data
 
         # Get the interactive commands from package configuration or use defaults if not available
@@ -339,6 +340,17 @@ class CoreEnvironment(CoreModuleInterface):
         # Propagate the exception
         except Exception as exception:
             raise exception
+
+    def create_alias(self, alias: str, command: str) -> Optional[CommandResultType]:
+        """
+        Create update or delete a shell alias using the ShellAliases Core module
+        """
+
+        if self._shell_aliases.create(alias=alias, command=command):
+            return CommandResultType(response=alias, return_code=0)
+        else:
+            # Use 'CommandResultType' to signal a failure
+            return CommandResultType(return_code=1)
 
     def environment_append_to_path(self, path: str):
         """
@@ -1544,7 +1556,6 @@ class CoreEnvironment(CoreModuleInterface):
     def create_config_file(self, solution_name: str, create_path: str) -> None:
         """
         Creates a .config file inside the given directory with basic solution properties.
-
         Args:
             solution_name (str): The name of the solution to store in the config.
             create_path (str): Path to the directory where .config should be created.
@@ -1578,6 +1589,7 @@ class CoreEnvironment(CoreModuleInterface):
             Optional[int]: Exit code. 0 on success, 1 on error.
         """
         step_number: int = 0
+        warnings_count: int = 0
         last_step_results: Optional[CommandResultType] = None
         original_path = os.path.abspath(os.getcwd())  # Store entry path
         status_on_error: Optional[str] = None
@@ -1612,7 +1624,6 @@ class CoreEnvironment(CoreModuleInterface):
             # Initialize progress tracker
             self._tracker = tracker if tracker else ProgressTracker(title_length=self._status_title_length,
                                                                     add_time_prefix=self._status_add_time_prefix)
-
             # Optional pre-message
             _expand_and_print(sequence_data.get("status_pre_message"))
 
@@ -1645,6 +1656,7 @@ class CoreEnvironment(CoreModuleInterface):
                     elif action_on_error == SequenceErrorActionType.RESUME:
                         self._tracker.set_result(text="WARNING", status_code=2)
                         warning_msg = f"Ignored error during step {step_number + 1}: {execution_error}"
+                        warnings_count = warnings_count + 1
                         print(f"\n{warning_msg}")
                         self._logger.warning(warning_msg)
 
@@ -1660,6 +1672,10 @@ class CoreEnvironment(CoreModuleInterface):
 
             self._tracker.set_end()
             _expand_and_print(sequence_data.get("status_post_message"))
+
+            # Briefly delay when we had warnings during the sequence to allow the user to see
+            if warnings_count > 0:
+                time.sleep(2)
             return 0
 
         except Exception as steps_error:
