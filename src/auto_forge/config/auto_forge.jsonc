@@ -7,7 +7,7 @@
 */
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+	"format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     // List of variable names that must be defined in the "variables" section.
     // These are considered critical for proper project configuration.
@@ -15,9 +15,9 @@
     // Validation will fail if any of these are missing.
 
     "essential_variables": [
-        //                                                                                                              Path must Exist (default true)
-        //   Key                    Value                                       Description                             Crate path if not exist (default true)
-	    //-----------------------------------------------------------------------------------------------------------------------------------------------------
+        //                                                                                                         Path must Exist (default true)
+        //   Key                    Value                                       Description                Crate path if not exist (default true)
+	    //---------------------------------------------------------------------------------------------------------------------------------------
 
             ["AF_BASE",             "$HOME/.auto_forge",                        "AutoForge persistent directory"                                ],
             ["AF_BIN",              "$AF_BASE/bin",                             "AutoForge persistent binaries"                                 ],
@@ -38,11 +38,14 @@
             ["SOURCE_BASE",         "$PROJ_BASE/src",                           "Sources base path"                                             ]
     ],
 
-    "hide_cmd2_native_commands": false,                     // Hide cmd2 built-in commands from the user menu
-    "complete_while_typing": true,                          // Controls Prompt toolkit completion speed
-    "prompt_history_file": "$AF_BASE/.auto_forge.history",
-    "prompt_max_completion_results": 100,
-    "git_token_environment_var": "NONE",
+
+    "hide_cmd2_native_commands": false,                     // Hide cmd2 built-in commands from the user-facing menu
+    "complete_while_typing": true,                          // Controls how aggressively prompt-toolkit attempts tab-completion while typing
+    "prompt_history_file": "$AF_BASE/.auto_forge.history",  // Path to store persistent prompt-toolkit history
+    "prompt_max_completion_results": 100,                   // Maximum number of tab-completion results; higher values may slow down completion in large directories
+    "git_token_environment_var": "NONE",                    // Optional name of the environment variable that may hold the user's Git token
+    "default_subprocess_execution_timout": 120.0,           // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
+
 
     // Expected location of solution files in an installed environment.
     // This variable is read during an early initialization stage, please avoid using any local variables

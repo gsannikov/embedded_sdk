@@ -34,15 +34,14 @@ from typing import Any, Callable, Optional, Union, Tuple
 
 import fcntl
 import select
-# Third-party
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
                         ValidationMethodType, TerminalEchoType, SequenceErrorActionType)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
+# Third-party
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -79,7 +78,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path
-        self._default_execution_time: float = 60.0  # Time allowed for executed shell command
+        self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
         self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
@@ -90,6 +89,10 @@ class CoreEnvironment(CoreModuleInterface):
         self._interactive_commands = self._package_configuration_data.get('interactive_commands',
                                                                           ["cat", "htop", "top", "vim", "less", "nano",
                                                                            "vi", "clear"])
+
+        # Allow to override default execution opf subprocesses in configuration
+        self._subprocess_execution_timout = self._package_configuration_data.get("default_subprocess_execution_timout",
+                                                                                 self._subprocess_execution_timout)
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
@@ -623,7 +626,7 @@ class CoreEnvironment(CoreModuleInterface):
         line_buffer = bytearray()
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
         master_fd: Optional[int] = None  # PTY master descriptor
-        timeout = self._default_execution_time if timeout is None else timeout  # Set default timeout when not provided
+        timeout = self._subprocess_execution_timout if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
 
         # Determine the terminal width
@@ -1214,8 +1217,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
-            results = (self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments)))
+            results = (
+            self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments)))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1567,11 +1570,9 @@ class CoreEnvironment(CoreModuleInterface):
         """
         Load and execute a sequence of steps from a structured dictionary.
         Each step is processed in order, and execution stops or resumes based on error policy.
-
         Args:
             sequence_data (dict[str, Any]): A dictionary containing the execution sequence definition.
             tracker (Optional[ProgressTracker]): An optional progress tracker. If not provided, a local one will be created.
-
         Returns:
             Optional[int]: Exit code. 0 on success, 1 on error.
         """
@@ -1584,23 +1585,25 @@ class CoreEnvironment(CoreModuleInterface):
             raise ValueError(
                 "Sequence data appears to be invalid — expected a dictionary with a non-empty nested list of steps.")
 
-        def _expand_and_print(msg: Optional[Any]) -> None:
+        def _expand_and_print(msg: Optional[Any], clear_current_line: bool = True) -> None:
             """Expand and print a string after resolving inner variables."""
             if not isinstance(msg, str) or not msg.strip():
                 return
             expanded_msg = self._variables.expand(key=msg)
             if expanded_msg:
-                sys.stdout.write('\033[2K')  # Clear the current line
+                if clear_current_line:
+                    sys.stdout.write('\033[2K')  # Clear the current line
                 print(expanded_msg)
 
         try:
-            self._running_sequence = True
+            self._running_sequence = True  # Mark our state globally
             self._steps_data = sequence_data.get("steps", [])
 
+            # We should have gotten a non-empty list of steps to execute so
             if not isinstance(self._steps_data, list) or not self._steps_data:
                 raise ValueError("No valid steps found in the provided sequence.")
 
-            # Set up status view configuration
+            # Set up status view configuration, use class defaults when not specified
             self._status_new_line = sequence_data.get("status_new_line", self._status_new_line)
             self._status_title_length = sequence_data.get("status_title_length", self._status_title_length)
             self._status_add_time_prefix = sequence_data.get("status_add_time_prefix", self._status_add_time_prefix)
@@ -1641,7 +1644,7 @@ class CoreEnvironment(CoreModuleInterface):
                     elif action_on_error == SequenceErrorActionType.RESUME:
                         self._tracker.set_result(text="WARNING", status_code=2)
                         warning_msg = f"Ignored error during step {step_number + 1}: {execution_error}"
-                        _expand_and_print(warning_msg)
+                        print(f"\n{warning_msg}\n")
                         self._logger.warning(warning_msg)
 
                 if last_step_results and last_step_results.return_code == 0:
@@ -1661,7 +1664,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as steps_error:
             self._tracker.set_result(text="Error", status_code=1)
             print()
-            status_on_error and _expand_and_print(status_on_error)
+            status_on_error and print(status_on_error)  # Echo custom step message if set
             raise RuntimeError(f"Step {step_number + 1} failed: {steps_error}") from steps_error
 
         finally:
