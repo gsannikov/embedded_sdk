@@ -17,7 +17,7 @@
 			"description": "Looking for 'dt'",
 			"method": "validate_prerequisite",
 			"status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
-			"action_on _error": "resume",
+			"action_on_error": "resume",
 			// Any of: break, resume, default is 'break'
 			"arguments": {
 				"command": "dt",
@@ -46,6 +46,7 @@
 		{
 			"description": "Getting git access token using 'dt'",
 			"method": "execute_shell_command",
+			"action_on_error": "resume",
 			"status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",
 			"arguments": {
 				"command_and_args": "dt github print-token",

@@ -10,7 +10,6 @@ Description:
     - Probing the user environment to ensure prerequisites are met.
 """
 import codecs
-import fcntl
 import fnmatch
 import inspect
 import json
@@ -18,7 +17,6 @@ import logging
 import os
 import pty
 import re
-import select
 import shlex
 import shutil
 import subprocess
@@ -34,6 +32,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional, Union, Tuple
 
+import fcntl
+import select
 # Third-party
 from colorama import Fore, Style
 
@@ -1633,11 +1633,16 @@ class CoreEnvironment(CoreModuleInterface):
                     last_step_results = self.execute_python_method(method_name=step.get("method"),
                                                                    arguments=step.get("arguments"))
                 except Exception as execution_error:
-                    if action_on_error == SequenceErrorActionType.BREAK:
+
+                    # Default - not specified is treated a break
+                    if action_on_error in (SequenceErrorActionType.BREAK, SequenceErrorActionType.DEFAULT):
                         raise execution_error from execution_error
-                    elif action_on_error in (SequenceErrorActionType.DEFAULT, SequenceErrorActionType.RESUME):
+
+                    elif action_on_error == SequenceErrorActionType.RESUME:
                         self._tracker.set_result(text="WARNING", status_code=2)
-                        self._logger.warning(f"Ignored error during step {step_number + 1}: {execution_error}")
+                        warning_msg = f"Ignored error during step {step_number + 1}: {execution_error}"
+                        _expand_and_print(warning_msg)
+                        self._logger.warning(warning_msg)
 
                 if last_step_results and last_step_results.return_code == 0:
                     store_key = step.get("response_store_key")
@@ -1656,8 +1661,7 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as steps_error:
             self._tracker.set_result(text="Error", status_code=1)
             print()
-            if status_on_error:
-                print(status_on_error)
+            status_on_error and _expand_and_print(status_on_error)
             raise RuntimeError(f"Step {step_number + 1} failed: {steps_error}") from steps_error
 
         finally:
