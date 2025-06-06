@@ -38,50 +38,6 @@
             // Toolchains used by this solution
             "tool_chains": [
                 {
-                    "name": "Linaro AArch64 Cross Toolchain",
-                    // The following assumes that the Linaro AArch64 toolchain is available under the
-                    // AutoForge persistent path, typically located at '$HOME/.auto_forge'..
-                    "platform": "linux",
-                    "description": "https://releases.linaro.org/components/toolchain/binaries/7.1-2017.05/",
-                    "architecture": "aarch64",
-                    "build_system": "cmake",
-                    "tool_prefix": "aarch64-linux-gnu-",
-                    "tool_base_path": "$AF_TOOL_CHAINS/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu",
-                    "tool_bins_path": "<$ref_tool_base_path>/bin",
-                    "tool_sysroot": "<$ref_tool_base_path>/aarch64-linux-gnu/libc",
-                    // Sysroot is provided by Linaro
-                    "required_tools": {
-                        "cmake": {
-                            "path": "cmake",
-                            "version": ">=3.2",
-                            "help": "builder/cmake.md",
-                            "options": [
-                                "-G",
-                                "Ninja",
-                                "-DCMAKE_SYSTEM_NAME=Linux",
-                                "-DCMAKE_SYSTEM_PROCESSOR=aarch64",
-                                "-DCMAKE_C_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>gcc",
-                                "-DCMAKE_CXX_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>g++",
-                                "-DCMAKE_SYSROOT=<$ref_tool_sysroot>",
-                                "-DCMAKE_FIND_ROOT_PATH=<$ref_tool_sysroot>",
-                                "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
-                                "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY",
-                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
-                            ]
-                        },
-                        "gcc": {
-                            "path": "<$ref_tool_base_path>/bin/<$ref_tool_prefix>gcc",
-                            "version": ">=7.5",
-                            "help": "builder/arm_cross_gcc.md"
-                        },
-                        "ninja": {
-                            "path": "ninja",
-                            "version": ">=1.10",
-                            "help": "builder/ninja.md"
-                        }
-                    }
-                },
-                {
                     "name": "Arm GNU AArch64 Cross Toolchain",
                     // The following assumes that the Arm GNU AArch64 toolchain is available under the
                     // AutoForge persistent path, typically located at '$HOME/.auto_forge'.
