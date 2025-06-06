@@ -16,7 +16,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 # Third-party
 from colorama import Fore, Style
@@ -424,10 +424,12 @@ class AutoForge(CoreModuleInterface):
             raise
 
 
-def auto_forge_main() -> Optional[int]:
+def auto_forge_main(launch_arguments: Optional[Union[list, str]]) -> Optional[int]:
     """
     Console entry point for the AutoForge build suite.
     This function handles user arguments and launches AutoForge to execute the required test.
+    Args:
+        launch_arguments (Optional[Union[list, str]]): Package launcher arguments.
     Returns:
         int: Exit code of the function.
     """
@@ -504,6 +506,7 @@ def auto_forge_main() -> Optional[int]:
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
+        print(launch_arguments)
 
     finally:
         ToolBox.set_terminal_input(state=True, flush=True)  # Restore terminal input
