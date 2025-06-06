@@ -1794,43 +1794,32 @@ class ToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
-    def substitute_keywords(text: Optional[str] = None, keywords: Optional[dict] = None,
+    def substitute_keywords(text: Optional[str] = None, keywords: Optional[list] = None,
                             allow_spaces: bool = True) -> str:
         """
-        Perform keyword substitution on a string using a provided mapping.
-
-        Placeholders in the input string that follow the format `<keyword>` will be replaced with corresponding values
-        from the `keywords["keywords_mapping"]`, which should be a list of pairs like: ["keyword", "replacement"].
-        If the placeholder matches a keyword, the entire `<keyword>` (including angle brackets) is replaced with the
-        mapped value. If no mapping is found, the placeholder is left as-is.
-
+        Perform keyword substitution on a string using a list of keyword mappings.
         Args:
             text (str, optional): The input string potentially containing <keyword> placeholders.
-            keywords (dict, optional): A dictionary with a "keywords_mapping" key containing list pairs.
-            allow_spaces (bool): If True, permits extra whitespace inside angle brackets (e.g. '<  test  >').
+            keywords (list, optional): A list of pairs like ["keyword", "replacement"].
+            allow_spaces (bool): If True, allows whitespace within < and > (e.g., '<  key  >').
 
         Returns:
-            str: The updated string after performing substitutions, or the original if input is invalid.
+            str: The modified string with substitutions applied, or the original if substitution fails.
         """
-        if not isinstance(text, str) or not isinstance(keywords, dict):
+        if not isinstance(text, str) or not isinstance(keywords, list):
             return text
 
         with suppress(Exception):
-            keywords_mapping = keywords.get("keywords_mapping", [])
-            if not isinstance(keywords_mapping, list):
-                return text
-
-            mapping = {key.strip(): val for item in keywords_mapping if
+            mapping = {key.strip(): val for item in keywords if
                        isinstance(item, list) and len(item) == 2 and all(isinstance(i, str) for i in item) for key, val
                        in [item]}
 
-            # Allowing spaces inside angle brackets
             pattern = r"<\s*([^<>]+?)\s*>" if allow_spaces else r"<([^<>]+)>"
 
-            def replacer(match: re.Match) -> str:
-                key = match.group(1).strip()
-                return mapping.get(key, match.group(0))  # Replace or leave as-is
+            def _replacer(_match: re.Match) -> str:
+                key = _match.group(1).strip()
+                return mapping.get(key, _match.group(0))
 
-            return re.sub(pattern, replacer, text)
+            return re.sub(pattern, _replacer, text)
 
         return text
