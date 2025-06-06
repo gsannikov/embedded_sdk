@@ -209,10 +209,9 @@ class AutoForge(CoreModuleInterface):
             if not isinstance(solution_package, str):
                 return
 
-            # Apply keywords substitution
-            keywords_mapping = self._package_configuration_data.get("keywords_mapping")
-            solution_package = self._tool_box.substitute_keywords(input_str=solution_package,
-                                                                  keywords_mapping=keywords_mapping)
+            # Apply keywords substitution if we have them in configuration
+            keywords_mapping: Optional[dict] = self._package_configuration_data.get("keywords_mapping")
+            solution_package = self._tool_box.substitute_keywords(text=solution_package, keywords=keywords_mapping)
 
             if ToolBox.is_url(solution_package):
                 _validate_solution_url(solution_url=solution_package)
