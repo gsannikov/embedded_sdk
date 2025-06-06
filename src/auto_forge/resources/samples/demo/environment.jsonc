@@ -25,24 +25,12 @@
     "status_post_message": "\n\nSetup is completed.\n",
     "steps": [
         {
-            "description": "Looking for 'dt'",
-            "disabled": true,
-            "method": "validate_prerequisite",
-            "status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
-            "arguments": {
-                "command": "dt",
-                "arguments": "version",
-                "cwd": "$HOME/bin"
-            }
-        },
-        {
             "description": "Looking for 'python' 3.9.0 or grater",
             "method": "validate_prerequisite",
             "arguments": {
                 "command": "python3",
                 "arguments": "--version",
-                "expected_response": "Python 3.9.0",
-                "allow_greater_decimal": true
+                "version": ">=3.9.0"
             }
         },
         {
@@ -50,7 +38,8 @@
             "method": "validate_prerequisite",
             "arguments": {
                 "command": "git",
-                "arguments": "--version"
+                "arguments": "--version",
+                "version": ">=2.0"
             }
         },
         {
@@ -76,17 +65,6 @@
                 "command": "g++",
                 "arguments": "--version"
             }
-        },
-        {
-            "description": "Getting git access token using 'dt'",
-            "method": "execute_shell_command",
-            "disabled": true,
-            "arguments": {
-                "command_and_args": "dt github print-token",
-                "cwd": "$HOME/bin"
-            },
-            // Store the executed command response in key name 'dt_token'
-            "response_store_key": "dt_token"
         },
         {
             "description": "Initializing workspace path",
@@ -117,7 +95,7 @@
             "method": "python_package_add",
             "arguments": {
                 "venv_path": ".venv",
-                "package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython"
+                "package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython wheel"
             }
         },
         {
@@ -136,6 +114,14 @@
                 "dest_repo_path": "$SOURCE_BASE/btop",
                 "revision": "main",
                 "timeout": 360
+            }
+        },
+        {
+            "description": "Create a shell alias to the solution",
+            "method": "create_alias",
+            "arguments": {
+                "alias": "us",
+                "command": "$PROJ_WORKSPACE/env.sh"
             }
         }
     ]

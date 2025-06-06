@@ -7,48 +7,48 @@
 */
 
 {
-	"type": "object",
-	"description": "Schema for validating a list of project variables.",
-	"required": [
-		"variables"
-	],
-	"properties": {
-		"variables": {
-			"type": "array",
-			"description": "List of project-defined variable entries.",
-			"items": {
-				"type": "object",
-				"description": "A single variable entry.",
-				"required": [
-					"name",
-					"value",
-					"description"
-				],
-				"properties": {
-					"name": {
-						"type": "string",
-						"description": "The name of the variable."
-					},
-					"value": {
-						"type": "string",
-						"description": "The assigned value or expression for the variable."
-					},
-					"description": {
-						"type": "string",
-						"description": "A human-readable description of what this variable is used for."
-					},
-					"path_must_exist": {
-						"type": "boolean",
-						"description": "Whether the specified path must exist at runtime."
-					},
-					"create_path_if_not_exist": {
-						"type": "boolean",
-						"description": "Whether the system should automatically create the path if it doesn't exist."
-					}
-				},
-				"additionalProperties": true
-			}
-		}
-	},
-	"additionalProperties": false
+    "type": "object",
+    "description": "Schema for validating a list of project variables.",
+    "required": [
+        "variables"
+    ],
+    "properties": {
+        "variables": {
+            "type": "array",
+            "description": "List of project-defined variable entries.",
+            "items": {
+                "type": "object",
+                "description": "A single variable entry.",
+                "required": [
+                    "name",
+                    "value",
+                    "description"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the variable."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The assigned value or expression for the variable."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "A human-readable description of what this variable is used for."
+                    },
+                    "path_must_exist": {
+                        "type": "boolean",
+                        "description": "Whether the specified path must exist at runtime."
+                    },
+                    "create_path_if_not_exist": {
+                        "type": "boolean",
+                        "description": "Whether the system should automatically create the path if it doesn't exist."
+                    }
+                },
+                "additionalProperties": true
+            }
+        }
+    },
+    "additionalProperties": false
 }

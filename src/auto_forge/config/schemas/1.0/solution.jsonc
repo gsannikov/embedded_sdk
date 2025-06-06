@@ -26,141 +26,141 @@
 */
 
 {
-	"type": "object",
-	"properties": {
-		"solutions": {
-			"type": "array",
-			"minItems": 1,
-			"items": {
-				"type": "object",
-				"properties": {
-					"name": {
-						"type": "string"
-					},
-					"variables": {
-						"type": "string"
-					},
-					"build_path": {
-						"type": "string"
-					},
-					"workspace": {
-						"type": "string"
-					},
-					"environment_config": {
-						"type": "string"
-					},
-					"signature_schema": {
-						"type": "string"
-					},
-					"tool_chains": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"name": {
-									"type": "string"
-								},
-								"build_system": {
-									"type": "string"
-								}
-							},
-							"required": [
-								"name",
-								"build_system"
-							],
-							"additionalProperties": true
-						}
-					},
-					"projects": {
-						"type": "array",
-						"minItems": 1,
-						"items": {
-							"type": "object",
-							"properties": {
-								"name": {
-									"type": "string"
-								},
-								"description": {
-									"type": "string"
-								},
-								"tool_chain": {
-									"type": "object",
-									"properties": {
-										"name": {
-											"type": "string"
-										}
-									},
-									"required": [
-										"name"
-									],
-									"additionalProperties": true
-								},
-								"configurations": {
-									"type": "array",
-									"minItems": 1,
-									"items": {
-										"type": "object",
-										"properties": {
-											"name": {
-												"type": "string"
-											},
-											"cmake_top_level_path": {
-												"type": "string"
-											},
-											"build_path": {
-												"type": "string"
-											},
-											"compiler_command": {
-												"type": "string"
-											},
-											"execute_from": {
-												"type": "string"
-											},
-											"expected_result": {
-												"type": "number"
-											},
-											"compiler_options": {
-												"type": "array",
-												"items": {
-													"type": "string"
-												}
-											},
-											"artifacts": {
-												"type": "array",
-												"items": {
-													"type": "string"
-												}
-											}
-										},
-										"required": [
-											"name",
-											"build_path",
-											"compiler_options",
-											"artifacts"
-										]
-									}
-								}
-							},
-							"required": [
-								"name",
-								"description",
-								"tool_chain",
-								"configurations"
-							]
-						}
-					}
-				},
-				"required": [
-					"name",
-					"variables",
-					"build_path",
-					"workspace",
-					"tool_chains",
-					"projects"
-				]
-			}
-		}
-	}
+    "type": "object",
+    "properties": {
+        "solutions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "variables": {
+                        "type": "string"
+                    },
+                    "build_path": {
+                        "type": "string"
+                    },
+                    "workspace": {
+                        "type": "string"
+                    },
+                    "environment_config": {
+                        "type": "string"
+                    },
+                    "signature_schema": {
+                        "type": "string"
+                    },
+                    "tool_chains": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "build_system": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "build_system"
+                            ],
+                            "additionalProperties": true
+                        }
+                    },
+                    "projects": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "type": "string"
+                                },
+                                "tool_chain": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "name"
+                                    ],
+                                    "additionalProperties": true
+                                },
+                                "configurations": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "cmake_top_level_path": {
+                                                "type": "string"
+                                            },
+                                            "build_path": {
+                                                "type": "string"
+                                            },
+                                            "compiler_command": {
+                                                "type": "string"
+                                            },
+                                            "execute_from": {
+                                                "type": "string"
+                                            },
+                                            "expected_result": {
+                                                "type": "number"
+                                            },
+                                            "compiler_options": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "artifacts": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name",
+                                            "build_path",
+                                            "compiler_options",
+                                            "artifacts"
+                                        ]
+                                    }
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "description",
+                                "tool_chain",
+                                "configurations"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "variables",
+                    "build_path",
+                    "workspace",
+                    "tool_chains",
+                    "projects"
+                ]
+            }
+        }
+    }
 }
 
 
