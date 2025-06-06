@@ -59,6 +59,7 @@ class _TrackerState(Enum):
 
 
 class ProgressTracker:
+    """ Implements the ProgressTracker class """
     def __init__(self, title_length: int = 80, add_time_prefix: bool = False, min_update_interval_ms: int = 250,
                  hide_cursor: bool = True, linger_interval_ms: int = 0, default_new_line: bool = True) -> None:
         """

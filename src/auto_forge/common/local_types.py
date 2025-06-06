@@ -11,13 +11,12 @@ import json
 import os
 import re
 import sys
-import threading
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from datetime import timedelta
 from enum import Enum, auto
 from types import ModuleType
-from typing import Any, Callable, NamedTuple, Optional, TextIO
+from typing import Any, NamedTuple, Optional, TextIO
 
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
@@ -150,6 +149,12 @@ class ExecutionModeType(Enum):
     """
     SHELL = "shell"
     PYTHON = "python"
+
+
+class ExpectedVersionInfoType(NamedTuple):
+    """ Generic type for splitting version and operator (e.g.'>= 3.16') into 2 parts """
+    operator: str  # e.g. '>=' ,'<' act.
+    version: str  # Version identifier, e.g. '4.6'
 
 
 class CommandResultType(NamedTuple):
@@ -529,46 +534,6 @@ class ExceptionGuru:
         self._line_number = tb.tb_lineno
 
 
-class ThreadGuru:
-    @staticmethod
-    def create_thread_and_wait_ack(target: Callable[..., None], name: Optional[str] = None, daemon: bool = True,
-                                   timeout: Optional[float] = 5, *args: Any) -> threading.Thread:
-        """
-        Creates and starts a thread, passing an Event object that the target function can use to
-        signal it has started. Also passes optional user arguments to the target.
-
-        The target must accept `start_event` as the first argument (which may be None),
-        followed by any number of user-defined args.
-
-        Args:
-            target (Callable): The thread entry point function. Signature must be:
-                               `func(start_event: Optional[threading.Event], *args)`
-            name (Optional[str]): Name of the thread.
-            daemon (bool): Whether to run as daemon. Defaults to True.
-            timeout (Optional[float]): Max time (in seconds) to wait for startup. Defaults to 5.
-            *args (Any): Additional arguments to pass to the target function.
-
-        Returns:
-            threading.Thread: The created and started thread.
-        """
-        start_ack = threading.Event()
-
-        def wrapper():
-            try:
-                target(start_ack, *args)
-            finally:
-                if not start_ack.is_set():
-                    start_ack.set()
-
-        thread = threading.Thread(target=wrapper, name=name, daemon=daemon)
-        thread.start()
-
-        if not start_ack.wait(timeout=timeout):
-            raise RuntimeError("timeout waiting for thread to acknowledge startup.")
-
-        return thread
-
-
 @dataclass
 class BuildProfileType:
     """
@@ -605,6 +570,7 @@ class BuildTelemetry:
 
     @classmethod
     def load(cls, path: str) -> "BuildTelemetry":
+        """ Load telemetry data from a file """
         if not os.path.exists(path):
             return cls()
         with open(path) as f:
@@ -619,6 +585,7 @@ class BuildTelemetry:
                     "shortest_successful_build") is not None else None))
 
     def save(self, path: str):
+        """ Save telemetry data to a file """
         data = asdict(self)
         for key in ["total_build_time", "total_dev_time", "longest_build_time", "shortest_successful_build"]:
             if data[key] is not None:
@@ -628,6 +595,7 @@ class BuildTelemetry:
 
     @staticmethod
     def format_timedelta(td: timedelta) -> str:
+        """ Get formatted timedelta string """
         total_seconds = int(td.total_seconds())
         minutes, seconds = divmod(total_seconds, 60)
         milliseconds = td.microseconds // 1000
@@ -639,18 +607,22 @@ class BuildTelemetry:
         return " ".join(parts)
 
     def start_build_timer(self):
+        """ Keep track of a build start time """
         self.session_start_time = datetime.now(timezone.utc)
 
     def stop_build_timer(self):
+        """ Keep track of a build stop time """
         if self.session_start_time is not None:
             elapsed = datetime.now(timezone.utc) - self.session_start_time
             self.total_build_time += elapsed
             self.session_start_time = None
 
     def get_total_build_time(self) -> timedelta:
+        """ Get the total time spent in compilation """
         if self.session_start_time is not None:
             return self.total_build_time + (datetime.now(timezone.utc) - self.session_start_time)
         return self.total_build_time
 
     def get_session_time(self) -> timedelta:
+        """ Get the total time the session was active """
         return datetime.now(timezone.utc) - self.session_start_time

@@ -180,11 +180,13 @@ class CoreGUI(CoreModuleInterface):
             result: dict[str, str] = {}
 
             def on_ok():
+                """ OK Button handler """
                 for i, single_entry in enumerate(entries):
                     result[lines[i].label] = single_entry.get()
                 dialog.destroy()
 
             def on_cancel():
+                """ Cancel Button handler """
                 result.clear()
                 dialog.destroy()
 

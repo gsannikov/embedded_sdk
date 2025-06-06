@@ -14,10 +14,12 @@ import contextlib
 import io
 import logging
 import os
-import shlex
 import sys
 from pathlib import Path
 from typing import Optional, Any
+
+# Third-party
+from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
@@ -25,8 +27,6 @@ from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SH
                         AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
                         Registry, ToolBox, SystemInfo, ShellAliases)
-# Third-party
-from colorama import Fore, Style
 
 
 class AutoForge(CoreModuleInterface):
@@ -57,9 +57,6 @@ class AutoForge(CoreModuleInterface):
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[SystemInfo] = None
         self._shell_aliases: Optional[ShellAliases] = None
-
-        # Helps to better debug how the package was started
-        self._package_launch_arguments = ' '.join(shlex.quote(arg) for arg in sys.argv[1:])
 
         # Startup arguments
         self._package_configuration_data: Optional[dict[str, Any]] = None
@@ -118,7 +115,6 @@ class AutoForge(CoreModuleInterface):
         self._init_logger()
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
         self._logger.info(self._sys_info)
-        self._logger.info(f"Start Arguments: {self._package_launch_arguments}")
 
         # Load all built-in commands
         self._loader = CoreLoader()
@@ -128,7 +124,7 @@ class AutoForge(CoreModuleInterface):
                                             package_configuration_data=self._package_configuration_data)
 
     def _init_logger(self):
-        """ Construct the logger file name, initialize and start it"""
+        """ Construct the logger file name, initialize and start logging"""
 
         allow_console_output = False
 
@@ -139,8 +135,7 @@ class AutoForge(CoreModuleInterface):
             # Patch it with timestamp so we will have dedicated log for each build system run.
             log_file = self._tool_box.append_timestamp_to_path(log_file)
         else:
-            # No workspace use plain log file name
-            log_file = PROJECT_LOG_FILE
+            log_file = PROJECT_LOG_FILE  # No workspace use plain log file name
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
@@ -368,7 +363,7 @@ class AutoForge(CoreModuleInterface):
                                           blink_pixel=XYType(x=1, y=5))
 
                 # Start blocking build system user mode shell
-                self._tool_box.set_terminal_input(state=False)  # Disable user input until the prompt is active
+                self._tool_box.set_terminal_input()  # Disable user input until the prompt is active
                 self._gui: CoreGUI = CoreGUI()
                 self._prompt = CorePrompt()
 
@@ -514,6 +509,6 @@ def auto_forge_main() -> Optional[int]:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
     finally:
-        ToolBox.set_terminal_input(state=True, flush=True)  # Restore terminal input
+        ToolBox.set_terminal_input(state=True)  # Restore terminal input
 
     return result

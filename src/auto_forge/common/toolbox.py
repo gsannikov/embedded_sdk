@@ -38,11 +38,11 @@ from urllib.parse import ParseResult, unquote, urlparse
 import math
 import psutil
 import termios
-from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
                         AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType, )
+from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -726,7 +726,7 @@ class ToolBox(CoreModuleInterface):
                 file_content = file.read()
 
             # Encode the content to base64
-            encoded_content = base64.b64encode(file_content).decode('utf-8')
+            encoded_content = base64.b64encode(file_content).decode()
             return encoded_content
 
         except Exception as encode_error:
@@ -825,7 +825,7 @@ class ToolBox(CoreModuleInterface):
 
         try:
             if zipfile.is_zipfile(archive_path):
-                with zipfile.ZipFile(archive_path, 'r') as zf:
+                with zipfile.ZipFile(archive_path) as zf:
                     for member in zf.filelist:
                         if update_progress:
                             update_progress(f"{member.filename}")
@@ -1080,8 +1080,8 @@ class ToolBox(CoreModuleInterface):
         if not text:
             return text
 
-        # Extract and preserve [-W...warning...] from broken [https://...] blocks
         def recover_warning_flag(match):
+            """ # Extract and preserve [-W...warning...] from broken [https://...] blocks """
             url = match.group(1)
             warning_match = re.search(r'(-W[\w\-]+)', url)
             return f"[{warning_match.group(1)}]" if warning_match else ""
@@ -1130,6 +1130,7 @@ class ToolBox(CoreModuleInterface):
         max_line_len = max(len(line) for line in lines)
 
         def get_rgb_gradient(height, width):
+            """ Computes an RGB ANSI color escape sequence based on horizontal gradient position. """
             t = height / max(1, width - 1)
             r = int(r_base + r_delta * t)
             g = int(g_base + g_delta * t)
@@ -1267,6 +1268,7 @@ class ToolBox(CoreModuleInterface):
         protected = {}
 
         def protect(match):
+            """ Replaces a matched string with a unique placeholder and stores the original for later restoration. """
             protected_token = f"__PROTECTED_{len(protected)}__"
             protected[protected_token] = match.group(0)
             return protected_token
@@ -1397,79 +1399,6 @@ class ToolBox(CoreModuleInterface):
                 base_name = os.path.basename(src_file)
                 dst_path = os.path.join(dest_dir, base_name)
                 shutil.copy2(src_file, dst_path)
-
-    # noinspection SpellCheckingInspection
-    @staticmethod
-    def extract_version(text_blob: str) -> Optional[str]:
-        """
-        General pupose best effoprt version extractor and identifier from a given text blob.
-        Attempts to find version numbers using a series of regular expressions
-        designed to match common versioning patterns. It returns the first match found.
-        Args:
-            text_blob: A string, typically the output of a command, typicaly in response to
-                something like 'binary --version'.
-        Returns:
-            A string containing the extracted version number if found, otherwise None.
-        """
-        # Handle bytes input by decoding to string
-        if isinstance(text_blob, bytes):
-            try:
-                text_blob = text_blob.decode('utf-8', errors='ignore')
-            except UnicodeDecodeError:
-                # Error: Input bytes could not be decoded with UTF-8.
-                return None
-
-        # Ensure that after potential decoding, we have a string
-        elif not isinstance(text_blob, str):
-            # Error: Input must be a string or bytes.
-            return None
-
-        # Regex patterns to match various version formats.
-        # Ordered from more specific to more general to try and get the best match first.
-        patterns = [  # Examples: 5.2.37(1)-release, 1.2.3-alpha, 2.0.0-rc1
-            # Catches semantic versioning with potential build/release info
-            r'(\d+\.\d+\.\d+[\w.-]*)',  # Most common: X.Y.Z with optional suffixes
-
-            # Examples: version 5.2.37, v5.2.37, Version: 5.2.37
-            r'(?:[Vv]ersion[:\s]?|v)(\d+\.\d+\.\d+[\w.-]*)',
-
-            # Examples: 5.2.37 (without (1)-release part if the above missed it)
-            r'(\d+\.\d+\.\d+)',
-
-            # Examples: 1.23, v1.23
-            r'(?:[Vv]ersion[:\s]?|v)(\d+\.\d+[\w.-]*)',  # X.Y with optional suffixes
-
-            # Examples: 1.23 (without prefix)
-            r'(\d+\.\d+)',
-
-            # Examples: version 5, v5 (less common but possible for major versions)
-            r'(?:[Vv]ersion[:\s]?|v)(\d+[\w.-]*)',
-
-            # Example: 12 (single number, could be a build number or simple version)
-            # This is very broad, so it's last.
-            # It looks for a number that is likely part of a version string,
-            # often preceded by "version", "release", or similar keywords, or punctuation.
-            r'(?:[Vv]ersion\s*|release\s*|[Rr]evision\s*|[Bb]uild\s*|[\(\s,])(\d+)(?:[\)\s,]|$)', ]
-
-        for pattern in patterns:
-            match = re.search(pattern, text_blob)
-            if match:
-                # Prioritize group 1 if it exists (it usually captures just the version part)
-                # Otherwise, take group 0 (the whole match)
-                if len(match.groups()) > 0 and match.group(1):
-                    version = match.group(1)
-                    # Further clean-up: sometimes a trailing dot or hyphen might be caught
-                    return version.strip('.-')
-                elif match.group(0):
-                    # If it's group 0, we might need to clean it up more.
-                    # For example, if pattern was r'(?:Version:\s)(\d+\.\d+)'
-                    # match.group(0) would be "Version: 1.2", we want "1.2"
-                    # However, most of our specific captures are in group(1)
-                    # This is a fallback.
-                    cleaned_version = re.sub(r'^(?:[Vv]ersion[:\s]?|v)', '', match.group(0))
-                    return cleaned_version.strip('.-')
-
-        return None
 
     def get_man_description(self, command: str) -> Optional[str]:
         """
@@ -1624,8 +1553,7 @@ class ToolBox(CoreModuleInterface):
         """
         with suppress(Exception):
             user_shell = os.environ.get("SHELL", "/bin/bash")
-            result = subprocess.run([user_shell, "-c", f"type {tested_command}"], capture_output=True, text=True,
-                                    check=False, )
+            result = subprocess.run([user_shell, "-c", f"type {tested_command}"], capture_output=True, text=True)
             return any(keyword in result.stdout for keyword in ("shell builtin", "reserved word", "alias", "function"))
 
         return False
@@ -1687,7 +1615,7 @@ class ToolBox(CoreModuleInterface):
             """
             content = file_obj.read()
             if isinstance(content, bytes):
-                content = content.decode('utf-8')
+                content = content.decode()
 
             # Try whole-file JSON first (pretty-printed or compact)
             with suppress(json.JSONDecodeError):
@@ -1818,7 +1746,7 @@ class ToolBox(CoreModuleInterface):
 
             def _replacer(_match: re.Match) -> str:
                 key = _match.group(1).strip()
-                return mapping.get(key, _match.group(0))
+                return mapping.get(key, _match.group())
 
             return re.sub(pattern, _replacer, text)
 

@@ -29,6 +29,7 @@ AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
+# noinspection DuplicatedCode
 class MakeBuilder(BuilderRunnerInterface):
     """
     Implementation of the BuilderRunnerInterface for Make-based builds.

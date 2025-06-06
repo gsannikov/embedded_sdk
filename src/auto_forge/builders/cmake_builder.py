@@ -29,6 +29,7 @@ AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
+# noinspection DuplicatedCode
 class CMakeBuilder(BuilderRunnerInterface):
     """
     Implementation of the BuilderInterface for CMake-based builds.

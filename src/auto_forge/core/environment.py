@@ -10,6 +10,8 @@ Description:
     - Probing the user environment to ensure prerequisites are met.
 """
 import codecs
+# Third-party
+import fcntl
 import fnmatch
 import inspect
 import json
@@ -17,6 +19,7 @@ import logging
 import os
 import pty
 import re
+import select
 import shlex
 import shutil
 import subprocess
@@ -32,16 +35,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional, Union, Tuple
 
-# Third-party
-import fcntl
-import select
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
-                        CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry, ToolBox,
-                        ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases)
+                        VersionCompare, CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry,
+                        ToolBox, ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -120,34 +121,6 @@ class CoreEnvironment(CoreModuleInterface):
         raise TypeError("arguments must be None, a string, or a list")
 
     @staticmethod
-    def _get_linux_distro() -> Optional[tuple[str, str]]:
-        """
-        Extracts the distribution name and version from /etc/os-release.
-        Returns:
-            tuple: The distribution name and version in lowercase (e.g., ('ubuntu', '20.04')).
-                or None on any error.
-        """
-        distro_info = {'name': 'unknown', 'version': 'unknown'}
-
-        # Attempt to open the file and extract distro info,
-        # suppressing any exceptions (e.g., file not found, permission error)
-        with suppress(Exception), open("/etc/os-release") as file:
-            # Iterate through each line to find OS name and version
-            for line in file:
-                if line.startswith("ID="):
-                    # Extract and clean the distro name
-                    distro_info['name'] = (line.strip().split('=')[1].strip().replace('"', '').lower())
-                elif line.startswith("VERSION_ID="):
-                    # Extract and clean the distro version
-                    distro_info['version'] = (line.strip().split('=')[1].strip().replace('"', '').lower())
-
-            # Return tuple only if both name and version were found
-            return distro_info['name'], distro_info['version']
-
-        # If anything failed (file missing, parsing error), return None
-        return None
-
-    @staticmethod
     def _get_default_python_info() -> Optional[Tuple[str, str]]:
         """
         Returns the path and version of the default Python 3 interpreter if found.
@@ -194,21 +167,6 @@ class CoreEnvironment(CoreModuleInterface):
 
         self._logger.debug(f"Python executable found: '{python_executable}'")
         return python_executable
-
-    @staticmethod
-    def _parse_version(text: str, max_parts: int = 3) -> tuple[int, ...]:
-        """
-        Extracts up to `max_parts` numerical components of a version string.
-        Non-numeric suffixes (like '1A', 'rc1') are ignored.
-        """
-
-        if not isinstance(text, str):
-            raise ValueError("input is not a string")
-
-        parts = re.findall(r"\d+", text)
-        if not parts:
-            raise ValueError(f"No version number found in: {text}")
-        return tuple(int(p) for p in parts[:max_parts])
 
     @staticmethod
     def _extract_decimal(text: str, treat_no_decimal_as_zero: bool = True) -> Union[float, int]:
@@ -902,7 +860,7 @@ class CoreEnvironment(CoreModuleInterface):
 
     def validate_prerequisite(self, command: str, arguments: Optional[str] = None, cwd: Optional[str] = None,
                               validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
-                              expected_response: Optional[str] = None, allow_greater_decimal: bool = False) -> Optional[
+                              expected_response: Optional[str] = None, version: Optional[str] = None) -> Optional[
         CommandResultType]:
         """
         Validates that a system-level prerequisite is met using a specified method.
@@ -915,7 +873,8 @@ class CoreEnvironment(CoreModuleInterface):
             validation_method (ValidationMethodType): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
             expected_response (Optional[str]): Expected content in output (for EXECUTE_PROCESS)
                 or file content (for READ_FILE).
-            allow_greater_decimal (bool): If True, allows the decimal response to be greater than expected repose (as decimal).
+            version (Optional[str]): The expected version of the system package or executed binary, would be fixed
+                (e.g., "10.76"), or an expression (e.g., ">=10.0", "==1.2.3").
 
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
@@ -925,22 +884,29 @@ class CoreEnvironment(CoreModuleInterface):
         try:
             # Execute a process and check its response
             if validation_method == ValidationMethodType.EXECUTE_PROCESS:
+
+                if expected_response is not None and version is not None:
+                    raise ValueError(f"can specify either 'expected_response' or 'version' but not both")
+
                 results = self.execute_shell_command(
                     command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=cwd)
 
-                if expected_response:
-                    if results.response is None:
-                        raise RuntimeError(f"'{command}' returned no output while expecting '{expected_response}'")
+                if results.response is None:
+                    raise RuntimeError(f"'{command}' returned no output while expecting '{expected_response}'")
 
-                    if allow_greater_decimal:
-                        actual_version = self._parse_version(text=results.response)
-                        expected_version = self._parse_version(text=expected_response)
-                        if actual_version < expected_version:
-                            raise Exception(
-                                f"required {command} version is {expected_version} or higher, found {actual_version}")
-                    else:
-                        if expected_response.lower() not in results.response.lower():
-                            raise Exception(f"expected response '{expected_response}' not found in output")
+                # If the user specified required version, use the VersionInfo auxiliary class to do the heavy lifting.
+                if isinstance(version, str):
+
+                    compare_results = VersionCompare().compare(detected=results.response, expected=version)
+                    if compare_results is not None:
+                        version_ok, detected_version = compare_results
+                        if not version_ok:
+                            raise Exception(f"command '{command}' version was not satisfied, "
+                                            f"expected '{version}' found {detected_version}")
+
+                elif isinstance(expected_response, str):
+                    if expected_response.lower() not in results.response.lower():
+                        raise Exception(f"expected response '{expected_response}' not found in output")
 
             # Read a text line from a file and compare its content
             elif validation_method == ValidationMethodType.READ_FILE:
@@ -1240,8 +1206,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Construct and execute the command
             arguments = f"-m pip show {package}"
-            results = (
-            self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments)))
+            results = (self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=arguments)))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text

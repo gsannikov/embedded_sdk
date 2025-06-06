@@ -11,7 +11,7 @@
 	"status_add_time_prefix": true,
 	"status_new_line": true,
 	// Enables multi-line status output instead of in-place updates
-	"status_pre_message": "\n\nHello, welcome to the '$SOLUTION_NAME' solution setup..",
+	"status_pre_message": "\n\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
 	"status_post_message": "\n\nSetup is completed.\n",
 	"steps": [
 		{
@@ -32,7 +32,7 @@
 			"arguments": {
 				"command": "python3",
 				"arguments": "--version",
-				"expected_response": "Python 3.9.0",
+				"version": ">=3.9.0",
 				"allow_greater_decimal": true
 			}
 		},
@@ -41,7 +41,8 @@
 			"method": "validate_prerequisite",
 			"arguments": {
 				"command": "git",
-				"arguments": "--version"
+				"arguments": "--version",
+				"version": ">=2.0"
 			}
 		},
 		{
@@ -140,7 +141,7 @@
 			"description": "Cloning 'userspace'",
 			"method": "git_clone_repo",
 			"action_on_error": "resume",
-			// Recommended: use 'break' or omit this field in production
+			// Reqwired by the build system deplyment debugging.
 			"arguments": {
 				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
 				"dest_repo_path": "$SOURCE_BASE/userspace",

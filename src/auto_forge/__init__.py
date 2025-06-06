@@ -38,8 +38,9 @@ try:
                                                InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType,
                                                MethodLocationType, ModuleInfoType, SignatureFieldType,
                                                SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType,
-                                               TerminalTeeStream, ThreadGuru, ValidationMethodType, VariableFieldType,
-                                               XYType, SysInfoPackageManagerType, SysInfoLinuxDistroType)
+                                               TerminalTeeStream, ValidationMethodType, VariableFieldType,
+                                               XYType, SysInfoPackageManagerType, SysInfoLinuxDistroType,
+                                               ExpectedVersionInfoType, )
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -53,6 +54,7 @@ try:
     from auto_forge.common.pretty_json_printer import PrettyPrinter
     from auto_forge.common.system_info import SystemInfo
     from auto_forge.common.shell_aliases import ShellAliases
+    from auto_forge.common.version_compare import VersionCompare
 
     # Core / common modules
     from auto_forge.core.processor import CoreProcessor
@@ -82,12 +84,13 @@ __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "Aut
            "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "ShellAliases",
            "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType", "SequenceErrorActionType",
            "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
-           "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
-           "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType", "PROJECT_BASE_PATH",
-           "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH", "PROJECT_CONFIG_FILE",
-           "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO", "LinuxShellType",
-           "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_TEMP_PREFIX", "PROJECT_SCHEMAS_PATH",
-           "PROJECT_VIEWERS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter", "ProgressTracker",
-           "SystemInfo", "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType",
-           "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ThreadGuru", "ToolBox", "ValidationMethodType",
-           "VariableFieldType", "XYType", "main"]
+           "VersionCompare", "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType",
+           "InputBoxTextType", "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
+           "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH",
+           "PROJECT_CONFIG_FILE", "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE",
+           "PROJECT_REPO", "LinuxShellType", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_TEMP_PREFIX",
+           "PROJECT_SCHEMAS_PATH", "PROJECT_VIEWERS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter",
+           "ProgressTracker", "SystemInfo", "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler",
+           "SignatureSchemaType", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
+           "ExpectedVersionInfoType",
+           "ValidationMethodType", "VariableFieldType", "XYType", "main"]

@@ -15,9 +15,11 @@
 {
     "variables": [
         {
-            "name": "USERSPACE_LEGACY",
+            "name": "USERSPACE_MMG",
             "value": "$HOME/projects/mmg_new_repo/sources",
-            "description": "Userspace legacy repo"
+            "description": "Userspace MMG new repo",
+            "path_must_exist": true,
+            "create_path_if_not_exist": false
         }
     ]
 }

@@ -110,6 +110,7 @@ class CoreSolution(CoreModuleInterface):
             return None
 
         def recursive_lookup(obj: Any) -> Optional[Union[list[Any], dict[str, Any], str]]:
+            """ Solution wide recursive search."""
             if isinstance(obj, dict):
                 for k, v in obj.items():
                     if k == key and isinstance(v, (list, dict, str)):
@@ -260,6 +261,7 @@ class CoreSolution(CoreModuleInterface):
             return None
 
         def generator():
+            """ Iterator mandatory """
             for project in self._solution_data.get("projects", []):
                 if project.get("disabled", False):
                     continue
@@ -373,7 +375,7 @@ class CoreSolution(CoreModuleInterface):
             # Instantiate the optional signatures core module based on the configuration file we got
             self._signatures = CoreSignatures(signatures_config_file_name=self._schema_files.get("signatures"))
         else:
-            self._logger.warning("Signatures schema file not found, signature support is disables")
+            self._logger.warning("Signatures schema file not found, signature support is disabled")
 
         # Preprocess the solution schema file if we have it
         if self._schema_files is not None and self._schema_files.get("solution"):
@@ -656,7 +658,7 @@ class CoreSolution(CoreModuleInterface):
                 if resolved_value is None:
                     self._logger.debug(f"'{ref_content}' could not be resolved")
 
-                return str(resolved_value) if resolved_value is not None else match.group(0)
+                return str(resolved_value) if resolved_value is not None else match.group()
 
             regex_pattern = r"<\$ref_([^>]+)>"
 
@@ -1085,6 +1087,7 @@ class CoreSolution(CoreModuleInterface):
 
     @property
     def solution_name(self) -> str:
+        """ Get the solution name. """
         return self._solution_name
 
 

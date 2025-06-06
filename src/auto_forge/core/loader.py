@@ -138,8 +138,8 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (isinstance(attr, type) and issubclass(attr, tuple(
-                                self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
+                        if (isinstance(attr, type) and issubclass(attr,
+                                                                  tuple(self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
                             class_object = attr
                             break
 
@@ -176,8 +176,8 @@ class CoreLoader(CoreModuleInterface):
                     command_description = docstring_description if docstring_description else module_info.description
 
                     # The command should have automatically updated its metadata in the registry; next we validate this.
-                    command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
-                        module_name=module_info.name, case_insensitive=False)
+                    command_record: Optional[dict[str, Any]] = (
+                        self._registry.get_module_record_by_name(module_name=module_info.name))
 
                     if not command_record:
                         self._logger.warning(

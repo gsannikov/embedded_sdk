@@ -13,6 +13,7 @@ import os
 import platform
 import pwd
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -27,7 +28,7 @@ import grp
 import psutil
 from git import GitConfigParser
 
-# AutoForge imports
+# AutoForge imports`
 from auto_forge import CoreModuleInterface, SysInfoPackageManagerType, SysInfoLinuxDistroType
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
@@ -69,6 +70,7 @@ class SystemInfo(CoreModuleInterface):
         self._git_name: Optional[str] = None
         self._git_email: Optional[str] = None
         self._gfx: str = self._get_desktop_and_gfx()
+        self._launch_arguments = ' '.join(shlex.quote(arg) for arg in sys.argv[1:])
         self._info_data: Optional[dict] = None
 
         # Try to fish the email and the fill name from git
@@ -90,7 +92,7 @@ class SystemInfo(CoreModuleInterface):
                            "linux_version": self._linux_version, "total_memory_mb": self._total_memory_mb,
                            "linux_kernel_version": self._linux_kernel_version,
                            "linux_shell": self._linux_shell if self._linux_shell else None,
-                           "virtualization": self._virtualization,
+                           "virtualization": self._virtualization, "launch_arguments": self._launch_arguments,
                            "full_name": self._git_name if self._git_name else None,
                            "email_address": self._git_email if self._git_email else None, "uptime_sec": self._uptime,
                            "gfx": self._gfx, }

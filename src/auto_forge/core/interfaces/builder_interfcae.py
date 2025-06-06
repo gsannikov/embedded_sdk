@@ -11,19 +11,19 @@ Description:
 import inspect
 import logging
 import os
-import re
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from contextlib import suppress
 from typing import Optional, Tuple
 
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType, CommandResultType)
+from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType,
+                        CommandResultType)
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 from auto_forge.common.toolbox import ToolBox
+from auto_forge.common.version_compare import VersionCompare
 
 AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
@@ -118,20 +118,16 @@ class BuilderToolChain:
             path = binary if os.path.isabs(binary) else shutil.which(binary)
 
             if not path:
-                self._builder_instance.print_message(
-                    message=f"Toolchain item '{binary}' not found.",
-                    log_level=logging.ERROR
-                )
+                self._builder_instance.print_message(message=f"Toolchain item '{binary}' not found.",
+                                                     log_level=logging.ERROR)
                 continue
 
             version_ok, detected_version = self._version_ok(path, version_expr)
             if not version_ok:
                 base_name = os.path.basename(path)
                 if detected_version:
-                    msg = (
-                        f"Toolchain item '{base_name}' version {detected_version} "
-                        f"does not satisfy required {version_expr}."
-                    )
+                    msg = (f"Toolchain item '{base_name}' version {detected_version} "
+                           f"does not satisfy required {version_expr}.")
                 else:
                     msg = f"Toolchain item '{base_name}' version could not be determined."
                 self._builder_instance.print_message(message=msg, log_level=logging.ERROR)
@@ -140,34 +136,25 @@ class BuilderToolChain:
         return None
 
     @staticmethod
-    def _version_ok(binary_path: str, version_expr: str) -> Tuple[bool, Optional[str]]:
+    def _version_ok(binary_path: str, version_expr: str) -> Optional[tuple[bool, Optional[str]]]:
         """
         Checks whether the binary at binary_path satisfies the version constraint (e.g., ">=10.0").
+        Args:
+            binary_path (str): Path to the binary.
+            version_expr (str): Version constraint expression (e.g., ">=10.0", "==1.2.3").
         Returns:
-            A tuple of (is_satisfied: bool, detected_version: str or None).
+            Tuple[bool, Optional[str]]: A tuple of (is_satisfied, detected_version_str).
         """
-        with suppress(Exception):
-            output = subprocess.check_output(
-                [binary_path, "--version"],
-                stderr=subprocess.STDOUT,
-                text=True
-            )
-            match = re.search(r"\d+(\.\d+)+", output)
-            if not match:
-                return False, None
+        try:
+            # Run the binary with --version and capture output
+            binary_output = subprocess.check_output(args=[binary_path, "--version"], stderr=subprocess.STDOUT,
+                                                    text=True)
 
-            detected_version_str = match.group(0)
-            detected_version = tuple(map(int, detected_version_str.split(".")))
-            required_version = tuple(map(int, version_expr[2:].split(".")))
+            compare_results = VersionCompare().compare(detected=binary_output, expected=version_expr)
+            return compare_results
 
-            if version_expr.startswith(">="):
-                return detected_version >= required_version, detected_version_str
-            elif version_expr.startswith(">"):
-                return detected_version > required_version, detected_version_str
-            elif version_expr.startswith("=="):
-                return detected_version == required_version, detected_version_str
-
-        return False, None
+        except Exception as version_verify_error:
+            raise version_verify_error from version_verify_error
 
 
 class BuilderRunnerInterface(ABC):

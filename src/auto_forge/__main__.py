@@ -6,7 +6,6 @@ Author:         AutoForge Team
 Description:
     This script serves as the entry point for the AutoForge package, enabling it to be run as a console application.
 """
-import shlex
 import sys
 
 # Globally initialize colorama library

@@ -18,7 +18,7 @@ from rich.console import Console
 from rich.text import Text
 
 AUTO_FORGE_MODULE_NAME = "JSON Pretty Printer"
-AUTO_FORGE_MODULE_DESCRIPTION = "Self explanatory"
+AUTO_FORGE_MODULE_DESCRIPTION = "Self-explanatory"
 
 
 class PrettyPrinter:

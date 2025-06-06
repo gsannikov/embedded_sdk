@@ -157,7 +157,7 @@ class _ColorFormatter(logging.Formatter):
                 record.msg = cleaned_message
 
                 # Dynamically trim for the user terminal width
-                terminal_width = terminal_width - 40  # Account for log level and date
+                terminal_width -= 40  # Account for log level and date
                 if len(record.msg) > terminal_width:
                     record.msg = record.msg[:terminal_width]
 

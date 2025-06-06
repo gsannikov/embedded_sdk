@@ -176,7 +176,7 @@ class _CoreCompleter(Completer):
 
                 # First-token path completion support
                 if partial.startswith(("/", "./", "../")):
-                    matches = self._core_prompt.gather_path_matches(text=os.path.expanduser(partial), only_dirs=False)
+                    matches = self._core_prompt.gather_path_matches(text=os.path.expanduser(partial))
                     for m in matches:
                         yield m
                     return
@@ -327,7 +327,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_base = self._loaded_solution_name if self._prompt_base is None else self._prompt_base
 
         # Restore keyboard and flush any residual user input
-        self._tool_box.set_terminal_input(state=True, flush=True)
+        self._tool_box.set_terminal_input(state=True)
 
         # Perper history file
         if not self._init_history_file():
@@ -417,9 +417,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         method_name = f"do_{command_name}"
 
-        # Override the command with a disabled stub if requested
         if disable_functionality:
             def disabled_command(_self, _):
+                """ Override the command with a disabled stub if requested """
                 _self.perror(f"The '{command_name}' command is disabled in this shell.")
 
             setattr(self, method_name, disabled_command)
@@ -496,9 +496,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self.aliases[alias_name] = target_command
             return
 
-        # Otherwise, define a custom dynamic command
         @with_argument_list
         def alias_func(cmd_instance, args):
+            """ Otherwise, define a custom dynamic command """
             cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
 
         alias_func.__name__ = f"do_{alias_name}"
@@ -702,10 +702,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             description = "Description not provided" if cmd_info.description is None else cmd_info.description
             hidden = cmd_info.hidden
 
-            # Define the function and attach a docstring BEFORE binding
-            def make_cmd(name=command_name, doc=description):
+            def make_cmd(name: str, doc: str):
+                """ Define the function and attach a docstring BEFORE binding """
+
                 # noinspection PyShadowingNames
                 def dynamic_cmd(self, arg):
+                    """ Command wrapper """
                     try:
                         if isinstance(arg, Statement):
                             args = arg.args
@@ -737,7 +739,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._cli_commands_metadata[command_name] = {"description": description, "command_type": command_type,
                                                          "target_command": method_name, "hidden": hidden, }
 
-            added_commands = added_commands + 1
+            added_commands += 1
 
         if added_commands == 0:
             self._logger.warning("No dynamic commands loaded")
@@ -923,6 +925,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 """
 
                 def completer(_self, _text, line, _begin_idx, end_idx):
+                    """ Toolkit completer implement """
                     event = CompleteEvent(completion_requested=True)
                     comp = _CorePathCompleter(core_prompt=self, command_name=command_name,
                                               only_directories=only_directories)
@@ -1005,7 +1008,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Case 1: build + SPACE → suggest projects (no dot inserted)
             if len(tokens) == 1 and not text:
                 for proj in self._solution.get_projects_names() or []:
-                    completions.append(Completion(proj, start_position=0))
+                    completions.append(Completion(proj))
 
             # Case 2: build sol → match projects
             elif len(dot_parts) == 1:
@@ -1093,7 +1096,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         console = Console()
-        term_width = self._tool_box.get_terminal_width(default_width=100)
+        term_width = self._tool_box.get_terminal_width()
 
         if not arg:
             # No arguments, try to show the package commands menu using the textual app.
@@ -1106,8 +1109,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # User typed 'help my_command' --> Show help for that specific command
         # Get the stored help from tye registry
-        command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(
-            module_name=command_name, case_insensitive=False)
+        command_record: Optional[dict[str, Any]] = self._registry.get_module_record_by_name(module_name=command_name)
 
         # Extract man page help if it's not an internal registered command
         man_description: Optional[str] = None
@@ -1232,22 +1234,27 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     @property
     def path_completion_rules_metadata(self) -> {}:
+        """ Get path completion rules metadata """
         return self._path_completion_rules_metadata
 
     @property
     def executables_metadata(self) -> {}:
+        """ Get executables metadata """
         return self._executables_metadata
 
     @property
     def commands_metadata(self) -> {}:
+        """ Get commands metadata """
         return self._cli_commands_metadata
 
     @property
     def aliases_metadata(self) -> {}:
+        """ Get aliases metadata """
         return self._aliases_metadata
 
     @property
     def max_completion_results(self) -> int:
+        """ Get max allowed completion results """
         return self._max_completion_results
 
     def command_loop_abort(self, error_message: Optional[str] = None) -> None:
@@ -1279,7 +1286,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if intro:
             self.poutput(intro)
         else:
-            self._print_colored_prompt_intro(cheerful=True)
+            self._print_colored_prompt_intro()
 
         # Initialize key bindings
         kb = KeyBindings()

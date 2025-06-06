@@ -26,6 +26,7 @@ from typing import Optional, Union
 
 # AutoForge late imports
 from auto_forge import CoreModuleInterface, ToolBox, LinuxShellType, SystemInfo
+from auto_forge.common.version_compare import VersionCompare
 
 AUTO_FORGE_MODULE_NAME = "ShellAliases"
 AUTO_FORGE_MODULE_DESCRIPTION = "Shell Aliases Management Auxiliary Class"
@@ -219,7 +220,7 @@ class ShellAliases(CoreModuleInterface):
                     rc_path.suffix + ".bak"))
             shutil.copy(rc_path, backup_path)
 
-            with rc_path.open("r", encoding="utf-8") as f:
+            with rc_path.open(encoding="utf-8") as f:
                 lines_in = f.readlines()
 
             lines_out = []
@@ -399,7 +400,8 @@ class ShellAliases(CoreModuleInterface):
 
         return "\n".join(formatted_lines).strip()
 
-    def _get_shell_version(self, shell_name: str) -> Optional[str]:
+    @staticmethod
+    def _get_shell_version(shell_name: str) -> Optional[str]:
         """
         Attempt to get the version of the detected shell.
         Args:
@@ -414,7 +416,7 @@ class ShellAliases(CoreModuleInterface):
                                     text=True)
             if result.returncode == 0:
                 binary_response = result.stdout.strip()
-                version = self._tool_box.extract_version(text_blob=binary_response)
+                version = VersionCompare().extract_version(text=binary_response)
 
         return version
 
@@ -504,7 +506,7 @@ class ShellAliases(CoreModuleInterface):
         brace_level = 0
 
         with suppress(Exception):
-            with self._shell_rc_file.open("r", encoding="utf-8") as rc_file:
+            with self._shell_rc_file.open(encoding="utf-8") as rc_file:
                 for line in rc_file:
                     brace_level += line.count("{") - line.count("}")
                     if brace_level > 0:

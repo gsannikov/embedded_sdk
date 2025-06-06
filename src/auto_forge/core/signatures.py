@@ -12,13 +12,14 @@ Description:
 """
 
 import logging
-import mmap
 import os
 import re
 import struct
-import zlib
 from re import Match
 from typing import Any, Optional
+
+import mmap
+import zlib
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor, CoreVariables, Registry,
@@ -153,6 +154,7 @@ class CoreSignatures(CoreModuleInterface):
         """
         try:
             def product_lookup(product_id: int, product_sub_id: int) -> Optional[dict[str, Any]]:
+                """ Search for product """
                 raw_products = self._raw_dictionary.get("products")
                 if raw_products is None:
                     return None
@@ -166,6 +168,7 @@ class CoreSignatures(CoreModuleInterface):
                 return None  # Did not find any product matching the search clues
 
             def _manufacture_lookup(manufacturer_id: int) -> Optional[dict[str, Any]]:
+                """ Search for signature """
                 raw_manufactures = self._raw_dictionary.get("manufacturers")
                 if raw_manufactures is None:
                     return None
@@ -178,6 +181,7 @@ class CoreSignatures(CoreModuleInterface):
                 return None  # Did not find any manufacture matching the search clues
 
             def _family_lookup(family_id: int) -> Optional[dict[str, Any]]:
+                """ Search for family """
                 raw_families = self._raw_dictionary.get("families")
                 if raw_families is None:
                     return None
@@ -194,13 +198,12 @@ class CoreSignatures(CoreModuleInterface):
             file_name = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
 
             # Load the default schema and look for signatures
-            file_handler: SignatureFileHandler = SignatureFileHandler(file_name=file_name, signatures_lib=self,
-                                                                      schema_name=None)
+            file_handler: SignatureFileHandler = SignatureFileHandler(file_name=file_name, signatures_lib=self)
             for signature in file_handler.signatures:
-                searched_id = signature.get_field_data(signature.find_first_field('product_id'), None)
-                searched_sub_id = signature.get_field_data(signature.find_first_field('sub_product_id'), None)
-                searched_manufacturer_id = signature.get_field_data(signature.find_first_field('manufacturer'), None)
-                searched_family_id = signature.get_field_data(signature.find_first_field('product_family'), None)
+                searched_id = signature.get_field_data(signature.find_first_field('product_id'))
+                searched_sub_id = signature.get_field_data(signature.find_first_field('sub_product_id'))
+                searched_manufacturer_id = signature.get_field_data(signature.find_first_field('manufacturer'))
+                searched_family_id = signature.get_field_data(signature.find_first_field('product_family'))
 
                 if None not in {searched_id, searched_sub_id, searched_manufacturer_id, searched_family_id}:
                     product = product_lookup(product_id=searched_id, product_sub_id=searched_sub_id)
@@ -691,7 +694,7 @@ class Signature:
             image_bytes = self._read_image()
 
             # Ensure data integrity and refresh object state.
-            self._update_integrity(image_bytes=image_bytes, verify_only=False)
+            self._update_integrity(image_bytes=image_bytes)
             self._refresh()
 
             # Calculate the exact positions in the image byte array to update.
@@ -963,7 +966,7 @@ class SignatureFileHandler:
 
             # Update indexes and offsets
             field_index += 1
-            field_offset = field_offset + schema_field_size
+            field_offset += schema_field_size
 
         try:
             if not signature.unpacked_data or "fields" not in schema.dictionary:
@@ -1133,7 +1136,7 @@ class SignatureFileHandler:
 
                         # Move the offset past the match to continue searching
                         self._file_read_offset = match_end + 1
-                        signature_index = signature_index + 1
+                        signature_index += 1
 
                     self._close_file()  # Close the memory-mapped file
                     self._logger.debug(f"Found {len(self.signatures)} signatures")
