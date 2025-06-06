@@ -3,7 +3,9 @@ Script:         version_compare.py
 Author:         AutoForge Team
 
 Description:
-    Provides the VersionInfo class which provides an API for comparing versions.
+    Provides the VersionCompare class, which offers an API to determine whether a given binary satisfies a required
+    version. It supports extracting version information from arbitrary text and comparing it against a required
+    version, either as a fixed value (e.g., '4.16') or using a constraint expression with an operator (e.g., '>= 3.7').
 """
 
 import re
@@ -12,8 +14,8 @@ from typing import Optional
 # AutoForge imports`
 from auto_forge import ExpectedVersionInfoType
 
-AUTO_FORGE_MODULE_NAME = "ToolBox"
-AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
+AUTO_FORGE_MODULE_NAME = "VersionCompare"
+AUTO_FORGE_MODULE_DESCRIPTION = "Version detection and comparison utilities"
 
 
 class VersionCompare:
@@ -69,7 +71,6 @@ class VersionCompare:
 
         # If the input starts with a decimal, treat it as a version without an explicit operator.
         # In this case, default to using the '==' operator.
-
         if re.match(r'^\d+', input_string):
             input_string = "==   " + input_string
 
@@ -184,11 +185,10 @@ class VersionCompare:
             Tuple[bool, Optional[str]]: A tuple of (is_satisfied, detected_version_str).
         """
         try:
-
             expected_version_tuple: Optional[tuple[int, ...]] = None
             detected_version_tuple: Optional[tuple[int, ...]] = None
 
-            # Use default operators list when not provided
+            # Use default operators list when not provided.
             if operators is None:
                 operators = self.ACCEPTED_OPERATORS
 

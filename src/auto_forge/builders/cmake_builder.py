@@ -256,7 +256,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             return self._execute_build(build_profile=build_profile)
 
         except Exception as build_error:
-            self.print_message(message=f"{build_error}", log_level=logging.ERROR)
+            self.print_message(message=f"{str(build_error).capitalize()}", log_level=logging.ERROR)
             return 1
 
         finally:
