@@ -4,6 +4,7 @@
 #
 # Script Name:    env.sh
 # Description:    AutoForge shell environment initiator.
+# Version:        1.0
 #
 # ------------------------------------------------------------------------------
 

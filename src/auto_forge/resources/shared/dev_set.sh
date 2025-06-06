@@ -4,6 +4,7 @@
 #
 # Script Name:    dev_set.sh
 # Description:    AutoForge developer helper.
+# Version:        1.0
 #
 # ------------------------------------------------------------------------------
 
@@ -58,7 +59,7 @@ show_auto_forge() {
 }
 
 #
-# @brief Print tool usage
+# @brief Print tool usage.
 #
 
 print_help() {
@@ -82,6 +83,12 @@ main() {
 
 	local mode="activate"
 	local project_name=""
+
+	# Show help if no arguments were passed
+	if [[ "$#" -eq 0 ]]; then
+		print_help
+		return 0
+	fi
 
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
@@ -197,7 +204,7 @@ main() {
 	# Last validation that auto-forge is installed locally and it is readable
 	show_auto_forge || return 1
 
-	printf "\nAll done, development environment installed.\n"
+	printf "\nAll done, development environment installed.\n\n"
 	return 0
 }
 

@@ -4,51 +4,58 @@
 #
 # Script Name:    bootstrap.sh
 # Description:    AutoForge bootstrap installer.
+# Version:        1.0
 #
 # ------------------------------------------------------------------------------
 
 AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
 
 #
-# @brief Install AutoForge python object.
+# @brief Installs AutoForge package
 # @return Returns 0 on overall success, else failure.
 #
 
-# Simple in place text loging helper.
-log_line() {
-	echo -ne "\r$(tput el)$*"
-}
+install_autoforge_package() {
 
-install_autoforge() {
+	local package_url="$1"
+
+	# Validate inputs
+	if [[ -z "$package_url" ]]; then
+		printf "Usage: install_autoforge_package <package_url>\n"
+		return 1
+	fi
+
+	# Simple in place text loging helper.
+	_log_line() {
+		echo -ne "\r$(tput el)$*"
+	}
 
 	# Check for Python 3.9 or higher
 	if ! python3 --version | grep -qE 'Python 3\.(9|[1-9][0-9])'; then
-		log_line "Error: Python 3.9 or higher is not installed."
+		_log_line "Error: Python 3.9 or higher are required."
 		return 1
 	fi
 
-	# Check if pip is installed
-	if ! command -v pip3 &>/dev/null; then
-		log_line "Error: pip is not installed."
+	# Upgrade pip
+	python3 -m pip install --upgrade pip >/dev/null 2>&1 || {
+		_log_line "Error: Python 'pip' could not be upgraded."
 		return 1
-	fi
+	}
 
-	python3 -m pip install --upgrade pip &>/dev/null
-
-	# Uninstall auto_forge if it exists, without any output
+	# Quietly uninstall auto_forge if it exists
 	pip3 uninstall -y auto_forge &>/dev/null
 
 	# Install auto_forge from the provided URL, without any output
-	if pip3 install git+$AUTO_FORGE_URL -q --force-reinstall >/dev/null 2>&1; then
+	if pip3 install git+"$package_url" -q --force-reinstall >/dev/null 2>&1; then
 		# Check if installation was successful
 		if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
 			return 0
 		else
-			log_line "Error: auto_forge installation failed, package not found in 'pip list'"
+			_log_line "Error: package was not found post installation."
 			return 1
 		fi
 	else
-		log_line "Error: installation of auto_forge failed:, error encountered during 'pip install'"
+		_log_line "Error: 'pip install' did not complete successfully."
 		return
 	fi
 }
@@ -59,10 +66,12 @@ install_autoforge() {
 #
 
 main() {
+
 	local ret_val=0
 	local workspace_path=""
 	local solution_name=""
 	local sequence_name=""
+	local auto_forge_url=""
 	local package=""
 	local token=""
 
@@ -71,16 +80,17 @@ main() {
 		echo
 		echo "Usage: $0 [options]"
 		echo
-		echo "  -w, --workspace [path]      Destination workspace path."
-		echo "  -n, --name      [name]      Solution name to use."
-		echo "  -p, --package   [path/url]  Solution to use (local path or URL)."
-		echo "  -s, --sequence  [name]      Reference sequence name in specified solution"
-		echo "  -t, --token     [token]     Optional Git token for remote solution."
-		echo "  -h, --help                  Display this help and exit."
+		echo "  -w, --workspace 	[path]      Destination workspace path."
+		echo "  -n, --name      	[name]      Solution name to use."
+		echo "  -p, --package   	[path/url]  Solution package to use (local path or URL)."
+		echo "  -s, --sequence  	[name]      Reference sequence name in specified solution"
+		echo "  -t, --token     	[token]     Optional Git token for remote solution."
+		echo "  -a, --auto_forge    [url]    	Optional override AutoForge package URL."
+		echo "  -h, --help                  	Display this help and exit."
 		echo
 	}
 
-	# Parse command-line arguments
+	# Parse command-line arguments.
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
 			-w | --workspace)
@@ -115,7 +125,7 @@ main() {
 		esac
 	done
 
-	# Validate required arguments
+	# Declare and validate mandatory arguments.
 	declare -A required_args=(
 		[workspace_path]="Workspace path (-w, --workspace)"
 		[solution_name]="Solution name (-n, --name)"
@@ -131,11 +141,16 @@ main() {
 		fi
 	done
 
-	# Install Auto Forge using pip
-	clear
-	echo -ne '\e[?25l' # Hide cursor
+	# Use the default internal AutoForge package URL if none was specified
+	if [[ -z "$auto_forge_url" ]]; then
+		auto_forge_url="$AUTO_FORGE_URL"
+	fi
+
+	echo -ne '\e[2J\e[H\e[?25l' # Clear screen and hide cursor
 	printf "\n\nPlease wait while 🛠️  AutoForge is being downloaded and installed...\r"
-	install_autoforge || return 1
+
+	# Install AutoForge using 'pip'
+	install_autoforge_package "$auto_forge_url" || return 1
 
 	# Construct the Package arguments
 	autoforge_cmd=(
@@ -146,6 +161,7 @@ main() {
 		-s "$sequence_name"
 	)
 
+	# Pass the environment proxy definition to AutoFore.
 	if [[ -n "$HTTP_PROXY_SERVER" ]]; then
 		autoforge_cmd+=(--proxy-server "$HTTP_PROXY_SERVER")
 	fi
@@ -154,12 +170,13 @@ main() {
 		autoforge_cmd+=(--git-token "$token")
 	fi
 
+	# Run AutoForge in sequence execution mode
 	"${autoforge_cmd[@]}"
 	ret_val=$?
 
-	# Quietly uninstall auto_forge from the user environment
+	# Quietly uninstall auto_forge from the global scope to restrict it as possible  only to virtual environments.
 	pip3 uninstall -y auto_forge &>/dev/null
-	echo -ne '\e[?25h' # Restore cursor
+	echo -ne '\e[?25h' # Restore cursor.
 	return $ret_val
 }
 
