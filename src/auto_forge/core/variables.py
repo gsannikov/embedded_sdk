@@ -435,13 +435,13 @@ class CoreVariables(CoreModuleInterface):
         """
         if not isinstance(key, str):
             return None
-        key = key.strip()
-        if not key:
-            return None
 
+        length = len(key)
         result = []
         i = 0
-        length = len(key)
+
+        if length == 0:
+            return key
 
         def _is_valid_shell_var_ref(text: str) -> bool:
             """ Validate variable expressed as {VAR} """

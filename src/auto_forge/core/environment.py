@@ -1574,14 +1574,13 @@ class CoreEnvironment(CoreModuleInterface):
             raise ValueError(
                 "Sequence data appears to be invalid — expected a dictionary with a non-empty nested list of steps.")
 
-        def _expand_and_print(msg: Optional[Any], clear_current_line: bool = True) -> None:
+        def _expand_and_print(msg: Optional[Any]) -> None:
             """Expand and print a string after resolving inner variables."""
             if not isinstance(msg, str) or not msg.strip():
                 return
             expanded_msg = self._variables.expand(key=msg)
             if expanded_msg:
-                if clear_current_line:
-                    sys.stdout.write('\033[2K')  # Clear the current line
+                sys.stdout.write('\033[2K')  # Clear current line
                 print(expanded_msg)
 
         try:

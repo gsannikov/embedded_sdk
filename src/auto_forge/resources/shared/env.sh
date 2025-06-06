@@ -90,7 +90,7 @@ main() {
 
 	# Change to the workspace (script) directory
 	cd "$script_dir" || {
-		echo "Error: Failed to change to workspace directory '$script_dir'"
+		echo "Error: Failed to change the path to the workspace directory '$script_dir'"
 		return 1
 	}
 
@@ -150,7 +150,7 @@ main() {
 		return $?
 	fi
 
-	# Build command
+	# Build the command
 	local cmd=(autoforge -n "$solution_name" -w .)
 	if [[ -n "$debug_port" ]]; then
 		cmd+=(--remote-debugging "127.0.0.1:$debug_port")

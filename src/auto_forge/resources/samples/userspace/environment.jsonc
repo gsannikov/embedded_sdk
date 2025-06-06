@@ -7,155 +7,135 @@
 */
 
 {
-	"status_title_length": 60,
-	"status_add_time_prefix": true,
-	"status_new_line": true,
-	// Enables multi-line status output instead of in-place updates
-	"status_pre_message": "\n\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
-	"status_post_message": "\n\nSetup is completed.\n",
-	"steps": [
-		{
-			"description": "Looking for 'dt'",
-			"method": "validate_prerequisite",
-			"status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
-			"action_on_error": "resume",
-			// Recommended: use 'break' or omit this field in production
-			"arguments": {
-				"command": "dt",
-				"arguments": "version",
-				"cwd": "$HOME/bin"
-			}
-		},
-		{
-			"description": "Looking for 'python' 3.9.0 or grater",
-			"method": "validate_prerequisite",
-			"arguments": {
-				"command": "python3",
-				"arguments": "--version",
-				"version": ">=3.9.0",
-				"allow_greater_decimal": true
-			}
-		},
-		{
-			"description": "Looking for 'git'",
-			"method": "validate_prerequisite",
-			"arguments": {
-				"command": "git",
-				"arguments": "--version",
-				"version": ">=2.0"
-			}
-		},
-		{
-			"description": "Getting git access token using 'dt'",
-			"method": "execute_shell_command",
-			"status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",
-			"action_on_error": "resume",
-			// Recommended: use 'break' or omit this field in production
-			"arguments": {
-				"command_and_args": "dt github print-token",
-				"cwd": "$HOME/bin"
-			},
-			// Store the executed command response in key name 'dt_token'
-			"response_store_key": "dt_token"
-		},
-		{
-			"description": "Initializing workspace path",
-			"method": "initialize_workspace",
-			"arguments": {
-				"delete_existing": false,
-				"must_be_empty": true,
-				"create_as_needed": true,
-				"change_dir": true
-			}
-		},
-		{
-			"description": "Creating Python virtual environment",
-			"method": "python_virtualenv_create",
-			"arguments": {
-				"venv_path": ".venv"
-			}
-		},
-		{
-			"description": "Updating PIP in virtual environment",
-			"method": "python_update_pip",
-			"arguments": {
-				"venv_path": ".venv"
-			}
-		},
-		{
-			"description": "Installing Python packages",
-			"method": "python_package_add",
-			"arguments": {
-				"venv_path": ".venv",
-				"package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython wheel"
-			}
-		},
-		{
-			"description": "Getting ARM AArch64 cross-toolchain 14.2",
-			"method": "url_get",
-			"arguments": {
-				"url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
-				"destination": "$AF_TOOL_CHAINS/downloads",
-				"timeout": 240.0,
-				"delete_if_exist": true
-			}
-		},
-		{
-			"description": "Decompressing ARM AArch64 tool-chain",
-			"method": "decompress",
-			"arguments": {
-				"archive_path": "$AF_TOOL_CHAINS/downloads/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
-				"destination_path": "$AF_TOOL_CHAINS/"
-			}
-		},
-		{
-			"description": "Getting the Linaro AArch64 cross-toolchain",
-			"disabled": true,
-			"method": "url_get",
-			"arguments": {
-				"url": "https://releases.linaro.org/components/toolchain/binaries/latest-7/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz",
-				"destination": "$AF_TOOL_CHAINS/downloads",
-				"timeout": 120.0,
-				// 2 minutes should be OK
-				"delete_if_exist": true
-			}
-		},
-		{
-			"description": "Decompressing Linaro tool-chain",
-			"disabled": true,
-			"method": "decompress",
-			"arguments": {
-				"archive_path": "$AF_TOOL_CHAINS/downloads/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz",
-				"destination_path": "$AF_TOOL_CHAINS/"
-			}
-		},
-		{
-			"description": "Installing AutoForge in virtual environment",
-			"method": "python_package_add",
-			"arguments": {
-				"venv_path": ".venv",
-				"package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
-			}
-		},
-		{
-			"description": "Cloning 'userspace'",
-			"method": "git_clone_repo",
-			"action_on_error": "resume",
-			// Reqwired by the build system deplyment debugging.
-			"arguments": {
-				"repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
-				"dest_repo_path": "$SOURCE_BASE/userspace",
-				"revision": "main",
-				"timeout": 360
-			}
-		},
-		{
-			"description": "Create a shell alias to the solution",
-			"method": "create_alias",
-			"arguments": {
-				"alias": "us",
-				"command": "$PROJ_WORKSPACE/env.sh"
-			}
-		}
-	]
+    "status_title_length": 60,
+    "status_add_time_prefix": true,
+    "status_new_line": true,
+    // Enables multi-line status output instead of in-place updates
+    "status_pre_message": "Hello, welcome to the '$SOLUTION_NAME' solution setup.",
+    "status_post_message": "\n\nSetup is completed.",
+    "steps": [
+        {
+            "description": "Looking for 'dt'",
+            "method": "validate_prerequisite",
+            "status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
+            "action_on_error": "resume",
+            // Recommended: use 'break' or omit this field in production
+            "arguments": {
+                "command": "dt",
+                "arguments": "version",
+                "cwd": "$HOME/bin"
+            }
+        },
+        {
+            "description": "Looking for 'python' 3.9.0 or grater",
+            "method": "validate_prerequisite",
+            "arguments": {
+                "command": "python3",
+                "arguments": "--version",
+                "version": ">=3.9.0",
+                "allow_greater_decimal": true
+            }
+        },
+        {
+            "description": "Looking for 'git'",
+            "method": "validate_prerequisite",
+            "arguments": {
+                "command": "git",
+                "arguments": "--version",
+                "version": ">=2.0"
+            }
+        },
+        {
+            "description": "Getting git access token using 'dt'",
+            "method": "execute_shell_command",
+            "status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",
+            "action_on_error": "resume",
+            // Recommended: use 'break' or omit this field in production
+            "arguments": {
+                "command_and_args": "dt github print-token",
+                "cwd": "$HOME/bin"
+            },
+            // Store the executed command response in key name 'dt_token'
+            "response_store_key": "dt_token"
+        },
+        {
+            "description": "Initializing workspace path",
+            "method": "initialize_workspace",
+            "arguments": {
+                "delete_existing": false,
+                "must_be_empty": true,
+                "create_as_needed": true,
+                "change_dir": true
+            }
+        },
+        {
+            "description": "Creating Python virtual environment",
+            "method": "python_virtualenv_create",
+            "arguments": {
+                "venv_path": ".venv"
+            }
+        },
+        {
+            "description": "Updating PIP in virtual environment",
+            "method": "python_update_pip",
+            "arguments": {
+                "venv_path": ".venv"
+            }
+        },
+        {
+            "description": "Installing Python packages",
+            "method": "python_package_add",
+            "arguments": {
+                "venv_path": ".venv",
+                "package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython wheel"
+            }
+        },
+        {
+            "description": "Getting ARM AArch64 cross-toolchain 14.2",
+            "method": "url_get",
+            "arguments": {
+                "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
+                "destination": "$AF_TOOL_CHAINS/downloads",
+                "timeout": 240.0,
+                "delete_if_exist": true
+            }
+        },
+        {
+            "description": "Decompressing ARM AArch64 tool-chain",
+            "method": "decompress",
+            "arguments": {
+                "archive_path": "$AF_TOOL_CHAINS/downloads/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
+                "destination_path": "$AF_TOOL_CHAINS/"
+            }
+        },
+        {
+            "description": "Installing AutoForge in virtual environment",
+            "method": "python_package_add",
+            "arguments": {
+                "venv_path": ".venv",
+                "package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
+            }
+        },
+        {
+            "description": "Cloning 'userspace'",
+            "method": "git_clone_repo",
+            "action_on_error": "resume",
+            "disabled": true,
+            // Required by the build system deployment debugging.
+            "arguments": {
+                "repo_url": "https://github.com/intel-innersource/firmware.ethernet.mountevans.imc.imc-userspace.git",
+                "dest_repo_path": "$SOURCE_BASE/userspace",
+                "revision": "main",
+                "timeout": 360
+            }
+        },
+        {
+            "description": "Create a shell alias to the solution",
+            "method": "create_alias",
+            "arguments": {
+                "alias": "us",
+                "command": "$PROJ_WORKSPACE/env.sh"
+            }
+        }
+    ]
 }

@@ -25,10 +25,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-# AutoForge imports
-from auto_forge import TerminalAnsiGuru, ToolBox
 # Third-party
 from colorama import Fore, Style
+
+# AutoForge imports
+from auto_forge import TerminalAnsiGuru, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
@@ -60,6 +61,7 @@ class _TrackerState(Enum):
 
 class ProgressTracker:
     """ Implements the ProgressTracker class """
+
     def __init__(self, title_length: int = 80, add_time_prefix: bool = False, min_update_interval_ms: int = 250,
                  hide_cursor: bool = True, linger_interval_ms: int = 0, default_new_line: bool = True) -> None:
         """
@@ -281,7 +283,6 @@ class ProgressTracker:
 
     def set_end(self):
         """ Flush stdout buffers and restore the curser """
-        sys.stdout.write('\r')
         self._ansi_term.erase_line_to_end()
         sys.stdout.write('\n')
         sys.stdout.flush()
