@@ -23,10 +23,10 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
-                        PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
-                        AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
-                        CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
-                        Registry, ToolBox, SystemInfo, ShellAliases)
+                        PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_SAMPLES_PATH, PROJECT_VERSION, AutoForgeWorkModeType,
+                        AddressInfoType, AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader,
+                        CoreModuleInterface, CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru,
+                        LogHandlersTypes, XYType, Registry, ToolBox, SystemInfo, ShellAliases)
 
 
 class AutoForge(CoreModuleInterface):
@@ -192,22 +192,27 @@ class AutoForge(CoreModuleInterface):
             - The user can specify a path to a solution archive (.zip file), or
             - A path to an existing directory containing the solution files.
             - A GitHub URL pointing to git path which contains the solution files.
-            Validation ensures that the provided path exists and matches one of the acc
             """
 
             solution_package: Optional[str] = kwargs.get("solution_package", None)
-
-            # When we don't get the solution package from the argument we try to resolve using the package configuration.
             if not isinstance(solution_package, str):
+
+                # If the solution package is not provided as an argument, attempt to resolve it
+                # from the package configuration, which should indicate its typical installation path.
+                # Note that we can't resolve variables normally at this earaly  start point
                 local_package_files = self._package_configuration_data.get("local_solution_package_files")
                 if isinstance(local_package_files, str):
-                    solution_package = local_package_files.strip().replace("$PROJ_WORKSPACE",
-                                                                           self._workspace_path).replace(
-                        "$SOLUTION_NAME", self._solution_name)
-
-            # By now we should have a valid package path
+                    solution_package = (
+                        local_package_files.strip().replace("$PROJ_WORKSPACE", self._workspace_path).replace(
+                            "$SOLUTION_NAME", self._solution_name))
+            # By now we should have a valid string
             if not isinstance(solution_package, str):
                 return
+
+            # Apply keywords substitution
+            keywords_mapping = self._package_configuration_data.get("keywords_mapping")
+            solution_package = self._tool_box.substitute_keywords(input_str=solution_package,
+                                                                  keywords_mapping=keywords_mapping)
 
             if ToolBox.is_url(solution_package):
                 _validate_solution_url(solution_url=solution_package)
@@ -506,7 +511,7 @@ def auto_forge_main(launch_arguments: Optional[Union[list, str]]) -> Optional[in
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
-        print(launch_arguments)
+        print(f"Arguments: {launch_arguments}\n")
 
     finally:
         ToolBox.set_terminal_input(state=True, flush=True)  # Restore terminal input

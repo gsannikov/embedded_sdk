@@ -38,11 +38,11 @@ from urllib.parse import ParseResult, unquote, urlparse
 import math
 import psutil
 import termios
+from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
                         AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType, )
-from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -1792,3 +1792,45 @@ class ToolBox(CoreModuleInterface):
                 if not require_non_empty_lists or len(value) > 0:
                     return True
         return False
+
+    @staticmethod
+    def substitute_keywords(text: Optional[str] = None, keywords: Optional[dict] = None,
+                            allow_spaces: bool = True) -> str:
+        """
+        Perform keyword substitution on a string using a provided mapping.
+
+        Placeholders in the input string that follow the format `<keyword>` will be replaced with corresponding values
+        from the `keywords["keywords_mapping"]`, which should be a list of pairs like: ["keyword", "replacement"].
+        If the placeholder matches a keyword, the entire `<keyword>` (including angle brackets) is replaced with the
+        mapped value. If no mapping is found, the placeholder is left as-is.
+
+        Args:
+            text (str, optional): The input string potentially containing <keyword> placeholders.
+            keywords (dict, optional): A dictionary with a "keywords_mapping" key containing list pairs.
+            allow_spaces (bool): If True, permits extra whitespace inside angle brackets (e.g. '<  test  >').
+
+        Returns:
+            str: The updated string after performing substitutions, or the original if input is invalid.
+        """
+        if not isinstance(text, str) or not isinstance(keywords, dict):
+            return text
+
+        with suppress(Exception):
+            keywords_mapping = keywords.get("keywords_mapping", [])
+            if not isinstance(keywords_mapping, list):
+                return text
+
+            mapping = {key.strip(): val for item in keywords_mapping if
+                       isinstance(item, list) and len(item) == 2 and all(isinstance(i, str) for i in item) for key, val
+                       in [item]}
+
+            # Allowing spaces inside angle brackets
+            pattern = r"<\s*([^<>]+?)\s*>" if allow_spaces else r"<([^<>]+)>"
+
+            def replacer(match: re.Match) -> str:
+                key = match.group(1).strip()
+                return mapping.get(key, match.group(0))  # Replace or leave as-is
+
+            return re.sub(pattern, replacer, text)
+
+        return text

@@ -56,10 +56,11 @@ def auto_forge_get_info(base_path: Path):
 
         PROJECT_VERSION = importlib.metadata.version(PROJECT_PACKAGE)
 
-        # Export those basic paths for any sub-process we might spawn
+        # Export several key essential variables to the environment
         os.environ['AUTO_FORGE_VERSION'] = str(PROJECT_VERSION)
         os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
+        os.environ['AUTO_FORGE_PROJECT_SAMPLES_PATH'] = str(PROJECT_HELP_PATH)
 
         # Try to open and load the TOML file
         with open(file=toml_path) as toml_file:
