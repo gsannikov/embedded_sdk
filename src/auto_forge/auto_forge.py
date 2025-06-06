@@ -14,19 +14,19 @@ import contextlib
 import io
 import logging
 import os
+import shlex
 import sys
 from pathlib import Path
-from typing import Optional, Any, Union
-
-# Third-party
-from colorama import Fore, Style
+from typing import Optional, Any
 
 # AutoForge imports
 from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
-                        PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_SAMPLES_PATH, PROJECT_VERSION, AutoForgeWorkModeType,
-                        AddressInfoType, AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader,
-                        CoreModuleInterface, CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru,
-                        LogHandlersTypes, XYType, Registry, ToolBox, SystemInfo, ShellAliases)
+                        PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
+                        AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
+                        CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
+                        Registry, ToolBox, SystemInfo, ShellAliases)
+# Third-party
+from colorama import Fore, Style
 
 
 class AutoForge(CoreModuleInterface):
@@ -57,6 +57,9 @@ class AutoForge(CoreModuleInterface):
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[SystemInfo] = None
         self._shell_aliases: Optional[ShellAliases] = None
+
+        # Helps to better debug how the package was started
+        self._package_launch_arguments = ' '.join(shlex.quote(arg) for arg in sys.argv[1:])
 
         # Startup arguments
         self._package_configuration_data: Optional[dict[str, Any]] = None
@@ -115,6 +118,7 @@ class AutoForge(CoreModuleInterface):
         self._init_logger()
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
         self._logger.info(self._sys_info)
+        self._logger.info(f"Start Arguments: {self._package_launch_arguments}")
 
         # Load all built-in commands
         self._loader = CoreLoader()
@@ -428,15 +432,14 @@ class AutoForge(CoreModuleInterface):
             raise
 
 
-def auto_forge_main(launch_arguments: Optional[Union[list, str]]) -> Optional[int]:
+def auto_forge_main() -> Optional[int]:
     """
     Console entry point for the AutoForge build suite.
     This function handles user arguments and launches AutoForge to execute the required test.
-    Args:
-        launch_arguments (Optional[Union[list, str]]): Package launcher arguments.
     Returns:
         int: Exit code of the function.
     """
+
     result: int = 1  # Default to internal error
 
     # Force single instance
@@ -510,8 +513,6 @@ def auto_forge_main(launch_arguments: Optional[Union[list, str]]) -> Optional[in
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
-        print(f"Arguments: {launch_arguments}\n")
-
     finally:
         ToolBox.set_terminal_input(state=True, flush=True)  # Restore terminal input
 

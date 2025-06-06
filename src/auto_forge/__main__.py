@@ -20,8 +20,6 @@ from auto_forge import main
 # sys.modules['readline'] = readline_patch._readline
 
 if __name__ == "__main__":
-    launch_arguments = ' '.join(
-        shlex.quote(arg) for arg in sys.argv[1:])  # Helps to better debug how the package was started
     init(autoreset=True, strip=False)  # Required by 'colorama'
-    result: int = main(launch_arguments=launch_arguments)
+    result: int = main()
     sys.exit(result)
