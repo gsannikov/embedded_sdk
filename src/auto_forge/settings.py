@@ -60,7 +60,7 @@ def auto_forge_get_info(base_path: Path):
         os.environ['AUTO_FORGE_VERSION'] = str(PROJECT_VERSION)
         os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
         os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
-        os.environ['AUTO_FORGE_PROJECT_SAMPLES_PATH'] = str(PROJECT_HELP_PATH)
+        os.environ['AUTO_FORGE_PROJECT_SAMPLES_PATH'] = str(PROJECT_SAMPLES_PATH)
 
         # Try to open and load the TOML file
         with open(file=toml_path) as toml_file:
