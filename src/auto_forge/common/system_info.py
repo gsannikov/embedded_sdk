@@ -9,6 +9,7 @@ Description:
 """
 
 import getpass
+import grp
 import os
 import platform
 import pwd
@@ -23,8 +24,6 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Optional, Tuple
 
-import grp
-# Third-party
 import psutil
 from git import GitConfigParser
 

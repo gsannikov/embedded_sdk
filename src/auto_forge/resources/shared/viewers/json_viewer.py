@@ -7,32 +7,91 @@ Description:
 """
 
 import argparse
+import base64
 import json
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import Optional, Any
 
 from rich.text import Text
 from textual.app import App, ComposeResult
+from textual.containers import Container
 from textual.events import Key
-from textual.widgets import Header, Footer, Tree
+from textual.widgets import Header, Footer, Static
+from textual.widgets import Tree
 from textual.widgets.tree import TreeNode
 
 
 class TreeApp(App):
     BINDINGS = [("q", "quit", "Quit"), ]
+    CSS = """
+    Screen {
+        layout: vertical;
+    }
 
-    def __init__(self, json_data: Any, application_title: str = "JSON Viewer", root_node_name: str = "JSON"):
+    Container#main {
+        layout: horizontal;
+        height: 1fr;
+    }
+
+    Tree#json_tree {
+        background: #1a1c2c;
+        width: 7fr;  /* 80% */
+    }
+
+    Tree#side_tree, Static#side_panel {
+        background: #2a2f4a;
+        padding: 1 2;
+        width: 3fr;  /* 20% */
+        height: 100%;
+        content-align: left top;
+    }
+
+    Header, Footer {
+        background: #1a1c2c;
+    }
+    """
+
+    def __init__(self, json_data: Any, application_title: str = "JSON Viewer",
+                 root_node_name: str = "JSON", panel_data: Optional[dict] = None):
+
         """ Initializes the JSON viewer"""
         super().__init__()
         self.json_data = json_data
         self.root_node_name = root_node_name
         self.title = application_title  # This sets the app/window title
+        self.show_panel = True if panel_data is not None else False
+        self.panel_data: Optional[dict] = panel_data
 
     def compose(self) -> ComposeResult:
         yield Header()
+        with Container(id="main"):
+            yield Tree("Root", id="json_tree")
+
+            if self.show_panel:
+                if isinstance(self.panel_data, dict):
+                    yield Tree("Info", id="side_tree")
+                else:
+                    yield Static("📄 JSON Viewer\n\nUse ←/→ to expand/collapse\nPress Q to quit.", id="side_panel")
+
         yield Footer()
-        yield Tree("Root")
+
+    def add_json_to_panel_tree(self, parent: TreeNode, data: Any, key: str = "", root_label: str = "Summary") -> None:
+        if isinstance(data, dict):
+            label = key if key else root_label
+            node = parent.add(label)
+            for k, v in data.items():
+                self.add_json_to_panel_tree(node, v, key=str(k))
+        elif isinstance(data, list):
+            label = key if key else root_label
+            node = parent.add(label)
+            for idx, item in enumerate(data):
+                self.add_json_to_panel_tree(node, item, key=f"[]")
+        else:
+            label = f"{key}: {repr(data)}" if key else repr(data)
+            leaf = parent.add(label)
+            leaf.allow_expand = False
 
     @classmethod
     def add_json(cls, node: TreeNode, json_data: object, root_node_name: str) -> None:
@@ -81,23 +140,26 @@ class TreeApp(App):
         elif event.key.lower() == "q":
             await self.action_quit()
 
-    async def on_mount(self) -> None:
-        bg_color = "#1a1c2c"  # Dark blue-gray
-
-        # Apply background to major widgets
-        self.styles.background = bg_color
-        self.query_one(Header).styles.background = bg_color
-        self.query_one(Footer).styles.background = bg_color
-        self.query_one(Tree).styles.background = bg_color
-
-        tree = self.query_one(Tree)
+    def on_mount(self) -> None:
+        tree = self.query_one("#json_tree", Tree)
         tree.show_root = True
         tree.root.set_label(" ")
-        self.add_json(node=tree.root, json_data=self.json_data, root_node_name=self.root_node_name)
+        self.add_json(tree.root, self.json_data, self.root_node_name)
         tree.root.expand()
-
         for child in tree.root.children:
             child.expand()
+
+        if not self.show_panel:
+            tree.styles.width = "100%"  # or "1fr"
+
+        if self.show_panel and isinstance(self.panel_data, dict):
+            panel_tree = self.query_one("#side_tree", Tree)
+            panel_tree.show_root = False
+            self.add_json_to_panel_tree(parent=panel_tree.root, data=self.panel_data, root_label="Summary")
+
+            # Expand all first-level visible nodes
+            for child in panel_tree.root.children:
+                child.expand()
 
 
 def load_and_validate_json(file_path: Path) -> Optional[Any]:
@@ -124,6 +186,8 @@ def main() -> int:
     parser.add_argument("-j", "--json", type=str, required=True, help="Path to the JSON file to view")
     parser.add_argument("-t", "--title", type=str, default="JSON Viewer",
                         help="Window title to show in the header and terminal")
+    parser.add_argument("-p", "--panel_content", type=str, help="Left side panel content (base64 encoded JSON)",
+                        default=None)
     parser.add_argument("-r", "--root_name", type=str, default="JSON", help="Root node name")
 
     args = parser.parse_args()
@@ -133,8 +197,17 @@ def main() -> int:
     if json_data is None:
         return 1
 
+    # Decode the panel data back to JSON
+    panel_data: Optional[dict] = None
+
+    if args.panel_content is not None:
+        with suppress(Exception):
+            decoded_text = base64.b64decode(args.panel_content).decode("utf-8")
+            panel_data = json.loads(decoded_text)
     try:
-        app = TreeApp(json_data=json_data, application_title=args.title, root_node_name=args.root_name)
+
+        app = TreeApp(json_data=json_data, application_title=args.title, root_node_name=args.root_name,
+                      panel_data=panel_data)
         return app.run()
     except Exception as app_error:
         print(f"Error running viewer: {app_error}")

@@ -8,6 +8,8 @@ Description:
 """
 
 import argparse
+import base64
+import json
 from pathlib import Path
 from typing import Any, Optional
 
@@ -116,7 +118,7 @@ class SolutionCommand(CLICommandInterface):
 
         console.print('\n', table, '\n')
 
-    def _show_log(self, cheerful: bool) -> None:
+    def _print_log(self, cheerful: bool) -> None:
         """
         Display the AutoForge logger output with color-coded fields.
         Args:
@@ -131,6 +133,45 @@ class SolutionCommand(CLICommandInterface):
                         FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
 
         self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
+
+    def _print_solution(self):
+        """Use Textual to show the solution viewer with a clean, structured single-solution summary."""
+
+        # Full solution data for the main JSON tree
+        solution_data = self._solution.get_loaded_solution(name_only=False)
+
+        # Just the name for summary
+        solution_name = self._solution.get_loaded_solution(name_only=True)
+
+        # Build structured solution summary
+        solution_summary = {
+            "Solution": solution_name.capitalize(),
+            "Projects": []
+        }
+
+        for project in self._solution.query_projects():
+            project_name = project.get("name")
+            toolchain = project.get("tool_chain", {}).get("name", "unknown")
+
+            configurations = self._solution.query_configurations(project_name=project_name)
+            config_names = [conf.get("name") for conf in configurations]
+
+            solution_summary["Projects"].append({
+                "Name": project_name.capitalize(),
+                "Toolchain": toolchain,
+                "Configurations": config_names
+            })
+
+        # Encode as base64 to safely pass as CLI argument
+        json_text = json.dumps(solution_summary)
+        panel_arg = base64.b64encode(json_text.encode("utf-8")).decode("ascii")
+
+        # Show in Textual viewer
+        self._tool_box.show_json_file(
+            json_path_or_data=solution_data,
+            title="Solution Viewer",
+            panel_content=panel_arg
+        )
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -165,15 +206,13 @@ class SolutionCommand(CLICommandInterface):
         self._variables: CoreVariables = CoreVariables.get_instance()
 
         if args.print_solution:
-            self._tool_box.show_json_file(json_path_or_data=self._solution.get_loaded_solution(name_only=False),
-                                          title="Solution Viewer")
-
+            self._print_solution()  # Show the solution using Textual viewer.
         elif args.print_json:
             self._tool_box.show_json_file(json_path_or_data=args.print_json, title="JSON Viewer")
         elif args.show_environment_variables:
             self._print_variables_table()
         elif args.log:
-            self._show_log(args.cheerful)
+            self._print_log(args.cheerful)
         elif args.tutorial:
             self._tool_box.show_help_file(help_file_relative_path='solution/guide.md')
         else:

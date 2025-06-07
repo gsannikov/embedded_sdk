@@ -16,6 +16,7 @@ import importlib.util
 import inspect
 import json
 import lzma
+import math
 import os
 import random
 import re
@@ -25,6 +26,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import termios
 import textwrap
 import zipfile
 from contextlib import suppress
@@ -35,9 +37,7 @@ from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
 
 # Third-party
-import math
 import psutil
-import termios
 
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
@@ -1453,12 +1453,14 @@ class ToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
-    def show_json_file(json_path_or_data: Union[str, dict], title: Optional[str] = None) -> int:
+    def show_json_file(json_path_or_data: Union[str, dict], title: Optional[str] = None,
+                       panel_content: Optional[str] = None) -> int:
         """
         Displays a JSON file using the textual json tree viewer.
         Args:
             json_path_or_data (str,dict): path to the JSON or data structure.
             title (str): The title to show in the terminal viewer.
+            panel_content (str): Left side panel content.
         Returns:
             int: 0 on success, 1 on error or suppressed failure.
         """
@@ -1496,6 +1498,8 @@ class ToolBox(CoreModuleInterface):
             # Conditionally add the --title argument
             if title is not None:
                 command.extend(["--title", title])
+            if panel_content is not None:
+                command.extend(["--panel_content", panel_content])
 
             status = subprocess.run(command, env=os.environ.copy())
             return_code = status.returncode
