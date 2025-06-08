@@ -75,7 +75,8 @@ class ShellAliases(CoreModuleInterface):
         if prefix_comment is None:
             # Generate default comments with dynamic date in MM-DD-YY format
             current_date = datetime.datetime.now().strftime("%m-%d-%y")
-            prefix_comment = f"{"-" * 21} Section was auto added on {current_date} {"-" * 21} "
+            dashes = "-" * 21
+            prefix_comment = f"{dashes} Section was auto added on {current_date} {dashes} "
 
         if suffix_comment is None:
             suffix_comment = ("-" * (len(prefix_comment) - 1))
