@@ -31,6 +31,8 @@
                     "hidden": false
                 }
             ],
+            "default_editor": "*code*",
+            // Editor selector: index (1-based) or name pattern with wildcards (e.g., "*sublime*"
             "variables": "<$include>variables.jsonc",
             "schema": "1.0",
             "build_path": "$BUILD_OUT",
