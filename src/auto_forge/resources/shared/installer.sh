@@ -6,7 +6,7 @@
 # Script Name:    installer.sh
 # Description:    Helper script for launching AutoForge bootstrap.
 #                 This script could be sourced oe directly invoked.
-# Version:        1.0
+# Version:        1.1
 #
 # ------------------------------------------------------------------------------
 
@@ -35,15 +35,15 @@ is_sourced() {
 }
 
 #
-# @brief Install the AutoForge package which will then fetch the required solution package and take over the
-#        installation process.
-# @return 0 if the script was sourced, 1 if executed directly.
+# @brief Installs the AutoForge package, which then locates and installs the required solution package.
+#        Once complete, AutoForge takes over the rest of the installation process.
+# @return 0 if the script was sourced, 1 if it was executed directly.
 #
 
-af_install() {
+install_auto_forge() {
 
 	local dest_workspace_path="" # Path for the new workspace
-	local solution_name=""   # In this context: also the sample path name
+	local solution_name="" # In this context: also the sample path name
 	local solution_package=""
 	local bootstrap_url=""
 	local auto_start=false
@@ -232,7 +232,7 @@ main() {
 
 	# We can only be sourced.
 	if ! is_sourced; then
-		af_install "$@"
+		install_auto_forge "$@"
 		ret_val=$?
 		exit $ret_val
 	fi

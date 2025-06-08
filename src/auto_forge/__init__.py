@@ -28,6 +28,7 @@ try:
                            PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_VIEWERS_PATH, PROJECT_NAME,
                            PROJECT_REPO, PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE, )
 
+    from auto_forge.common.watchdog import Watchdog
     from auto_forge.logger import (AutoLogger, LogHandlersTypes)
 
     # Basic types
@@ -92,5 +93,5 @@ __all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "Aut
            "PROJECT_SCHEMAS_PATH", "PROJECT_VIEWERS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter",
            "ProgressTracker", "SystemInfo", "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler",
            "SignatureSchemaType", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
-           "ExpectedVersionInfoType",
+           "ExpectedVersionInfoType", "Watchdog",
            "ValidationMethodType", "VariableFieldType", "XYType", "main"]

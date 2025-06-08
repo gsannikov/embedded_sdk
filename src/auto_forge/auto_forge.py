@@ -26,7 +26,7 @@ from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SH
                         PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
                         AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
                         CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
-                        Registry, ToolBox, SystemInfo, ShellAliases)
+                        Registry, ToolBox, SystemInfo, ShellAliases, Watchdog, )
 
 
 class AutoForge(CoreModuleInterface):
@@ -57,6 +57,8 @@ class AutoForge(CoreModuleInterface):
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[SystemInfo] = None
         self._shell_aliases: Optional[ShellAliases] = None
+        self._watchdog: Optional[Watchdog] = None
+        self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
 
         # Startup arguments
         self._package_configuration_data: Optional[dict[str, Any]] = None
@@ -89,11 +91,15 @@ class AutoForge(CoreModuleInterface):
         # These must be constructed before anything else—including the logger or any plugin infrastructure.
         # Order matters: they form the foundation upon which the rest of the system depends.
         #
+
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
         self._processor = CoreProcessor()
         self._sys_info = SystemInfo()
         self._shell_aliases = ShellAliases()
+
+        # Reset the terminal, clean its buffer.
+        Watchdog.reset_terminal()
 
         # Load package configuration and several dictionaries we might need later
         self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
@@ -177,6 +183,9 @@ class AutoForge(CoreModuleInterface):
             if not ToolBox.looks_like_unix_path(self._workspace_path):
                 raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
             self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
+            # Move to the workspace path of we have it
+            if self._workspace_exist:
+                os.chdir(self._workspace_path)
 
             # Set non-interactive mode if we have either --run-command ot --run_sequence
             if self._run_sequence_ref_name or self._run_command_name:
@@ -196,9 +205,9 @@ class AutoForge(CoreModuleInterface):
             solution_package: Optional[str] = kwargs.get("solution_package", None)
             if not isinstance(solution_package, str):
 
-                # If the solution package is not provided as an argument, attempt to resolve it
-                # from the package configuration, which should indicate its typical installation path.
-                # Note that we can't resolve variables normally at this earaly  start point
+                # If the solution package isn't provided explicitly, attempt to resolve it
+                # from the package configuration, which should define its default install path.
+                # Note: Variable resolution isn't fully available at this early stage.
                 local_package_files = self._package_configuration_data.get("local_solution_package_files")
                 if isinstance(local_package_files, str):
                     solution_package = (
@@ -295,21 +304,6 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
-    @property
-    def package_configuration(self) -> Optional[dict[str, Any]]:
-        """ Returns the package configuration processed JSON """
-        return self._package_configuration_data
-
-    @property
-    def telemetry(self) -> Optional[BuildTelemetry]:
-        """ Returns the AutoForge telemetry class instance """
-        return self._telemetry
-
-    @property
-    def root_logger(self) -> Optional[AutoLogger]:
-        """ AutoForge root logger instance """
-        return self._auto_logger
-
     def forge(self) -> Optional[int]:
         """
         Load a solution and fire the AutoForge shell.
@@ -317,6 +311,11 @@ class AutoForge(CoreModuleInterface):
         return_code = 1
 
         try:
+
+            # Configure and start watchdog with default or configuration provided timeout.
+            self._watchdog_timeout = self._package_configuration_data.get("watchdog_timeout", self._watchdog_timeout)
+            self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
+
             # Remove anny previously generated autoforge temporary files.
             ToolBox.clear_residual_files()
 
@@ -350,6 +349,8 @@ class AutoForge(CoreModuleInterface):
             # Start user telemetry
             telemetry_path = self._variables.expand("$AF_SOLUTION_BASE/telemetry.log")
             self._telemetry = BuildTelemetry.load(telemetry_path)
+
+            self._watchdog.stop()  # Stopping Initialization protection watchdog
 
             if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
 
@@ -425,6 +426,26 @@ class AutoForge(CoreModuleInterface):
 
         except Exception:  # Propagate
             raise
+
+    @property
+    def package_configuration(self) -> Optional[dict[str, Any]]:
+        """ Returns the package configuration processed JSON """
+        return self._package_configuration_data
+
+    @property
+    def telemetry(self) -> Optional[BuildTelemetry]:
+        """ Returns the AutoForge telemetry class instance """
+        return self._telemetry
+
+    @property
+    def watchdog(self) -> Optional[Watchdog]:
+        """ Returns the Package watchdog instance """
+        return self._watchdog
+
+    @property
+    def root_logger(self) -> Optional[AutoLogger]:
+        """ AutoForge root logger instance """
+        return self._auto_logger
 
 
 def auto_forge_main() -> Optional[int]:

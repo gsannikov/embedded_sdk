@@ -40,7 +40,7 @@ from rich.console import Console
 # AutoForge imports
 from auto_forge import (PROJECT_NAME, PROJECT_VERSION, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
                         BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
-                        TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, )
+                        TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox)
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Prompt"
@@ -1283,6 +1283,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         and key-triggered path completions (e.g., on '/' and '.'),
         with full cmd2 command history integration.
         """
+
         if intro:
             self.poutput(intro)
         else:

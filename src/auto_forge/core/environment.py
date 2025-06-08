@@ -10,7 +10,6 @@ Description:
     - Probing the user environment to ensure prerequisites are met.
 """
 import codecs
-# Third-party
 import fcntl
 import fnmatch
 import inspect
@@ -40,7 +39,8 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         VersionCompare, CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry,
-                        ToolBox, ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases)
+                        ToolBox, ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases,
+                        Watchdog)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
 
@@ -90,10 +90,10 @@ class CoreEnvironment(CoreModuleInterface):
         # Get the interactive commands from package configuration or use defaults if not available
         self._interactive_commands = self._package_configuration_data.get('interactive_commands',
                                                                           ["cat", "htop", "top", "vim", "less", "nano",
-                                                                           "vi", "clear"])
+                                                                           "vi", "clear", "pico"])
 
         # Allow to override default execution opf subprocesses in configuration
-        self._subprocess_execution_timout = self._package_configuration_data.get("default_subprocess_execution_timout",
+        self._subprocess_execution_timout = self._package_configuration_data.get("subprocess_execution_timout",
                                                                                  self._subprocess_execution_timout)
 
         # Persist this module instance in the global registry for centralized access
@@ -228,7 +228,6 @@ class CoreEnvironment(CoreModuleInterface):
     `   Check if a package is available in the system's package manager (APT or DNF).
         Args:
             package_name (str): The name of the package to check.
-
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
@@ -565,7 +564,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         self._tool_box.set_cursor(visible=False)
         spin_thread = threading.Thread(target=_show_spinner, name="Spinner")
-        exec_thread = threading.Thread(target=_execute_foreign_code, name="ForeignCodeExecutor")
+        exec_thread = threading.Thread(target=_execute_foreign_code, name="SpinnerExecute")
 
         spin_thread.start()
         exec_thread.start()
@@ -639,7 +638,8 @@ class CoreEnvironment(CoreModuleInterface):
         # Full TTY handoff for interactive apps
         if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
             self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
-            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env)
+            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env,
+                                                            timeout=timeout)
             if check and results.return_code != 0:
                 raise subprocess.CalledProcessError(returncode=results.return_code, cmd=command)
             return results
@@ -838,23 +838,31 @@ class CoreEnvironment(CoreModuleInterface):
                 os.close(master_fd)
 
     @staticmethod
-    def execute_fullscreen_shell_command(command_and_args: str, env: Optional[Mapping[str, str]] = None) -> Optional[
+    def execute_fullscreen_shell_command(command_and_args: str, env: Optional[Mapping[str, str]] = None,
+                                         timeout: Optional[float] = None) -> Optional[
         CommandResultType]:
         """
         Runs a full-screen TUI command like 'htop' or 'vim' by fully attaching to the terminal.
         Args:
             command_and_args (str): a string containing the full command and arguments to execute.
             env (Optional[Mapping[str, str]]): Environment variables.
+            timeout (Optional, float): Terminate the subprocess after this many seconds.
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
         """
         return_code: int = 0  # Initialize to error code
+        if timeout:
+            Watchdog().start(timeout=timeout)
 
         with suppress(KeyboardInterrupt):
             result = subprocess.run(command_and_args, shell=True, check=False, stdin=sys.stdin, stdout=sys.stdout,
                                     stderr=sys.stderr, env=env, )
             return_code = result.returncode
+
+        # Stop the watchdog if we've ised it
+        if timeout:
+            Watchdog().stop()
 
         return CommandResultType(response='', return_code=return_code)
 
