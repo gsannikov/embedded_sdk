@@ -133,6 +133,7 @@ class AutoForge(CoreModuleInterface):
         """ Construct the logger file name, initialize and start logging"""
 
         allow_console_output = False
+        log_file = None
 
         # Determine if we have a workspace which could she log file
         logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
@@ -140,8 +141,6 @@ class AutoForge(CoreModuleInterface):
             log_file = os.path.join(logs_workspace_path, PROJECT_LOG_FILE)
             # Patch it with timestamp so we will have dedicated log for each build system run.
             log_file = self._tool_box.append_timestamp_to_path(log_file)
-        else:
-            log_file = PROJECT_LOG_FILE  # No workspace use plain log file name
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._package_configuration_data)
