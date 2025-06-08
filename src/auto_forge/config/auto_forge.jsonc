@@ -396,7 +396,7 @@
         { "name": "bluefish",     "aliases": ["bluefish"],                                "type": "gui",      "executable": "bluefish",     "args": [] },
         { "name": "kate",         "aliases": ["kate"],                                    "type": "gui",      "executable": "kate",         "args": ["--new"] },
         { "name": "xed",          "aliases": ["xed"],                                     "type": "gui",      "executable": "xed",          "args": [] },
-        { "name": "sublime_text", "aliases": ["subl", "sublime_text", "subl.exe"],        "type": "gui",      "executable": "subl",         "args": ["--new-window"] },
+        { "name": "sublime_text", "aliases": ["subl", "sublime_text", "subl.exe"],        "type": "gui",      "executable": "subl",         "args": [] },
         { "name": "vscode",       "aliases": ["code", "code-insiders", "Code.exe"],       "type": "gui",      "executable": "code",         "args": ["--reuse-window"] },
         { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] },
         { "name": "notepad",      "aliases": ["notepad.exe"],                             "type": "gui",      "executable": "notepad",      "args": [] }
