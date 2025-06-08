@@ -20,7 +20,7 @@ import subprocess
 from contextlib import suppress
 from logging import Logger
 from nturl2path import pathname2url
-from typing import Optional, Any
+from typing import Optional, Any, Iterable
 
 from rich import box
 from rich.console import Console
@@ -49,25 +49,25 @@ class EditCommand(CLICommandInterface):
         self._package_configuration_data: Optional[list, Any] = kwargs.get('package_configuration_data', None)
         self._detected_editors: Optional[list[dict[str, Any]]] = []
         self._sys_info: SystemInfo = SystemInfo.get_instance()
-
         self._selected_editor_index: Optional[int] = None
-
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._solution: Optional[CoreSolution] = None
+        self._max_fallback_search_paths: int = 10
 
         # Get a logger instance
         self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
 
-        wsl_home = self._sys_info.wsl_home()
-        if isinstance(wsl_home, str):
-            # noinspection SpellCheckingInspection
-            self._variables.add(key='WSL_HOMEPATH', value=wsl_home, is_path=True, path_must_exist=True,
-                                description='WSL user home path')
+        # Add few WSL specific variables to the project environment
+        self._inject_wsl_environment()
 
         # Detect installed editors
         if self._package_configuration_data is not None:
             searched_editors_data = self._package_configuration_data.get("searched_editors", [])
             fallback_search_path = self._package_configuration_data.get("editors_fallback_search_paths", [])
+
+            # Clean bad or missing paths
+            fallback_search_path = self._purify_paths(paths=fallback_search_path,
+                                                      max_items=self._max_fallback_search_paths)
 
             self._detected_editors = self._detect_installed_editors(editors=searched_editors_data,
                                                                     fallback_search_path=fallback_search_path,
@@ -76,6 +76,23 @@ class EditCommand(CLICommandInterface):
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=True, hidden=True)
+
+    def _inject_wsl_environment(self) -> None:
+        """
+        Injects relevant WSL environment variables into the package runtime,
+        such as the user's home path and the Windows C: drive mount path.
+        """
+        wsl_home = self._sys_info.wsl_home
+        if isinstance(wsl_home, str):
+            # noinspection SpellCheckingInspection
+            self._variables.add(key='WSL_HOMEPATH', value=wsl_home, is_path=True, path_must_exist=True,
+                                description='WSL user home path')
+
+        wsl_c_mount = self._sys_info.wsl_c_mount
+        if isinstance(wsl_c_mount, str):
+            # noinspection SpellCheckingInspection
+            self._variables.add(key='WSL_C_MOUNT', value=wsl_c_mount, is_path=True, path_must_exist=True,
+                                description='WSL C mount path')
 
     def _search_in_fallback_dirs(self, aliases: list, fallback_search_path: list, max_depth: int) -> Optional[str]:
         """
@@ -281,6 +298,38 @@ class EditCommand(CLICommandInterface):
         # Fallback to default
         return None
 
+    def _purify_paths(self, paths: Iterable[dict[str, Any]], max_items: Optional[int] = None) -> list[dict[str, Any]]:
+        """
+        Filters and normalizes a list of dictionaries containing file or directory paths.
+        For each dictionary that has a 'path' key:
+          - Expands the path to an absolute path.
+          - Validates that the path exists.
+          - If valid, includes the updated dictionary in the result.
+          - If missing or invalid, the item is excluded.
+        Args:
+            paths: Iterable of dictionaries. Each dict may contain a 'path' key.
+            max_items: Maximum number of items to allow in the returned list.
+        Returns:
+            A new list of dictionaries where 'path' values are absolute and exist on disk.
+        """
+        purified = []
+        for entry in paths:
+            if not isinstance(entry, dict):
+                continue
+            path = entry.get("path")
+            if isinstance(path, str):
+                abs_path = self._variables.expand(key=path, quiet=True)
+                if os.path.exists(abs_path):
+                    new_entry = dict(entry)  # shallow copy
+                    new_entry["path"] = abs_path
+                    purified.append(new_entry)
+
+        # Truncate the list of specified
+        if isinstance(max_items, int) and len(purified) > max_items:
+            purified[:] = purified[:purified]
+
+        return purified
+
     def _vscode_trust_workspace_path(self, path: str):
         """
         Best-effort method to mark a workspace as trusted in Visual Studio Code,
@@ -410,11 +459,24 @@ class EditCommand(CLICommandInterface):
                     self._selected_editor_index = self._resolve_editor_identifier(editor_identifier)
 
         # Handle arguments
+
         if args.path is not None:
+            # Execute the selected editor to edit a specified file
             return_code = self._edit_file(path=args.path, editor_index=self._selected_editor_index)
 
         elif args.list_editors:
+            # List all detected editors.
             self._print_detected_editors(editor_index=self._selected_editor_index)
+
+        elif args.editor_identifier is not None:
+            # Set the session editor
+            editor_index = self._resolve_editor_identifier(args.editor_identifier)
+            if editor_index is not None:
+                self._selected_editor_index = editor_index
+                print(f"Editor index changed to '{editor_index + 1}'\n")
+            else:
+                raise RuntimeError(f"Could not set editor index for '{args.editor_identifier}'")
+
         else:
             # Error: no arguments
             return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS

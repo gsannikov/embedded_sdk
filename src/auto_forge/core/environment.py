@@ -40,7 +40,7 @@ from colorama import Fore, Style
 from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
                         VersionCompare, CoreProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry,
                         ToolBox, ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases,
-                        Watchdog)
+                        SystemInfo, Watchdog)
 # Delayed import, prevent circular errors.
 from auto_forge.core.variables import CoreVariables
 
@@ -82,6 +82,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
         self._processor = CoreProcessor.get_instance()  # Instantiate JSON processing library
         self._tool_box: ToolBox = ToolBox.get_instance()
+        self._sys_info: SystemInfo = SystemInfo.get_instance()
         self._loader: CoreLoader = CoreLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._shell_aliases: ShellAliases = ShellAliases.get_instance()

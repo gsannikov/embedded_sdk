@@ -111,7 +111,7 @@
         { "alias_name": "log",          "target_command": "sln -l -c",                         "description": "\uD83D\uDCDD Show recent logs",                              "command_type": "UTILITY"  },
         { "alias_name": "showsln",      "target_command": "sln -p",                            "description": "\uD83D\uDD0E Show resolved solution JSON",                   "command_type": "UTILITY"  },
         { "alias_name": "showenv",      "target_command": "sln -e",                            "description": "\uD83D\uDD0E Show managed variables tables",                 "command_type": "UTILITY"  },
-        { "alias_name": "showeditor",   "target_command": "edit -l",                           "description": "Show all detected editors",                                  "command_type": "UTILITY" },
+        { "alias_name": "showeditors",  "target_command": "edit -l",                           "description": "Show all detected editors",                                  "command_type": "UTILITY" },
         { "alias_name": "e",            "target_command": "edit -p",                           "description": "Open a file or path in default editor",                      "command_type": "UTILITY" },
         { "alias_name": "j",            "target_command": "sln -j",                            "description": "\uD83E\uDD8B JSON pretty viewer",                            "command_type": "SYSTEM"   },
         { "alias_name": "ls",           "target_command": "/bin/ls --color=auto -F",           "description": "\uD83D\uDDC4\uFE0F List (short) using built-in 'ls",         "command_type": "SYSTEM"   },
@@ -224,7 +224,7 @@
         "alias"           : { "path_completion": false                        },
         "apt"             : { "path_completion": false                        },
         "cat"             : { "path_completion": true , "only_dirs": false    },
-        "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias 
+        "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias
         "j"               : { "path_completion": true , "only_dirs": false    },
         "cd"              : { "path_completion": true , "only_dirs": true     },
         "clear"           : { "path_completion": false                        },
@@ -360,16 +360,16 @@
         // - "wsl_path": true if the path refers to a WSL-mounted Windows location (e.g., /mnt/c/...),
         //               which will only be searched when running inside WSL and the target alias ends with '.exe'.
 
-        { "path":  "/snap/bin"                                                                  },
+        { "path": "/snap/bin"                                                                   },
         { "path": "/var/lib/flatpak/exports/bin"                                                },
         { "path": "~/.var/app"                                                                  },
-        { "path": "~/Applications"                                                              },
         { "path":  "~/bin"                                                                      },
         { "path": "/mnt/c/Program Files/Sublime Text",                       "wsl_path": true   },
         { "path": "/mnt/c/Program Files/Microsoft VS Code",                  "wsl_path": true   },
         { "path": "$WSL_HOMEPATH/AppData/Local/Programs/Microsoft VS Code",  "wsl_path": true   },
-        { "path": "/mnt/c/Program Files (x86)/Notepad++",                    "wsl_path": true   },
-        { "path": "/mnt/c/Program Files/Notepad++",                          "wsl_path": true   }
+        { "path": "$WSL_C_MOUNT/Program Files (x86)/Notepad++",              "wsl_path": true   },
+        { "path": "$WSL_C_MOUNT/Program Files/Notepad++",                    "wsl_path": true   },
+        { "path": "$WSL_C_MOUNT/Windows",                                    "wsl_path": true   }
     ],
 
     "searched_editors": [
@@ -383,6 +383,7 @@
 
         { "name": "vi",           "aliases": ["vi", "vii"],                               "type": "terminal", "executable": "vi",           "args": [] },
         { "name": "vim",          "aliases": ["vim", "vim.basic", "vim.tiny"],            "type": "terminal", "executable": "vim",          "args": ["-u", "NONE"] },
+        { "name": "gvim",         "aliases": ["gvim", "gvim.exe"],                        "type": "gui",      "executable": "gvim",         "args": [] },
         { "name": "nano",         "aliases": ["nano"],                                    "type": "terminal", "executable": "nano",         "args": ["--ignorercfiles"] },
         { "name": "pico",         "aliases": ["pico"],                                    "type": "terminal", "executable": "pico",         "args": [] },
         { "name": "emacs",        "aliases": ["emacs"],                                   "type": "terminal", "executable": "emacs",        "args": ["-nw"] },
@@ -391,10 +392,13 @@
         { "name": "leafpad",      "aliases": ["leafpad"],                                 "type": "gui",      "executable": "leafpad",      "args": [] },
         { "name": "mousepad",     "aliases": ["mousepad"],                                "type": "gui",      "executable": "mousepad",     "args": [] },
         { "name": "pluma",        "aliases": ["pluma"],                                   "type": "gui",      "executable": "pluma",        "args": [] },
+        { "name": "atom",         "aliases": ["atom", "Atom.exe"],                        "type": "gui",      "executable": "atom",         "args": ["--new-window"] },
+        { "name": "bluefish",     "aliases": ["bluefish"],                                "type": "gui",      "executable": "bluefish",     "args": [] },
         { "name": "kate",         "aliases": ["kate"],                                    "type": "gui",      "executable": "kate",         "args": ["--new"] },
         { "name": "xed",          "aliases": ["xed"],                                     "type": "gui",      "executable": "xed",          "args": [] },
         { "name": "sublime_text", "aliases": ["subl", "sublime_text", "subl.exe"],        "type": "gui",      "executable": "subl",         "args": ["--new-window"] },
         { "name": "vscode",       "aliases": ["code", "code-insiders", "Code.exe"],       "type": "gui",      "executable": "code",         "args": ["--reuse-window"] },
-        { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] }
+        { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] },
+        { "name": "notepad",      "aliases": ["notepad.exe"],                             "type": "gui",      "executable": "notepad",      "args": [] }
   ]
 }

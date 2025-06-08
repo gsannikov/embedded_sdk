@@ -52,6 +52,7 @@ class SystemInfo(CoreModuleInterface):
         self._system_type: str = platform.system().lower()
         self._is_wsl: bool = "wsl" in platform.release().lower()
         self._wsl_home: Optional[str] = self._get_windows_home_from_wsl() if self._is_wsl else None
+        self._wsl_c_mount:Optional[str]=self._resolve_wsl_c_mount() if self._is_wsl else None
         self._is_docker: bool = self._detect_docker()
         self._architecture: str = platform.machine()
         self._python_version: str = platform.python_version()
@@ -84,6 +85,7 @@ class SystemInfo(CoreModuleInterface):
         # Pack into a dictionary
         self._info_data = {"system_type": self._system_type, "is_wsl": self._is_wsl,
                            "wsl_home": self._wsl_home if self._wsl_home else None,
+                           "wsl_c_mount": self._wsl_c_mount if self._wsl_c_mount else None,
                            "is_docker": self._is_docker,
                            "architecture": self._architecture, "python_version": self._python_version,
                            "python venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
@@ -294,6 +296,18 @@ class SystemInfo(CoreModuleInterface):
         return None, None
 
     @staticmethod
+    def _resolve_wsl_c_mount() -> Optional[str]:
+        """
+        Returns the path to the WSL-mounted Windows C: drive if available.
+        Returns:
+            str, optional: '/mnt/c' if it exists and is accessible, otherwise None.
+        """
+        path = "/mnt/c"
+        if os.path.ismount(path) and os.access(path, os.R_OK | os.X_OK):
+            return path
+        return None
+
+    @staticmethod
     def _get_windows_home_from_wsl() -> Optional[str]:
         """ Best effort to returns the WSL-accessible Windows user home path """
         with suppress(Exception):
@@ -387,9 +401,15 @@ class SystemInfo(CoreModuleInterface):
         """ Return true if we're running under WSL """
         return self._is_wsl
 
+    @property
     def wsl_home(self) -> Optional[bool]:
         """ Return the user WSL Windows home path when running on WSL """
         return self._wsl_home
+
+    @property
+    def wsl_c_mount(self) -> Optional[bool]:
+        """  Return the status of the WSL C: drive mount """
+        return self._wsl_c_mount
 
     @property
     def linux_shell(self) -> None:
