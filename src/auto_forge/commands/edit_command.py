@@ -85,7 +85,7 @@ class EditCommand(CLICommandInterface):
                 continue
 
             # Expand variables and normalize slashes
-            path = self._variables.expand(key=raw_path).replace("\\", "/").rstrip("/")
+            path = self._variables.expand(key=raw_path,quiet=True).replace("\\", "/").rstrip("/")
 
             # Skip Windows paths if we're not in WSL or not targeting .exe
             if is_wsl_path and (not self._sys_info.is_wsl or not is_windows_target):
