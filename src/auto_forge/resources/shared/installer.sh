@@ -1,25 +1,60 @@
 #!/bin/bash
+# shellcheck disable=SC2059 ## Don't use variables in the printf format string. Use printf '..%s..' "$foo".
 
 # ------------------------------------------------------------------------------
 #
 # Script Name:    installer.sh
 # Description:    Helper script for launching AutoForge bootstrap.
+#                 This script could be sourced oe directly invoked.
 # Version:        1.0
 #
 # ------------------------------------------------------------------------------
 
 AUTO_FORGE_BOOTSTRAP_URL="https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh"
 
+#
+# @brief Checks if the script was sourced or executed directly.
+# This function is compatible with both bash and zsh. It determines if the
+# current script was sourced or executed directly.
+# @return 0 if the script was sourced, 1 if executed directly.
+#
+
+is_sourced() {
+
+	# Check for Bash / Zsh compatibility
+	if [ -n "$ZSH_VERSION" ]; then
+		case $ZSH_EVAL_CONTEXT in *:file) return 0 ;; esac
+	elif [ -n "$BASH_VERSION" ]; then
+		# shellcheck disable=SC2128 ## Expanding an array without an index only gives the first element.
+		case $0 in "$BASH_SOURCE") return 1 ;; esac
+	else
+		# If not Bash or Zsh, fallback method
+		case $(basename -- "$0") in "$(basename -- "${BASH_SOURCE[0]:-$0}")") return 1 ;; esac
+	fi
+	return 0
+}
+
+#
+# @brief Install the AutoForge package which will then fetch the required solution package and take over the
+#        installation process.
+# @return 0 if the script was sourced, 1 if executed directly.
+#
+
 af_install() {
 
 	local dest_workspace_path="" # Path for the new workspace
-	local solution_name=""       # In this context: also the sample path name
+	local solution_name=""   # In this context: also the sample path name
 	local solution_package=""
 	local bootstrap_url=""
 	local auto_start=false
 	local allow_non_empty=false
 	local verbose=false
 	local workspace_name=""
+
+	# Define ANSI style variables
+	BOLD_GREEN="\033[1;32m"
+	DIM="\033[2m"
+	RESET="\033[0m"
 
 	# Display help message
 	_display_help() {
@@ -35,11 +70,11 @@ af_install() {
 		echo "      --verbose                 Enable more detailed output."
 		echo "  -h, --help                    Display this help message and exit."
 		echo
-		printf "Examples:\n"
+		printf "Examples:\n\n"
 		printf "To install the AutoForge 'demo' solution sample and automatically start it upon completion:\n"
-		printf "\033[1;32m  af_install\033[0m -w \033[2m/home/bill_g/projects/demo\033[0m -n \033[2mdemo\033[0m --allow_non_empty --auto_start\n"
+		printf "  ${BOLD_GREEN}  af_install${RESET} -w ${DIM}/home/bill_g/projects/demo${RESET} -n ${DIM}demo${RESET} --allow_non_empty --auto_start\n"
 		printf "To install the AutoForge 'iphone' solution from a specific package URL on GitHub:\n"
-		printf "\033[1;32m  af_install\033[0m -w \033[2m/home/tim_c/projects/iphone\033[0m -n \033[2miphone\033[0m -p \033[4mhttps://raw.githubusercontent.com/tim_c/iphone/solution\033[0m --verbose\n"
+		printf "  ${BOLD_GREEN}  af_install${RESET} -w ${DIM}/home/tim_c/projects/iphone${RESET} -n ${DIM}iphone${RESET} -p ${DIM}https://raw.githubusercontent.com/tim_c/iphone/solution${RESET} --verbose\n" printf "\n"
 		printf "\n"
 
 	}
@@ -53,43 +88,43 @@ af_install() {
 	# Parse command-line arguments.
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-			-w | --workspace)
-				dest_workspace_path="$2"
-				shift 2
-				;;
-			-n | --name)
-				solution_name="$2"
-				shift 2
-				;;
-			-p | --packge)
-				solution_package="$2"
-				shift 2
-				;;
-			-b | --bootstrap)
-				bootstrap_url="$2"
-				shift 2
-				;;
-			--auto_start)
-				auto_start=true
-				shift
-				;;
-			--allow_non_empty)
-				allow_non_empty=true
-				shift
-				;;
-			--verbose)
-				verbose=true
-				shift
-				;;
-			-h | --help)
-				_display_help
-				return 0
-				;;
-			*)
-				printf "\nError: Unknown option: %s\n\n" "$1"
-				_display_help
-				return 1
-				;;
+		-w | --workspace)
+			dest_workspace_path="$2"
+			shift 2
+			;;
+		-n | --name)
+			solution_name="$2"
+			shift 2
+			;;
+		-p | --packge)
+			solution_package="$2"
+			shift 2
+			;;
+		-b | --bootstrap)
+			bootstrap_url="$2"
+			shift 2
+			;;
+		--auto_start)
+			auto_start=true
+			shift
+			;;
+		--allow_non_empty)
+			allow_non_empty=true
+			shift
+			;;
+		--verbose)
+			verbose=true
+			shift
+			;;
+		-h | --help)
+			_display_help
+			return 0
+			;;
+		*)
+			printf "\nError: Unknown option: %s\n\n" "$1"
+			_display_help
+			return 1
+			;;
 		esac
 	done
 
@@ -183,3 +218,33 @@ af_install() {
 		./env.sh
 	fi
 }
+
+#
+# @brief https://en.wikipedia.org/wiki/Entry_point
+# @param "$@" Command-line arguments passed to the script.
+# Notes should always be the last function in this file.
+# @return 0 | 1
+#
+
+main() {
+
+	local ret_val=0
+
+	# We can only be sourced.
+	if ! is_sourced; then
+		af_install "$@"
+		ret_val=$?
+		exit $ret_val
+	fi
+
+	return $ret_val
+
+}
+
+#
+# @brief Invoke the main function with command-line arguments.
+# @return The exit status of the main function.
+#
+
+main "$@"
+return $?
