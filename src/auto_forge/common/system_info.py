@@ -362,6 +362,11 @@ class SystemInfo(CoreModuleInterface):
         return self._info_data
 
     @property
+    def is_wsl(self) -> Optional[bool]:
+        """ Return true if we're running under WSL """
+        return self._is_wsl
+
+    @property
     def linux_shell(self) -> None:
         """ Returns the detected Linux user default shell """
         return SystemInfo._detect_login_shell()

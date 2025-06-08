@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional, Union, Any
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, )
+from auto_forge import (CLICommandInterface, SystemInfo, )
 
 AUTO_FORGE_MODULE_NAME = "start"
 AUTO_FORGE_MODULE_DESCRIPTION = "Windows start command"
@@ -46,13 +46,26 @@ class StartCommand(CLICommandInterface):
             path: The path to open in the file manager. Can be a string or a Path object.
                   If None, the current working directory will be opened.
         """
+        sys_info: SystemInfo = SystemInfo.get_instance()
+
         if path is None:
             target_path = Path.cwd()
         else:
             target_path = Path(path).resolve()  # Resolve to an absolute path
 
-        # --- Handle Windows ---
-        if os.name == 'nt':
+        # Handle Windows
+        if os.name == 'nt' and not sys_info.is_wsl:
+            try:
+                # Regular Windows
+                subprocess.run(['explorer', str(target_path)], check=True)
+                return
+            except FileNotFoundError:
+                raise RuntimeError("'explorer' command not found, this should not happen on Windows")
+            except subprocess.CalledProcessError as process_error:
+                raise RuntimeError(f"opening file manager on Windows: {process_error}")
+
+        # Handle WSL
+        elif sys_info.is_wsl:
             try:
                 # Check if running inside WSL
                 if os.getenv("WSL_DISTRO_NAME"):
@@ -63,15 +76,12 @@ class StartCommand(CLICommandInterface):
                         capture_output=True, text=True, check=True
                     )
                     windows_path = wsl_path_output.stdout.strip()
-                    subprocess.run(['explorer.exe', str(windows_path)], check=True)
-                else:
-                    # Regular Windows
-                    subprocess.run(['explorer', str(target_path)], check=True)
+                    subprocess.run(['explorer.exe', str(windows_path)], check=False)
                 return
             except FileNotFoundError:
-                raise RuntimeError("'explorer' command not found, this should not happen on Windows")
+                raise RuntimeError("'explorer' command not found, this should not happen on WSL")
             except subprocess.CalledProcessError as process_error:
-                raise RuntimeError(f"opening file manager on Windows: {process_error}")
+                raise RuntimeError(f"opening file manager on WSL: {process_error}")
 
         # Handle macOS
         elif os.uname().sysname == 'Darwin':
