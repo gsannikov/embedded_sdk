@@ -11,7 +11,7 @@
     "status_add_time_prefix": true,
     "status_new_line": true,
     // Enables multi-line status output instead of in-place updates
-    "status_pre_message": "Hello, welcome to the '$SOLUTION_NAME' solution setup.",
+    "status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
     "status_post_message": "\n\nSetup is completed.",
     "steps": [
         {
