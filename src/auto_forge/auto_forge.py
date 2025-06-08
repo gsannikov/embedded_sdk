@@ -52,6 +52,7 @@ class AutoForge(CoreModuleInterface):
         self._telemetry: Optional[BuildTelemetry] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
         self._auto_logger: Optional[AutoLogger] = None
+        self._sequence_log_file: Optional[Path] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
         self._steps_file: Optional[str] = None
@@ -152,6 +153,8 @@ class AutoForge(CoreModuleInterface):
             allow_console_output = True
 
         self._logger: logging.Logger = self._auto_logger.get_logger(console_stdout=allow_console_output)
+        if log_file is None:
+            self._sequence_log_file = Path(self._auto_logger.get_log_filename())
 
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -392,20 +395,24 @@ class AutoForge(CoreModuleInterface):
 
                     return_code = self._environment.run_sequence(sequence_data=sequence_data)
                     if return_code == 0:
-                        # Lastly store the solution in the newly created workspace
+                        # Lastly store the solution in the newly created workspace.
                         scripts_path = self._variables.get(key="SCRIPTS_BASE")
                         if scripts_path is not None:
                             solution_destination_path = os.path.join(scripts_path, 'solution')
                             env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
 
-                            # Move all project specific jsons along with any zip files to the destination path
+                            # Move all project specific jsons along with any zip files to the destination path.
                             self._tool_box.cp(
                                 pattern=f'{self._solution_package_path}/*.json*,{self._solution_package_path}/*.zip',
-                                dest_dir=f'{solution_destination_path}')
+                                dest_dir=solution_destination_path)
 
                             # Place the build system default initiator script
-                            self._tool_box.cp(pattern=f'{env_starter_file.__str__()}',
-                                              dest_dir=f'{self._workspace_path}')
+                            self._tool_box.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=self._workspace_path)
+
+                            # Place the sequence log to the newly created workspace logs path.
+                            if self._sequence_log_file:
+                                self._tool_box.cp(pattern=f'{self._sequence_log_file.__str__()}',
+                                                  dest_dir=self._variables.get(key="BUILD_LOGS"))
 
                             # Finally, create a hidden '.config' file in the solution directory with essential metadata.
                             self._environment.create_config_file(solution_name=self._solution_name,
