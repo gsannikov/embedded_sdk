@@ -124,7 +124,7 @@ class AutoForge(CoreModuleInterface):
         self._logger.info(self._sys_info)
 
         # Load all built-in commands
-        self._loader = CoreLoader()
+        self._loader = CoreLoader(package_configuration_data=self._package_configuration_data)
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         # Start the environment core module
         self._environment = CoreEnvironment(workspace_path=self._workspace_path,

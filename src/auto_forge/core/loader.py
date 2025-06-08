@@ -38,9 +38,11 @@ class CoreLoader(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self) -> None:
+    def _initialize(self, package_configuration_data: dict[str, Any]) -> None:
         """
         Initializes the 'CoreLoader' class and prepares the command registry.
+        Args:
+            package_configuration_data: dictionary with package configuration data.
         """
 
         # Get a logger instance
@@ -48,6 +50,7 @@ class CoreLoader(CoreModuleInterface):
         self._registry: Registry = Registry.get_instance()
         self._toolbox: ToolBox = ToolBox.get_instance()
         self._loaded_commands: int = 0
+        self._package_configuration_data: dict[str, Any] = package_configuration_data
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {CLICommandInterface: "CLICommandInterface",
@@ -157,7 +160,7 @@ class CoreLoader(CoreModuleInterface):
                         continue
 
                     # Instantiate the class (command), this will auto update the command properties in the registry.
-                    command_instance = class_object()
+                    command_instance = class_object(package_configuration_data=self._package_configuration_data)
 
                     # Invoke 'get_info()', which is defined by the interface. Since this class was loaded dynamically,
                     # we explicitly pass the Python 'ModuleType' to the implementation so it can update its own metadata.

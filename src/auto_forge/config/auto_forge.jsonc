@@ -50,6 +50,7 @@
     // Expected location of solution files in an installed environment.
     // This variable is read during an early initialization stage, please avoid using any local variables
     // other than the workspace path and the solution name.
+
     "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
 
     // Search paths used when the prompt attempts to autocomplete a typed command.
@@ -70,6 +71,7 @@
       ],
 
     "keywords_mapping": [
+
         // Defines placeholder-to-value mappings used for runtime substitution.
         // Placeholders in the form <keyword> will be replaced by their mapped values, if defined.
         // Each entry is a pair: [keyword (without angle brackets), replacement string].
@@ -89,6 +91,13 @@
     ],
 
     "builtin_aliases": [
+
+        // Built-in shell aliases that map shorthand commands to predefined behaviors.
+        // Each entry includes:
+        // - "alias_name": The shortcut or symbol used by the user (e.g., ".", "..").
+        // - "target_command": The actual command that will be executed.
+        // - "description": A user-friendly description (supports Unicode symbols).
+        // - "command_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
 
         { "alias_name": ".",        "target_command": "start -p .",                        "description": "\uD83D\uDD3A Opens current path in the system file manager", "command_type": "NAVIGATE" },
         { "alias_name": "..",       "target_command": "cd ..",                             "description": "\uD83D\uDD3A Go up one directory",                           "command_type": "NAVIGATE" },
@@ -338,5 +347,51 @@
         // Fallbacks
         "default_dir"        : { "icon": "\uf115", "description": "Directory",               "color": "FORE_BLUE"            },
         "default_file"       : { "icon": "\uf016", "description": "Generic file",            "color": "white"                }
-    }
+    },
+
+    "editors_fallback_search_paths": [
+
+        // Fallback search paths for locating editors not found in the system's executable PATH.
+        // Each entry may include:
+        // - "path": A string path to search.
+        // - "wsl_path": true if the path refers to a WSL-mounted Windows location (e.g., /mnt/c/...),
+        //               which will only be searched when running inside WSL and the target alias ends with '.exe'.
+
+        { "path":  "/snap/bin"                                                                  },
+        { "path": "/var/lib/flatpak/exports/bin"                                                },
+        { "path": "~/.var/app"                                                                  },
+        { "path": "~/Applications"                                                              },
+        { "path":  "~/bin"                                                                      },
+        { "path": "/mnt/c/Program Files/Sublime Text",                       "wsl_path": true   },
+        { "path": "/mnt/c/Program Files/Microsoft VS Code",                  "wsl_path": true   },
+        { "path": "$WSL_HOMEPATH/AppData/Local/Programs/Microsoft VS Code",  "wsl_path": true   },
+        { "path": "/mnt/c/Program Files (x86)/Notepad++",                    "wsl_path": true   },
+        { "path": "/mnt/c/Program Files/Notepad++",                          "wsl_path": true   }
+    ],
+
+    "searched_editors": [
+
+        // A list of supported editors that will be searched for during startup.
+        // Each object should define:
+        // - "name": A unique identifier for the editor.
+        // - "aliases": A list of possible executable names to check (e.g., commands or symlinks).
+        // - "type": "terminal" or "gui", used to categorize the editor.
+        // - "executable": Preferred alias name used when launching the editor.
+
+        {   "name": "vi",           "aliases": ["vi", "vii"],                               "type": "terminal", "executable": "vi"                  },
+        {   "name": "vim",          "aliases": ["vim", "vim.basic", "vim.tiny"],            "type": "terminal", "executable": "vim"                 },
+        {   "name": "nano",         "aliases": ["nano"],                                    "type": "terminal", "executable": "nano"                },
+        {   "name": "pico",         "aliases": ["pico"],                                    "type": "terminal", "executable": "pico"                },
+        {   "name": "emacs",        "aliases": ["emacs"],                                   "type": "terminal", "executable": "emacs"               },
+        {   "name": "micro",        "aliases": ["micro"],                                   "type": "terminal", "executable": "micro"               },
+        {   "name": "gedit",        "aliases": ["gedit"],                                   "type": "gui",      "executable": "gedit"               },
+        {   "name": "leafpad",      "aliases": ["leafpad"],                                 "type": "gui",      "executable": "leafpad"             },
+        {   "name": "mousepad",     "aliases": ["mousepad"],                                "type": "gui",      "executable": "mousepad"            },
+        {   "name": "pluma",        "aliases": ["pluma"],                                   "type": "gui",      "executable": "pluma"               },
+        {   "name": "kate",         "aliases": ["kate"],                                    "type": "gui",      "executable": "kate"                },
+        {   "name": "xed",          "aliases": ["xed"],                                     "type": "gui",      "executable": "xed"                 },
+        {   "name": "sublime_text", "aliases": ["subl", "sublime_text", "subl.exe"],        "type": "gui",      "executable": "subl"                },
+        {   "name": "vscode",       "aliases": ["code", "code-insiders", "Code.exe"],       "type": "gui",      "executable": "code"                },
+        {   "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe"       }
+  ]
 }

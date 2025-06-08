@@ -51,6 +51,7 @@ class SystemInfo(CoreModuleInterface):
         """
         self._system_type: str = platform.system().lower()
         self._is_wsl: bool = "wsl" in platform.release().lower()
+        self._wsl_home: Optional[str] = self._get_windows_home_from_wsl() if self._is_wsl else None
         self._is_docker: bool = self._detect_docker()
         self._architecture: str = platform.machine()
         self._python_version: str = platform.python_version()
@@ -81,7 +82,9 @@ class SystemInfo(CoreModuleInterface):
         self._total_memory_mb: Optional[int] = self._get_total_memory()
 
         # Pack into a dictionary
-        self._info_data = {"system_type": self._system_type, "is_wsl": self._is_wsl, "is_docker": self._is_docker,
+        self._info_data = {"system_type": self._system_type, "is_wsl": self._is_wsl,
+                           "wsl_home": self._wsl_home if self._wsl_home else None,
+                           "is_docker": self._is_docker,
                            "architecture": self._architecture, "python_version": self._python_version,
                            "python venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
                            "ip_address": self._ip_address if self._ip_address else None, "is_admin": self._is_admin,
@@ -290,6 +293,24 @@ class SystemInfo(CoreModuleInterface):
 
         return None, None
 
+    @staticmethod
+    def _get_windows_home_from_wsl() -> Optional[str]:
+        """ Best effort to returns the WSL-accessible Windows user home path """
+        with suppress(Exception):
+            # Try USERPROFILE or HOME from environment
+            for env_var in ("USERPROFILE", "HOME"):
+                path = os.environ.get(env_var)
+                if path and path.startswith("/mnt/c/Users/") and os.path.isdir(path):
+                    return path.replace("\\", "/")
+
+            # Try constructing /mnt/c/Users/<username> fallback
+            username = os.environ.get("USERNAME") or os.environ.get("USER")
+            if username:
+                candidate = f"/mnt/c/Users/{username}"
+                if os.path.isdir(candidate):
+                    return candidate
+        return None
+
     # noinspection SpellCheckingInspection
     @staticmethod
     def _detect_virtualization() -> Optional[str]:
@@ -365,6 +386,10 @@ class SystemInfo(CoreModuleInterface):
     def is_wsl(self) -> Optional[bool]:
         """ Return true if we're running under WSL """
         return self._is_wsl
+
+    def wsl_home(self) -> Optional[bool]:
+        """ Return the user WSL Windows home path when running on WSL """
+        return self._wsl_home
 
     @property
     def linux_shell(self) -> None:
