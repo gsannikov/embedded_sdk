@@ -19,14 +19,14 @@
                 {
                     "alias_name": "refact",
                     "target_command": "relocator --recipe relocate.jsonc --source_path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
-                    "description": "Refactor the userspace repo into a new structure",
+                    "description": "\uD83D\uDC7E Refactor the userspace repo into a new structure",
                     "command_type": "AUTOMATION",
                     "hidden": false
                 },
                 {
                     "alias_name": "deploy",
                     "target_command": "relocator --root_copy --source_path $SCRIPTS_SOLUTION/root_deploy.zip --destination $SOURCE_BASE/userspace",
-                    "description": "Deploy CMake files in a refactored project",
+                    "description": "\uD83D\uDC7E Deploy CMake files in a refactored project",
                     "command_type": "AUTOMATION",
                     "hidden": false
                 }
@@ -94,7 +94,7 @@
                             "name": "debug",
                             "menu_command": {
                                 "name": "usd",
-                                "description": "Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                                "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
                             "execute_from": "$SOURCE_BASE/userspace",
@@ -122,7 +122,7 @@
                             "data": "<$derived_from_solutions[].projects[].configurations[debug]>",
                             "menu_command": {
                                 "name": "usr",
-                                "description": "Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                                "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "compiler_options": [
                                 "-S .",
