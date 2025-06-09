@@ -206,14 +206,23 @@ class SolutionCommand(CLICommandInterface):
         self._variables: CoreVariables = CoreVariables.get_instance()
 
         if args.print_solution:
-            self._print_solution()  # Show the solution using Textual viewer.
+            # Show the expanded solution using the JSON viewer
+            self._print_solution()
+
         elif args.print_json:
-            self._tool_box.show_json_file(json_path_or_data=args.print_json, title="JSON Viewer")
+            # View JSON/C file.
+            self._tool_box.show_json_file(json_path_or_data=args.print_json, title=f"File: {args.print_json}")
+
         elif args.show_environment_variables:
+            # Show a table with all the project environment variables
             self._print_variables_table()
+
         elif args.log:
+            # Show system log
             self._print_log(args.cheerful)
+
         elif args.tutorial:
+            # Show tutorial regarding the solution structure
             self._tool_box.show_help_file(help_file_relative_path='solution/guide.md')
         else:
             # Error: no arguments

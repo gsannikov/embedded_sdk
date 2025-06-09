@@ -42,7 +42,8 @@ import psutil
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
                         AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType, )
-from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
+# Runtime import to prevent circular import
+from auto_forge.common.registry import Registry
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -1452,8 +1453,7 @@ class ToolBox(CoreModuleInterface):
                 continue
         return False
 
-    @staticmethod
-    def show_json_file(json_path_or_data: Union[str, dict], title: Optional[str] = None,
+    def show_json_file(self, json_path_or_data: Union[str, dict], title: Optional[str] = None,
                        panel_content: Optional[str] = None) -> int:
         """
         Displays a JSON file using the textual json tree viewer.
@@ -1465,9 +1465,8 @@ class ToolBox(CoreModuleInterface):
             int: 0 on success, 1 on error or suppressed failure.
         """
 
-        json_file_path: Optional[Path] = None
+        json_temp_file_path: Optional[Path] = None
         json_viewer_tool: Path = PROJECT_VIEWERS_PATH / "json_viewer.py"
-        json_file_created: bool = False
 
         if not json_viewer_tool.exists():
             return 1
@@ -1475,26 +1474,23 @@ class ToolBox(CoreModuleInterface):
         with suppress(Exception):
 
             if isinstance(json_path_or_data, str):
-                json_file_path = Path(json_path_or_data)
+                json_file_path: str = self.auto_forge.variables.expand(key=json_path_or_data, quiet=True)
+                if os.path.exists(json_file_path):
+                    json_path_or_data = self.auto_forge.processor.preprocess(file_name=json_file_path)
 
-            elif isinstance(json_path_or_data, dict):
+            if isinstance(json_path_or_data, dict):
                 # Pretty print the dictionary to a JSON string
                 json_string = json.dumps(json_path_or_data, indent=4, ensure_ascii=False)
                 # Create a temporary file
                 with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json', encoding='utf-8') as temp_f:
                     temp_f.write(json_string)
-                    # Get the path of the temporary file
-                    json_file_path = Path(temp_f.name)
-                    json_file_created = True
+                # Get the path of the temporary file
+                json_temp_file_path = Path(temp_f.name)
 
-            if not json_file_path:
+            if not json_temp_file_path:
                 return 1
 
-            if json_file_path.suffix.lower() != ".json" or not json_file_path.exists():
-                json_file_created and os.remove(json_file_path)  # Delete temporary file
-                return 1
-
-            command = ["python3", str(json_viewer_tool), "--json", str(json_file_path)]
+            command = ["python3", str(json_viewer_tool), "--json", str(json_temp_file_path)]
             # Conditionally add the --title argument
             if title is not None:
                 command.extend(["--title", title])
@@ -1508,7 +1504,7 @@ class ToolBox(CoreModuleInterface):
             sys.stdout.flush()
             sys.stderr.flush()
 
-            json_file_created and os.remove(json_file_path)  # Delete temporary file
+            json_temp_file_path and os.remove(str(json_temp_file_path))  # Delete temporary file
             return return_code
 
         return 1  # If anything failed silently

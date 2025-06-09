@@ -462,6 +462,16 @@ class AutoForge(CoreModuleInterface):
         return self._telemetry
 
     @property
+    def variables(self) -> Optional[CoreVariables]:
+        """ Returns the AutoForge variables class instance """
+        return self._variables
+
+    @property
+    def processor(self) -> Optional[CoreProcessor]:
+        """ Returns the AutoForge variables class instance """
+        return self._processor
+
+    @property
     def watchdog(self) -> Optional[Watchdog]:
         """ Returns the Package watchdog instance """
         return self._watchdog

@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, CoreModuleInterface, Registry, ToolBox
+from auto_forge import AutoForgeModuleType, CoreModuleInterface
+from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor"
@@ -29,10 +30,6 @@ class CoreProcessor(CoreModuleInterface):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
         """
-
-        # Get a toolbox instance reference
-        self._toolbox = ToolBox.get_instance()
-
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -160,7 +157,10 @@ class CoreProcessor(CoreModuleInterface):
         try:
 
             # Expand and normalize
-            config_file = self._toolbox.get_expanded_path(path=file_name)
+            config_file = os.path.expanduser(os.path.expandvars(file_name))
+            if not config_file.endswith(os.sep + '.'):
+                config_file = os.path.abspath(config_file)
+
             if not os.path.exists(config_file):
                 raise FileNotFoundError(f"JSONC file '{config_file}' does not exist.")
 
