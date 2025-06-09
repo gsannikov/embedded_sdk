@@ -93,27 +93,27 @@ main() {
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-			-p | --project_name)
-				if [[ -z "$2" ]]; then
-					echo "Error: --project_name requires an argument."
-					return 1
-				fi
-				project_name="$2"
-				shift 2
-				;;
-			-i | --install)
-				mode="install"
-				shift
-				;;
-			-h | --help | -\?)
-				print_help
-				return 0
-				;;
-			*)
-				printf "\nError: Unknown option: %s\n\n" "$1"
-				print_help
+		-p | --project_name)
+			if [[ -z "$2" ]]; then
+				echo "Error: --project_name requires an argument."
 				return 1
-				;;
+			fi
+			project_name="$2"
+			shift 2
+			;;
+		-i | --install)
+			mode="install"
+			shift
+			;;
+		-h | --help | -\?)
+			print_help
+			return 0
+			;;
+		*)
+			printf "\nError: Unknown option: %s\n\n" "$1"
+			print_help
+			return 1
+			;;
 		esac
 	done
 

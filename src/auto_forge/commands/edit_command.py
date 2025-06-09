@@ -378,7 +378,7 @@ class EditCommand(CLICommandInterface):
         Launch the selected editor to open a file or directory.
         Args:
             path (str): The target file or directory to open.
-            editor_index (int]): The index of the editor to use.
+            editor_index (int): The index of the editor to use.
                 - A number (e.g., "2"): treated as 1-based index into self._detected_editors.
                 - A wildcard string (e.g., "*code*"): matched case-insensitively against editor names.
         Returns:
@@ -391,7 +391,7 @@ class EditCommand(CLICommandInterface):
 
         path = self._variables.expand(key=path, quiet=True)
         if os.path.basename(path) == path:
-            # Note: When its just a base name (e.g., "foo.txt"), prepend current working directory
+            # Note: When it's just a base name (e.g., "foo.txt"), prepend current working directory
             path = os.path.abspath(os.path.join(os.getcwd(), path))
 
         if not os.path.exists(path):

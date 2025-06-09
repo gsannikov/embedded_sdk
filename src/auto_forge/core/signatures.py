@@ -12,14 +12,13 @@ Description:
 """
 
 import logging
+import mmap
 import os
 import re
 import struct
-from re import Match
-from typing import Any, Optional
-
-import mmap
 import zlib
+from re import Match
+from typing import Any, Optional, cast
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor, CoreVariables, Registry,
@@ -596,8 +595,9 @@ class Signature:
         crc_stored_value = int(integrity_field.data)
 
         # Compute CRC32 excluding the CRC field
-        data_excluding_crc = image_bytes[:crc_file_offset] + image_bytes[crc_file_offset + crc_size:]
-        computed_crc: int = zlib.crc32(data_excluding_crc) & 0xFFFFFFFF
+        suffix = Any(image_bytes[crc_file_offset + crc_size:])
+        data_excluding_crc = bytes(image_bytes[:crc_file_offset]) + suffix
+        computed_crc = zlib.crc32(cast(Any, data_excluding_crc)) & 0xFFFFFFFF
         if computed_crc == 0 and verify_only:
             raise RuntimeError(f"computed CRC value {computed_crc} is invalid")
 
@@ -1114,7 +1114,7 @@ class SignatureFileHandler:
                         match_end: int = match.end() + self._file_read_offset
 
                         # Extract and process the matched data
-                        raw_data = self._file[match_start:match_end][:schema.size]
+                        raw_data = cast(Any, self._file[match_start:match_end][:schema.size])
 
                         try:
                             unpacked_data = struct.unpack(schema.format_string, raw_data)

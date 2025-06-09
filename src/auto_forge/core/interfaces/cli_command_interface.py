@@ -23,7 +23,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from contextlib import suppress
-from typing import IO, Any, Optional
+from typing import IO, Any, Optional, Protocol
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, AutoForgCommandType)
@@ -128,6 +128,19 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         Overrides usage banner output.
         """
         self.print_help()
+
+
+class CLICommandInterfaceProtocol(Protocol):
+    """
+    Protocol defining the minimal interface required for CLI command classes.
+    This protocol is used for static type checking when dynamically loading and
+    instantiating command classes. Any class that conforms to this interface
+    must implement the following methods:
+    """
+
+    def get_info(self) -> ModuleInfoType: ...
+
+    def update_info(self, command_info: ModuleInfoType) -> None: ...
 
 
 class CLICommandInterface(ABC):

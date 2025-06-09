@@ -683,6 +683,7 @@ class CoreEnvironment(CoreModuleInterface):
                 if not isinstance(byte_data, bytes):
                     raise TypeError("byte_data must be of type 'bytes'")
 
+                # noinspection PyTypeChecker
                 decoded = decoder.decode(byte_data)
                 sys.stdout.write(decoded)
                 sys.stdout.flush()

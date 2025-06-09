@@ -723,7 +723,7 @@ class ToolBox(CoreModuleInterface):
         try:
             # Read the file content in binary mode
             with open(file_name, 'rb') as file:
-                file_content = file.read()
+                file_content: Any = file.read()
 
             # Encode the content to base64
             encoded_content = base64.b64encode(file_content).decode()

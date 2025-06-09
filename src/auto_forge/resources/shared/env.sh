@@ -4,7 +4,7 @@
 #
 # Script Name:    env.sh
 # Description:    AutoForge shell environment initiator.
-# Version:        1.0
+# Version:        1.2
 #
 # ------------------------------------------------------------------------------
 
@@ -13,8 +13,9 @@ print_help() {
 	echo "Usage: $(basename "$0") [OPTION]"
 	echo ""
 	echo "Options:"
-	echo "  -d, --debug_port PORT   Optional set remote debugging port for local host (127.0.0.1)"
-	echo "  -v, --version           Print version and exit"
+	echo "  -d, --debug_port PORT   Optional set remote debugging port."
+	echo "  -h, --debug_host        Optional set remote debugging host (default: localhost)"
+	echo "      --verbose                 Enable more detailed output."
 	echo "  -?, --help              Show this help message"
 	echo ""
 	echo "When no option is provided, only the virtual environment is activated."
@@ -26,7 +27,7 @@ print_help() {
 # The .config file is expected to reside in the current working directory and follow a simple
 # key=value format. Lines starting with '#' are treated as comments and ignored.
 #
-# Keys and values are trimmed of leading/trailing whitespace. If the key is not found,
+# Keys and values are trimmed of leading/trailing white-spaces. If the key is not found,
 # the function returns an empty string but exits with status 0.
 #
 # @param key The configuration key to look up (e.g., 'solution_name').
@@ -52,7 +53,7 @@ get_config_value() {
 		return 1
 	fi
 
-	# Strip whitespace and extract the value for the given key
+	# Strip white space and extract the value for the given key
 	local value
 	value=$(grep -E "^\s*${key}\s*=" "$config_file" | sed -E "s/^\s*${key}\s*=\s*//" | head -n 1)
 
@@ -76,8 +77,9 @@ main() {
 	local solution_name
 	local script_dir
 	local venv_path=".venv/bin/activate"
+	local debug_host="localhost"
 	local debug_port=""
-	local show_version=0
+	local verbose=false
 
 	# Determine the script's directory (works in both bash and zsh)
 	if [[ -n "${BASH_SOURCE:-}" ]]; then
@@ -87,73 +89,81 @@ main() {
 	fi
 
 	script_dir="$(cd "$(dirname "$script_path")" && pwd)"
-
-	# Change to the workspace (script) directory
 	cd "$script_dir" || {
-		echo "Error: Failed to change the path to the workspace directory '$script_dir'"
+		printf "Error: Failed to change to script directory '%s'\n" "$script_dir"
 		return 1
 	}
 
-	# Get the solution name from the auto generated config file.
+	# Get the solution name from the config file
 	solution_name=$(get_config_value solution_name)
 	if [[ -z "$solution_name" ]]; then
-		echo "No solution name found, using default."
+		printf "No solution name found, using '.config'.\n"
 	fi
 
-	# Argument parsing
+	# Parse arguments
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-d | --debug_port)
-				if [[ -n "$2" && "$2" =~ ^[0-9]+$ && "$2" -ge 0 && "$2" -le 65535 ]]; then
+		-d | --debug_port)
+			if [[ "$2" =~ ^[0-9]+$ ]]; then
+				if ((0 <= 10#$2 && 10#$2 <= 65535)); then
 					debug_port="$2"
-					shift
+					shift 2
 				else
-					echo "Error: Invalid or missing port for $1"
+					printf "Error: Port out of range: %s\n" "$2"
 					return 4
 				fi
-				;;
-			-v | --version)
-				show_version=1
-				;;
-			-\? | --help)
-				print_help
-				return 0
-				;;
-			*)
-				echo "Error: Unknown option '$1'"
-				print_help
-				return 5
-				;;
+			else
+				printf "Error: Invalid port value for %s: '%s'\n" "$1" "$2"
+				return 4
+			fi
+			;;
+		-h | --debug_host)
+			if [[ -n "$2" ]]; then
+				debug_host="$2"
+				shift 2
+			else
+				printf "Error: Missing host after '%s'\n" "$1"
+				return 4
+			fi
+			;;
+		--verbose)
+			verbose=true
+			shift
+			;;
+		-\? | --help)
+			print_help
+			return 0
+			;;
+		*)
+			printf "Error: Unknown option '%s'\n" "$1"
+			print_help
+			return 5
+			;;
 		esac
-		shift
 	done
 
-	# Check if virtual environment exists
+	# Source virtual environment
 	if [[ ! -f "$venv_path" ]]; then
-		echo "Error: Python virtual environment not found at $venv_path"
+		printf "Error: Python virtual environment not found at %s\n" "$venv_path"
 		return 1
 	fi
-
-	# Source the virtual environment
 	# shellcheck source=.venv/bin/activate
 	source "$venv_path"
 
-	# Check if 'autoforge' is available
+	# Check for 'autoforge'
 	if ! command -v autoforge >/dev/null 2>&1; then
-		echo "Error: 'autoforge' command not found in PATH"
+		printf "Error: 'autoforge' command not found in PATH.\n"
 		return 2
 	fi
 
-	# Show version if requested
-	if [[ "$show_version" -eq 1 ]]; then
-		autoforge -v
-		return $?
-	fi
-
-	# Build the command
+	# Build and run the command
 	local cmd=(autoforge -n "$solution_name" -w .)
 	if [[ -n "$debug_port" ]]; then
-		cmd+=(--remote-debugging "127.0.0.1:$debug_port")
+		cmd+=(--remote-debugging "$debug_host:$debug_port")
+	fi
+
+	if [[ "$verbose" == true ]]; then
+		printf "Running: %s\n" "${cmd[*]}" # Optional debug output
 	fi
 
 	"${cmd[@]}"

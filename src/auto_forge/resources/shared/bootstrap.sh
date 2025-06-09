@@ -93,35 +93,35 @@ main() {
 	# Parse command-line arguments.
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-			-w | --workspace)
-				workspace_path="$2"
-				shift 2
-				;;
-			-n | --name)
-				solution_name="$2"
-				shift 2
-				;;
-			-p | --package)
-				package="$2"
-				shift 2
-				;;
-			-s | --sequence)
-				sequence_name="$2"
-				shift 2
-				;;
-			-t | --token)
-				token="$2"
-				shift 2
-				;;
-			-h | --help)
-				display_help
-				return 0
-				;;
-			*)
-				printf "\nError: Unknown option: %s\n\n" "$1"
-				display_help
-				return 1
-				;;
+		-w | --workspace)
+			workspace_path="$2"
+			shift 2
+			;;
+		-n | --name)
+			solution_name="$2"
+			shift 2
+			;;
+		-p | --package)
+			package="$2"
+			shift 2
+			;;
+		-s | --sequence)
+			sequence_name="$2"
+			shift 2
+			;;
+		-t | --token)
+			token="$2"
+			shift 2
+			;;
+		-h | --help)
+			display_help
+			return 0
+			;;
+		*)
+			printf "\nError: Unknown option: %s\n\n" "$1"
+			display_help
+			return 1
+			;;
 		esac
 	done
 

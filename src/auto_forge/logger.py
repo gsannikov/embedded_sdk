@@ -13,6 +13,7 @@ import re
 import shutil
 import sys
 import tempfile
+from collections import deque
 from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
@@ -40,6 +41,67 @@ class LogHandlersTypes(IntFlag):
     NO_HANDLERS = 0
     CONSOLE_HANDLER = auto()
     FILE_HANDLER = auto()
+
+
+# noinspection SpellCheckingInspection
+class QueueLogger:
+    """
+    A lightweight logger that queues log messages and flushes them to a target logger on demand.
+    Attributes:
+        _queue (deque): Stores (level, message) tuples.
+        _logger (logging.Logger): The internal logger used for configuration.
+        _target_logger (logging.Logger): The logger to flush messages to.
+        _log_format (str): Default format for log messages.
+    """
+
+    def __init__(self, name="queued_logger", maxlen=None, level=logging.INFO, target_logger=None):
+        """
+        Initializes the QueueLogger.
+        Args:
+            name (str): Name of the internal logger.
+            maxlen (int or None): Maximum length of the internal message queue. If None, it's unbounded.
+            level (int): Logging level (e.g., logging.INFO).
+            target_logger (logging.Logger or None): Optional target logger to flush to.
+                                                    If None, a new logger is created with a default handler.
+        """
+        self._queue = deque(maxlen=maxlen)
+        self._logger = logging.getLogger(name)
+        self._logger.setLevel(level)
+        self._target_logger = target_logger or self._logger
+        self._log_format: str = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
+
+        if not self._logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(self._log_format)
+            handler.setFormatter(formatter)
+            self._logger.addHandler(handler)
+
+    def log(self, level, message):
+        self._queue.append((level, message))
+
+    def info(self, message):
+        self.log(logging.INFO, message)
+
+    def warning(self, message):
+        self.log(logging.WARNING, message)
+
+    def error(self, message):
+        self.log(logging.ERROR, message)
+
+    def debug(self, message):
+        self.log(logging.DEBUG, message)
+
+    def flush(self):
+        """
+        Flushes all queued log messages to the target logger.
+        Messages are removed from the queue as they are sent.
+        """
+        while self._queue:
+            level, message = self._queue.popleft()
+            self._target_logger.log(level, message)
+
+    def clear(self):
+        self._queue.clear()
 
 
 class _PausableFilter(logging.Filter):

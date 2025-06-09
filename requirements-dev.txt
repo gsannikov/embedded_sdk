@@ -8,5 +8,3 @@ types-psutil
 
 # --- Optional: IDE support ---
 toml==0.10.2
-
-# Execute: pip install --force-reinstall --use-pep517 -r requirements-dev.txt

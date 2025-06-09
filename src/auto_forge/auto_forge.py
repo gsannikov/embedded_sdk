@@ -22,11 +22,14 @@ from typing import Optional, Any
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH, PROJECT_SHARED_PATH, PROJECT_CONFIG_FILE,
-                        PROJECT_LOG_FILE, PROJECT_NAME, PROJECT_VERSION, AutoForgeWorkModeType, AddressInfoType,
-                        AutoLogger, BuildTelemetry, CoreEnvironment, CoreGUI, CoreLoader, CoreModuleInterface,
-                        CoreProcessor, CorePrompt, CoreSolution, CoreVariables, ExceptionGuru, LogHandlersTypes, XYType,
-                        Registry, ToolBox, SystemInfo, ShellAliases, Watchdog, )
+from auto_forge import (
+    AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
+    CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor, CorePrompt, CoreSolution,
+    CoreVariables, ExceptionGuru, LogHandlersTypes, PROJECT_BUILDERS_PATH,
+    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_NAME,
+    PROJECT_SHARED_PATH, PROJECT_VERSION, QueueLogger, Registry, ShellAliases,
+    SystemInfo, ToolBox, Watchdog, XYType
+)
 
 
 class AutoForge(CoreModuleInterface):
@@ -40,6 +43,8 @@ class AutoForge(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
         See 'CoreModuleInterface' usage.
         """
+
+        self._queue_logger: QueueLogger = QueueLogger()  # Early, pre initialization RAM only logger.
         self._registry: Optional[Registry] = None
         self._solution: Optional[CoreSolution] = None
         self._tool_box: Optional[ToolBox] = None
@@ -93,6 +98,8 @@ class AutoForge(CoreModuleInterface):
         # Order matters: they form the foundation upon which the rest of the system depends.
         #
 
+        self._queue_logger.debug("System initializing..")
+
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
         self._processor = CoreProcessor()
@@ -111,6 +118,9 @@ class AutoForge(CoreModuleInterface):
 
         # Start remote debugging if enabled.
         if self._remote_debugging is not None:
+            self._queue_logger.debug(
+                f"Remote debugging enabled using {self._remote_debugging.host}:{self._remote_debugging.port}")
+
             self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
         # Start variables
@@ -118,10 +128,8 @@ class AutoForge(CoreModuleInterface):
                                         package_configuration_data=self._package_configuration_data,
                                         work_mode=self._work_mode)
 
-        # Initializes the logger
+        # Initializing the 'real' logger
         self._init_logger()
-        self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
-        self._logger.info(self._sys_info)
 
         # Load all built-in commands
         self._loader = CoreLoader(package_configuration_data=self._package_configuration_data)
@@ -156,6 +164,13 @@ class AutoForge(CoreModuleInterface):
         if log_file is None:
             self._sequence_log_file = Path(self._auto_logger.get_log_filename())
 
+        # System initialized, dump all memory stored records in the logger
+        self._queue_logger._target_logger = self._logger
+        self._queue_logger.flush()
+
+        self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
+        self._logger.info(self._sys_info)
+
     def _validate_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
         """
@@ -184,6 +199,7 @@ class AutoForge(CoreModuleInterface):
             self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
             if not ToolBox.looks_like_unix_path(self._workspace_path):
                 raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
+
             self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
             # Move to the workspace path of we have it
             if self._workspace_exist:
@@ -272,24 +288,23 @@ class AutoForge(CoreModuleInterface):
                 self._remote_debugging = ToolBox.get_address_and_port(remote_debugging)
                 if self._remote_debugging is None:
                     raise ValueError(f"the specified remote debugging address '{remote_debugging}' is invalid. "
-                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)")
+                                     f"Expected format: <host>:<port> (e.g., localhost:5678)")
             if isinstance(proxy_server, str):
                 self._proxy_server = ToolBox.get_address_and_port(proxy_server)
                 if self._proxy_server is None:
                     raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
-                                     f"Expected format: <ip-address>:<port> (e.g., 127.0.0.1:5678)")
+                                     f"Expected format: <host>:<port> (e.g., www.proxy.com:8080)")
 
         # Orchestrate
         _init_arguments()
         _validate_solution_package()
         _validate_network_options()
 
-    @staticmethod
-    def _attach_debugger(host: str = '127.0.0.1', port: int = 5678, abort_execution: bool = False) -> None:
+    def _attach_debugger(self, host: str = 'localhost', port: int = 5678, abort_execution: bool = True) -> None:
         """
         Attempt to attach to a remote PyCharm debugger.
         Args:
-            host (str, optional): The debugger host to connect to. Defaults to '127.0.0.1'.
+            host (str, optional): The debugger host to connect to. Defaults to 'localhost'.
             port (int, optional): The debugger port to connect to. Defaults to 5678.
             abort_execution (bool, optional): If True, raise the exception on failure. If False, log and continue.
         """
@@ -301,6 +316,9 @@ class AutoForge(CoreModuleInterface):
             with contextlib.redirect_stderr(io.StringIO()):
                 pydevd_pycharm.settrace(host=host, port=port, stdoutToServer=True, stderrToServer=True, suspend=False,
                                         trace_only_current_thread=True)
+
+        except ImportError:
+            self._queue_logger.warning("'pydevd_pycharm' is not installed; skipping remote debugging")
 
         except Exception as exception:
             if abort_execution:

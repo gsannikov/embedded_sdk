@@ -47,6 +47,7 @@ from colorama import Fore, Style
 from auto_forge import ExceptionGuru
 
 if TYPE_CHECKING:
+    # noinspection PyUnusedImports
     from auto_forge.auto_forge import AutoForge
 
 # Generic type variable used to represent subclasses of CoreModuleInterface

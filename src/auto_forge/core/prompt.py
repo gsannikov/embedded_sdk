@@ -733,7 +733,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._set_command_metadata(command_name=command_name, description=description, command_type=command_type,
                                        hidden=hidden)
             added_commands += 1
-            self._logger.debug(f"Command '{command_name}' was added to the prompt")
 
             # Register in the global commands metadat registry
             self._cli_commands_metadata[command_name] = {"description": description, "command_type": command_type,
@@ -1233,22 +1232,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         print(f"Total time: {formated_delta}\n")
 
     @property
-    def path_completion_rules_metadata(self) -> {}:
+    def path_completion_rules_metadata(self) -> dict[str, Any]:
         """ Get path completion rules metadata """
         return self._path_completion_rules_metadata
 
     @property
-    def executables_metadata(self) -> {}:
+    def executables_metadata(self) -> dict[str, Any]:
         """ Get executables metadata """
         return self._executables_metadata
 
     @property
-    def commands_metadata(self) -> {}:
+    def commands_metadata(self) -> dict[str, Any]:
         """ Get commands metadata """
         return self._cli_commands_metadata
 
     @property
-    def aliases_metadata(self) -> {}:
+    def aliases_metadata(self) -> dict[str, Any]:
         """ Get aliases metadata """
         return self._aliases_metadata
 

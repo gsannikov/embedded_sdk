@@ -26,7 +26,6 @@ from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, CoreModuleIn
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
-AUTO_FORGE_MODULE_CONFIG_FILE = "variables.jsonc"
 
 
 class CoreVariables(CoreModuleInterface):
@@ -41,7 +40,7 @@ class CoreVariables(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
         See 'CoreModuleInterface' usage.
         """
-        self._variables: Optional[list[VariableFieldType]] = None  # Inner variables stored as a sorted listy of objects
+        self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted listy of objects
         super().__init__(*args, **kwargs)
 
     def _initialize(self, workspace_path: str, solution_name: str, package_configuration_data: dict[str, Any],
@@ -57,7 +56,7 @@ class CoreVariables(CoreModuleInterface):
             self._tool_box = ToolBox.get_instance()
             self._processor: CoreProcessor = CoreProcessor.get_instance()
             self._ignore_path_errors: bool = False
-            self._essential_variables: Optional[list[dict]] = None
+            self._essential_variables_essential_variables: Optional[list[dict]] = None
             self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
             self._search_keys: Optional[list[tuple[bool, str]]] = None  # Allow for faster binary search
 

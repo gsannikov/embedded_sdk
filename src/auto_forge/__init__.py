@@ -29,7 +29,7 @@ try:
                            PROJECT_REPO, PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE, )
 
     from auto_forge.common.watchdog import Watchdog
-    from auto_forge.logger import (AutoLogger, LogHandlersTypes)
+    from auto_forge.logger import (AutoLogger, QueueLogger, LogHandlersTypes)
 
     # Basic types
     from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
@@ -45,7 +45,7 @@ try:
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-    from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
+    from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface, CLICommandInterfaceProtocol)
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
 
     # Common modules
@@ -80,18 +80,20 @@ except Exception as exception:
     raise exception from exception
 
 # Exported symbols
-__all__ = ["AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
-           "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
-           "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "ShellAliases",
-           "CoreModuleInterface", "SysInfoPackageManagerType", "SysInfoLinuxDistroType", "SequenceErrorActionType",
-           "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
-           "VersionCompare", "ExecutionModeType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType",
-           "InputBoxTextType", "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
-           "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_PATH",
-           "PROJECT_CONFIG_FILE", "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE",
-           "PROJECT_REPO", "LinuxShellType", "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_TEMP_PREFIX",
-           "PROJECT_SCHEMAS_PATH", "PROJECT_VIEWERS_PATH", "PROJECT_SHARED_PATH", "PROJECT_VERSION", "PrettyPrinter",
-           "ProgressTracker", "SystemInfo", "Registry", "Signature", "SignatureFieldType", "SignatureFileHandler",
-           "SignatureSchemaType", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
-           "ExpectedVersionInfoType", "Watchdog",
-           "ValidationMethodType", "VariableFieldType", "XYType", "main"]
+__all__ = [
+    "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
+    "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
+    "CLICommandInterfaceProtocol",
+    "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface",
+    "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
+    "ExecutionModeType", "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType",
+    "InputBoxTextType", "LinuxShellType", "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
+    "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
+    "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
+    "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
+    "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH", "PrettyPrinter", "ProgressTracker",
+    "QueueLogger", "Registry", "SequenceErrorActionType", "ShellAliases", "Signature", "SignatureFieldType",
+    "SignatureFileHandler", "SignatureSchemaType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
+    "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox", "ValidationMethodType", "VariableFieldType",
+    "VersionCompare", "Watchdog", "XYType", "main"
+]

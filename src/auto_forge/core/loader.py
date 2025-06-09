@@ -9,6 +9,7 @@ Description:
 
 import glob
 import importlib.util
+import inspect
 import io
 import os
 import sys
@@ -16,11 +17,12 @@ from collections.abc import Sequence
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Optional, Union
+from types import ModuleType, FunctionType
+from typing import Any, Optional, Union, Type, cast, Callable
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CLICommandInterface, CoreModuleInterface,
+from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CLICommandInterface,
+                        CLICommandInterfaceProtocol, CoreModuleInterface,
                         BuilderRunnerInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Loader"
@@ -88,6 +90,25 @@ class CoreLoader(CoreModuleInterface):
 
         return class_instance
 
+    @staticmethod
+    def _command_init_is_kwargs_only(cls: Type[Any]) -> bool:
+        with suppress(Exception):
+            init = inspect.unwrap(cls.__init__)
+            if not isinstance(init, FunctionType):
+                return False
+
+            sig = inspect.signature(init)
+            params = list(sig.parameters.values())
+
+            return (
+                    len(params) == 2 and
+                    params[0].name == "self" and
+                    params[0].kind == inspect.Parameter.POSITIONAL_OR_KEYWORD and
+                    params[1].kind == inspect.Parameter.VAR_KEYWORD
+            )
+
+        return False
+
     def probe(  # noqa: C901
             self, paths: Union[str, Path, Sequence[Union[str, Path]]]) -> int:
         """
@@ -116,17 +137,17 @@ class CoreLoader(CoreModuleInterface):
                 file_base_name: str = os.path.basename(file)
                 file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
                 python_module_type: Optional[ModuleType] = None
-                class_object: Optional[object] = None
+                callable_object: Optional[object] = None
 
                 try:
                     # Attempt to dynamically import the file
-                    python_module_spec: Optional[ModuleSpec] = importlib.util.spec_from_file_location(file_stem_name,
-                                                                                                      file)
+                    python_module_spec: Optional[ModuleSpec] = (
+                        importlib.util.spec_from_file_location(file_stem_name, file))
                     if python_module_spec is None:
                         self._logger.warning(f"Unable to import '{file_base_name}'. Skipping")
                         continue
 
-                    if python_module_spec:
+                    if python_module_spec is not None:
                         python_module_type: Optional[ModuleType] = importlib.util.module_from_spec(python_module_spec)
                         python_module_spec.loader.exec_module(python_module_type)
 
@@ -141,26 +162,38 @@ class CoreLoader(CoreModuleInterface):
                         attr = getattr(python_module_type, attr_name)
 
                         # Find a class object that is a subclass of a supported interface, but not already registered
-                        if (isinstance(attr, type) and issubclass(attr,
-                                                                  tuple(self._supported_interfaces.keys())) and attr not in self._supported_interfaces):
-                            class_object = attr
+                        if (isinstance(attr, type) and issubclass(attr, tuple(self._supported_interfaces.keys()))
+                                and attr not in self._supported_interfaces):
+                            callable_object = attr
                             break
 
                     # If no compatible class was found, skip this module
-                    if not class_object:
+                    if not callable_object:
                         self._logger.warning(f"No supported class found in module '{file_stem_name}'. Skipping")
                         continue
 
-                    interface_name: str = next(
-                        (name for base, name in self._supported_interfaces.items() if issubclass(class_object, base)),
-                        None)
+                    interface_name: str = next((name for base, name in self._supported_interfaces.items()
+                                                if issubclass(callable_object, base)), None)
 
                     if not interface_name:
                         self._logger.warning(f"Unsupported command interface in module '{file_stem_name}'. Skipping")
                         continue
 
+                    if callable_object is None or not isinstance(callable_object, type):
+                        self._logger.warning(f"Invalid class object in '{file_stem_name}'. Skipping")
+                        continue
+
+                    if not self._command_init_is_kwargs_only(callable_object):
+                        self._logger.warning(f"Command init does not have the expected signature (**kwargs). Skipping")
+                        continue
+
                     # Instantiate the class (command), this will auto update the command properties in the registry.
-                    command_instance = class_object(package_configuration_data=self._package_configuration_data)
+                    try:
+                        command_class = cast(Callable[..., CLICommandInterfaceProtocol], callable_object)
+                        command_instance = command_class(package_configuration_data=self._package_configuration_data)
+                    except Exception as instantiate_error:
+                        self._logger.warning(f"Failed to instantiate '{callable_object}': {instantiate_error}")
+                        continue
 
                     # Invoke 'get_info()', which is defined by the interface. Since this class was loaded dynamically,
                     # we explicitly pass the Python 'ModuleType' to the implementation so it can update its own metadata.
