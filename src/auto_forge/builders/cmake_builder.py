@@ -272,7 +272,7 @@ class CMakeBuilder(BuilderRunnerInterface):
                         raise ExitBuildEarly("Build stopped after clean", exit_code=exit_code)
                     elif exit_code != 0:
                         raise RuntimeError(f"Command failed with exit code: {exit_code}")
-                    else
+                    else:
                         return exit_code
         return 0
 
