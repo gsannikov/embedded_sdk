@@ -340,7 +340,11 @@ class CMakeBuilder(BuilderRunnerInterface):
         except ExitBuildEarly as exit_build:
             # Normal early build termination
             build_message = _normalize_message(str(exit_build))
-            self.print_message(message=f"{build_message}, exit code: {exit_build.exit_code}", log_level=logging.INFO)
+            if exit_build.exit_code == 0:
+                self.print_message(message=f"{build_message}", log_level=logging.INFO)
+            else:
+                self.print_message(message=f"{build_message} Exit code: {exit_build.exit_code}",
+                                   log_level=logging.ERROR)
             return exit_build.exit_code
 
         except Exception as build_exception:
