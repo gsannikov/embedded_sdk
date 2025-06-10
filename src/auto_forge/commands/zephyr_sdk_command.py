@@ -1,10 +1,11 @@
 """
-Script:         zephyr_sdk_command.py
+Script:         zephyr_tools_command.py
 Author:         AutoForge Team
 
 Description:
-    Command which attempts to locate a Zephyr SDK installation by scanning
-    the CMake user package registry and provides access to the SDK path and version if found.
+    A placeholder module for various utilities related to the Zephyr build system.
+    Currently, it provides:
+    - SDK detection: Locates a Zephyr SDK installation and returns its path and version.
 """
 
 import argparse
@@ -14,15 +15,15 @@ from typing import Any, Optional, cast
 # AutoForge imports
 from auto_forge import CommandInterface
 
-AUTO_FORGE_MODULE_NAME = "zephyr_sdk"
-AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr SDK utilities"
+AUTO_FORGE_MODULE_NAME = "zt"
+AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr Tools"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 # Default CMake user package registry path where the Zephyr SDK is expected to be registered
 CMAKE_PACKAGE_PATH: Path = Path.home() / ".cmake/packages/Zephyr-sdk"
 
 
-class ZephyrSDKCommand(CommandInterface):
+class ZephyrToolsCommand(CommandInterface):
 
     def __init__(self, **kwargs: Any):
         """
@@ -45,7 +46,7 @@ class ZephyrSDKCommand(CommandInterface):
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
-    def detect(self, **_kwargs: Any) -> bool:
+    def _locate_sdk(self, **_kwargs: Any) -> bool:
         """
         Detect the installed Zephyr SDK by examining the CMake user package registry.
         Note: Assumes standard SDK install with 'zephyr-sdk-setup.sh' registration.
@@ -117,7 +118,7 @@ class ZephyrSDKCommand(CommandInterface):
             int: Exit status (0 for success, non-zero for failure).
         """
         return_value: int = 0
-        self.detect()  # Attempt to locate the SDK
+        self._locate_sdk()  # Attempt to locate the SDK
 
         # The SDK path should have been discovered when this class was created.
         if not self._path:

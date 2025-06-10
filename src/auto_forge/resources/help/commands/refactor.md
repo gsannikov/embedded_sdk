@@ -1,4 +1,4 @@
-# Relocator recipe - User Guide for JSON Configuration
+# Relocator - JSNO Configuration Guide
 
 This document provides a guide to creating a correct `json` or `jsonc` configuration file for the **Relocator command**.
 The tool is used to reconstruct / convert a large source tree into a new structure based on user-defined mappings and
@@ -57,7 +57,7 @@ The configuration file consists of two main sections:
 
 ---
 
-## `defaults` Section
+## Defaults Section
 
 Global configuration options. These apply to all entries in the `folders` list unless overridden locally.
 
@@ -72,7 +72,7 @@ Global configuration options. These apply to all entries in the `folders` list u
 
 ---
 
-## `folders` Section
+## Folders Section
 
 A list of folder mapping entries. Each entry must include `source` and `destination`. Optional settings can override
 `defaults`.
@@ -89,7 +89,7 @@ A list of folder mapping entries. Each entry must include `source` and `destinat
 ## Best Practices
 
 - Use comments in `jsonc` files (`.jsonc` extension) for better readability.
-- Validate the JSON before execution to ensure correctness.
+- Validate the JSON before execution to ensure correctness using `l <json_fie>`.
 - Maintain consistent naming for folder descriptions.
 - Avoid deep nesting unless explicitly needed and supported via `max_copy_depth`.
 - Keep a backup of the destination directory if `delete_destination_on_start` is enabled.
@@ -107,7 +107,7 @@ issues include:
 
 ---
 
-## Execution
+## Running
 
 Once your configuration is ready, pass it to the refactor tool:
 
