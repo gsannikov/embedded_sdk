@@ -76,7 +76,7 @@ class AutoForge(CoreModuleInterface):
         self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
         self._periodic_timer: Optional[threading.Timer] = None
         self._events_sync_thread: Optional[threading.Thread] = None
-        self._periodic_timer_interval: float = 1.0  # 1-second timer
+        self._periodic_timer_interval: float = 5.0  # 5-seconds timer
 
         # Startup arguments
         self._configuration: Optional[dict[str, Any]] = None
@@ -391,7 +391,7 @@ class AutoForge(CoreModuleInterface):
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
                 pydevd_pycharm.settrace(host=host, port=port, suspend=False,
-                                        trace_only_current_thread=True)
+                                        trace_only_current_thread=False)
 
         except ImportError:
             self._queue_logger.warning("'pydevd_pycharm' is not installed; skipping remote debugging")
@@ -410,7 +410,7 @@ class AutoForge(CoreModuleInterface):
         if timer_name == "PeriodicDurationTimer":
             # Get CPU utilization percentage for all cores averaged over 1 second
             cpu_percent = psutil.cpu_percent(interval=1)
-            self._queue_logger.debug(f"Utilization: {cpu_percent}%")
+            self._logger.debug(f"Utilization: {cpu_percent}%")
 
             # Restart
             self._periodic_timer = self._tool_box.set_timer(timer=self._periodic_timer,
