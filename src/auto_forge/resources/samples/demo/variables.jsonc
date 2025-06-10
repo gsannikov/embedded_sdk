@@ -1,15 +1,15 @@
 /*
-    AutoForge environment configuration file
-    ----------------------------------------
-
-    Note: This JSON-structured file supports non-standard inline comments,
-    however, these comments are removed upon file loading.
+    AutoForge project variables file
+    ---------------------------------
 
     Optionals:                  Type        Default		Description
     -----------------------------------------------------------------------------------------
     path_must_exist             boolean		true		If True, the path will be validated
     create_path_if_not_exist	boolean		true		If True, the path will be created.
     is_path                  	boolean		true		Whether the variable is a path or not.
+
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
 */
 
 {

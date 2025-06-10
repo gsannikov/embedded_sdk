@@ -1,12 +1,13 @@
 /*
- * Configuration File for Source Tree Reorganization.
- * Purpose: This JSON file defines the settings and mappings required to reorganize a large source tree into a new structure.
- * It specifies the paths, file types, and other options to manage the copying and restructuring processes.
- *
- */
+    Configuration file for the the 'path refactoring tool'.
+    ------------------------------------------------------
+
+    Note:
+    This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
+*/
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+    "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
     "defaults": {
         "delete_destination_on_start": true,        // Optional: Delete the entire destination directory at the start of the process. Default is false if not specified.

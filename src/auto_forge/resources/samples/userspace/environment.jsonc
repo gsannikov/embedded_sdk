@@ -1,9 +1,9 @@
 /*
-    Environment Setup recipy for 'userspace'
+    Environment setup recipy for 'userspace'
     -----------------------------------------
 
-    Note:
-    This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
 */
 
 {

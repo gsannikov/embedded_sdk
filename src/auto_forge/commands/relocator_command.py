@@ -485,7 +485,7 @@ class RelocatorCommand(CommandInterface):
         if not args.tutorial:
             if not args.source_path or not args.destination:
                 raise RuntimeError(
-                    "Either --tutorial must be provided, or both --source_path and --destination must be set.")
+                    "Either '--tutorial' must be specified, or both '--source_path and --destination' must be set.")
 
         # Handle arguments
         if args.tutorial:

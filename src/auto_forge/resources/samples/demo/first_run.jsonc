@@ -1,8 +1,8 @@
 /*
-    First run Example Script
+    First run example recipe
     ------------------------
 
-    Note: This JSON-structured file supports non-standard inline comments,
-    however, these comments are removed upon file loading.
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
 */
 

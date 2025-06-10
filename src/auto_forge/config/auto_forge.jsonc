@@ -2,12 +2,12 @@
     AutoForge package internal configuration.
     -----------------------------------------
 
-    Note:
-    This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
 */
 
 {
-    "format_off": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+    "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
     // List of variable names that must be defined in the "variables" section.
     // These are considered critical for proper project configuration.

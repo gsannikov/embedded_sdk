@@ -1,6 +1,6 @@
 /*
-    Environment Setup Script
-    ------------------------
+    Environment workspace creation sequence
+    ---------------------------------------
 
     The following example demonstrates how to define the necessary steps to prepare
     a complete development environment with the following setup:
@@ -13,8 +13,8 @@
        and install required Python packages.
     5. Install AutoForge into the newly created virtual environment.
 
-    Note:
-    This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
 */
 
 {

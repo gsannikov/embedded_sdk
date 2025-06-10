@@ -1,0 +1,26 @@
+/*
+    Configuration JSON for the the 'overlay tool'
+    ---------------------------------------------
+
+    Note: This JSONC format supports inline comments, which are useful during development but should be
+    removed or ignored by parsers in production environments.
+*/
+
+{
+    "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
+
+    "defaults": {
+        "full_debug": true,
+        "break_on_errors": false,
+        "create_destination_path": true,
+        "max_depth": 10,
+        "overwrite": "always" // one of ( always, never, when_newer )
+    },
+
+    // Mandatory: a list of one or more items which correlates to source and destination
+    "folders": [
+        { "storage": "apps/test.cmake_11",                   "destination": "n_apps/CMakList.txt"                },
+        { "source":  "Newmake.bin",                          "destination": "n_apps/test.txt"                    }
+
+    ]
+}
