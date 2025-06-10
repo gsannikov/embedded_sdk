@@ -52,7 +52,7 @@ class SystemInfo(CoreModuleInterface):
         self._system_type: str = platform.system().lower()
         self._is_wsl: bool = "wsl" in platform.release().lower()
         self._wsl_home: Optional[str] = self._get_windows_home_from_wsl() if self._is_wsl else None
-        self._wsl_c_mount:Optional[str]=self._resolve_wsl_c_mount() if self._is_wsl else None
+        self._wsl_c_mount: Optional[str] = self._resolve_wsl_c_mount() if self._is_wsl else None
         self._is_docker: bool = self._detect_docker()
         self._architecture: str = platform.machine()
         self._python_version: str = platform.python_version()

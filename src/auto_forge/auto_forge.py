@@ -3,12 +3,19 @@ Script:         auto_forge.py
 Author:         AutoForge Team
 
 Description:
-    This module serves as the core of the AutoForge system.
-    Here we initialize all core libraries, parse and load the various configuration files,
-    dynamically load CLI commands and start the build system shell.
+    This module serves as the central entry point of the AutoForge build system package.
+
+    It is responsible for orchestrating the entire build system lifecycle, including:
+        - Initializing core subsystems and shared services
+        - Handling and validating command-line arguments
+        - Parsing and loading solution-level configuration files
+        - Dynamically discovering and registering CLI commands
+        - Launching the interactive build shell or executing one-shot commands
+
+    This module acts as the glue layer between user input, system configuration, and the dynamically
+    loaded modular components that implement the build system's functionality.
 """
 
-# Standard library imports
 import argparse
 import contextlib
 import io
@@ -460,16 +467,6 @@ class AutoForge(CoreModuleInterface):
     def telemetry(self) -> Optional[BuildTelemetry]:
         """ Returns the AutoForge telemetry class instance """
         return self._telemetry
-
-    @property
-    def variables(self) -> Optional[CoreVariables]:
-        """ Returns the AutoForge variables class instance """
-        return self._variables
-
-    @property
-    def processor(self) -> Optional[CoreProcessor]:
-        """ Returns the AutoForge variables class instance """
-        return self._processor
 
     @property
     def watchdog(self) -> Optional[Watchdog]:

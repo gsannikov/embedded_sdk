@@ -8,6 +8,7 @@ Description:
     AutoForge build system.
 """
 import fcntl
+import fnmatch
 import logging
 import os
 import shlex
@@ -67,6 +68,7 @@ class _CorePathCompleter(Completer):
             only_directories (bool): If True, only suggest directory names (not files).
         """
         self._core_prompt = core_prompt
+        self._variables = CoreVariables.get_instance()
         self._command_name = command_name
         self._path_completer = PathCompleter(only_directories=only_directories, expanduser=True)
 
@@ -95,11 +97,19 @@ class _CorePathCompleter(Completer):
         if arg.startswith("-"):
             return
 
-        # Delegate to the internal PathCompleter
-        sub_doc = Document(text=arg, cursor_position=len(arg))
-        for completion in islice(self._path_completer.get_completions(sub_doc, complete_event),
-                                 self._core_prompt.max_completion_results):
-            yield completion
+        meta = self._core_prompt.path_completion_rules_metadata.get(self._command_name, {})
+        raw_arg = arg.strip().strip('"').strip("'")
+        raw_arg = self._variables.expand(raw_arg) if raw_arg else raw_arg  # Expand
+        arg_to_complete = raw_arg if raw_arg else "."
+        matches = self._core_prompt.gather_path_matches(
+            text=arg_to_complete,
+            only_dirs=meta.get("only_dirs", False),
+            allowed_names=meta.get("allowed_names"),
+            filter_glob=meta.get("filter_glob"),
+        )
+
+        for m in islice(matches, self._core_prompt.max_completion_results):
+            yield m
 
 
 class _CoreCompleter(Completer):
@@ -184,7 +194,8 @@ class _CoreCompleter(Completer):
                 # Registered CLI commands
                 for cmd in self._core_prompt.commands_metadata:
                     if cmd.startswith(partial):
-                        matches.append(Completion(cmd, start_position=-len(partial), style='class:cli_commands'))
+                        matches.append(Completion(cmd, start_position=-len(partial),
+                                                  style=self._core_prompt.get_safe_style('cli-commands')))
 
                 # Built-in do_* methods
                 for name, method in vars(self._core_prompt.__class__).items():
@@ -195,13 +206,16 @@ class _CoreCompleter(Completer):
                         if cmd_name.startswith(partial):
                             if not is_known_alias:
                                 matches.append(
-                                    Completion(cmd_name, start_position=-len(partial), style='class:builtins'))
+                                    Completion(cmd_name, start_position=-len(partial),
+                                               style=self._core_prompt.get_safe_style('builtins')))
                             else:
                                 matches.append(
-                                    Completion(cmd_name, start_position=-len(partial), style='class:aliases'))
+                                    Completion(cmd_name, start_position=-len(partial),
+                                               style=self._core_prompt.get_safe_style('aliases')))
 
                 # System executables (styled if executable)
-                matches += [Completion(sys_binary, start_position=-len(partial), style='class:executable') for
+                sys_bin_style = self._core_prompt.get_safe_style('executable')
+                matches += [Completion(sys_binary, start_position=-len(partial), style=sys_bin_style) for
                             sys_binary in self._core_prompt.executables_metadata if sys_binary.startswith(partial)]
 
             # Case 2: Completing arguments for a command
@@ -229,8 +243,12 @@ class _CoreCompleter(Completer):
 
                 elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
                     meta = self._core_prompt.path_completion_rules_metadata.get(cmd, {})
-                    matches = self._core_prompt.gather_path_matches(text=arg_text if arg_text.strip() else ".",
-                                                                    only_dirs=meta.get("only_dirs", False))
+                    matches = self._core_prompt.gather_path_matches(
+                        text=arg_text if arg_text.strip() else ".",
+                        only_dirs=meta.get("only_dirs", False),
+                        allowed_names=meta.get("allowed_names"),
+                        filter_glob=meta.get("filter_glob")
+                    )
 
                 elif cli_command_args_list:
                     matches = [Completion(arg, start_position=-len(arg_text)) for arg in cli_command_args_list if
@@ -266,6 +284,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     def __init__(self, *args, **kwargs):
 
         self._prompt_session: Optional[PromptSession] = None
+        self._prompt_path_style: Optional[Style] = None
         self._loop_stop_flag = False
         super().__init__(*args, **kwargs)
 
@@ -291,6 +310,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._max_completion_results = 100
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
+        self._dynamic_path_styles: Optional[dict] = None
 
         # Retrieve AutoForge package configuration
         self._package_configuration_data = self.auto_forge.get_instance().package_configuration
@@ -361,6 +381,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
                         'quit', 'help']:
                 self._remove_command(command_name=cmd)
+
+        # Load optional Toolkit-path styles from configuration
+        self._dynamic_path_styles: Optional[dict] = self._package_configuration_data.get('dynamic_path_styles', {})
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -812,6 +835,26 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.stdout.write("' solution!\n👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n\n")
         sys.stdout.flush()
 
+    def _get_path_styles(self) -> Style:
+        """
+        Load path-related style definitions from configuration.
+        Falls back to default background and empty styles if not defined.
+        """
+        json_styles: dict = self._dynamic_path_styles if self._dynamic_path_styles else {}
+        bg_color = json_styles.get("background", "ffffff")  # Default to white background
+        token_styles = json_styles.get("tokens", {})
+
+        style_dict = {}
+        for token_name, style_value in token_styles.items():
+            # Add background if not explicitly set in the token style
+            if "bg:" not in style_value:
+                combined_style = f"bg:#{bg_color} {style_value}"
+            else:
+                combined_style = style_value
+            style_dict[token_name] = combined_style
+
+        return Style.from_dict(style_dict)
+
     # noinspection SpellCheckingInspection
     def _get_colored_prompt_toolkit(self, active_name: Optional[str] = None) -> str:
         """
@@ -935,18 +978,39 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Bind the generated completer to `self` under the expected name (e.g., complete_cd)
             setattr(self, completer_name, MethodType(make_completer(cmd, only_dirs), self))
 
-    def gather_path_matches(self, text: str, only_dirs: bool = False) -> list[Completion]:
+    def get_safe_style(self, name: str) -> str:
+        """
+    `   Return 'class:<name>' if it's defined in the current style.
+        If not, return an empty string so fallback/default style is used.
+        """
+        style_key = f"class:{name}"
+        try:
+            self._prompt_path_style.get_attrs_for_style_str(style_key)
+            return style_key
+        except KeyError:
+            return ""
+
+    def gather_path_matches(self, text: str, only_dirs: bool = False,
+                            allowed_names: Optional[list[str]] = None,
+                            filter_glob: Optional[Union[str, list]] = None) -> list[Completion]:
         """
         Generate Completion objects for filesystem path suggestions.
         - Supports directory-only filtering
-        - Uses display and display_meta for UI clarity
-        - Prevents repeated completions of the same folder
+        - Supports name filtering via exact list or wildcard globs
+        - Handles ".", "./", and "" gracefully as path roots
         """
         raw_text = text.strip().strip('"').strip("'")
 
         # Not normalizing here; we want raw trailing slashes to preserve user intent
         dirname, partial = os.path.split(raw_text)
         dirname = dirname or "."
+
+        # Special case: if input is exactly ".", treat it like empty string for matching
+        if raw_text in (".", "./"):
+            partial = ""
+
+        allowed_names_set = set(allowed_names) if allowed_names else None
+        glob_list = [filter_glob] if isinstance(filter_glob, str) else (filter_glob or [])
 
         # Normalize separately for safe comparisons
         normalized_input_path = ""
@@ -961,6 +1025,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         completions = []
         for entry in entries:
             full_path = os.path.join(os.path.expanduser(dirname), entry)
+            is_hidden = entry.startswith(".")
 
             try:
                 is_dir = os.path.isdir(full_path)
@@ -970,22 +1035,49 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             if only_dirs and not is_dir:
                 continue
-            if partial and not entry.startswith(partial):
-                continue
-            if not partial and not (raw_text.endswith(os.sep) or raw_text == ""):
+            if allowed_names_set and entry not in allowed_names_set:
                 continue
 
-            try:
-                if os.path.samefile(os.path.normpath(full_path), normalized_input_path):
-                    continue
-            except FileNotFoundError:
+            # Note: first check partial
+            if partial and not entry.startswith(partial):
                 continue
+
+            if glob_list and not any(fnmatch.fnmatch(entry, g) for g in glob_list):
+                continue
+
+            if not partial and not (
+                    raw_text.endswith(os.sep) or
+                    raw_text in (".", "./", "")):
+                continue
+
+            with suppress(Exception):
+                if os.path.exists(full_path) and os.path.exists(normalized_input_path):
+                    if os.path.samefile(os.path.normpath(full_path), normalized_input_path):
+                        continue
 
             insertion = entry + (os.sep if is_dir else "")
             display = insertion
-            style = "class:executable" if is_exec else ("class:directory" if is_dir else "class:file")
+            # Apply style
+            if is_hidden:
+                style = "class:hidden-file-path"
+            elif is_exec:
+                style = "class:executable"
+            elif is_dir:
+                style = "class:directory"
+            else:
+                style = "class:file"
 
             completions.append(Completion(text=insertion, start_position=-len(partial), display=display, style=style))
+
+        # When a glob list was specified which result ino matches
+        if glob_list and not completions:
+            msg = f"No match for {', '.join(glob_list)}"
+            return [Completion(
+                text=" ",  # Note: dummy to force rendering of special info messages
+                display=msg,
+                style="class:alert",
+                start_position=0
+            )]
 
         return sorted(completions, key=lambda c: c.text.lower())
 
@@ -1063,6 +1155,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Args:
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
+
+        if not path:
+            return
+
         # Expand
         path = self._variables.expand(key=path, quiet=True)
         try:
@@ -1321,9 +1417,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.start_completion(select_first=True)
 
         # Define style for different token categories (e.g., executable names, files)
-        style = Style.from_dict(
-            {'executable': 'fg:green bold', 'builtins': 'fg:blue bold', 'cli_commands': 'fg:magenta italic',
-             'aliases': 'fg:purple italic', 'file': 'fg:gray'})
+        self._prompt_path_style = self._get_path_styles()
 
         # Set up the custom completer
         completer = _CoreCompleter(core_prompt=self, logger=self._logger)
@@ -1339,7 +1433,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._inject_generic_path_complete_hooks()
 
         # Create the session
-        self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb, style=style,
+        self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb,
+                                             style=self._prompt_path_style,
                                              complete_while_typing=self._package_configuration_data.get(
                                                  'complete_while_typing', True), auto_suggest=AutoSuggestFromHistory())
 

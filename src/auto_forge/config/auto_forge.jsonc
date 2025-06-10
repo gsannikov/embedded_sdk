@@ -227,7 +227,7 @@
         "apt"             : { "path_completion": false                        },
         "cat"             : { "path_completion": true , "only_dirs": false    },
         "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias
-        "j"               : { "path_completion": true , "only_dirs": false    },
+        "j"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.jsonc", "*.json"]  },
         "cd"              : { "path_completion": true , "only_dirs": true     },
         "clear"           : { "path_completion": false                        },
         "cmake"           : { "path_completion": true , "only_dirs": true     },
@@ -275,6 +275,34 @@
         "wget"            : { "path_completion": false                        },
         "yum"             : { "path_completion": false                        },
         "zip"             : { "path_completion": true , "only_dirs": false    }
+    },
+
+    "dynamic_path_styles": {
+
+        // Default background for all completions (light gray tone)
+        "background": "d1d1d1",
+
+        // Styles for each token category used in completion rendering
+        "tokens": {
+            // Executables (e.g. system commands)
+            "executable": "fg:#228b22 bold",         // Forest green text
+            // Built-in commands defined via do_<name>()
+            "builtins": "fg:#1e90ff bold",           // Dodger blue
+            // CLI command names from plugins / dynamic registry
+            "cli-commands": "fg:#cc7a00 italic",     // Amber/orange italic
+            // Aliases (shortcut commands)
+            "aliases": "fg:#6666cc italic",          // Soft lavender
+            // Regular files
+            "file": "fg:#666666",                    // Medium gray
+            // Directories
+            "directory": "fg:#0088cc bold",          // Cool cyan-blue
+            // Passive system messages (like [no matches found])
+            "completion-meta": "fg:#888888 italic",  // Subtle gray
+            // Alerts or user warnings
+            "alert": "fg:#aa0000 bold",              // Soft red
+            // Hodden (starts with '.')
+            "hidden-file-path": "fg:#666666 italic"  // softer gray, clearly visible on light background
+        }
     },
 
     "terminal_icons": {

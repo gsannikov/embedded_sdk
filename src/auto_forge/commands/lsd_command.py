@@ -53,12 +53,11 @@ class _LSDIconInfo:
 
 class LSDCommand(CLICommandInterface):
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **_kwargs: Any):
         """
         Initializes the MiniWestCommand class.
         Args:
-            **kwargs (Any): Optional keyword arguments:
-                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
+            **kwargs (Any): Optional keyword arguments.
         """
 
         # Retrieve the ANSI codes map from the main AutoForge instance.
@@ -71,11 +70,8 @@ class LSDCommand(CLICommandInterface):
         locale.setlocale(locale.LC_TIME, '')
         self._default_date_format = '%m-%d %H:%M'
 
-        # Extract optional parameters
-        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
-
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def _get_icon_info(self, ext_or_name: Path) -> _LSDIconInfo:
         """
@@ -208,7 +204,7 @@ class LSDCommand(CLICommandInterface):
 
         return max_width
 
-    def _get_formated_summary(self, total_files: int = 0, total_dirs: int = 0) -> str:
+    def _get_formated_summary(self, total_files: int = 0, total_dirs: int = 0) -> Optional[str]:
         """
         Gets a colorized summary of listed files and directories only when counts that are greater than zero.
         Args:
@@ -217,6 +213,9 @@ class LSDCommand(CLICommandInterface):
         """
         summary_parts = []
         summary_text = ""
+
+        if not total_files and not total_dirs:
+            return None
 
         if total_files > 0:
             summary_parts.append(
@@ -370,10 +369,12 @@ class LSDCommand(CLICommandInterface):
                     sys.stdout.flush()
 
         formatted_summary = self._get_formated_summary(total_files=total_files, total_dirs=total_dirs)
-        if not immediate_echo:
-            return "\n".join(output_lines) + '\n' + formatted_summary
-        else:
-            print('\n' + formatted_summary)
+        if formatted_summary is not None:
+            if not immediate_echo:
+                return "\n".join(output_lines) + '\n\n' + formatted_summary
+            else:
+                print('\n' + formatted_summary)
+
         return None
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -411,8 +412,11 @@ class LSDCommand(CLICommandInterface):
             raise RuntimeError("'lsd' can't run, essential terminal resources (icons and ANSI codes) are unavailable")
 
         # Gets the directory listing and print
-        print()
-        self._lsd(destination_paths=target_paths, show_all=args.all,
-                  group_directories_first=args.group_directories_first, disable_icons=args.no_icons)
+        results = self._lsd(destination_paths=target_paths, show_all=args.all,
+                            group_directories_first=args.group_directories_first, disable_icons=args.no_icons,
+                            immediate_echo=False)
+
+        if results is not None:
+            print(f"\n{results}")
         print()
         return 0

@@ -126,12 +126,11 @@ class _RelocateFolderRead:
 
 class RelocatorCommand(CLICommandInterface):
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **_kwargs: Any):
         """
         Initializes the RelocatorCommand class.
         Args:
-            **kwargs (Any): Optional keyword arguments:
-                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
+            **kwargs (Any): Optional keyword arguments.
         """
 
         self._json_processor: CoreProcessor = CoreProcessor.get_instance()  # JSON preprocessor instance
@@ -151,11 +150,8 @@ class RelocatorCommand(CLICommandInterface):
         self._relocated_folders: Optional[list[_RelocateFolder]] = None
         self._relocate_folders_count: Optional[int] = 0
 
-        # Extract optional parameters
-        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
-
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions,
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
                          command_type=AutoForgCommandType.AUTOMATION)
 
     def _reset(self) -> None:

@@ -33,7 +33,6 @@ class ZephyrSDKCommand(CLICommandInterface):
 
         Args:
             **kwargs (Any): Optional keyword arguments:
-                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
                 - cmake_pkg_dir (Path or str): Custom path to the CMake package registry directory.
         """
         self._path: Optional[str] = None  # Detected Zephyr SDK path
@@ -42,10 +41,9 @@ class ZephyrSDKCommand(CLICommandInterface):
 
         # Extract optional parameters from kwargs
         self._cmake_pkg_dir: Optional[Path] = Path(kwargs.get('cmake_pkg_dir', CMAKE_PACKAGE_PATH))
-        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def detect(self, **_kwargs: Any) -> bool:
         """

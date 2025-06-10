@@ -3,7 +3,7 @@ Script:         hello_command.py
 Author:         AutoForge Team
 
 Description:
-    Sample 'hello world' command demonstrating how to construct and register a new command with AutoForge.
+    😎 Sample 'hello world' command demonstrating how to construct and register a new command with AutoForge.
 
 """
 
@@ -12,7 +12,7 @@ from typing import Any, Optional
 
 # AutoForge imports
 from auto_forge import (CLICommandInterface, CoreGUI, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
-                        MessageBoxType, )
+                        MessageBoxType, AutoForgCommandType)
 
 
 class HelloCommand(CLICommandInterface):
@@ -24,11 +24,10 @@ class HelloCommand(CLICommandInterface):
         """
         Initializes the HelloCommand class.
         Args:
-            **_kwargs (Any): Optional keyword arguments, such as:
-                - raise_exceptions (bool): If True, raises exceptions on error instead of returning error codes.
+            **kwargs (Any): Optional keyword arguments.
         """
 
-        super().__init__(command_name="hello", hidden=True)
+        super().__init__(command_name="hello", hidden=False,command_type=AutoForgCommandType.MISCELLANEOUS)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """

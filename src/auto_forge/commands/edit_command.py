@@ -40,13 +40,14 @@ class EditCommand(CLICommandInterface):
     Implements a command cross-platform command similar to Windows 'start'.
     """
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **_kwargs: Any):
         """
-        Initializes the StartCommand class.
+        Initializes the EditCommand class.
+        Args:
+            **_kwargs (Any): Optional keyword arguments, such as:
         """
 
         # Extract optional parameters
-        self._package_configuration_data: Optional[list, Any] = kwargs.get('package_configuration_data', None)
         self._detected_editors: Optional[list[dict[str, Any]]] = []
         self._sys_info: SystemInfo = SystemInfo.get_instance()
         self._selected_editor_index: Optional[int] = None
@@ -57,25 +58,32 @@ class EditCommand(CLICommandInterface):
         # Get a logger instance
         self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
 
+        # Base class initialization
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
+
+    def initialize(self, **_kwargs: Any) -> bool:
+        """
+        Command specific initialization, will be executed lastly by the interface class after all other initializers.
+        """
         # Add few WSL specific variables to the project environment
         self._inject_wsl_environment()
 
         # Detect installed editors
-        if self._package_configuration_data is not None:
-            searched_editors_data = self._package_configuration_data.get("searched_editors", [])
-            fallback_search_path = self._package_configuration_data.get("editors_fallback_search_paths", [])
+        if self._package_configuration_data is None:
+            raise RuntimeError("Package configuration was missing during initialization")
 
-            # Clean bad or missing paths
-            fallback_search_path = self._purify_paths(paths=fallback_search_path,
-                                                      max_items=self._max_fallback_search_paths)
+        searched_editors_data = self._package_configuration_data.get("searched_editors", [])
+        fallback_search_path = self._package_configuration_data.get("editors_fallback_search_paths", [])
 
-            self._detected_editors = self._detect_installed_editors(editors=searched_editors_data,
-                                                                    fallback_search_path=fallback_search_path,
-                                                                    max_depth=0)
-            self._logger.debug(f"Found {len(self._detected_editors)} editors, use 'edit -l' to list them")
+        # Clean bad or missing paths
+        fallback_search_path = self._purify_paths(paths=fallback_search_path,
+                                                  max_items=self._max_fallback_search_paths)
 
-        # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=True, hidden=True)
+        self._detected_editors = self._detect_installed_editors(editors=searched_editors_data,
+                                                                fallback_search_path=fallback_search_path,
+                                                                max_depth=0)
+        self._logger.debug(f"Found {len(self._detected_editors)} editors, use 'edit -l' to list them")
+        return True
 
     def _inject_wsl_environment(self) -> None:
         """

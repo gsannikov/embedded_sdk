@@ -36,10 +36,9 @@ class SolutionCommand(CLICommandInterface):
 
     def __init__(self, **kwargs: Any):
         """
-        Initializes the HelloCommand class.
+        Initializes the SolutionCommand class.
         Args:
-            **kwargs (Any): Optional keyword arguments, such as:
-                - raise_exceptions (bool): If True, raises exceptions on error instead of returning error codes.
+            **kwargs (Any): Optional keyword arguments.
         """
 
         self._solution: Optional[CoreSolution] = None
@@ -48,11 +47,8 @@ class SolutionCommand(CLICommandInterface):
         self._tool_box: Optional[ToolBox] = ToolBox.get_instance()
         self._preprocessor: Optional[CoreProcessor] = CoreProcessor.get_instance()
 
-        # Extract optional parameters
-        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
-
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
 
     def _print_variables_table(self):
         """

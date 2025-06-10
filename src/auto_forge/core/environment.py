@@ -75,7 +75,12 @@ class CoreEnvironment(CoreModuleInterface):
         Args:
             workspace_path: path to the workspace directory to initialize.
             package_configuration_data: dictionary with package configuration data.
+        Note:
+            These core modules may be initialized before the main AutoForge controller is constructed.
+            As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
+            to support early startup execution.
         """
+
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path

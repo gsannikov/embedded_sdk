@@ -43,9 +43,12 @@ try:
                                                XYType, SysInfoPackageManagerType, SysInfoLinuxDistroType,
                                                ExpectedVersionInfoType, )
 
+    # Protocols
+    from auto_forge.common.protocols import (CoreProcessorProtocol, CoreVariablesProtocol, CLICommandInterfaceProtocol)
+
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-    from auto_forge.core.interfaces.cli_command_interface import (CLICommandInterface, CLICommandInterfaceProtocol)
+    from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
 
     # Common modules
@@ -83,9 +86,10 @@ except Exception as exception:
 __all__ = [
     "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
     "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
-    "CLICommandInterfaceProtocol",
+    "CLICommandInterfaceProtocol", "CoreProcessorProtocol", "CoreVariablesProtocol",
     "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface",
-    "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "ExceptionGuru",
+    "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables",
+    "ExceptionGuru",
     "ExecutionModeType", "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType",
     "InputBoxTextType", "LinuxShellType", "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
     "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",

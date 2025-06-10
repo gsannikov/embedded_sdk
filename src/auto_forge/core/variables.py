@@ -51,6 +51,10 @@ class CoreVariables(CoreModuleInterface):
             workspace_path (str): The workspace path.
             solution_name (str): Solution name.
             package_configuration_data (dict[str, Any]): Package configuration data.
+        Note:
+            These core modules may be initialized before the main AutoForge controller is constructed.
+            As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
+            to support early startup execution.
         """
         try:
             self._tool_box = ToolBox.get_instance()

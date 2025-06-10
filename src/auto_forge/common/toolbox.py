@@ -41,7 +41,8 @@ import psutil
 
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
-                        AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType, )
+                        AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType,
+                        CoreProcessorProtocol, CoreVariablesProtocol)
 # Runtime import to prevent circular import
 from auto_forge.common.registry import Registry
 
@@ -67,9 +68,9 @@ class ToolBox(CoreModuleInterface):
         self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                 auto_forge_module_type=AutoForgeModuleType.CORE)
+        self._registry = Registry.get_instance()
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):
@@ -1454,7 +1455,7 @@ class ToolBox(CoreModuleInterface):
         return False
 
     def show_json_file(self, json_path_or_data: Union[str, dict], title: Optional[str] = None,
-                       panel_content: Optional[str] = None) -> int:
+                       panel_content: Optional[str] = None) -> Optional[int]:
         """
         Displays a JSON file using the textual json tree viewer.
         Args:
@@ -1471,12 +1472,22 @@ class ToolBox(CoreModuleInterface):
         if not json_viewer_tool.exists():
             return 1
 
-        with suppress(Exception):
-
+        try:
             if isinstance(json_path_or_data, str):
-                json_file_path: str = self.auto_forge.variables.expand(key=json_path_or_data, quiet=True)
-                if os.path.exists(json_file_path):
-                    json_path_or_data = self.auto_forge.processor.preprocess(file_name=json_file_path)
+
+                # Since we need to use classes from modules that may not be directly imported at startup,
+                # we retrieve their instances dynamically from the registry.
+                variables_class: Optional[CoreVariablesProtocol] = self._registry.get_instance_by_class_name(
+                    "CoreVariables", return_protocol=True)
+                processor_class: Optional[CoreProcessorProtocol] = self._registry.get_instance_by_class_name(
+                    "CoreProcessor", return_protocol=True)
+
+                if not variables_class or not processor_class:
+                    raise RuntimeError("required component instances could not be retrieved for this operation")
+
+                json_file_path: Optional[str] = variables_class.expand(key=json_path_or_data, quiet=True)
+                if json_file_path and os.path.exists(json_file_path):
+                    json_path_or_data = processor_class.preprocess(file_name=json_file_path)
 
             if isinstance(json_path_or_data, dict):
                 # Pretty print the dictionary to a JSON string
@@ -1488,7 +1499,7 @@ class ToolBox(CoreModuleInterface):
                 json_temp_file_path = Path(temp_f.name)
 
             if not json_temp_file_path:
-                return 1
+                raise RuntimeError("input was not recognized as either JSON or JSONC")
 
             command = ["python3", str(json_viewer_tool), "--json", str(json_temp_file_path)]
             # Conditionally add the --title argument
@@ -1507,7 +1518,8 @@ class ToolBox(CoreModuleInterface):
             json_temp_file_path and os.remove(str(json_temp_file_path))  # Delete temporary file
             return return_code
 
-        return 1  # If anything failed silently
+        except Exception as viewer_exception:
+            raise viewer_exception from viewer_exception
 
     @staticmethod
     def show_help_file(help_file_relative_path: str) -> int:

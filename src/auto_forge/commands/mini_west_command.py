@@ -70,8 +70,7 @@ class MiniWestCommand(CLICommandInterface):
         """
         Initializes the MiniWestCommand class.
         Args:
-            **kwargs (Any): Optional keyword arguments:
-                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
+            **kwargs (Any): Optional keyword arguments.
         """
 
         self._is_initialized = False
@@ -84,11 +83,8 @@ class MiniWestCommand(CLICommandInterface):
         self._projects: list[_WestProject] = []  # List of 'WestProject' class instances
         self._toolbox = ToolBox.get_instance()  # Toolbox class instance
 
-        # Extract optional parameters
-        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
-
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
         self._is_initialized = True
 

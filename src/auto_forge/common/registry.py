@@ -16,6 +16,7 @@ from typing import Any, Optional, cast
 
 # AutoForge imports
 from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType, AutoForgCommandType
+from auto_forge.common import protocols
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
@@ -156,6 +157,55 @@ class Registry(CoreModuleInterface):
             return None
         else:
             return self._modules_registry.get(module_name)
+
+    def get_instance_by_class_name(
+            self,
+            class_name: str,
+            case_insensitive: bool = False,
+            return_protocol: bool = False
+    ) -> Optional[Any]:
+        """
+        Searches the registry for a specific class instance by its class name.
+        Args:
+            class_name (str): Name of class to search for.
+            case_insensitive (bool): If True, performs a case-insensitive match.
+            return_protocol (bool): If True, cast the result to the corresponding protocol class,
+                                    assuming it exists in protocols.py and follows the '<ClassName>Protocol' convention.
+        Returns:
+            Optional[Any]: The matching class instance, possibly cast to its protocol type, or None if not found.
+        """
+        class_name = class_name.strip() if isinstance(class_name, str) else class_name
+        if not class_name:
+            raise ValueError("class name cannot be non-string or empty")
+
+        for module in self._modules_registry.values():
+            registered_name = module.get("class_name")
+            if not registered_name:
+                continue
+
+            match = (
+                registered_name.lower() == class_name.lower()
+                if case_insensitive else
+                registered_name == class_name
+            )
+
+            if match:
+                instance = module.get("class_instance")
+                if not return_protocol:
+                    return instance
+
+                try:
+                    protocol_name = f"{registered_name}Protocol"
+                    protocol_type = getattr(protocols, protocol_name, None)
+
+                    if protocol_type is None:
+                        raise ImportError(f"protocol class '{protocol_name}' not found in protocols module")
+
+                    return cast(protocol_type, instance)  # type: ignore[arg-type]
+                except Exception as cast_error:
+                    raise RuntimeError(f"failed to cast class instance to protocol: {cast_error}") from cast_error
+
+        return None
 
     def register_module(self, name: str, description: str, class_name: Optional[str] = None,
                         class_instance: Optional[Any] = None, class_interface_name: Optional[str] = None,

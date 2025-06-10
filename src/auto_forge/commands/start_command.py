@@ -32,10 +32,12 @@ class StartCommand(CLICommandInterface):
     def __init__(self, **_kwargs: Any):
         """
         Initializes the StartCommand class.
+        Args:
+            **kwargs (Any): Optional keyword arguments.
         """
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=True, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     # noinspection SpellCheckingInspection
     @staticmethod

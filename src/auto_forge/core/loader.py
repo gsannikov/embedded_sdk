@@ -5,6 +5,8 @@ Author:         AutoForge Team
 Description:
     Core module which is responsible for dynamically discovering, validating, executing and registering modules
     that implement any of the supported interfaces types.
+    This mechanism supports flexible plugin-like extensibility without static dependencies or
+    premature imports during application startup
 """
 
 import glob
@@ -45,6 +47,10 @@ class CoreLoader(CoreModuleInterface):
         Initializes the 'CoreLoader' class and prepares the command registry.
         Args:
             package_configuration_data: dictionary with package configuration data.
+        Note:
+            These core modules may be initialized before the main AutoForge controller is constructed.
+            As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
+            to support early startup execution.
         """
 
         # Get a logger instance
@@ -190,7 +196,7 @@ class CoreLoader(CoreModuleInterface):
                     # Instantiate the class (command), this will auto update the command properties in the registry.
                     try:
                         command_class = cast(Callable[..., CLICommandInterfaceProtocol], callable_object)
-                        command_instance = command_class(package_configuration_data=self._package_configuration_data)
+                        command_instance = command_class()
                     except Exception as instantiate_error:
                         self._logger.warning(f"Failed to instantiate '{callable_object}': {instantiate_error}")
                         continue

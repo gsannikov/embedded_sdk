@@ -23,7 +23,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from contextlib import suppress
-from typing import IO, Any, Optional, Protocol
+from typing import IO, Any, Optional
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, AutoForgCommandType)
@@ -130,19 +130,6 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         self.print_help()
 
 
-class CLICommandInterfaceProtocol(Protocol):
-    """
-    Protocol defining the minimal interface required for CLI command classes.
-    This protocol is used for static type checking when dynamically loading and
-    instantiating command classes. Any class that conforms to this interface
-    must implement the following methods:
-    """
-
-    def get_info(self) -> ModuleInfoType: ...
-
-    def update_info(self, command_info: ModuleInfoType) -> None: ...
-
-
 class CLICommandInterface(ABC):
     """
     Abstract base class for CLI commands that can be dynamically registered and executed.
@@ -152,7 +139,7 @@ class CLICommandInterface(ABC):
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
 
-    def __init__(self, command_name: Optional[str] = None, raise_exceptions: Optional[bool] = False,
+    def __init__(self, command_name: Optional[str] = None,
                  hidden: Optional[bool] = False,
                  command_type: Optional[AutoForgCommandType] = AutoForgCommandType.MISCELLANEOUS, ):
         """
@@ -167,7 +154,6 @@ class CLICommandInterface(ABC):
         self._tool_box = ToolBox.get_instance()  # Gets the toolbox class instance
         self._last_error_message: Optional[str] = None
         self._last_exception: Optional[Exception] = None
-        self._raise_exceptions = raise_exceptions if raise_exceptions else False
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
         self._args_parser: Optional[_CLICapturingArgumentParser] = None
@@ -196,8 +182,8 @@ class CLICommandInterface(ABC):
                                      command_type=command_type))
 
         # Optional tool initialization logic
-        if not self.initialize() and self._raise_exceptions:
-            raise RuntimeError(f"failed to initialize '{self._module_info.name}' command.")
+        if not self.initialize():
+            raise RuntimeError(f"failed to initialize '{self._module_info.name}' command")
 
         super().__init__()
 
@@ -285,6 +271,14 @@ class CLICommandInterface(ABC):
         Returns:
             int: 0 on success, non-zero on failure (e.g., usage error).
         """
+
+        def _normalize_error(_s: str) -> str:
+            """ Make sure the error message is trimmed, capitalized and has dit at the end """
+            if not isinstance(_s, str):
+                return _s
+            _s = _s.strip().capitalize()
+            return _s if _s.endswith('.') else _s + '.'
+
         # Invalidate last error
         self._last_error_message = None
         return_value: int = 1
@@ -318,21 +312,18 @@ class CLICommandInterface(ABC):
                 return_value = 1
 
         except SystemExit:
-            self._last_error_message = self._args_parser.get_error_message()
+            self._last_error_message = _normalize_error(self._args_parser.get_error_message())
             self._last_exception = None
         except Exception as execution_exception:
-            self._last_error_message = str(execution_exception).strip()
+            self._last_error_message = _normalize_error(str(execution_exception))
             self._last_exception = execution_exception
         finally:
             time.sleep(0.1)
             if return_value and self._last_error_message is not None:
-                if self._raise_exceptions:
-                    if self._last_exception:
-                        raise RuntimeError(self._last_error_message) from self._last_exception
-                    else:
-                        raise RuntimeError(self._last_error_message)
+                if self._last_exception:
+                    raise RuntimeError(self._last_error_message) from self._last_exception
                 else:
-                    print(self._last_error_message)
+                    raise RuntimeError(self._last_error_message)
 
             sys.stdout.flush()
         return return_value

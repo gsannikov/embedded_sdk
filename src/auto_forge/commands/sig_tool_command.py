@@ -26,12 +26,11 @@ AUTO_FORGE_MODULE_VERSION = "1.0"
 
 class SigToolCommand(CLICommandInterface):
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **_kwargs: Any):
         """
         Initializes the SigToolCommand class.
         Args:
-            **kwargs (Any): Optional keyword arguments:
-                - raise_exceptions (bool): Whether to raise exceptions on error instead of returning codes.
+            **kwargs (Any): Optional keyword arguments.
         """
 
         self._toolbox = ToolBox.get_instance()  # AutoForge swissknife handy class
@@ -44,11 +43,8 @@ class SigToolCommand(CLICommandInterface):
         self._git_commit: Optional[Commit] = None
         self._git_commit_hash: Optional[str] = None
 
-        # Extract optional parameters
-        raise_exceptions: bool = kwargs.get('raise_exceptions', False)
-
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, raise_exceptions=raise_exceptions, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def _create_sig_tool(self, **kwargs: Any) -> bool:
         """
