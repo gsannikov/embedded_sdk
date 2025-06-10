@@ -212,4 +212,3 @@ class MakeBuilder(BuilderRunnerInterface):
 
         finally:
             self._tool_box.set_cursor(visible=True)
-            print()
