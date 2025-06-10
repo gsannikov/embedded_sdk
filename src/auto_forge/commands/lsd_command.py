@@ -405,8 +405,8 @@ class LSDCommand(CLICommandInterface):
         target_paths = args.paths if args.paths else [os.getcwd()]
 
         # Load the terminal icons map from the package configuration, if not already loaded.
-        if self._terminal_icons is None and self._package_configuration_data:
-            self._terminal_icons = self._package_configuration_data.get("terminal_icons")
+        if self._terminal_icons is None and self._configuration:
+            self._terminal_icons = self._configuration.get("terminal_icons")
 
         if not self._terminal_icons or not self._ansi_codes:
             raise RuntimeError("'lsd' can't run, essential terminal resources (icons and ANSI codes) are unavailable")

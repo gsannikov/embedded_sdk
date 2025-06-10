@@ -312,7 +312,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._path_completion_rules_metadata: dict[str, Any] = {}
         self._cli_commands_metadata: dict[str, Any] = {}
         self._executables_metadata: Optional[dict[str, Any]] = {}
-        self._package_configuration_data: Optional[dict[str, Any]] = None
+        self._configuration: Optional[dict[str, Any]] = None
         self._max_completion_results = 100
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
@@ -322,8 +322,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._tool_box.set_terminal_input()
 
         # Retrieve AutoForge package configuration
-        self._package_configuration_data = self.auto_forge.get_instance().package_configuration
-        if self._package_configuration_data is None:
+        self._configuration = self.auto_forge.get_instance().configuration
+        if self._configuration is None:
             raise RuntimeError("package configuration data not available")
 
         # Get a logger instance
@@ -344,11 +344,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             raise RuntimeError("could not finish initializing")
 
         # Allow to override maximum completion results
-        self._max_completion_results = self._package_configuration_data.get('prompt_max_completion_results',
-                                                                            self._max_completion_results)
+        self._max_completion_results = self._configuration.get('prompt_max_completion_results',
+                                                               self._max_completion_results)
 
         # Use the project configuration to retrieve a dictionary that maps commands to their completion behavior.
-        self._path_completion_rules_metadata = self._package_configuration_data.get('path_completion_rules', )
+        self._path_completion_rules_metadata = self._configuration.get('path_completion_rules', )
         if not self._path_completion_rules_metadata:
             self._logger.warning("No path completion rules loaded")
 
@@ -386,17 +386,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Adding built-in aliases based on a dictionary from the package configuration file, and then
         # solution proprietary aliases.
-        self._add_dynamic_aliases(self._package_configuration_data.get('builtin_aliases'))
+        self._add_dynamic_aliases(self._configuration.get('builtin_aliases'))
         self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases"))
 
         # Exclude built-in cmd2 commands from help display without disabling their functionality
-        if self._package_configuration_data.get('hide_cmd2_native_commands', False):
+        if self._configuration.get('hide_cmd2_native_commands', False):
             for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
                         'quit', 'help']:
                 self._remove_command(command_name=cmd)
 
         # Load optional Toolkit-path styles from configuration
-        self._dynamic_path_styles: Optional[dict] = self._package_configuration_data.get('dynamic_path_styles', {})
+        self._dynamic_path_styles: Optional[dict] = self._configuration.get('dynamic_path_styles', {})
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -416,7 +416,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Returns:
             bool: True if a history file name is defined (even if not yet created), False otherwise.
         """
-        self._history_file_name = self._package_configuration_data.get('prompt_history_file')
+        self._history_file_name = self._configuration.get('prompt_history_file')
         if not self._history_file_name:
             return False
 
@@ -809,7 +809,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         seen_dirs = set()
 
         # Retrieve search path from package configuration or fall back to $PATH
-        search_path = self._package_configuration_data.get('prompt_search_path')
+        search_path = self._configuration.get('prompt_search_path')
         if not search_path:
             search_path = os.environ.get("PATH", "").split(os.pathsep)
 
@@ -1442,14 +1442,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if raw:
                 pt_history.append_string(raw)
 
-        #  Automatically injects generic path completer methods for CLI commands
+        #  Automatically injects generic path completer methods for dynamic commands
         self._inject_generic_path_complete_hooks()
+
+        # This could speedup completion time
+        complete_while_typing = self._configuration.get('complete_while_typing', True)
 
         # Create the session
         self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb,
                                              style=self._prompt_path_style,
-                                             complete_while_typing=self._package_configuration_data.get(
-                                                 'complete_while_typing', True), auto_suggest=AutoSuggestFromHistory())
+                                             complete_while_typing=complete_while_typing,
+                                             auto_suggest=AutoSuggestFromHistory())
 
         # Start Prompt toolkit custom loop
         while not self._loop_stop_flag:

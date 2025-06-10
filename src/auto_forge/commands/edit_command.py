@@ -69,11 +69,11 @@ class EditCommand(CLICommandInterface):
         self._inject_wsl_environment()
 
         # Detect installed editors
-        if self._package_configuration_data is None:
+        if self._configuration is None:
             raise RuntimeError("Package configuration was missing during initialization")
 
-        searched_editors_data = self._package_configuration_data.get("searched_editors", [])
-        fallback_search_path = self._package_configuration_data.get("editors_fallback_search_paths", [])
+        searched_editors_data = self._configuration.get("searched_editors", [])
+        fallback_search_path = self._configuration.get("editors_fallback_search_paths", [])
 
         # Clean bad or missing paths
         fallback_search_path = self._purify_paths(paths=fallback_search_path,

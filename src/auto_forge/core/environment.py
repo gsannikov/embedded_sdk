@@ -69,12 +69,12 @@ class CoreEnvironment(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, package_configuration_data: dict[str, Any]) -> None:
+    def _initialize(self, workspace_path: str, configuration: dict[str, Any]) -> None:
         """
         Initialize the 'Environment' class.
         Args:
             workspace_path: path to the workspace directory to initialize.
-            package_configuration_data: dictionary with package configuration data.
+            configuration: dictionary with package configuration data.
         Note:
             These core modules may be initialized before the main AutoForge controller is constructed.
             As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
@@ -91,16 +91,16 @@ class CoreEnvironment(CoreModuleInterface):
         self._loader: CoreLoader = CoreLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._shell_aliases: ShellAliases = ShellAliases.get_instance()
-        self._package_configuration_data: dict[str, Any] = package_configuration_data
+        self._configuration: dict[str, Any] = configuration
 
         # Get the interactive commands from package configuration or use defaults if not available
-        self._interactive_commands = self._package_configuration_data.get('interactive_commands',
-                                                                          ["cat", "htop", "top", "vim", "less", "nano",
-                                                                           "vi", "clear", "pico"])
+        self._interactive_commands = self._configuration.get('interactive_commands',
+                                                             ["cat", "htop", "top", "vim", "less", "nano",
+                                                              "vi", "clear", "pico"])
 
         # Allow to override default execution opf subprocesses in configuration
-        self._subprocess_execution_timout = self._package_configuration_data.get("subprocess_execution_timout",
-                                                                                 self._subprocess_execution_timout)
+        self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
+                                                                    self._subprocess_execution_timout)
 
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()

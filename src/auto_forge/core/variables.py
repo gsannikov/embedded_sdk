@@ -43,14 +43,14 @@ class CoreVariables(CoreModuleInterface):
         self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted listy of objects
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, solution_name: str, package_configuration_data: dict[str, Any],
+    def _initialize(self, workspace_path: str, solution_name: str, configuration: dict[str, Any],
                     work_mode: AutoForgeWorkModeType) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
             workspace_path (str): The workspace path.
             solution_name (str): Solution name.
-            package_configuration_data (dict[str, Any]): Package configuration data.
+            configuration (dict[str, Any]): Package configuration data.
         Note:
             These core modules may be initialized before the main AutoForge controller is constructed.
             As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
@@ -65,7 +65,9 @@ class CoreVariables(CoreModuleInterface):
             self._search_keys: Optional[list[tuple[bool, str]]] = None  # Allow for faster binary search
 
             # Store package configuration
-            self._package_configuration_data: dict[str, Any] = package_configuration_data
+            self._configuration: dict[str, Any] = configuration
+            if self._configuration is None:
+                raise RuntimeError("missing package configuration data")
 
             # Set to ignore invalid path when in environment t creation mode
             if work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:
@@ -75,12 +77,9 @@ class CoreVariables(CoreModuleInterface):
             self._workspace_path = workspace_path
             self._solution_name = solution_name
 
-            if self._package_configuration_data is None:
-                raise RuntimeError("missing package configuration data")
-
             # Get essential variables list from the package configuration
-            if "essential_variables" in self._package_configuration_data:
-                essential_variables_data: list[list] = self._package_configuration_data["essential_variables"]
+            if "essential_variables" in self._configuration:
+                essential_variables_data: list[list] = self._configuration["essential_variables"]
                 if essential_variables_data is None:
                     raise ValueError("could not get essential_variables from the project package configuration")
                 # Convert the raw list on a variable recognized dictionary

@@ -4,7 +4,6 @@ Author:         AutoForge Team
 
 Description:
     This module serves as the central entry point of the AutoForge build system package.
-
     It is responsible for orchestrating the entire build system lifecycle, including:
         - Initializing core subsystems and shared services
         - Handling and validating command-line arguments
@@ -33,10 +32,9 @@ from colorama import Fore, Style
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
     CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor, CorePrompt, CoreSolution,
-    CoreVariables, ExceptionGuru, LogHandlersTypes, PROJECT_BUILDERS_PATH,
+    CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, Registry, ShellAliases,
-    SystemInfo, ToolBox, Watchdog, EventManager, StatusNotifType
-)
+    StatusNotifType, SystemInfo, ToolBox, Watchdog, )
 
 
 class AutoForge(CoreModuleInterface):
@@ -47,7 +45,7 @@ class AutoForge(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Early initialization required for assigning runtime values to attributes declared earlier in `__init__()`
+        Early optional class initialization.
         """
 
         # This is an early, pre-initialization RAM-only logger. Once the main logger is initialized,
@@ -80,7 +78,7 @@ class AutoForge(CoreModuleInterface):
         self._periodic_timer_interval: float = 1.0  # 1-second timer
 
         # Startup arguments
-        self._package_configuration_data: Optional[dict[str, Any]] = None
+        self._configuration: Optional[dict[str, Any]] = None
         self._workspace_path: Optional[str] = None
         self._workspace_exist: Optional[bool] = None
         self._run_command_name: Optional[str] = None
@@ -123,39 +121,35 @@ class AutoForge(CoreModuleInterface):
         Watchdog.reset_terminal()
 
         # Load package configuration and several dictionaries we might need later
-        self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
-        self.ansi_codes = self._package_configuration_data.get("ansi_codes")
+        self._configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
+        self.ansi_codes = self._configuration.get("ansi_codes")
 
         # Handle arguments
         self._init_arguments(*args, **kwargs)
 
-        # Start remote debugging if enabled.
         if self._remote_debugging is not None:
-            self._queue_logger.debug(
-                f"Remote debugging enabled using {self._remote_debugging.host}:{self._remote_debugging.port}")
-
             self._init_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
         # Instantiate variables
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
-                                        package_configuration_data=self._package_configuration_data,
+                                        configuration=self._configuration,
                                         work_mode=self._work_mode)
         # Initializing the 'real' logger
         self._init_logger()
 
         # Load all built-in commands
-        self._loader = CoreLoader(package_configuration_data=self._package_configuration_data)
+        self._loader = CoreLoader(configuration=self._configuration)
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         # Start the environment core module
         self._environment = CoreEnvironment(workspace_path=self._workspace_path,
-                                            package_configuration_data=self._package_configuration_data)
+                                            configuration=self._configuration)
 
         # Set the switch interval to 0.001 seconds (1 millisecond), it may make threads
         # responsiveness slightly better
         sys.setswitchinterval(0.001)
 
         # Configure and start watchdog with default or configuration provided timeout.
-        self._watchdog_timeout = self._package_configuration_data.get("watchdog_timeout", self._watchdog_timeout)
+        self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
         self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
 
         # Remove anny previously generated autoforge temporary files.
@@ -165,7 +159,7 @@ class AutoForge(CoreModuleInterface):
         self._init_solution()
 
         # Get telemetry file from configuration and Instantiate the class
-        self._telemetry_file = self._package_configuration_data.get("telemetry_file", "telemetry.log")
+        self._telemetry_file = self._configuration.get("telemetry_file", "telemetry.log")
         self._telemetry_file = self._variables.expand(self._telemetry_file)
         self._telemetry = BuildTelemetry.load(self._telemetry_file)
 
@@ -226,7 +220,7 @@ class AutoForge(CoreModuleInterface):
             log_file = self._tool_box.append_timestamp_to_path(log_file)
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
-                                                   configuration_data=self._package_configuration_data)
+                                                   configuration_data=self._configuration)
         self._auto_logger.set_log_file_name(log_file)
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
 
@@ -274,7 +268,7 @@ class AutoForge(CoreModuleInterface):
                 # If the solution package isn't provided explicitly, attempt to resolve it
                 # from the package configuration, which should define its default install path.
                 # Note: Variable resolution isn't fully available at this early stage.
-                local_package_files = self._package_configuration_data.get("local_solution_package_files")
+                local_package_files = self._configuration.get("local_solution_package_files")
                 if isinstance(local_package_files, str):
                     solution_package = (
                         local_package_files.strip().replace("$PROJ_WORKSPACE", self._workspace_path).replace(
@@ -284,7 +278,7 @@ class AutoForge(CoreModuleInterface):
                 return
 
             # Apply keywords substitution if we have them in configuration
-            keywords_mapping: Optional[dict] = self._package_configuration_data.get("keywords_mapping")
+            keywords_mapping: Optional[dict] = self._configuration.get("keywords_mapping")
             solution_package = self._tool_box.substitute_keywords(text=solution_package, keywords=keywords_mapping)
 
             if self._tool_box.is_url(solution_package):
@@ -324,7 +318,7 @@ class AutoForge(CoreModuleInterface):
                     self._git_token = kwargs.get("git_token")
                     if not self._git_token:
                         # If we have 'git_token_environment_var' use to try and get the token from the user environment
-                        git_token_var_name = self._package_configuration_data.get("git_token_environment_var")
+                        git_token_var_name = self._configuration.get("git_token_environment_var")
                         self._git_token = os.environ.get(git_token_var_name) if git_token_var_name else None
 
         def _validate_network_options():
@@ -386,11 +380,16 @@ class AutoForge(CoreModuleInterface):
         """
         try:
 
+            # Start remote debugging if enabled.
+
+            self._queue_logger.debug(
+                f"Remote debugging enabled using {host}:{port}")
+
             # noinspection PyUnresolvedReferences
             import pydevd_pycharm
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
-                pydevd_pycharm.settrace(host=host, port=port, stdoutToServer=True, stderrToServer=True, suspend=False,
+                pydevd_pycharm.settrace(host=host, port=port, suspend=False,
                                         trace_only_current_thread=True)
 
         except ImportError:
@@ -541,9 +540,9 @@ class AutoForge(CoreModuleInterface):
             raise
 
     @property
-    def package_configuration(self) -> Optional[dict[str, Any]]:
+    def configuration(self) -> Optional[dict[str, Any]]:
         """ Returns the package configuration processed JSON """
-        return self._package_configuration_data
+        return self._configuration
 
     @property
     def telemetry(self) -> Optional[BuildTelemetry]:
@@ -563,12 +562,14 @@ class AutoForge(CoreModuleInterface):
 
 def auto_forge_start(args: argparse.Namespace) -> Optional[int]:
     """
-    Entry point for the package. Instantiates AutoForge with the provided arguments and returns its exit code.
+    Instantiates AutoForge with the provided arguments and execute its main 'forge()' method.
+    Args:
+        args (argparse): Parsed command line arguments.
     Returns:
         int: Exit status of the AutoForge execution.
     """
 
-    result: int = 1  # Default to internal error
+    result: int = 1  # Default to error
 
     try:
         # Instantiate AutoForge, pass all arguments

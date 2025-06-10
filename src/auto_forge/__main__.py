@@ -4,7 +4,7 @@ Script:         __main__.py
 Author:         AutoForge Team
 
 Description:
-    This script serves as the entry point for the AutoForge package, enabling it to be run as a console application.
+    This script serves as the entry point for the AutoForge package.
 """
 import argparse
 import sys
@@ -18,16 +18,18 @@ from colorama import init
 from auto_forge import PROJECT_NAME, PROJECT_VERSION, start
 
 
-def handle_arguments() -> Optional[argparse.Namespace]:
+def arguments_process() -> Optional[argparse.Namespace]:
     """
-    Command line arguments handler function.
+    Command line arguments processing.
     Returns:
         Optional[argparse.Namespace]: Command line arguments namespace when successfully parsed, None otherwise.
     """
 
-    version_string = f"{PROJECT_NAME} Ver {PROJECT_VERSION}"
-
     with suppress(Exception):
+
+
+        version_string = f"{PROJECT_NAME} Ver {PROJECT_VERSION}"
+
         # Check early for the version flag before constructing the parser
         if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):
             print(f"\n{version_string}\n")
@@ -79,13 +81,30 @@ def handle_arguments() -> Optional[argparse.Namespace]:
 
         return parser.parse_args()
 
-    # Terminate on error
-    sys.exit(1)
+    # Arguments parser exception
+    print()
+    return None
 
 
-if __name__ == "__main__":
+def main()->int:
+    """
+    The main entry point for the AutoForge package.
+    The following will provide you with all you need to know about this method:
+    https://en.wikipedia.org/wiki/Entry_point
+
+    Returns:
+        Shell status, 0 grate success, else not so much.
+    
+    """
     # Package command line starter.
     init(autoreset=True, strip=False)  # Required by colorama
 
-    args = handle_arguments()
-    sys.exit(start(args=args))
+    arguments = arguments_process()
+    if arguments is not None:
+        return start(arguments)
+    else:
+        return 1  # Arguments processing error
+
+
+if __name__ == "__main__":
+    sys.exit(main())
