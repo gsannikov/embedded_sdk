@@ -14,7 +14,7 @@ Classes:
 import logging
 import os
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 from typing import Optional
 
 # Third-party
@@ -144,7 +144,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         )
 
         compiler_options = config.get("compiler_options")
-        artifacts: Optional[Union[list, str]] = config.get("artifacts")
+        artifacts: Optional[list[str]] = config.get("artifacts", None)
 
         # Process optional out of build hierarchy argumnets
         return_code = self._process_extra_args(extra_args=build_profile.extra_args, config=config)
@@ -160,7 +160,6 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Prepare the 'cmake' command line
         command_line = [build_command, *merged_options]
         is_config_step = self._is_cmake_configuration_command(cmd=command_line)
-
         # Execute CMake, note that pending on the compilation options this could a single run or the first run
         # out of 2 when building with Ninja.
         try:
@@ -197,7 +196,6 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Check for all expected artifacts
         missing_artifacts = []
-        artifacts = [artifacts] if artifacts else []  # Convert to list
 
         for artifact_path in artifacts:
             artifact_file = Path(artifact_path).expanduser().resolve()
