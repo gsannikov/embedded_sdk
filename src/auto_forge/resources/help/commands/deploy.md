@@ -1,15 +1,15 @@
-# Overlay - JSON Recipe Guide
+# Deploy - JSON Recipe Guide
 
 ## 📄 Description
 
 This tool allows you to define a conversion table, where each entry consists of two fields: `'archive'` and
-`'destination'`.
+`'host path'`.
 These fields indicate the path and name of a file within an archive (typically a ZIP file) and its corresponding path
 and name in the regular file system.
 
 ### Example mapping:
 
-    Archive path                        Destination path
+    Archive path                        Host path
     ---------------------               ----------------------------
     path/to/source/hello.c              new/repo/sources/new_hello.c
 
@@ -17,8 +17,8 @@ and name in the regular file system.
 
 The tool supports two main operations:
 
-1. Deploying the contents of an archive to a destination directory based on the mapping.
-2. Creating an archive from destination files, using the specified archive paths.
+1. Deploying the contents of an archive to a host directory based on the mapping.
+2. Creating an archive from destination host files, using the specified archive paths.
 
 ### When is this useful?
 
@@ -47,11 +47,11 @@ The tool uses a JSON or JSONC file (called a "recipe") to describe the file mapp
   "files": [
     {
       "archive": "apps/test.cmake_dummy.txt",
-      "destination": "test/b/CMakList.txt"
+      "host": "test/b/CMakList.txt"
     },
     {
       "archive": "file_in_root.txt",
-      "destination": "test/a/test.txt"
+      "host": "test/a/test.txt"
     }
   ]
 }

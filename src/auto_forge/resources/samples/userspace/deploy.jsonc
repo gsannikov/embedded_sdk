@@ -1,5 +1,5 @@
 /*
-    Configuration JSON for the the 'overlay tool'
+    Configuration JSON for the the 'deploy tool'
     ---------------------------------------------
 
     Note: This JSONC format supports inline comments, which are useful during development but should be
@@ -12,15 +12,15 @@
     "defaults": {
         "full_debug": true,
         "break_on_errors": false,
-        "create_destination_path": true,
+        "create_host_path": true,
         "max_depth": 10,
         "overwrite": "always" // one of ( always, never, when_newer )
     },
 
-    // Required: list of file mappings between archive and destination..
+    // Required: list of file mappings between archive and host..
     "files": [
-        { "archive": "apps/test.cmake_dummy.txt",          "destination": "test/b/CMakList.txt"                },
-        { "archive": "file_in_root.txt",                   "destination": "test/a/test.txt"                    }
+        { "archive": "apps/test.cmake_dummy.txt",          "host": "test/b/CMakList.txt"                },
+        { "archive": "file_in_root.txt",                   "host": "test/a/test.txt"                    }
 
     ]
 }

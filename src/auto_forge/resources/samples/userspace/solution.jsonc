@@ -24,7 +24,21 @@
                     "hidden": false
                 },
                 {
-                    "alias_name": "deploy",
+                    "alias_name": "dply",
+                    "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host_base_path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host",
+                    "description": "\uD83D\uDC7E Deploy files in a refactored project",
+                    "command_type": "AUTOMATION",
+                    "hidden": false
+                },
+                {
+                    "alias_name": "ylpd",
+                    "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host_base_path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-archive",
+                    "description": "\uD83D\uDC7E Store deployed files in archive",
+                    "command_type": "AUTOMATION",
+                    "hidden": false
+                },
+                {
+                    "alias_name": "ylpd_old",
                     "target_command": "refactor --root_copy --source_path $SCRIPTS_SOLUTION/root_deploy.zip --destination $SOURCE_BASE/userspace",
                     "description": "\uD83D\uDC7E Deploy CMake files in a refactored project",
                     "command_type": "AUTOMATION",

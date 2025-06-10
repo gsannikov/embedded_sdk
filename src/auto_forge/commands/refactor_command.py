@@ -152,7 +152,7 @@ class RefactorCommand(CommandInterface):
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
-                         command_type=AutoForgCommandType.AUTOMATION)
+                         command_type=AutoForgCommandType.AUTOMATION, hidden=True)
 
     def _reset(self) -> None:
         """

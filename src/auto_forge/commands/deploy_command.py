@@ -1,12 +1,13 @@
 """
-Script:         overlay_command.py
+Script:         deploy_command.py
 Author:         AutoForge Team
 
 Description:
-    Defines a conversion table mapping files between a ZIP archive ('archive') and the file system ('destination').
-    Each entry specifies how a file should be extracted or archived.
-
+    Follows a JSON recipe that defines a table which maps files between a ZIP archive ('archive') and a
+    file system ('host'). Each entry specifies how a file should be extracted or archived, enabling structured
+    file deployment and collection operations.
 """
+
 import argparse
 import zipfile
 from datetime import datetime
@@ -17,16 +18,16 @@ from typing import Any
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreProcessor, CoreVariables, ToolBox, AutoLogger)
+from auto_forge import (CommandInterface, CoreProcessor, CoreVariables, ToolBox, AutoLogger, AutoForgCommandType)
 
-AUTO_FORGE_MODULE_NAME = "overlay"
-AUTO_FORGE_MODULE_DESCRIPTION = "Overlay tool"
+AUTO_FORGE_MODULE_NAME = "deploy"
+AUTO_FORGE_MODULE_DESCRIPTION = "Recipe Deployer"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
-class _OverlayDirectionType(Enum):
+class _DeployDirectionType(Enum):
     """
-    Defines the direction of the overlay operation:
+    Defines the direction of the deploy operation:
     - ArchiveToHost: Extract files from archive to file system.
     - HostToArchive: Collect files from file system into an archive.
     """
@@ -49,9 +50,9 @@ class _OverwritePolicy(Enum):
     WhenNewer = auto()
 
 
-class OverlayCommand(CommandInterface):
+class DeployCommand(CommandInterface):
     """
-    Implements the overlay command for syncing files between a ZIP archive and the host file system
+    Implements the deploy command for syncing files between a ZIP archive and the host file system
     based on a structured recipe.
     """
 
@@ -69,15 +70,22 @@ class OverlayCommand(CommandInterface):
         # Get a logger instance
         self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
 
-        self._recipe_defaults_raw: Optional[dict[str, Any]] = None
+        # Type for  essential JSON sections
+        self._recipe_defaults_raw: Optional[dict] = None
+        self._recipe_files: Optional[list[dict]] = None
         self._recipe_defaults: Optional[dict[str, Any]] = None
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, command_type=AutoForgCommandType.AUTOMATION, hidden=True)
 
     def _reset(self):
+        """
+        Resets internal state in preparation for a new deploy operation.
+        Clears any previously loaded recipe defaults and file mappings.
+        """
         self._recipe_defaults_raw = None
         self._recipe_defaults = None
+        self._recipe_files = None
 
     @staticmethod
     def _parse_overwrite_policy(policy_str: str) -> _OverwritePolicy:
@@ -100,23 +108,41 @@ class OverlayCommand(CommandInterface):
             return _OverwritePolicy.Unknown
 
     @staticmethod
-    def _parse_direction(direction_str: str) -> _OverlayDirectionType:
-        """ Convert user provided direction string into the corresponding enum """
-        if direction_str == 'to-host':
-            return _OverlayDirectionType.ArchiveToHost
-        elif direction_str == 'to-archive':
-            return _OverlayDirectionType.HostToArchive
-        else:
-            return _OverlayDirectionType.Unknown
+    def _parse_direction(direction_str: str) -> _DeployDirectionType:
+        """
+        Parses a string value into a corresponding _DeployDirectionType enum.
+        Args:
+            direction_str (str): The direction string to interpret.
+        Returns:
+            _DeployDirectionType: The parsed direction enum.
+        """
+        normalized = direction_str.strip().lower()
 
-    def _to_archive(self, host_base_path: Path, archive_path: Path, verbose: bool) -> Optional[int]:
+        if normalized == 'to-host':
+            return _DeployDirectionType.ArchiveToHost
+        elif normalized == 'to-archive':
+            return _DeployDirectionType.HostToArchive
+        else:
+            return _DeployDirectionType.Unknown
+
+    def _to_archive(self, host_base_path: Path, archive_path: Path) -> Optional[int]:
         """
-        Process the list in 'self._recipe_files' and generate a ZIP archive.
-        Respects the 'overwrite' policy in 'defaults':
-            - always
-            - never
-            - when_newer
+        Creates a ZIP archive using file entries defined in the loaded recipe.
+        For each entry, the 'destination' field is resolved relative to the host base path,
+        and the corresponding file is added to the archive under its 'archive' name.
+
+        Respects the following recipe default:
+            - overwrite (str): Determines if the archive should be created or updated.
+                - 'always': Overwrite or recreate the archive unconditionally.
+                - 'never': Skip archive creation if it already exists.
+                - 'when_newer': Add files only if they are newer than the archive.
+        Args:
+            host_base_path (Path): Base directory containing the source files on the host system.
+            archive_path (Path): Path to the output ZIP archive.
+        Returns:
+            Optional[int]: 0 on success, 1 if any error occurred.
         """
+
         try:
             raw_policy = self._recipe_defaults.get("overwrite", "always")
             policy = self._parse_overwrite_policy(raw_policy)
@@ -126,8 +152,7 @@ class OverlayCommand(CommandInterface):
 
             if archive_path.exists():
                 if policy == _OverwritePolicy.Never:
-                    if verbose:
-                        self._logger.info(f"Archive already exists, skipping due to overwrite policy: never")
+                    self._logger.info(f"Archive already exists, skipping due to overwrite policy: never")
                     return 0
                 elif policy == _OverwritePolicy.WhenNewer:
                     archive_mtime = datetime.fromtimestamp(archive_path.stat().st_mtime)
@@ -138,7 +163,7 @@ class OverlayCommand(CommandInterface):
 
             with zipfile.ZipFile(archive_path, mode='w' if policy == _OverwritePolicy.Always else 'a') as archive:
                 for entry in self._recipe_files:
-                    src_rel = Path(entry["destination"])
+                    src_rel = Path(entry["host"])
                     arc_rel = Path(entry["archive"])
                     src_abs = host_base_path / src_rel
 
@@ -149,12 +174,10 @@ class OverlayCommand(CommandInterface):
                     if policy == _OverwritePolicy.WhenNewer and archive_mtime:
                         file_mtime = datetime.fromtimestamp(src_abs.stat().st_mtime)
                         if file_mtime <= archive_mtime:
-                            if verbose:
-                                self._logger.info(f"Skipping {src_abs} (not newer than archive)")
+                            self._logger.info(f"Skipping {src_abs} (not newer than archive)")
                             continue
 
-                    if verbose:
-                        self._logger.info(f"Adding to archive: {src_abs} as {arc_rel}")
+                    self._logger.info(f"Adding to archive: {src_abs} as {arc_rel}")
                     archive.write(src_abs, arcname=str(arc_rel))
 
             return 0
@@ -162,26 +185,26 @@ class OverlayCommand(CommandInterface):
         except Exception as archive_error:
             raise RuntimeError(f"failed to create archive: {archive_error}")
 
-    def _from_archive(self, archive_path: Path, host_base_path: Path, verbose: bool) -> Optional[int]:
+    def _from_archive(self, archive_path: Path, host_base_path: Path) -> Optional[int]:
         """
-        Extract specific files from a ZIP archive to the host file system, based on the recipe.
-        Honors:
-            - create_destination_path (bool)
-            - overwrite (always | never | when_newer)
+        Extracts selected files from a ZIP archive to the host file system according to the loaded recipe.
+        Each file entry in the recipe specifies an 'archive' (path inside the ZIP) and a 'destination'
+        (path relative to the host base). Extraction behavior is governed by recipe defaults.
 
+        Respects the following recipe defaults:
+            - create_destination_path (bool): Whether to create missing destination directories.
+            - overwrite (str): Overwrite policy, one of: 'always', 'never', 'when_newer'.
         Args:
-            archive_path (Path): Path to the ZIP archive to extract from.
-            host_base_path (Path): Root path on the host to extract files into.
-            verbose (bool): Enables verbose output.
-
+            archive_path (Path): Path to the ZIP archive containing the source files.
+            host_base_path (Path): Base directory on the host where files will be written.
         Returns:
-            Optional[int]: 0 on success, 1 on error.
+            Optional[int]: 0 on success, 1 if any error occurred.
         """
         try:
             if not archive_path.exists():
                 raise FileNotFoundError(f"archive not found: {archive_path}")
 
-            create_dirs = bool(self._recipe_defaults.get("create_destination_path", False))
+            create_dirs = bool(self._recipe_defaults.get("create_host_path", False))
             policy = self._parse_overwrite_policy(self._recipe_defaults.get("overwrite", "always"))
 
             if policy == _OverwritePolicy.Unknown:
@@ -192,58 +215,53 @@ class OverlayCommand(CommandInterface):
 
                 for entry in self._recipe_files:
                     arc_rel = Path(entry["archive"])
-                    dst_rel = Path(entry["destination"])
+                    dst_rel = Path(entry["host"])
                     dst_abs = host_base_path / dst_rel
 
                     if arc_rel not in archive_contents:
                         self._logger.warning(f"Archive entry not found: {arc_rel}")
                         continue
 
-                    # Check if we need to create destination path
+                    # Check if we need to create host path
                     if not dst_abs.parent.exists():
                         if create_dirs:
                             dst_abs.parent.mkdir(parents=True, exist_ok=True)
-                            if verbose:
-                                self._logger.info(f"Created directory: {dst_abs.parent}")
+                            self._logger.info(f"Created directory: {dst_abs.parent}")
                         else:
-                            self._logger.warning(f"Destination path does not exist: {dst_abs.parent}")
+                            self._logger.warning(f"Host path does not exist: {dst_abs.parent}")
                             continue
 
                     # Overwrite policy enforcement
                     if dst_abs.exists():
                         if policy == _OverwritePolicy.Never:
-                            if verbose:
-                                self._logger.info(f"Skipping (exists): {dst_abs}")
+                            self._logger.info(f"Skipping (exists): {dst_abs}")
                             continue
                         elif policy == _OverwritePolicy.WhenNewer:
                             arc_mtime = datetime(*archive_contents[arc_rel].date_time)
                             fs_mtime = datetime.fromtimestamp(dst_abs.stat().st_mtime)
                             if fs_mtime >= arc_mtime:
-                                if verbose:
-                                    self._logger.info(f"Skipping (up-to-date): {dst_abs}")
+                                self._logger.info(f"Skipping (up-to-date): {dst_abs}")
                                 continue
 
-                    # Extract to the specified destination path
+                    # Extract to the specified host path
                     with archive.open(str(arc_rel), 'r') as src, open(dst_abs, 'wb') as dst:
                         dst.write(src.read())
 
-                    if verbose:
-                        self._logger.info(f"Extracted {arc_rel} -> {dst_abs}")
+                    self._logger.info(f"Extracted {arc_rel} -> {dst_abs}")
 
         except Exception as extract_error:
             raise RuntimeError(f"failed to extract from archive: {extract_error}")
 
-    def _process(self, recipe_file: str, archive_path: str, host_base_path: str, direction: _OverlayDirectionType,
+    def _process(self, recipe_file: str, archive_path: str, host_base_path: str, direction: _DeployDirectionType,
                  verbose: Optional[bool] = False) -> Optional[int]:
         """
-        Processes the recipe file and sets up the archive-to-destination mapping.
+        Processes the recipe file and sets up the archive-to-host mapping.
         Args:
             recipe_file (str): Path to the JSON or JSONC recipe file.
             archive_path (str): Path to the ZIP archive, which could be decompressed or created based on the direction.
             host_base_path (str): Path to the a directory where files will deployed to or collected from.
-            direction (_OverlayDirectionType): Determines the operation direction.
+            direction (_DeployDirectionType): Determines the operation direction.
             verbose (bool, optional): Enable verbose logging if True.
-
         Returns:
             Optional[int]: 1 on failure, None on success.
         """
@@ -252,6 +270,10 @@ class OverlayCommand(CommandInterface):
             # Reset class variable
             self._reset()
 
+            # Allow console logger if verbose was specified
+            if verbose:
+                AutoLogger().set_output_enabled(logger=self._logger, state=True)
+
             # Expand variables (environment, etc.)
             recipe_file = self._variables.expand(recipe_file)
 
@@ -259,8 +281,7 @@ class OverlayCommand(CommandInterface):
             archive_path = Path(self._variables.expand(archive_path))
             host_base_path = Path(self._variables.expand(host_base_path))
 
-            if verbose:
-                self._logger.debug(f"Recipe: {recipe_file}, archive: {archive_path}, host base: {host_base_path}")
+            self._logger.debug(f"Recipe: {recipe_file}, archive: {archive_path}, host base: {host_base_path}")
 
             # Load and preprocess the recipe JSONC/JSON file
             recipe_raw: Optional[dict] = self._json_processor.preprocess(file_name=recipe_file)
@@ -277,18 +298,20 @@ class OverlayCommand(CommandInterface):
             if not len(self._recipe_files):
                 raise ValueError(f"not files specified in recipe: '{recipe_file}'")
 
-            if verbose:
-                self._logger.debug(f"Loaded recipe: {len(self._recipe_files)} file entries found")
+            self._logger.debug(f"Loaded recipe: {len(self._recipe_files)} file entries found")
 
-            if direction == _OverlayDirectionType.HostToArchive:
-                return self._to_archive(host_base_path=host_base_path, archive_path=archive_path, verbose=verbose)
-            elif direction == _OverlayDirectionType.ArchiveToHost:
-                return self._from_archive(archive_path=archive_path, host_base_path=host_base_path, verbose=verbose)
+            if direction == _DeployDirectionType.HostToArchive:
+                return self._to_archive(host_base_path=host_base_path, archive_path=archive_path)
+            elif direction == _DeployDirectionType.ArchiveToHost:
+                return self._from_archive(archive_path=archive_path, host_base_path=host_base_path)
             else:
-                raise ValueError(f"unknown overlay direction: {direction}")
+                raise ValueError(f"unknown deploy direction: {direction}")
 
-        except Exception as overlay_error:
-            raise RuntimeError(f"Overlay processing failed: {overlay_error}")
+        except Exception as deploy_error:
+            raise RuntimeError(f"recipe deploy processing failed: {deploy_error}")
+        finally:
+            if verbose:  # Shutdown console logger
+                AutoLogger().set_output_enabled(logger=self._logger, state=False)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -313,17 +336,23 @@ class OverlayCommand(CommandInterface):
                             help="Show more information while running the recipe.")
 
     def run(self, args: argparse.Namespace) -> int:
-
-        if args.recipe and args.archive and args.destination and args.direction:
+        """
+        Executes the command based on parsed arguments.
+        Args:
+            args (argparse.Namespace): The parsed arguments.
+        Returns:
+            int: Exit status (0 for success, non-zero for failure).
+        """
+        if args.recipe and args.archive and args.host_base_path and args.direction:
 
             # Convert the direction into a recognize type
-            overlay_direction: _OverlayDirectionType = self._parse_direction(args.direction)
+            deploy_direction: _DeployDirectionType = self._parse_direction(args.direction)
 
-            if overlay_direction == _OverlayDirectionType.Unknown:
-                raise ValueError(f"unknown overlay direction: '{args.direction}'")
+            if deploy_direction == _DeployDirectionType.Unknown:
+                raise ValueError(f"unknown recipe direction: '{args.direction}'")
 
             # Process the recipe
-            return self._process(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_path,
-                                 direction=overlay_direction, verbose=args.verbose)
+            return self._process(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_base_path,
+                                 direction=deploy_direction, verbose=args.verbose)
         else:
             return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
