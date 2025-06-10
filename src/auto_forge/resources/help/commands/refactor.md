@@ -1,7 +1,7 @@
-# Relocator CLI - User Guide for JSON Configuration
+# Relocator recipe - User Guide for JSON Configuration
 
-This document provides a guide to creating a correct `json` or `jsonc` configuration file for the **Relocator CLI build
-tool**. The tool is used to reorganize a large source tree into a new structure based on user-defined mappings and
+This document provides a guide to creating a correct `json` or `jsonc` configuration file for the **Relocator command**.
+The tool is used to reconstruct / convert a large source tree into a new structure based on user-defined mappings and
 options.
 
 ## Overview
@@ -109,15 +109,10 @@ issues include:
 
 ## Execution
 
-Once your configuration is ready, pass it to the relocator tool:
+Once your configuration is ready, pass it to the refactor tool:
 
 ```sh
-relocator build --config relocator_config.jsonc
+refactor -r refcator_recipe.jsonc -s sourceh -d destination
 ```
 
 ---
-
-## Conclusion
-
-This configuration system enables structured and flexible reorganization of source trees. By properly utilizing
-`defaults` and `folders`, developers can create predictable, repeatable relocations for complex projects.
