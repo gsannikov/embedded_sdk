@@ -25,6 +25,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Any
 
+import psutil
 # Third-party
 from colorama import Fore, Style
 
@@ -407,6 +408,11 @@ class AutoForge(CoreModuleInterface):
         """
 
         if timer_name == "PeriodicDurationTimer":
+
+            # Get CPU utilization percentage for all cores averaged over 1 second
+            cpu_percent = psutil.cpu_percent(interval=1)
+            self._queue_logger.debug(f"Utilization: {cpu_percent}%")
+
             # Restart
             self._periodic_timer = self._tool_box.set_timer(timer=self._periodic_timer,
                                                             interval=self._periodic_timer_interval,
