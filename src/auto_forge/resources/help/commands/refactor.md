@@ -1,6 +1,7 @@
-# Relocator - JSNO Configuration Guide
+# Refactor - JSON Recipe Guide
 
-This document provides a guide to creating a correct `json` or `jsonc` configuration file for the **Relocator command**.
+This document provides a guide to creating a correct `json` or `jsonc` configuration file for the **Refactoring command
+**.
 The tool is used to reconstruct / convert a large source tree into a new structure based on user-defined mappings and
 options.
 
