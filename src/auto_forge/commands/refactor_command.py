@@ -315,7 +315,7 @@ class RefactorCommand(CommandInterface):
             shutil.copy2(src_path, dest_path)
             file_name = os.path.basename(src_path)
             if is_source:
-                getattr(self._logger, log_level)(f"Copying '{file_name}'")
+                getattr(self._logger, log_level)(f"> Copying '{file_name}'")
         except Exception as copy_error:
             msg = f"Failed to copy '{relative_src}' to '{relative_dest}' {copy_error}"
             if fatal:
