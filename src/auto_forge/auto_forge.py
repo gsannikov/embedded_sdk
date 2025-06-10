@@ -428,7 +428,7 @@ class AutoForge(CoreModuleInterface):
                                                         interval=self._periodic_timer_interval,
                                                         expiration_routine=self._timer_expired,
                                                         timer_name="PeriodicDurationTimer",
-                                                        auto_start=False)
+                                                        auto_start=Trur)
 
         self._logger.debug("Starting the events loop thread")
         while True:
