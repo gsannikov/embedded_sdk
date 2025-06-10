@@ -256,18 +256,24 @@ class _CoreCompleter(Completer):
 
             # Final filtering: ensure no duplicate completions and max results count are yielded
             seen = set()
-            trimmed_matches = []
-            for m in matches:
-                key = m.text if isinstance(m, Completion) else str(m)
+            deduplicated = []
+            # Deduplicate
+            for match in matches:
+                key = match.text if isinstance(match, Completion) else str(match)
                 if key not in seen:
                     seen.add(key)
-                    trimmed_matches.append(
-                        m if isinstance(m, Completion) else Completion(key, start_position=-len(arg_text)))
-                    if len(trimmed_matches) >= self._core_prompt.max_completion_results:
+                    deduplicated.append(
+                        match if isinstance(match, Completion) else Completion(key, start_position=-len(arg_text))
+                    )
+                    if len(deduplicated) >= self._core_prompt.max_completion_results:
                         break
 
-            for match in trimmed_matches:
-                yield match
+            # Sort: hidden entries (text starts with ".") appear last
+            deduplicated.sort(key=lambda comp: comp.text.lstrip().startswith("."))
+
+            # Yield final completions
+            for completion in deduplicated:
+                yield completion
 
         except Exception as completer_exception:
             error_message = f"Completer exception {completer_exception}"
