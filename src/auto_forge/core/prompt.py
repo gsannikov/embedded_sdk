@@ -514,7 +514,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 with suppress(AttributeError, TypeError):
                     func.__doc__ = description
 
-    def _add_alias_with_description(self, alias_name: str, description: str, target_command: str,
+    def _add_alias_with_description(self, alias_name: str, description: str, target_command: Union[list, str],
                                     cmd_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
                                     hidden: bool = False) -> None:
         """
@@ -523,19 +523,33 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         it will register via the native cmd2 alias system to avoid collisions.
         it will be registered via the native cmd2 alias system to avoid collisions.
         """
-        # Extract the root command from the target (first word)
-        target_cmd_root = target_command.split()[0] if target_command else ""
+        # Normalize target_cmd_root for builtin alias logic
+        first_cmd = (target_command.split()[0]
+                     if isinstance(target_command, str) and target_command else "")
 
         # If this alias maps 1-to-1 to a builtin command, use cmd2's alias system
         if (
-                alias_name not in self._builtin_commands and target_command == target_cmd_root and target_cmd_root in self._builtin_commands):
+                alias_name not in self._builtin_commands and
+                isinstance(target_command, str) and
+                target_command == first_cmd and
+                first_cmd in self._builtin_commands
+        ):
             self.aliases[alias_name] = target_command
             return
 
         @with_argument_list
-        def alias_func(cmd_instance, args):
-            """ Otherwise, define a custom dynamic command """
-            cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
+        def alias_func(cmd_instance, args) -> Any:
+            if isinstance(target_command, str):
+                return cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
+            elif isinstance(target_command, list):
+                for cmd in target_command:
+                    full_cmd = f"{cmd} {' '.join(args)}"
+                    result = cmd_instance.onecmd_plus_hooks(full_cmd)
+                    if isinstance(result, int) and result != 0:  # non-zero or signal to stop
+                        break
+            else:
+                cmd_instance.perror("Invalid target_command type")
+                return 1
 
         alias_func.__name__ = f"do_{alias_name}"
         alias_func.__doc__ = description
@@ -1247,7 +1261,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         print()
         return None
 
-    def do_build(self, arg: str):
+    def do_build(self, arg: str) -> int:
         """
         Executes a build based on the dot-separated target notation:
             build <solution>.<project>.<configuration>
@@ -1261,19 +1275,19 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             args = shlex.split(arg)
             if not args:
                 self.perror("Expected: <project>.<configuration> [--flags]")
-                return
+                return 1
 
             target = args[0]
             extra_args = args[1:]
 
             if "." not in target:
                 self.perror("Expected: <project>.<configuration>")
-                return
+                return 1
 
             parts = target.split(".")
             if len(parts) != 2:
                 self.perror("Expected exactly 2 parts: <project>.<configuration>")
-                return
+                return 1
 
             # Construct 'build profile' object
             build_profile = BuildProfileType()
@@ -1302,13 +1316,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     f"using '{build_profile.build_system}' "
                     f"with extra args: {extra_args}"
                 )
-                self._loader.execute_build(build_profile=build_profile)
+                return self._loader.execute_build(build_profile=build_profile)
             else:
                 self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation}'")
+                return 1
 
         except Exception as build_error:
             self.perror(f"Build Exception: {build_error}")
             self._logger.exception(build_error)
+            return 1
 
     def default(self, statement: Statement) -> None:
         """
