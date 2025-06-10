@@ -408,7 +408,6 @@ class AutoForge(CoreModuleInterface):
         """
 
         if timer_name == "PeriodicDurationTimer":
-
             # Get CPU utilization percentage for all cores averaged over 1 second
             cpu_percent = psutil.cpu_percent(interval=1)
             self._queue_logger.debug(f"Utilization: {cpu_percent}%")
