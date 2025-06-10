@@ -1281,6 +1281,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 project_data: Optional[dict[str, Any]] = (
                     self._solution.query_projects(project_name=build_profile.project_name))
                 if project_data:
+                    build_profile.do_clean = True,
                     build_profile.tool_chain_data = project_data.get("tool_chain")
                     build_profile.build_system = (
                         build_profile.tool_chain_data.get("build_system")) if build_profile.tool_chain_data else None

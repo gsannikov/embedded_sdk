@@ -128,7 +128,7 @@
                                 "<$ref_build_path>/n_libs/logger/liblogger.a"
                             ],
                             "pre_build_steps": {
-                                "clean": "!make -C <$ref_execute_from> clean TARGET=<$ref_name> BUILDDIR=<$ref_build_path>"
+                                "clean": "!cmake --build <$ref_build_path> --target clean"
                             }
                         },
                         {
