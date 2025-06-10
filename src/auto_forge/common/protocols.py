@@ -16,6 +16,9 @@ from typing import Protocol, Union, Optional, Any, runtime_checkable
 # Avoid importing from the root package to prevent circular dependencies
 from auto_forge.common.local_types import ModuleInfoType
 
+AUTO_FORGE_MODULE_NAME: str = "Protocols"
+AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
+
 
 @runtime_checkable
 class CoreProcessorProtocol(Protocol):
@@ -33,6 +36,7 @@ class CLICommandInterfaceProtocol(Protocol):
     """
 
     def get_info(self) -> ModuleInfoType: ...
+
     def update_info(self, command_info: ModuleInfoType) -> None: ...
 
 

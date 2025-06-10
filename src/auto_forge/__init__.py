@@ -32,16 +32,17 @@ try:
     from auto_forge.logger import (AutoLogger, QueueLogger, LogHandlersTypes)
 
     # Basic types
-    from auto_forge.common.local_types import (AddressInfoType, AutoForgeModuleType, AutoForgCommandType,
-                                               AutoForgeWorkModeType, BuildProfileType, BuildTelemetry,
-                                               COMMAND_TYPE_COLOR_MAP, CommandResultType, ExecutionModeType,
-                                               ExceptionGuru, SequenceErrorActionType, FieldColorType, LinuxShellType,
-                                               InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType,
-                                               MethodLocationType, ModuleInfoType, SignatureFieldType,
-                                               SignatureSchemaType, TerminalAnsiGuru, TerminalEchoType,
-                                               TerminalTeeStream, ValidationMethodType, VariableFieldType,
-                                               XYType, SysInfoPackageManagerType, SysInfoLinuxDistroType,
-                                               ExpectedVersionInfoType, )
+    from auto_forge.common.local_types import (
+        AddressInfoType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
+        BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType,
+        EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
+        FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
+        LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType,
+        SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
+        SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
+        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType,
+        XYType
+    )
 
     # Protocols
     from auto_forge.common.protocols import (CoreProcessorProtocol, CoreVariablesProtocol, CLICommandInterfaceProtocol)
@@ -71,7 +72,7 @@ try:
     from auto_forge.core.prompt import CorePrompt
 
     # AutoForg main
-    from auto_forge.auto_forge import auto_forge_main as main
+    from auto_forge.auto_forge import auto_forge_start as start
 
 
 except ImportError as import_error:
@@ -84,20 +85,21 @@ except Exception as exception:
 
 # Exported symbols
 __all__ = [
-    "AddressInfoType", "AutoForgeModuleType", "AutoForgCommandType", "AutoForgeWorkModeType", "AutoLogger",
-    "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry", "CLICommandInterface",
-    "CLICommandInterfaceProtocol", "CoreProcessorProtocol", "CoreVariablesProtocol",
-    "COMMAND_TYPE_COLOR_MAP", "CommandResultType", "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface",
-    "CoreProcessor", "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables",
-    "ExceptionGuru",
-    "ExecutionModeType", "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType",
-    "InputBoxTextType", "LinuxShellType", "LogHandlersTypes", "MethodLocationType", "MessageBoxType", "ModuleInfoType",
+    "AddressInfoType", "AutoForgCommandType", "AutoForgeModuleType", "AutoForgeWorkModeType", "AutoLogger",
+    "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry",
+    "CLICommandInterface", "CLICommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
+    "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CoreProcessorProtocol",
+    "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "CoreVariablesProtocol",
+    "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
+    "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
+    "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
     "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
-    "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH", "PrettyPrinter", "ProgressTracker",
-    "QueueLogger", "Registry", "SequenceErrorActionType", "ShellAliases", "Signature", "SignatureFieldType",
-    "SignatureFileHandler", "SignatureSchemaType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
-    "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox", "ValidationMethodType", "VariableFieldType",
-    "VersionCompare", "Watchdog", "XYType", "main"
+    "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
+    "PrettyPrinter", "ProgressTracker", "QueueLogger", "Registry",
+    "SequenceErrorActionType", "ShellAliases", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
+    "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
+    "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "XYType", "start"
 ]

@@ -41,7 +41,7 @@ from rich.console import Console
 # AutoForge imports
 from auto_forge import (PROJECT_NAME, PROJECT_VERSION, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
                         BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
-                        TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox)
+                        TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, XYType, )
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Prompt"
@@ -318,6 +318,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
         self._dynamic_path_styles: Optional[dict] = None
 
+        # Disable user input until the prompt is active
+        self._tool_box.set_terminal_input()
+
         # Retrieve AutoForge package configuration
         self._package_configuration_data = self.auto_forge.get_instance().package_configuration
         if self._package_configuration_data is None:
@@ -365,6 +368,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         #
         # Post 'cmd2' instantiation setup
         #
+
+        # Greetings earthlings, we're here!
+        self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._loaded_solution_name}",
+                                  blink_pixel=XYType(x=1, y=5))
 
         self.default_to_shell = True
         self.last_result = 0

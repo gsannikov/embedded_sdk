@@ -22,6 +22,7 @@ import io
 import logging
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Optional, Any
 
@@ -33,9 +34,8 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
     CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor, CorePrompt, CoreSolution,
     CoreVariables, ExceptionGuru, LogHandlersTypes, PROJECT_BUILDERS_PATH,
-    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_NAME,
-    PROJECT_SHARED_PATH, PROJECT_VERSION, QueueLogger, Registry, ShellAliases,
-    SystemInfo, ToolBox, Watchdog, XYType
+    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, Registry, ShellAliases,
+    SystemInfo, ToolBox, Watchdog, EventManager, StatusNotifType
 )
 
 
@@ -47,11 +47,14 @@ class AutoForge(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Early initialization required for assigning runtime values to attributes declared earlier in `__init__()`
         """
 
-        self._queue_logger: QueueLogger = QueueLogger()  # Early, pre initialization RAM only logger.
+        # This is an early, pre-initialization RAM-only logger. Once the main logger is initialized,
+        # all records stored in RAM will be flushed to the package logger.
+
+        self._queue_logger: QueueLogger = QueueLogger()
+
         self._registry: Optional[Registry] = None
         self._solution: Optional[CoreSolution] = None
         self._tool_box: Optional[ToolBox] = None
@@ -72,6 +75,9 @@ class AutoForge(CoreModuleInterface):
         self._shell_aliases: Optional[ShellAliases] = None
         self._watchdog: Optional[Watchdog] = None
         self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
+        self._periodic_timer: Optional[threading.Timer] = None
+        self._events_sync_thread: Optional[threading.Thread] = None
+        self._periodic_timer_interval: float = 1.0  # 1-second timer
 
         # Startup arguments
         self._package_configuration_data: Optional[dict[str, Any]] = None
@@ -106,7 +112,7 @@ class AutoForge(CoreModuleInterface):
         #
 
         self._queue_logger.debug("System initializing..")
-
+        self._events = EventManager(StatusNotifType)
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
         self._processor = CoreProcessor()
@@ -120,21 +126,20 @@ class AutoForge(CoreModuleInterface):
         self._package_configuration_data = self._processor.preprocess(PROJECT_CONFIG_FILE)
         self.ansi_codes = self._package_configuration_data.get("ansi_codes")
 
-        # Validate startup arguments
-        self._validate_arguments(*args, **kwargs)
+        # Handle arguments
+        self._init_arguments(*args, **kwargs)
 
         # Start remote debugging if enabled.
         if self._remote_debugging is not None:
             self._queue_logger.debug(
                 f"Remote debugging enabled using {self._remote_debugging.host}:{self._remote_debugging.port}")
 
-            self._attach_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
+            self._init_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
-        # Start variables
+        # Instantiate variables
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
                                         package_configuration_data=self._package_configuration_data,
                                         work_mode=self._work_mode)
-
         # Initializing the 'real' logger
         self._init_logger()
 
@@ -144,6 +149,68 @@ class AutoForge(CoreModuleInterface):
         # Start the environment core module
         self._environment = CoreEnvironment(workspace_path=self._workspace_path,
                                             package_configuration_data=self._package_configuration_data)
+
+        # Set the switch interval to 0.001 seconds (1 millisecond), it may make threads
+        # responsiveness slightly better
+        sys.setswitchinterval(0.001)
+
+        # Configure and start watchdog with default or configuration provided timeout.
+        self._watchdog_timeout = self._package_configuration_data.get("watchdog_timeout", self._watchdog_timeout)
+        self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
+
+        # Remove anny previously generated autoforge temporary files.
+        self._tool_box.clear_residual_files()
+
+        # Instantiate the solution class
+        self._init_solution()
+
+        # Get telemetry file from configuration and Instantiate the class
+        self._telemetry_file = self._package_configuration_data.get("telemetry_file", "telemetry.log")
+        self._telemetry_file = self._variables.expand(self._telemetry_file)
+        self._telemetry = BuildTelemetry.load(self._telemetry_file)
+
+        # Set the events loop thread, without starting it.
+        self._events_sync_thread = threading.Thread(target=self._events_loop, daemon=True, name="EvensSyncThread", )
+
+        #
+        # At this point, all required components have either been successfully initialized or have raised an exception,
+        # halting the AutoForge boot process. We now have access to all core modules via the registry. The solution has
+        # been expanded and validated, command-line arguments have been checked, dynamic commands have been loaded and
+        # registered, as well as any dynamically loaded build plugins. The initialization watchdog can now be stopped,
+        # and we can proceed in either interactive mode or automated non-interactive mode.
+        #
+
+        self._watchdog.stop()  # Stopping Initialization protection watchdog
+
+    def _init_solution(self):
+        """ Get the solution package, instantiate its class which will expand and validate its content """
+
+        if self._solution_url:
+            # Download all files in a given remote git path to a local zip file
+            self._solution_package_file = (
+                self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True,
+                                                        proxy_host=self._proxy_server, token=self._git_token))
+
+        if self._solution_package_file is not None and self._solution_package_path is None:
+            self._solution_package_path = self._tool_box.uncompress_file(archive_path=self._solution_package_file)
+
+        self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
+
+        # At this point we expect that self._solution_package_path still point to valid path
+        # where all the solution files could be found
+        if self._solution_package_path is None:
+            raise RuntimeError("Package path is invalid or could not be created")
+
+        solution_file = os.path.join(self._solution_package_path, "solution.jsonc")
+        if not os.path.isfile(solution_file):
+            raise RuntimeError(f"The main solution file '{solution_file}' was not found")
+
+        # Loads the solution file with multiple parsing passes and comprehensive structural validation.
+        # Also initializes the core variables module as part of the process.
+        self._solution = CoreSolution(solution_config_file_name=solution_file, solution_name=self._solution_name,
+                                      workspace_path=self._workspace_path)
+
+        self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
     def _init_logger(self):
         """ Construct the logger file name, initialize and start logging"""
@@ -178,7 +245,7 @@ class AutoForge(CoreModuleInterface):
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
         self._logger.info(self._sys_info)
 
-    def _validate_arguments(  # noqa: C901 # Acceptable complexity
+    def _init_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
         """
         Validate command-line arguments and set the AutoForge session execution mode.
@@ -191,32 +258,6 @@ class AutoForge(CoreModuleInterface):
             The logger is likely not yet initialized at this stage, so all errors must be raised directly
             (no logging or print statements should be used here).
         """
-
-        # Get all arguments from kwargs
-        def _init_arguments():
-            self._solution_name = kwargs.get("solution_name")  # Required argument
-            self._workspace_path = kwargs.get("workspace_path")  # Required argument
-
-            # Non-interactive operations specifier, could be either a single command or reference to
-            # a solution properties which provide the actual OpenSolaris sequence
-            self._run_sequence_ref_name = kwargs.get("run_sequence")
-            self._run_command_name = kwargs.get("run_command")
-
-            # Expand and check if the workspace exists
-            self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
-            if not ToolBox.looks_like_unix_path(self._workspace_path):
-                raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
-
-            self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
-            # Move to the workspace path of we have it
-            if self._workspace_exist:
-                os.chdir(self._workspace_path)
-
-            # Set non-interactive mode if we have either --run-command ot --run_sequence
-            if self._run_sequence_ref_name or self._run_command_name:
-                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE
-            else:
-                self._work_mode = AutoForgeWorkModeType.INTERACTIVE
 
         def _validate_solution_package():
             """
@@ -246,11 +287,11 @@ class AutoForge(CoreModuleInterface):
             keywords_mapping: Optional[dict] = self._package_configuration_data.get("keywords_mapping")
             solution_package = self._tool_box.substitute_keywords(text=solution_package, keywords=keywords_mapping)
 
-            if ToolBox.is_url(solution_package):
+            if self._tool_box.is_url(solution_package):
                 _validate_solution_url(solution_url=solution_package)
             else:
-                solution_package_path = ToolBox.get_expanded_path(solution_package)
-                if ToolBox.looks_like_unix_path(solution_package_path):
+                solution_package_path = self._tool_box.get_expanded_path(solution_package)
+                if self._tool_box.looks_like_unix_path(solution_package_path):
                     if os.path.isdir(solution_package_path):
                         self._solution_package_path = solution_package_path
                         self._solution_package_file = None
@@ -273,7 +314,7 @@ class AutoForge(CoreModuleInterface):
             """
 
             if isinstance(solution_url, str):
-                is_url_path = ToolBox.is_url_path(solution_url)
+                is_url_path = self._tool_box.is_url_path(solution_url)
                 if is_url_path is None:
                     raise RuntimeError(f"the specified URL '{solution_url}' is not a valid Git URL")
                 elif not is_url_path:
@@ -292,22 +333,50 @@ class AutoForge(CoreModuleInterface):
             proxy_server: Optional[str] = kwargs.get("proxy_server", None)
 
             if isinstance(remote_debugging, str):
-                self._remote_debugging = ToolBox.get_address_and_port(remote_debugging)
+                self._remote_debugging = self._tool_box.get_address_and_port(remote_debugging)
                 if self._remote_debugging is None:
                     raise ValueError(f"the specified remote debugging address '{remote_debugging}' is invalid. "
                                      f"Expected format: <host>:<port> (e.g., localhost:5678)")
             if isinstance(proxy_server, str):
-                self._proxy_server = ToolBox.get_address_and_port(proxy_server)
+                self._proxy_server = self._tool_box.get_address_and_port(proxy_server)
                 if self._proxy_server is None:
                     raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
                                      f"Expected format: <host>:<port> (e.g., www.proxy.com:8080)")
+                self._queue_logger.info(
+                    f"Proxy host name set to '{self._proxy_server.host} : {self._proxy_server.port}'")
 
-        # Orchestrate
-        _init_arguments()
+        # Retrieve all arguments from kwargs
+        self._solution_name = kwargs.get("solution_name")  # Required argument
+        self._workspace_path = kwargs.get("workspace_path")  # Required argument
+
+        # Non-interactive operations specifier, could be either a single command or reference to
+        # a solution properties which provide the actual OpenSolaris sequence
+        self._run_sequence_ref_name = kwargs.get("run_sequence")
+        self._run_command_name = kwargs.get("run_command")
+
+        # Expand and check if the workspace exists
+        self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
+        if not ToolBox.looks_like_unix_path(self._workspace_path):
+            raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
+
+        self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
+        # Move to the workspace path of we have it
+        if self._workspace_exist:
+            os.chdir(self._workspace_path)
+
+        # Set non-interactive mode if we have either --run-command ot --run_sequence
+        if self._run_sequence_ref_name or self._run_command_name:
+            self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE
+            self._queue_logger.info("Starting in non-interactive mode")
+        else:
+            self._work_mode = AutoForgeWorkModeType.INTERACTIVE
+            self._queue_logger.info("Starting in interactive mode")
+
+        # Orchestrate)
         _validate_solution_package()
         _validate_network_options()
 
-    def _attach_debugger(self, host: str = 'localhost', port: int = 5678, abort_execution: bool = True) -> None:
+    def _init_debugger(self, host: str = 'localhost', port: int = 5678, abort_execution: bool = True) -> None:
         """
         Attempt to attach to a remote PyCharm debugger.
         Args:
@@ -331,53 +400,87 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
+    def _timer_expired(self, timer_name: str):
+        """
+        Called when any of our timers expires.
+        Args:
+            timer_name (str): The name of the timer that expired:
+        """
+
+        if timer_name == "PeriodicDurationTimer":
+            # Restart
+            self._periodic_timer = self._tool_box.set_timer(timer=self._periodic_timer,
+                                                            interval=self._periodic_timer_interval,
+                                                            expiration_routine=self._timer_expired,
+                                                            timer_name="PeriodicDurationTimer")
+
+    def _events_loop(self):
+        """
+        AutoForge events handler main loop.
+        """
+
+        # Start periodic background timer
+        self._periodic_timer = self._tool_box.set_timer(timer=self._periodic_timer,
+                                                        interval=self._periodic_timer_interval,
+                                                        expiration_routine=self._timer_expired,
+                                                        timer_name="PeriodicDurationTimer",
+                                                        auto_start=False)
+
+        self._logger.debug("Starting the events loop thread")
+        while True:
+
+            # --------------------------------------------------------------------------------------------------
+            #                                    AutoForge Event Sync
+            # --------------------------------------------------------------------------------------------------
+
+            self._events.wait_any()
+
+            # Iterate over possible events and handle them
+            for notification in StatusNotifType:
+                if self._events.is_set(notification):
+                    self._events.clear(notification)
+
+                    # ------------------------------------------------------------------------------------------
+                    # Event: ERROR
+                    #   Description:
+                    #   Centralized error events handler
+                    # ------------------------------------------------------------------------------------------
+
+                    if notification == StatusNotifType.ERROR:
+                        print(notification.name)
+                        pass
+
+                    # ------------------------------------------------------------------------------------------
+                    # Events: OPERATION_START, OPERATION_END
+                    #   Description:
+                    #   Operation started or ended.
+                    # ------------------------------------------------------------------------------------------
+
+                    elif notification in (StatusNotifType.OPERATION_START, StatusNotifType.OPERATION_END):
+                        print(notification.name)
+                        pass
+
+                    # ------------------------------------------------------------------------------------------
+                    # Event: TERM
+                    #   Description:
+                    #   Centralized error events handler
+                    # ------------------------------------------------------------------------------------------
+
+                    elif notification == StatusNotifType.TERM:
+                        print(notification.name)
+                        pass
+
     def forge(self) -> Optional[int]:
+
         """
         Load a solution and fire the AutoForge shell.
         """
         return_code = 1
 
+        # Start events loop thread
+        self._events_sync_thread.start()
+
         try:
-
-            # Configure and start watchdog with default or configuration provided timeout.
-            self._watchdog_timeout = self._package_configuration_data.get("watchdog_timeout", self._watchdog_timeout)
-            self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
-
-            # Remove anny previously generated autoforge temporary files.
-            ToolBox.clear_residual_files()
-
-            if self._solution_url:
-                # Download all files in a given remote git path to a local zip file
-                self._solution_package_file = (
-                    self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True,
-                                                            proxy_host=self._proxy_server, token=self._git_token))
-
-            if self._solution_package_file is not None and self._solution_package_path is None:
-                self._solution_package_path = ToolBox.uncompress_file(archive_path=self._solution_package_file)
-
-            self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
-
-            # At this point we expect that self._solution_package_path still point to valid path
-            # where all the solution files could be found
-            if self._solution_package_path is None:
-                raise RuntimeError("Package path is invalid or could not be created")
-
-            solution_file = os.path.join(self._solution_package_path, "solution.jsonc")
-            if not os.path.isfile(solution_file):
-                raise RuntimeError(f"The main solution file '{solution_file}' was not found")
-
-            # Loads the solution file with multiple parsing passes and comprehensive structural validation.
-            # Also initializes the core variables module as part of the process.
-            self._solution = CoreSolution(solution_config_file_name=solution_file, solution_name=self._solution_name,
-                                          workspace_path=self._workspace_path)
-
-            self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
-
-            # Start user telemetry
-            telemetry_path = self._variables.expand("$AF_SOLUTION_BASE/telemetry.log")
-            self._telemetry = BuildTelemetry.load(telemetry_path)
-
-            self._watchdog.stop()  # Stopping Initialization protection watchdog
 
             if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
 
@@ -386,12 +489,8 @@ class AutoForge(CoreModuleInterface):
                 # Indefinite loop until user exits the shell using 'quit'
                 # ==============================================================
 
-                # Greetings earthlings, we're here!
-                self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._solution_name}",
-                                          blink_pixel=XYType(x=1, y=5))
-
                 # Start blocking build system user mode shell
-                self._tool_box.set_terminal_input()  # Disable user input until the prompt is active
+
                 self._gui: CoreGUI = CoreGUI()
                 self._prompt = CorePrompt()
 
@@ -418,30 +517,13 @@ class AutoForge(CoreModuleInterface):
                         raise ValueError(
                             f"sequence reference name '{self._run_sequence_ref_name}' was not found in '{self._solution_name}'")
 
+                    # Execute sequence
                     return_code = self._environment.run_sequence(sequence_data=sequence_data)
                     if return_code == 0:
-                        # Lastly store the solution in the newly created workspace.
-                        scripts_path = self._variables.get(key="SCRIPTS_BASE")
-                        if scripts_path is not None:
-                            solution_destination_path = os.path.join(scripts_path, 'solution')
-                            env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
-
-                            # Move all project specific jsons along with any zip files to the destination path.
-                            self._tool_box.cp(
-                                pattern=f'{self._solution_package_path}/*.json*,{self._solution_package_path}/*.zip',
-                                dest_dir=solution_destination_path)
-
-                            # Place the build system default initiator script
-                            self._tool_box.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=self._workspace_path)
-
-                            # Place the sequence log to the newly created workspace logs path.
-                            if self._sequence_log_file:
-                                self._tool_box.cp(pattern=f'{self._sequence_log_file.__str__()}',
-                                                  dest_dir=self._variables.get(key="BUILD_LOGS"))
-
-                            # Finally, create a hidden '.config' file in the solution directory with essential metadata.
-                            self._environment.create_config_file(solution_name=self._solution_name,
-                                                                 create_path=self._workspace_path)
+                        # Finalize workspace creation
+                        self._environment.finalize_workspace_creation(solution_name=self._solution_name,
+                                                                      solution_package_path=self._solution_package_path,
+                                                                      sequence_log_file=self._sequence_log_file)
                 elif self._run_command_name:
 
                     # ==============================================================
@@ -479,75 +561,19 @@ class AutoForge(CoreModuleInterface):
         return self._auto_logger
 
 
-def auto_forge_main() -> Optional[int]:
+def auto_forge_start(args: argparse.Namespace) -> Optional[int]:
     """
-    Console entry point for the AutoForge build suite.
-    This function handles user arguments and launches AutoForge to execute the required test.
+    Entry point for the package. Instantiates AutoForge with the provided arguments and returns its exit code.
     Returns:
-        int: Exit code of the function.
+        int: Exit status of the AutoForge execution.
     """
 
     result: int = 1  # Default to internal error
 
-    # Force single instance
-    if ToolBox.is_another_autoforge_running():
-        print("\nError: Another instance of AutoForge is already running. Aborting.\n", file=sys.stderr)
-        sys.exit(1)
-
     try:
-        # Check early for the version flag before constructing the parser
-        if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):
-            print(f"\n{PROJECT_NAME} Version: {PROJECT_VERSION}\n")
-            sys.exit(0)
-
-        # Normal arguments handling
-        parser = argparse.ArgumentParser(prog="autoforge",
-                                         description=f"\033c{AutoForge.who_we_are()} BuildSystem Arguments:")
-
-        # Required argument specifying the workspace path. This can point to an existing workspace
-        # or a new one to be created by AutoForge, depending on the solution definition.
-        parser.add_argument("-w", "--workspace-path", required=True,
-                            help="Path to an existing or new workspace to be used by AutoForge.")
-
-        parser.add_argument("-n", "--solution-name", required=True,
-                            help="Name of the solution to use. It must exist in the solution file.")
-
-        # AutoForge requires a solution to operate. This can be provided either as a pre-existing local ZIP archive,
-        # or as a Git URL pointing to a directory containing the necessary solution JSON files.
-
-        parser.add_argument("-p", "--solution-package", required=False,
-                            help=("Path to an AutoForge solution package. This can be either:\n"
-                                  "- Path to an existing .zip archive file.\n"
-                                  "- Path to an existing directory containing solution files.\n"
-                                  "- Github URL pointing to git path which contains the solution files.\n"
-                                  "The package path will be validated at runtime, if not specified, the solution will "
-                                  "be searched for in the local solution workspace path under 'scripts/solution'"))
-
-        # AutoForge supports two mutually exclusive non-interactive modes:
-        # (1) Running step recipe data (typically used to set up a fresh workspace),
-        # (2) Running a single command from an existing workspace.
-        # Only one of these modes may be used at a time.
-
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument("-s", "--run_sequence", type=str, required=False,
-                           help="Solution properties name which points to a sequence of operations")
-        group.add_argument("-r", "--run-command", type=str, required=False,
-                           help="Name of known command which will be executed")
-
-        # Other optional configuration arguments
-        parser.add_argument("-d", "--remote-debugging", type=str, required=False,
-                            help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)")
-
-        parser.add_argument("--proxy-server", type=str, required=False,
-                            help="Optional proxy server endpoint in the format <ip-address>:<port> (e.g., 192.168.1.1:8080).")
-
-        parser.add_argument("--git-token", type=str, required=False,
-                            help="Optional GitHub token to use for authenticating HTTP requests.")
-
-        args = parser.parse_args()
         # Instantiate AutoForge, pass all arguments
         auto_forge: AutoForge = AutoForge(**vars(args))
-        return auto_forge.forge()
+        result = auto_forge.forge()
 
     except KeyboardInterrupt:
         print(f"\n\n{Fore.YELLOW}Interrupted by user, shutting down.{Style.RESET_ALL}\n")

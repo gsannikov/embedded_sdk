@@ -28,6 +28,7 @@ import tarfile
 import tempfile
 import termios
 import textwrap
+import threading
 import zipfile
 from contextlib import suppress
 from datetime import datetime
@@ -1763,3 +1764,39 @@ class ToolBox(CoreModuleInterface):
             return re.sub(pattern, _replacer, text)
 
         return text
+
+    @staticmethod
+    def set_timer(timer: Optional[threading.Timer], interval: Optional[float],
+                  expiration_routine: Optional[Callable], timer_name: Optional[str] = None,
+                  auto_start: bool = True):
+        """
+        General purpose timer handling routine.
+        Cancels the current timer if it exists and sets a new timer with the specified interval and expiration routine.
+        Args:
+            timer: The existing timer object, which may be None if no timer was previously set.
+            interval: The interval in seconds after which the expiration routine should be executed.
+            expiration_routine: The function to call when the timer expires.
+            timer_name: Optional name for the timer for easier identification.
+            auto_start: set to auto start the timer upon creation.
+
+        Returns:
+            threading.Timer: The new timer object.
+        """
+        # Cancel the existing timer if it exists
+        if timer is not None:
+            timer.cancel()
+
+        created_timer_name = timer_name if timer_name is not None else 'Timer'
+
+        # Only create a new timer if both interval and routine are specified
+        if interval is not None and expiration_routine is not None:
+            timer = threading.Timer(interval=interval, function=expiration_routine, args=(created_timer_name,))
+
+            # Set the timer's name if provided
+            if timer_name is not None:
+                timer.name = created_timer_name
+
+            # Start the new timer
+            if auto_start:
+                timer.start()
+        return timer

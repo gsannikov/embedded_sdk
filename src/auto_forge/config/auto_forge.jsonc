@@ -39,13 +39,14 @@
     ],
 
 
-    "hide_cmd2_native_commands": false,                     // Hide cmd2 built-in commands from the user-facing menu
-    "complete_while_typing": true,                          // Controls how aggressively prompt-toolkit attempts tab-completion while typing
-    "prompt_history_file": "$AF_BASE/.auto_forge.history",  // Path to store persistent prompt-toolkit history
-    "prompt_max_completion_results": 100,                   // Maximum number of tab-completion results; higher values may slow down completion in large directories
-    "git_token_environment_var": "NONE",                    // Optional name of the environment variable that may hold the user's Git token
-    "subprocess_execution_timout": 120.0,                   // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
-    "watchdog_timeout": 10.0,                               // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
+    "hide_cmd2_native_commands": false,                         // Hide cmd2 built-in commands from the user-facing menu
+    "complete_while_typing": true,                              // Controls how aggressively prompt-toolkit attempts tab-completion while typing
+    "prompt_history_file": "$AF_BASE/.auto_forge.history",      // Path to store persistent prompt-toolkit history
+    "prompt_max_completion_results": 100,                       // Maximum number of tab-completion results; higher values may slow down completion in large directories
+    "git_token_environment_var": "NONE",                        // Optional name of the environment variable that may hold the user's Git token
+    "subprocess_execution_timout": 120.0,                       // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
+    "watchdog_timeout": 10.0,                                   // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
+    "telemetry_file": "$AF_SOLUTION_BASE/telemetry.log",        // Where to store telemetry logs
 
     // Expected location of solution files in an installed environment.
     // This variable is read during an early initialization stage, please avoid using any local variables

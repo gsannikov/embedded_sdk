@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import threading
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from datetime import timedelta
@@ -626,3 +627,118 @@ class BuildTelemetry:
     def get_session_time(self) -> timedelta:
         """ Get the total time the session was active """
         return datetime.now(timezone.utc) - self.session_start_time
+
+
+class StatusNotifType(Enum):
+    """
+    Defines the types of status notifications used by all modules.
+    Attributes:
+        INIT (int,str): Sent once a modules is initialized and ready to be used
+        OPERATION_START (int,str): Sent when an arbitrary operation has started
+        OPERATION_END (int,str): Sent when an arbitrary operation has ended
+        PERIODIC_TIMER (int, str): Sent when a periodic background tome has expired
+        ERROR (int,str): Error notification type
+        TERM (int,str): Sent when a module is being terminated
+    """
+    INIT = (0, "INIT")
+    OPERATION_START = (1, "OPERATION_START")
+    OPERATION_END = (2, "OPERATION_END")
+    PERIODIC_TIMER = (3, "PERIODIC_TIMER")
+    ERROR = (4, "ERROR")
+    TERM = (5, "TERM")
+
+    def __init__(self, num, name):
+        self._num = num
+        self._name = name
+
+    @property
+    def num(self):
+        return self._num
+
+    @property
+    def name(self):
+        return self._name
+
+    def __int__(self):
+        return self.num
+
+    def __str__(self):
+        return self.name
+
+
+class EventManager:
+    """
+    Manages synchronization events for modules using threading events, facilitating the coordination
+    of various plugin notification types. Each event type from a passed Enum is associated with a unique
+    threading.Event, with an additional 'any_event_triggered' event that auto-resets to signal any event occurrence.
+    """
+
+    def __init__(self, event_enum: type[Enum]):
+        self.event_map = {notification: threading.Event() for notification in event_enum}
+        self.any_event_triggered = threading.Event()
+        self.reset_all()
+
+    def set(self, notification: Enum):
+        """
+        Set the event associated with a specific notification type, and also signal that any event has been set.
+        Args:
+            notification (Enum): The specific notification type whose event is to be set.
+        """
+        event = self.event_map[notification]
+        event.set()
+        self.any_event_triggered.set()
+
+    def wait(self, notification: Enum, timeout: float = None) -> bool:
+        """
+        Wait for a specific event to be set and then automatically clear it to reset the state.
+        Args:
+            notification (Enum): The event type to wait for.
+            timeout (float, optional): The maximum time to wait for the event, in seconds.
+            If None, wait indefinitely.
+        Returns:
+            bool: True if the event was set within the timeout, False otherwise.
+        """
+        event = self.event_map[notification]
+        result = event.wait(timeout)
+        event.clear()
+        return result
+
+    def clear(self, notification: Enum):
+        """Clear the event associated with a specific notification type."""
+        event = self.event_map[notification]
+        event.clear()
+
+    def wait_any(self, timeout: float = None) -> bool:
+        """
+        Wait until any of the specified events are triggered. The 'any_event_triggered' event
+        is automatically reset after the wait to prepare for the next set of events.
+        Args:
+            timeout (float, optional): The maximum time to wait for any event in seconds.
+                                       If None, wait indefinitely.
+        Returns:
+            bool: True if any event was set within the timeout period, False otherwise.
+        """
+        result = self.any_event_triggered.wait(timeout)
+        self.any_event_triggered.clear()
+        return result
+
+    def is_set(self, notification: Optional[Enum] = None) -> bool:
+        """
+        Check whether specific notification events are 'set' (meaning actions are pending for them).
+        If no specific notification is provided, checks if any events are 'set'.
+        Args:
+            notification (Optional[Enum]): The specific notification to check.
+                                           If None, check all notifications.
+        Returns:
+            bool: True if the specified event or any event is set (actions pending), False otherwise.
+        """
+        if notification:
+            return self.event_map[notification].is_set()
+        else:
+            return any(event.is_set() for event in self.event_map.values())
+
+    def reset_all(self):
+        """Reset all events to the non-set state."""
+        for event in self.event_map.values():
+            event.clear()
+        self.any_event_triggered.clear()
