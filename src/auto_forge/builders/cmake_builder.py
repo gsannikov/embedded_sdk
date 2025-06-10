@@ -39,6 +39,12 @@ class _CMakeBuildStep(Enum):
     DONE_BUILD = auto()
 
 
+class ExitBuildEarly(Exception):
+    def __init__(self, message: str = "", exit_code: int = 1):
+        super().__init__(message)
+        self.exit_code = exit_code
+
+
 # noinspection DuplicatedCode
 class CMakeBuilder(BuilderRunnerInterface):
     """
@@ -255,7 +261,8 @@ class CMakeBuilder(BuilderRunnerInterface):
                 clean_command: Optional[str] = config.get("clean", None)
                 if isinstance(clean_command, str) and build_state == _CMakeBuildStep.PRE_BUILD:
                     extra_args.remove("--clean")
-                    return self._execute_single_step(command=clean_command, name=arg)
+                    exit_code = self._execute_single_step(command=clean_command, name=arg)
+                    raise ExitBuildEarly("Build stopped", exit_code=exit_code)
 
         return 0
 
