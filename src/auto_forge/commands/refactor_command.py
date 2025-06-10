@@ -1,9 +1,9 @@
 """
-Script:         relocator_command.py
+Script:         refactor_command.py
 Author:         AutoForge Team
 
 Description:
-    Automate the process of relocating directories and files from one location to another
+    Automate the process of refactoring path structure by relocating directories and files from one location to another
     based on specified configuration settings. It supports complex operations like filtering specific file
     types to copy, creating a 'graveyard' for unwanted files, and ensuring directory structure integrity up to a
     defined depth.
@@ -23,13 +23,13 @@ from typing import Any, Optional
 # AutoForge imports
 from auto_forge import (CommandInterface, CoreProcessor, CoreVariables, AutoForgCommandType, ToolBox, AutoLogger)
 
-AUTO_FORGE_MODULE_NAME = "relocator"
-AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
+AUTO_FORGE_MODULE_NAME = "refactor"
+AUTO_FORGE_MODULE_DESCRIPTION = "Directory tree restructure assistant"
 AUTO_FORGE_MODULE_VERSION = "1.2"
 
 
 @dataclass
-class _RelocateFolder:
+class _RefactorFolder:
     """
     Defines the expected JSON stored list of folders (essentially list of dictionaries)
     """
@@ -44,7 +44,7 @@ class _RelocateFolder:
 
 
 @dataclass
-class _RelocateDefaults:
+class _RefactorDefaults:
     delete_destination_on_start: bool
     full_debug: bool
     file_types: list[str]
@@ -56,13 +56,13 @@ class _RelocateDefaults:
     destination_path: Optional[str] = None
 
 
-class _RelocateDefaultsRead:
+class _RefactorDefaultsRead:
     """
-    Validates and normalizes raw JSON config for 'defaults' and returns a _RelocateDefaults instance.
+    Validates and normalizes raw JSON config for 'defaults' and returns a _RefactorDefaults instance.
     """
 
     @staticmethod
-    def process(defaults_data: dict[str, Any]) -> _RelocateDefaults:
+    def process(defaults_data: dict[str, Any]) -> _RefactorDefaults:
         if not isinstance(defaults_data, dict):
             raise TypeError("'defaults_data' must be a dictionary")
 
@@ -72,7 +72,7 @@ class _RelocateDefaultsRead:
             raise ValueError("'file_types' must be a list")
 
         # Construct dataclass instance
-        return _RelocateDefaults(file_types=file_types,
+        return _RefactorDefaults(file_types=file_types,
                                  delete_destination_on_start=defaults_data.get("delete_destination_on_start", False),
                                  full_debug=defaults_data.get("full_debug", False),
                                  create_grave_yard=defaults_data.get("create_grave_yard", False),
@@ -81,14 +81,14 @@ class _RelocateDefaultsRead:
                                  break_on_errors=defaults_data.get("break_on_errors", False), )
 
 
-class _RelocateFolderRead:
+class _RefactorFolderRead:
     """
-    Validates a raw folder entry JSON entry and returns a clean _RelocateFolder.
+    Validates a raw folder entry JSON entry and returns a clean _RefactorFolder.
     Applies defaults where needed.
     """
 
     @staticmethod
-    def process(defaults: _RelocateDefaults, raw_folder_entry: dict[str, Any], logger: Logger) -> _RelocateFolder:
+    def process(defaults: _RefactorDefaults, raw_folder_entry: dict[str, Any], logger: Logger) -> _RefactorFolder:
         if not isinstance(raw_folder_entry, dict):
             raise TypeError("Each folder entry must be a dictionary")
 
@@ -107,7 +107,7 @@ class _RelocateFolderRead:
                 raise FileNotFoundError(f"error '{raw_source} -> {raw_destination}': '{source}' does not exist")
             else:
                 if logger:
-                    logger = logging.getLogger("Relocator")
+                    logger = logging.getLogger("Refactor")
                     logger.warning(f"'{raw_source} -> {raw_destination}': '{source}' does not exist")
 
         file_types = raw_folder_entry.get("file_types", defaults.file_types)
@@ -119,16 +119,16 @@ class _RelocateFolderRead:
         create_grave_yard = raw_folder_entry.get("create_grave_yard", defaults.create_grave_yard)
         max_copy_depth = raw_folder_entry.get("max_copy_depth", defaults.max_copy_depth)
 
-        return _RelocateFolder(description=raw_folder_entry.get("description"), source=source, destination=destination,
+        return _RefactorFolder(description=raw_folder_entry.get("description"), source=source, destination=destination,
                                file_types=file_types, create_grave_yard=create_grave_yard,
                                max_copy_depth=max_copy_depth, raw_source=raw_source, raw_destination=raw_destination, )
 
 
-class RelocatorCommand(CommandInterface):
+class RefactorCommand(CommandInterface):
 
     def __init__(self, **_kwargs: Any):
         """
-        Initializes the RelocatorCommand class.
+        Initializes the RefactorCommand class.
         Args:
             **kwargs (Any): Optional keyword arguments.
         """
@@ -142,13 +142,13 @@ class RelocatorCommand(CommandInterface):
 
         # Raw JSON data
         self._recipe_data: Optional[dict[str, Any]] = None  # Complete JSON raw data
-        self._relocate_defaults_data: Optional[dict[str, Any]] = None  # Defaults raw JSON data
-        self._relocate_folders_data: Optional[list[dict]] = None  # List of folders as raw JSON data
+        self._defaults_raw_data: Optional[dict[str, Any]] = None  # Defaults raw JSON data
+        self._folders_raw_data: Optional[list[dict]] = None  # List of folders as raw JSON data
 
         # Deserialize data
-        self._relocate_defaults: Optional[_RelocateDefaults] = None
-        self._relocated_folders: Optional[list[_RelocateFolder]] = None
-        self._relocate_folders_count: Optional[int] = 0
+        self._defaults: Optional[_RefactorDefaults] = None
+        self._folders: Optional[list[_RefactorFolder]] = None
+        self._folders_count: Optional[int] = 0
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME,
@@ -159,11 +159,11 @@ class RelocatorCommand(CommandInterface):
         Resets the internal state of the object to its initial None/default values.
         """
         self._recipe_data = None
-        self._relocate_defaults_data = None
-        self._relocate_folders_data = None
-        self._relocate_defaults = None
-        self._relocated_folders = None
-        self._relocate_folders_count = 0
+        self._defaults_raw_data = None
+        self._folders_raw_data = None
+        self._defaults = None
+        self._folders = None
+        self._folders_count = 0
 
     def _deploy_files(self, source: str, destination_path: str, verbose: bool = False) -> int:
         """
@@ -241,7 +241,7 @@ class RelocatorCommand(CommandInterface):
 
     def _load_recipe(self, recipe_file: str, source_path: str, destination_path: str) -> None:
         """
-        Load, parse, and validate a relocation recipe from a JSON file using JSONProcessorLib.
+        Load, parse, and validate the JSON recipe using JSONProcessorLib.
         Args:
             recipe_file (str): Path to the JSON recipe file.
             source_path (str): Path to the source folder.
@@ -262,35 +262,35 @@ class RelocatorCommand(CommandInterface):
 
             # Validate and parse 'defaults' section
             if "defaults" not in self._recipe_data:
-                raise KeyError("missing 'defaults' section in relocator JSON recipe")
+                raise KeyError("missing 'defaults' section in the JSON recipe")
 
-            self._relocate_defaults_data = self._recipe_data["defaults"]
-            self._relocate_defaults = _RelocateDefaultsRead.process(self._relocate_defaults_data)
+            self._defaults_raw_data = self._recipe_data["defaults"]
+            self._defaults = _RefactorDefaultsRead.process(self._defaults_raw_data)
 
             # Add source and destination base paths
-            self._relocate_defaults.source_path = source_path
-            self._relocate_defaults.destination_path = destination_path
+            self._defaults.source_path = source_path
+            self._defaults.destination_path = destination_path
 
             # Set logger level if full debug is enabled
-            if self._relocate_defaults.full_debug:
+            if self._defaults.full_debug:
                 self._logger.setLevel(logging.DEBUG)
 
             # Validate and parse 'folders' section
-            self._relocate_folders_data = self._recipe_data.get("folders", [])
-            if not isinstance(self._relocate_folders_data, list) or not self._relocate_folders_data:
+            self._folders_raw_data = self._recipe_data.get("folders", [])
+            if not isinstance(self._folders_raw_data, list) or not self._folders_raw_data:
                 raise KeyError("missing or invalid 'folders' section in JSON recipe")
 
-            self._relocated_folders = [
-                _RelocateFolderRead.process(defaults=self._relocate_defaults, raw_folder_entry=entry,
-                                            logger=self._logger) for entry in self._relocate_folders_data]
-            self._relocate_folders_count = len(self._relocated_folders)
+            self._folders = [
+                _RefactorFolderRead.process(defaults=self._defaults, raw_folder_entry=entry,
+                                            logger=self._logger) for entry in self._folders_raw_data]
+            self._folders_count = len(self._folders)
 
             # Inform the user if a feature is not implemented
-            if self._relocate_defaults.create_empty_cmake_file:
+            if self._defaults.create_empty_cmake_file:
                 self._logger.warning("'create_empty_cmake_file' is not implemented")
 
             self._logger.debug(
-                f"Recipe '{recipe_file}' loaded successfully: {self._relocate_folders_count} folders defined.")
+                f"Recipe '{recipe_file}' loaded successfully: {self._folders_count} folders defined.")
 
         except Exception as load_error:
             # Re-raise the exception explicitly for future extension (e.g., logging or wrapping)
@@ -323,16 +323,16 @@ class RelocatorCommand(CommandInterface):
             else:
                 self._logger.error(msg)
 
-    def _relocate(self, **kwargs: Any) -> Optional[int]:
+    def _refactor(self, **kwargs: Any) -> Optional[int]:
         """
-        Execute the loaded relocation recipe and reconstruct the destination tree accordingly.
+        Execute the recipe and reconstruct the destination tree accordingly.
         Args:
             **kwargs: Optional keyword arguments:
                 - recipe_file (str): Path to the JSON recipe file.
                 - source_path (str): Source path to process.
                 - destination path (str): Destination path to generate.
         Returns:
-            bool: True if relocation was successful, False otherwise.
+            bool: True if the operation was successful, False otherwise.
         """
         processed_folders_count = 0
         processed_files_count = 0
@@ -364,11 +364,11 @@ class RelocatorCommand(CommandInterface):
             # Load and validate recipe; raises on error
             self._load_recipe(recipe_file=recipe_file, source_path=source_path, destination_path=destination_path)
 
-            if not self._relocated_folders or not self._relocate_folders_count:
+            if not self._folders or not self._folders_count:
                 raise RuntimeError("No folders found in the recipe to process.")
 
             # Handle deletion of existing destination directory
-            if self._relocate_defaults.delete_destination_on_start:
+            if self._defaults.delete_destination_on_start:
                 if os.path.exists(destination_path):
                     try:
                         shutil.rmtree(destination_path)
@@ -379,7 +379,7 @@ class RelocatorCommand(CommandInterface):
                 if os.path.exists(destination_path):
                     raise RuntimeError(f"destination '{destination_path}' already exists.")
 
-            print(f"\nStarting relocation process for {len(self._relocated_folders)} paths..")
+            print(f"\nStarting refactoring process for {len(self._folders)} paths..")
 
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
@@ -389,7 +389,7 @@ class RelocatorCommand(CommandInterface):
                 AutoLogger().set_output_enabled(logger=self._logger, state=True)
 
             # Process each folder entry
-            for folder in self._relocated_folders:
+            for folder in self._folders:
                 processed_folders_count += 1
                 depth_from_root = 0
                 os.makedirs(folder.destination, exist_ok=True)
@@ -404,7 +404,7 @@ class RelocatorCommand(CommandInterface):
                     depth_from_root = depth_from_root + 1
                     current_depth = root.count(os.sep) - base_level
 
-                    relative_source_root = os.path.relpath(root, self._relocate_defaults.source_path)
+                    relative_source_root = os.path.relpath(root, self._defaults.source_path)
 
                     if depth_from_root > 1:
                         self._logger.info(f"> Processing '{relative_source_root}'")
@@ -414,26 +414,26 @@ class RelocatorCommand(CommandInterface):
 
                     for file in files:
                         src_path = os.path.join(root, file)
-                        relative_src = os.path.relpath(src_path, self._relocate_defaults.source_path)
+                        relative_src = os.path.relpath(src_path, self._defaults.source_path)
                         relative_path = os.path.relpath(root, folder.source)
 
                         # Files we have to copy
                         if '*' in folder.file_types or any(
                                 file.endswith(f".{ft}") for ft in folder.file_types if ft != '*'):
                             dest_path = os.path.join(folder.destination, relative_path, file)
-                            relative_dest = os.path.relpath(dest_path, self._relocate_defaults.destination_path)
+                            relative_dest = os.path.relpath(dest_path, self._defaults.destination_path)
                             self._safe_copy_file(src_path=src_path, dest_path=dest_path, relative_src=relative_src,
                                                  relative_dest=relative_dest, is_source=True,
-                                                 fatal=self._relocate_defaults.break_on_errors)
+                                                 fatal=self._defaults.break_on_errors)
                             copied_files_count += 1
 
                         # Not part of the list, see if we have a garve yard
                         elif folder.create_grave_yard:
                             graveyard_path = os.path.join(folder.destination, "grave_yard", relative_path, file)
-                            relative_dest = os.path.relpath(graveyard_path, self._relocate_defaults.destination_path)
+                            relative_dest = os.path.relpath(graveyard_path, self._defaults.destination_path)
                             self._safe_copy_file(src_path=src_path, dest_path=graveyard_path, relative_src=relative_src,
                                                  relative_dest=relative_dest, is_source=False,
-                                                 fatal=self._relocate_defaults.break_on_errors, log_level="debug")
+                                                 fatal=self._defaults.break_on_errors, log_level="debug")
                             copied_graveyard_files_count = copied_graveyard_files_count + 1
 
                     processed_files_count = processed_files_count + (copied_files_count + copied_graveyard_files_count)
@@ -446,9 +446,9 @@ class RelocatorCommand(CommandInterface):
             print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
             return 0
 
-        except Exception as relocate_error:
+        except Exception as refactoring_error:
             # Re-raise for upstream error handling; can be enhanced for logging
-            raise RuntimeError(f"{relocate_error} @ #{processed_folders_count}") from relocate_error
+            raise RuntimeError(f"{refactoring_error} @ #{processed_folders_count}") from refactoring_error
         finally:
             if verbose:
                 AutoLogger().set_output_enabled(logger=self._logger, state=False)
@@ -461,16 +461,15 @@ class RelocatorCommand(CommandInterface):
         """
 
         group = parser.add_mutually_exclusive_group(required=False)
-        group.add_argument("-r", "--recipe", type=str, help="Path to a relocator JSON recipe file.")
+        group.add_argument("-r", "--recipe", type=str, help="Path to a refactor JSON recipe file.")
         group.add_argument("-c", "--root_copy", action="store_true", help="Deploy files using the 'root copy' logic")
 
-        parser.add_argument("-t", "--tutorial", action="store_true", help="Show the relocator tool tutorial.")
+        parser.add_argument("-t", "--tutorial", action="store_true", help="Show the factoring tool tutorial.")
         parser.add_argument("-s", "--source_path", help="Source path to be refactored.")
         parser.add_argument("-d", "--destination", help="Destination path for the structured project.")
 
         parser.add_argument("-vv", "--verbose", action="store_true",
                             help="Show more information while running the recipe.")
-        parser.add_argument("-t", "--tutorial", action="store_true", help="Show the relocator tool tutorial.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -489,7 +488,7 @@ class RelocatorCommand(CommandInterface):
 
         # Handle arguments
         if args.tutorial:
-            self._tool_box.show_help_file(help_file_relative_path='commands/relocator.md')
+            self._tool_box.show_help_file(help_file_relative_path='commands/refactor.md')
             return 0
 
         if not args.recipe and not args.root_copy:
@@ -497,7 +496,7 @@ class RelocatorCommand(CommandInterface):
                 "Either --recipe or --root_copy must be set.")
 
         if args.recipe:
-            return_value = self._relocate(recipe_file=args.recipe, source_path=args.source_path,
+            return_value = self._refactor(recipe_file=args.recipe, source_path=args.source_path,
                                           destination_path=args.destination,
                                           verbose=args.verbose)
         elif args.root_copy:

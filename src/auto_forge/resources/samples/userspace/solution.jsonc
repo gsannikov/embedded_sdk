@@ -18,14 +18,14 @@
             "aliases": [
                 {
                     "alias_name": "refact",
-                    "target_command": "relocator --recipe relocate.jsonc --source_path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
+                    "target_command": "refactor --recipe refactor.jsonc --source_path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
                     "description": "\uD83D\uDC7E Refactor the userspace repo into a new structure",
                     "command_type": "AUTOMATION",
                     "hidden": false
                 },
                 {
                     "alias_name": "deploy",
-                    "target_command": "relocator --root_copy --source_path $SCRIPTS_SOLUTION/root_deploy.zip --destination $SOURCE_BASE/userspace",
+                    "target_command": "refactor --root_copy --source_path $SCRIPTS_SOLUTION/root_deploy.zip --destination $SOURCE_BASE/userspace",
                     "description": "\uD83D\uDC7E Deploy CMake files in a refactored project",
                     "command_type": "AUTOMATION",
                     "hidden": false
