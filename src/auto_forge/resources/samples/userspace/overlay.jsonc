@@ -17,10 +17,10 @@
         "overwrite": "always" // one of ( always, never, when_newer )
     },
 
-    // Mandatory: a list of one or more items which correlates to source and destination
-    "folders": [
-        { "storage": "apps/test.cmake_11",                   "destination": "n_apps/CMakList.txt"                },
-        { "source":  "Newmake.bin",                          "destination": "n_apps/test.txt"                    }
+    // Required: list of file mappings between archive and destination..
+    "files": [
+        { "archive": "apps/test.cmake_dummy.txt",          "destination": "test/b/CMakList.txt"                },
+        { "archive": "file_in_root.txt",                   "destination": "test/a/test.txt"                    }
 
     ]
 }
