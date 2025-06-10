@@ -56,7 +56,7 @@ class _CorePathCompleter(Completer):
         should offer filesystem paths, optionally limited to directories.
 
         Attributes:
-            _command_name (str): The CLI command this completer is associated with.
+            _command_name (str): The command this completer is associated with.
             _path_completer (PathCompleter): Internal prompt_toolkit completer for paths.
         """
 
@@ -114,10 +114,10 @@ class _CorePathCompleter(Completer):
 
 class _CoreCompleter(Completer):
     """
-    A context-aware tab-completer for shell-like CLI behavior using prompt_toolkit.
+    A context-aware tab-completer for shell-like behavior using prompt_toolkit.
     This completer supports:
     - Executable name completion (from PATH)
-    - Dynamically loaded CLI command completion
+    - Dynamically loaded command completion
     - Built-in commands with `do_<command>()` methods
     - Custom argument-level completion via `complete_<command>()` functions
     - Project-specific smart completion for `build` with dot-notation
@@ -191,11 +191,11 @@ class _CoreCompleter(Completer):
                         yield m
                     return
 
-                # Registered CLI commands
+                # Registered dynamic commands
                 for cmd in self._core_prompt.commands_metadata:
                     if cmd.startswith(partial):
                         matches.append(Completion(cmd, start_position=-len(partial),
-                                                  style=self._core_prompt.get_safe_style('cli-commands')))
+                                                  style=self._core_prompt.get_safe_style('commands')))
 
                 # Built-in do_* methods
                 for name, method in vars(self._core_prompt.__class__).items():
@@ -227,8 +227,8 @@ class _CoreCompleter(Completer):
                 end_idx = len(text)
 
                 completer_func = getattr(self._core_prompt, f"complete_{cmd}", None)
-                # Retrieve optional arguments hints for registered CLI commands
-                cli_command_args_list = self._loader.get_cli_command_known_args(name=cmd)
+                # Retrieve optional arguments hints for registered commands
+                command_args_list = self._loader.get_command_known_args(name=cmd)
 
                 if completer_func:
                     try:
@@ -250,8 +250,8 @@ class _CoreCompleter(Completer):
                         filter_glob=meta.get("filter_glob")
                     )
 
-                elif cli_command_args_list:
-                    matches = [Completion(arg, start_position=-len(arg_text)) for arg in cli_command_args_list if
+                elif command_args_list:
+                    matches = [Completion(arg, start_position=-len(arg_text)) for arg in command_args_list if
                                arg.startswith(arg_text)]
 
             # Final filtering: ensure no duplicate completions and max results count are yielded
@@ -282,7 +282,7 @@ class _CoreCompleter(Completer):
 
 class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     """
-    Interactive CLI shell for AutoForge with shell-like behavior.
+    Interactive shell for with shell-like behavior.
     Provides dynamic prompt updates, path-aware tab completion,
     and passthrough execution of unknown commands via the system shell.
     """
@@ -310,7 +310,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._history_file_name: Optional[str] = None
         self._aliases_metadata: dict[str, Any] = {}
         self._path_completion_rules_metadata: dict[str, Any] = {}
-        self._cli_commands_metadata: dict[str, Any] = {}
+        self._commands_metadata: dict[str, Any] = {}
         self._executables_metadata: Optional[dict[str, Any]] = {}
         self._configuration: Optional[dict[str, Any]] = None
         self._max_completion_results = 100
@@ -381,8 +381,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._add_dynamic_build_command(project=proj, configuration=cfg, description=cmd['description'],
                                             command_name=cmd['name'])
 
-        # Adding dynamically registered CLI commands.
-        self._add_dynamic_cli_commands()
+        # Adding dynamically registered commands.
+        self._add_dynamic_commands()
 
         # Adding built-in aliases based on a dictionary from the package configuration file, and then
         # solution proprietary aliases.
@@ -467,7 +467,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def _is_command_exist(self, command_or_alias: str) -> bool:
         """
-        Check if the given command or alias exists in either alias or CLI command metadata.
+        Check if the given command or alias exists in either alias or dynamic command metadata.
         Args:
             command_or_alias (str): The name to check.
         Returns:
@@ -475,7 +475,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         if command_or_alias in self._aliases_metadata:
             return True
-        if command_or_alias in self._cli_commands_metadata:
+        if command_or_alias in self._commands_metadata:
             return True
         return False
 
@@ -714,7 +714,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return added_aliases_count
 
-    def _add_dynamic_cli_commands(self):
+    def _add_dynamic_commands(self):
         """
         Dynamically adds AutoForge dynamically loaded command to the Prompt.
         Each command is dispatched via the loader's `execute()` method using its registered name.
@@ -724,15 +724,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         added_commands: int = 0
 
         # Get the loaded commands list from registry
-        cli_commands_list: list[ModuleInfoType] = self._registry.get_modules_list(
-            auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND)
+        commands_list: list[ModuleInfoType] = self._registry.get_modules_list(
+            auto_forge_module_type=AutoForgeModuleType.COMMAND)
 
-        existing_commands = len(cli_commands_list) if cli_commands_list else 0
+        existing_commands = len(commands_list) if commands_list else 0
         if existing_commands == 0:
             self._logger.warning("No dynamic commands loaded")
             return 0
 
-        for cmd_info in cli_commands_list:
+        for cmd_info in commands_list:
             command_name = cmd_info.name
             command_type = cmd_info.command_type
             description = "Description not provided" if cmd_info.description is None else cmd_info.description
@@ -754,8 +754,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
                         result = self._loader.execute_command(name, args)
                         self.last_result = result if isinstance(result, int) else 0
-                    except Exception as cli_execution_error:
-                        self.perror(f"{cli_execution_error}")
+                    except Exception as command_runtime_error:
+                        self.perror(f"{command_runtime_error}")
                         self.last_result = 1
 
                 dynamic_cmd.__doc__ = doc
@@ -771,8 +771,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             added_commands += 1
 
             # Register in the global commands metadat registry
-            self._cli_commands_metadata[command_name] = {"description": description, "command_type": command_type,
-                                                         "target_command": method_name, "hidden": hidden, }
+            self._commands_metadata[command_name] = {"description": description, "command_type": command_type,
+                                                     "target_command": method_name, "hidden": hidden, }
 
             added_commands += 1
 
@@ -938,7 +938,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def _inject_generic_path_complete_hooks(self):
         """
-        Automatically injects generic path completer methods for CLI commands that support
+        Automatically injects generic path completer methods for commands that support
         path completion but do not already have a custom `complete_<command>()` method.
         The commands and their completion behavior are defined in `self.command_completion`.
         For each command with `"path_completion": true` and no pre-defined `complete_<cmd>`,
@@ -1353,7 +1353,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     @property
     def commands_metadata(self) -> dict[str, Any]:
         """ Get commands metadata """
-        return self._cli_commands_metadata
+        return self._commands_metadata
 
     @property
     def aliases_metadata(self) -> dict[str, Any]:

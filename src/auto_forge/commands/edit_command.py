@@ -28,14 +28,14 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CLICommandInterface, SystemInfo, AutoLogger, CoreSolution)
+from auto_forge import (CoreVariables, CommandInterface, SystemInfo, AutoLogger, CoreSolution)
 
 AUTO_FORGE_MODULE_NAME = "edit"
 AUTO_FORGE_MODULE_DESCRIPTION = "Invokes the preferred editor to open files or directories"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
-class EditCommand(CLICommandInterface):
+class EditCommand(CommandInterface):
     """
     Implements a command cross-platform command similar to Windows 'start'.
     """
@@ -487,6 +487,6 @@ class EditCommand(CLICommandInterface):
 
         else:
             # Error: no arguments
-            return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_code

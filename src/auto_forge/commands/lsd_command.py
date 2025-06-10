@@ -5,7 +5,7 @@ Author:         AutoForge Team
 Description:
     Display richly formatted directory listings, inspired by https://github.com/lsd-rs/lsd.
     This enhanced listing tool, 'lsd', provides color-coded output, icon-based file identification,
-    and timestamped views, designed to integrate into the AutoForge build system CLI environment.
+    and timestamped views.
 
     This module defines file and directory icon mappings using the Nerd Fonts glyph set.
     It requires the terminal or code editor to use a compatible Nerd Font, or icons will appear
@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, ToolBox, )
+from auto_forge import (CommandInterface, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
@@ -51,7 +51,7 @@ class _LSDIconInfo:
     color: str
 
 
-class LSDCommand(CLICommandInterface):
+class LSDCommand(CommandInterface):
 
     def __init__(self, **_kwargs: Any):
         """
@@ -397,7 +397,7 @@ class LSDCommand(CLICommandInterface):
         """
         Executes the command based on parsed arguments.
         Args:
-            args (argparse.Namespace): The parsed CLI arguments.
+            args (argparse.Namespace): The parsed arguments.
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """

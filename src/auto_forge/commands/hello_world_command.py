@@ -11,13 +11,13 @@ import argparse
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreGUI, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
+from auto_forge import (CommandInterface, CoreGUI, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
                         MessageBoxType, AutoForgCommandType)
 
 
-class HelloCommand(CLICommandInterface):
+class HelloCommand(CommandInterface):
     """
-    A simple 'hello world' command example for AutoForge CLI.
+    A simple 'hello world' command example for registering dynamically command.
     """
 
     def __init__(self, **_kwargs: Any):
@@ -27,7 +27,7 @@ class HelloCommand(CLICommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        super().__init__(command_name="hello", hidden=False,command_type=AutoForgCommandType.MISCELLANEOUS)
+        super().__init__(command_name="hello", hidden=False, command_type=AutoForgCommandType.MISCELLANEOUS)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -75,7 +75,7 @@ class HelloCommand(CLICommandInterface):
 
         else:
             # Error: no arguments
-            return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         if response:
             print(f"Got {response}")

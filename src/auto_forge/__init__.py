@@ -45,11 +45,11 @@ try:
     )
 
     # Protocols
-    from auto_forge.common.protocols import (CoreProcessorProtocol, CoreVariablesProtocol, CLICommandInterfaceProtocol)
+    from auto_forge.common.protocols import (CoreProcessorProtocol, CoreVariablesProtocol, CommandInterfaceProtocol)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-    from auto_forge.core.interfaces.cli_command_interface import CLICommandInterface
+    from auto_forge.core.interfaces.command_interface import CommandInterface
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
 
     # Common modules
@@ -87,7 +87,7 @@ except Exception as exception:
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgeModuleType", "AutoForgeWorkModeType", "AutoLogger",
     "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry",
-    "CLICommandInterface", "CLICommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
+    "CommandInterface", "CommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
     "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CoreProcessorProtocol",
     "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "CoreVariablesProtocol",
     "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",

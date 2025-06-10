@@ -17,14 +17,14 @@ from pathlib import Path
 from typing import Optional, Union, Any
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, SystemInfo, )
+from auto_forge import (CommandInterface, SystemInfo, )
 
 AUTO_FORGE_MODULE_NAME = "start"
 AUTO_FORGE_MODULE_DESCRIPTION = "Windows start command"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
-class StartCommand(CLICommandInterface):
+class StartCommand(CommandInterface):
     """
     Implements a command cross-platform command similar to Windows 'start'.
     """
@@ -154,6 +154,6 @@ class StartCommand(CLICommandInterface):
 
         else:
             # Error: no arguments
-            return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_code

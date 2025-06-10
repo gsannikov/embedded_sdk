@@ -17,14 +17,14 @@ from typing import Any, Optional
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import CLICommandInterface, CoreSignatures, ToolBox
+from auto_forge import CommandInterface, CoreSignatures, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "sig_tool"
 AUTO_FORGE_MODULE_DESCRIPTION = "Binary file signing tool"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
-class SigToolCommand(CLICommandInterface):
+class SigToolCommand(CommandInterface):
 
     def __init__(self, **_kwargs: Any):
         """
@@ -247,7 +247,7 @@ class SigToolCommand(CLICommandInterface):
         """
         Executes the command based on parsed arguments.
         Args:
-            args (argparse.Namespace): The parsed CLI arguments.
+            args (argparse.Namespace): The parsed arguments.
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
@@ -260,6 +260,6 @@ class SigToolCommand(CLICommandInterface):
         if args.update_crc:
             return_value = self._update_crc(source_binary_file=args.path, validate_only=False, pad_to_size=args.grow)
         else:
-            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_value = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

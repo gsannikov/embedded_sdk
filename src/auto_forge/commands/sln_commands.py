@@ -21,7 +21,7 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreProcessor, ToolBox,
+from auto_forge import (CommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreProcessor, ToolBox,
                         FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
@@ -29,12 +29,12 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
-class SolutionCommand(CLICommandInterface):
+class SolutionCommand(CommandInterface):
     """
     A simple 'hello world' command example for AutoForge CLI.
     """
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **_kwargs: Any):
         """
         Initializes the SolutionCommand class.
         Args:
@@ -158,7 +158,7 @@ class SolutionCommand(CLICommandInterface):
                 "Configurations": config_names
             })
 
-        # Encode as base64 to safely pass as CLI argument
+        # Encode as base64 to safely pass as argument
         json_text = json.dumps(solution_summary)
         panel_arg = base64.b64encode(json_text.encode("utf-8")).decode("ascii")
 
@@ -222,6 +222,6 @@ class SolutionCommand(CLICommandInterface):
             self._tool_box.show_help_file(help_file_relative_path='solution/guide.md')
         else:
             # Error: no arguments
-            return_code = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_code

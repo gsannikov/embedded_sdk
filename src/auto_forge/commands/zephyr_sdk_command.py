@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import CLICommandInterface
+from auto_forge import CommandInterface
 
 AUTO_FORGE_MODULE_NAME = "zephyr_sdk"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr SDK utilities"
@@ -22,7 +22,7 @@ AUTO_FORGE_MODULE_VERSION = "1.0"
 CMAKE_PACKAGE_PATH: Path = Path.home() / ".cmake/packages/Zephyr-sdk"
 
 
-class ZephyrSDKCommand(CLICommandInterface):
+class ZephyrSDKCommand(CommandInterface):
 
     def __init__(self, **kwargs: Any):
         """
@@ -66,7 +66,8 @@ class ZephyrSDKCommand(CLICommandInterface):
         cmake_pkg_dir: Path = cast(Path, self._cmake_pkg_dir)
 
         for pkg_file in cmake_pkg_dir.iterdir():
-            if not pkg_file.is_file():
+            _file = Path(pkg_file)
+            if not _file.is_file():
                 continue
 
             try:
@@ -111,7 +112,7 @@ class ZephyrSDKCommand(CLICommandInterface):
         """
         Executes the command based on parsed arguments.
         Args:
-            args (argparse.Namespace): The parsed CLI arguments.
+            args (argparse.Namespace): The parsed arguments.
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
@@ -129,6 +130,6 @@ class ZephyrSDKCommand(CLICommandInterface):
         elif args.get_zephyr_version:
             print(self._version)
         else:
-            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_value = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

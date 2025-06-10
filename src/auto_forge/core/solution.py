@@ -3,7 +3,7 @@ Script:         solution.py
 Author:         AutoForge Team
 
 Description:
-    The AutoForge Solution Processor is designed to handle the processing of structured JSON configuration files,
+    The Solution Processor is designed to handle the processing of structured JSON configuration files,
     which are crucial for managing complex project builds. This script facilitates the dynamic resolution of
     configuration details, enhancing flexibility and maintainability of project setups.
 
@@ -16,10 +16,6 @@ Description:
       prevent runtime failures due to configuration errors.
     - Context-Aware Parsing: Capable of understanding and processing nested and hierarchical structures within
       the configuration files to support complex project requirements.
-
-    The accompanying 'config/solution.jsonc' file serves as a reference documentation, detailing the schema and
-    setup of solutions as processed by this system.
-
 """
 import copy
 import json

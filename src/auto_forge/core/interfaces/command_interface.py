@@ -1,5 +1,5 @@
 """
-Script:         cli_command_interface.py
+Script:         command_interface.py
 Author:         AutoForge Team
 
 Description:
@@ -8,7 +8,7 @@ Description:
 
     Each command subclass is responsible for:
         - Declaring its name and description.
-        - Registering its CLI arguments using `argparse`.
+        - Registering its arguments using `argparse`.
         - Implementing execution logic based on parsed arguments.
 
     The interface supports both programmatic and shell-style invocation, enabling dynamic discovery
@@ -31,7 +31,7 @@ from auto_forge.common.registry import Registry  # Runtime import to prevent cir
 from auto_forge.common.toolbox import ToolBox
 
 
-class _CLICapturingArgumentParser(argparse.ArgumentParser):
+class _CapturingArgumentParser(argparse.ArgumentParser):
     """
     A custom ArgumentParser that captures error messages into an internal string buffer
     instead of printing to stderr and exiting immediately.e.
@@ -130,9 +130,9 @@ class _CLICapturingArgumentParser(argparse.ArgumentParser):
         self.print_help()
 
 
-class CLICommandInterface(ABC):
+class CommandInterface(ABC):
     """
-    Abstract base class for CLI commands that can be dynamically registered and executed.
+    Abstract base class for commands that can be dynamically registered and executed.
     Each derived class must define its name, description, argument parser, and run logic.
     """
 
@@ -143,7 +143,7 @@ class CLICommandInterface(ABC):
                  hidden: Optional[bool] = False,
                  command_type: Optional[AutoForgCommandType] = AutoForgCommandType.MISCELLANEOUS, ):
         """
-        Initializes the CLICommand and prepares its argument parser using
+        Initializes the command and prepares its argument parser using
         the name and description provided by the subclass.
         Args:.
             command_name (str, optional): The name of the command.
@@ -156,7 +156,7 @@ class CLICommandInterface(ABC):
         self._last_exception: Optional[Exception] = None
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
-        self._args_parser: Optional[_CLICapturingArgumentParser] = None
+        self._args_parser: Optional[_CapturingArgumentParser] = None
 
         # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
         self._configuration: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
@@ -178,7 +178,7 @@ class CLICommandInterface(ABC):
         self._module_info: ModuleInfoType = (
             registry.register_module(name=command_name, description=caller_module_description,
                                      version=caller_module_version,
-                                     auto_forge_module_type=AutoForgeModuleType.CLI_COMMAND, hidden=self._hidden,
+                                     auto_forge_module_type=AutoForgeModuleType.COMMAND, hidden=self._hidden,
                                      command_type=command_type))
 
         # Optional tool initialization logic
@@ -187,15 +187,15 @@ class CLICommandInterface(ABC):
 
         super().__init__()
 
-    def _create_parser(self) -> Optional[_CLICapturingArgumentParser]:
+    def _create_parser(self) -> Optional[_CapturingArgumentParser]:
         """
         Call the mandatory implementation of  create_parser() to create parser instance and store it globally.
         Returns:
-            _CLICapturingArgumentParser: arg parser instance or exception on error.
+            _CapturingArgumentParser: arg parser instance or exception on error.
         """
         if not self._args_parser:
             with suppress(Exception):
-                self._args_parser: _CLICapturingArgumentParser = _CLICapturingArgumentParser(
+                self._args_parser: _CapturingArgumentParser = _CapturingArgumentParser(
                     prog=self._module_info.name, description=self._module_info.description)
                 self.create_parser(self._args_parser)
 

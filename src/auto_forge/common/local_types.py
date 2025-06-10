@@ -3,9 +3,8 @@ Script:         local_types,py
 Author:         AutoForge Team
 
 Description:
-    Auxiliary module defining common types, enumerations, and simple classes
-    shared across multiple components of the project. Includes reusable structures
-    such as icon mappings, CLI data wrappers, and standardized formatting helpers.
+    Single point module defining many common types, enumerations, and simple classes
+    shared across multiple components of the project.
 """
 import json
 import os
@@ -38,14 +37,17 @@ class AutoForgeModuleType(Enum):
     Enumeration of known AutoForge module types.
     Members:
         CORE (int): Built-in core module, part of the AutoForge runtime.
-        CLI_COMMAND (int): Dynamically loaded command module, provided either by AutoForge or external extensions.
+        COMMON (int): General purpose reusable services.
+        COMMAND (int): Dynamically loaded commands provided either by AutoForge or externally
+        BUILDER (int): Dynamically loaded builder modules which allow for using a specific toolchain (make, CMake act)
+        PROMPT_DO (int): Prompt Toolkit / cmd2 commands coded through the do_command_name() style
     """
     UNKNOWN = 0
     CORE = 1
     COMMON = 2
-    CLI_COMMAND = 3
+    COMMAND = 3
     BUILDER = 4
-    PROMPT_DO = 5  # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
+    PROMPT = 5  # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
 
 
 class AutoForgCommandType(Enum):
@@ -295,7 +297,7 @@ class VariableFieldType:
 
 class SysInfoPackageManagerType(str, Enum):
     """
-    Enum representing common system package managers, based on their CLI command names.
+    Enum representing common system package managers, based on their command names.
     """
     APT = "apt"
     DNF = "dnf"

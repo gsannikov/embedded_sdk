@@ -7,7 +7,7 @@
 */
 
 {
-    "format_of": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
+    "format_off": "# @formatter:off", // Instruct PyCharm not to mess this file with its source formater.
 
     // List of variable names that must be defined in the "variables" section.
     // These are considered critical for proper project configuration.
@@ -158,7 +158,7 @@
     "ansi_codes": {
 
         // ANSI color and style codes following Colorama-style naming.
-        // These codes are useful for CLI rendering, logging, and text decoration.
+        // These codes are useful for logging, and text decoration.
 
         // Screen control
         "SCREEN_CLS"               : "\u001b[H\u001b[2J",
@@ -287,17 +287,17 @@
         "tokens": {
             // Executables (e.g. system commands)
             "executable": "fg:#228b22 bold",         // Forest green text
-            // Built-in commands defined via do_<name>()
+            // Built-in (do_) commands
             "builtins": "fg:#1e90ff bold",           // Dodger blue
-            // CLI command names from plugins / dynamic registry
-            "cli-commands": "fg:#cc7a00 italic",     // Amber/orange italic
+            // Dynamic commands
+            "commands": "fg:#cc7a00 italic",         // Amber/orange italic
             // Aliases (shortcut commands)
             "aliases": "fg:#6666cc italic",          // Soft lavender
             // Regular files
             "file": "fg:#666666",                    // Medium gray
             // Directories
             "directory": "fg:#0088cc bold",          // Cool cyan-blue
-            // Passive system messages (like [no matches found])
+            // Passive system messages
             "completion-meta": "fg:#888888 italic",  // Subtle gray
             // Alerts or user warnings
             "alert": "fg:#aa0000 bold",              // Soft red

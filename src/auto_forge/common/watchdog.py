@@ -3,16 +3,14 @@ Script:         watchdog.py
 Author:         AutoForge Team
 
 Description:
-    Provides a singleton Watchdog class that runs in a background thread
-    and forcefully terminates the process if not periodically refreshed.
-    Useful for detecting application stalls or hangs, especially in GUI or
-    long-running environments like WSL where process responsiveness may degrade silently.
+    Provides a singleton Watchdog class that runs in a background thread and forcefully terminates the process if
+    not periodically refreshed. Useful for detecting application stalls or hangs, especially in GUI or long-running
+    environments like WSL where process responsiveness may degrade silently.
 
 Warning:
-    This module is designed to be fully self-contained and must **not** import or depend on
-    any other project-specific modules, classes, or third-party packages.
-    It must rely strictly on Python's built-in standard library to ensure reliability,
-    portability, and minimal failure risk in early-stage or low-level execution contexts.
+    This module is designed to be fully self-contained and must **not** import or depend on any other project-specific
+    modules, classes, or third-party packages. It must rely strictly on Python's built-in standard library to ensure
+    reliability, portability, and minimal failure risk in early-stage or low-level execution contexts.
 """
 
 import os
@@ -27,6 +25,7 @@ from contextlib import suppress
 from typing import Optional
 
 WATCHDOG_DEFAULT_TIMEOUT = 10.0
+
 
 class Watchdog:
     """
@@ -47,7 +46,7 @@ class Watchdog:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls,default_timeout: Optional[float] = None, auto_start: bool = True):
+    def __new__(cls, default_timeout: Optional[float] = None, auto_start: bool = True):
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)

@@ -23,8 +23,8 @@ from types import ModuleType, FunctionType
 from typing import Any, Optional, Union, Type, cast, Callable
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CLICommandInterface,
-                        CLICommandInterfaceProtocol, CoreModuleInterface,
+from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CommandInterface,
+                        CommandInterfaceProtocol, CoreModuleInterface,
                         BuilderRunnerInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Loader"
@@ -61,7 +61,7 @@ class CoreLoader(CoreModuleInterface):
         self._configuration: dict[str, Any] = configuration
 
         # Supported base interfaces for command classes
-        self._supported_interfaces = {CLICommandInterface: "CLICommandInterface",
+        self._supported_interfaces = {CommandInterface: "CommandInterface",
                                       BuilderRunnerInterface: "BuilderRunnerInterface", }
 
         # Persist this module instance in the global registry for centralized access
@@ -73,7 +73,7 @@ class CoreLoader(CoreModuleInterface):
         Common logic for resolving and validating a registered module instance.
         Args:
             name (str): The name of the registered module.
-            expected_type (AutoForgeModuleType): The expected module type (e.g., BUILDER, CLI_COMMAND).
+            expected_type (AutoForgeModuleType): The expected module type (e.g., BUILDER, COMMAND).
             required_method (str): The method the instance must implement (e.g., 'build', 'execute').
         Returns:
             Any: The validated class instance.
@@ -195,7 +195,7 @@ class CoreLoader(CoreModuleInterface):
 
                     # Instantiate the class (command), this will auto update the command properties in the registry.
                     try:
-                        command_class = cast(Callable[..., CLICommandInterfaceProtocol], callable_object)
+                        command_class = cast(Callable[..., CommandInterfaceProtocol], callable_object)
                         command_instance = command_class()
                     except Exception as instantiate_error:
                         self._logger.warning(f"Failed to instantiate '{callable_object}': {instantiate_error}")
@@ -265,26 +265,26 @@ class CoreLoader(CoreModuleInterface):
         """
         return self._execution_output
 
-    def get_cli_command_known_args(self, name: str) -> Optional[list[str]]:
+    def get_command_known_args(self, name: str) -> Optional[list[str]]:
         """
-        Attempts to retrieve the known argument list for a registered CLI command.
+        Attempts to retrieve the known argument list for a registered command.
         This is a best-effort method that searches the command registry for a class instance
         matching the given command name and expected interface. If found, it invokes
         the instance's `get_known_args()` method to retrieve the list of supported arguments.
         Args:
-            name (str): The name of the CLI command to inspect.
+            name (str): The name of the command to inspect.
 
         Returns:
             Optional[list[str]]: A list of known argument strings (e.g., ['--input', '-f']),
             or None if the command is unknown or an error occurs.
         """
         with suppress(Exception):
-            class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.CLI_COMMAND,
+            class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.COMMAND,
                                                                required_method='get_known_args')
             if class_instance:
                 return class_instance.get_known_args(raise_exceptions=False)
 
-        return None  # Unknown CLI, error, or method not implemented
+        return None  # Unknown command, error, or method not implemented
 
     def execute_build(self, build_profile: BuildProfileType) -> Optional[int]:
         """
@@ -303,9 +303,9 @@ class CoreLoader(CoreModuleInterface):
     def execute_command(self, name: str, arguments: Optional[str] = None, suppress_output: bool = False) -> Optional[
         int]:
         """
-        Executes the 'execute' method of a registered CLI command module.
+        Executes the 'execute' method of a registered command module.
         Args:
-            name (str): The name of the registered CLI command.
+            name (str): The name of the registered command.
             arguments (Optional[str]): Shell-style argument string.
             suppress_output (bool): If True, suppress stdout/stderr during execution.
 
@@ -314,7 +314,7 @@ class CoreLoader(CoreModuleInterface):
         """
         self._execution_output = None
 
-        class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.CLI_COMMAND,
+        class_instance = self._resolve_registered_instance(name=name, expected_type=AutoForgeModuleType.COMMAND,
                                                            required_method='execute')
 
         buffer = io.StringIO()

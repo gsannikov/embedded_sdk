@@ -30,7 +30,16 @@ class CoreProcessorProtocol(Protocol):
 
 
 @runtime_checkable
-class CLICommandInterfaceProtocol(Protocol):
+class CoreVariablesProtocol(Protocol):
+    """
+    Defines the required interface for core variable expansion handlers.
+    """
+
+    def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]: ...
+
+
+@runtime_checkable
+class CommandInterfaceProtocol(Protocol):
     """
     Defines the required interface for CLI command modules.
     """
@@ -38,12 +47,3 @@ class CLICommandInterfaceProtocol(Protocol):
     def get_info(self) -> ModuleInfoType: ...
 
     def update_info(self, command_info: ModuleInfoType) -> None: ...
-
-
-@runtime_checkable
-class CoreVariablesProtocol(Protocol):
-    """
-    Defines the required interface for core variable expansion handlers.
-    """
-
-    def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]: ...

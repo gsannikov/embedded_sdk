@@ -21,7 +21,7 @@ from logging import Logger
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CLICommandInterface, CoreProcessor, CoreVariables, AutoForgCommandType, ToolBox, AutoLogger)
+from auto_forge import (CommandInterface, CoreProcessor, CoreVariables, AutoForgCommandType, ToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "relocator"
 AUTO_FORGE_MODULE_DESCRIPTION = "Code restructure assistant"
@@ -124,7 +124,7 @@ class _RelocateFolderRead:
                                max_copy_depth=max_copy_depth, raw_source=raw_source, raw_destination=raw_destination, )
 
 
-class RelocatorCommand(CLICommandInterface):
+class RelocatorCommand(CommandInterface):
 
     def __init__(self, **_kwargs: Any):
         """
@@ -476,7 +476,7 @@ class RelocatorCommand(CLICommandInterface):
         """
         Executes the command based on parsed arguments.
         Args:
-            args (argparse.Namespace): The parsed CLI arguments.
+            args (argparse.Namespace): The parsed arguments.
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
@@ -504,6 +504,6 @@ class RelocatorCommand(CLICommandInterface):
             return_value = self._deploy_files(source=args.source_path, destination_path=args.destination,
                                               verbose=args.verbose)
         else:
-            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_value = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         return return_value

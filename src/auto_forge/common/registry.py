@@ -226,7 +226,7 @@ class Registry(CoreModuleInterface):
             python_module_type (Optional[ModuleType], optional): The Python type of the module.
             version (Optional[str], optional): The version of the module.
             file_name (Optional[str]): The file name of the module.
-            hidden (Optional[bool]): OOptional attributes, applicable for CLI commands.
+            hidden (Optional[bool]): Attributes, applicable for dynamic commands.
             command_type (Optional[AutoForgCommandType], optional): The command type of the module.
             auto_inspection (Optional[bool]): If True, performs auto inspection to get the required info.
         Returns:

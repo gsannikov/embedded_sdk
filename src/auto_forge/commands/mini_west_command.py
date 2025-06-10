@@ -28,7 +28,7 @@ import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import CLICommandInterface, ToolBox
+from auto_forge import CommandInterface, ToolBox
 
 AUTO_FORGE_MODULE_NAME = "mini_west"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
@@ -64,9 +64,9 @@ class _WestProject:
         self.formated_message: Optional[str] = None
 
 
-class MiniWestCommand(CLICommandInterface):
+class MiniWestCommand(CommandInterface):
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **_kwargs: Any):
         """
         Initializes the MiniWestCommand class.
         Args:
@@ -594,7 +594,7 @@ class MiniWestCommand(CLICommandInterface):
         """
         Executes the command based on parsed arguments.
         Args:
-            args (argparse.Namespace): The parsed CLI arguments.
+            args (argparse.Namespace): The parsed arguments.
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
@@ -619,7 +619,7 @@ class MiniWestCommand(CLICommandInterface):
             return_value = self.process_yml(west_yml_path=west_yml_path, destination_path=destination_path,
                                             max_workers=args.workers, retry_count=args.retry_count)
         else:
-            return_value = CLICommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+            return_value = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 
         self._close(force_terminate=False)
         return return_value
