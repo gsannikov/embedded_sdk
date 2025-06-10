@@ -548,7 +548,7 @@ class BuildProfileType:
     project_name: Optional[str] = None
     config_name: Optional[str] = None
     terminal_leading_text: Optional[str] = None
-    do_clean: bool = False
+    extra_args:Optional[list[str]] = None
     build_dot_notation: Optional[str] = None
     config_data: Optional[dict[str, Any]] = None
     tool_chain_data: Optional[dict[str, Any]] = None

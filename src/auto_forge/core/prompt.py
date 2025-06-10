@@ -1258,10 +1258,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         try:
-            build_profile = BuildProfileType()
-            target = arg.strip()
+            args = shlex.split(arg)
+            if not args:
+                self.perror("Expected: <project>.<configuration> [--flags]")
+                return
 
-            if not target or "." not in target:
+            target = args[0]
+            extra_args = args[1:]
+
+            if "." not in target:
                 self.perror("Expected: <project>.<configuration>")
                 return
 
@@ -1269,30 +1274,37 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if len(parts) != 2:
                 self.perror("Expected exactly 2 parts: <project>.<configuration>")
                 return
+
+            # Construct 'build profile' object
+            build_profile = BuildProfileType()
             build_profile.solution_name = self._loaded_solution_name
             build_profile.project_name, build_profile.config_name = parts
-            build_profile.build_dot_notation = (f"{build_profile.solution_name}."
-                                                f"{build_profile.project_name}.{build_profile.config_name}")
+            build_profile.build_dot_notation = f"{build_profile.solution_name}.{target}"
+            build_profile.extra_args = extra_args  # optionally use this in the builder
 
-            # Fetch build configuration data from the solution
-            build_profile.config_data = self._solution.query_configurations(project_name=build_profile.project_name,
-                                                                            configuration_name=build_profile.config_name)
+            # Fetch build configuration
+            build_profile.config_data = self._solution.query_configurations(
+                project_name=build_profile.project_name,
+                configuration_name=build_profile.config_name
+            )
+
             if build_profile.config_data:
                 project_data: Optional[dict[str, Any]] = (
                     self._solution.query_projects(project_name=build_profile.project_name))
                 if project_data:
-                    build_profile.do_clean = True,
                     build_profile.tool_chain_data = project_data.get("tool_chain")
-                    build_profile.build_system = (
-                        build_profile.tool_chain_data.get("build_system")) if build_profile.tool_chain_data else None
+                    build_profile.build_system = (build_profile.tool_chain_data.get("build_system")
+                                                  if build_profile.tool_chain_data else None)
 
-            # The tool china field 'build_system' will be used to pick the registered builder for this specific solution branch.
             if build_profile.build_system:
-
-                self._logger.debug(f"Building {build_profile.build_dot_notation}, using '{build_profile.build_system}'")
+                self._logger.debug(
+                    f"Building {build_profile.build_dot_notation}, "
+                    f"using '{build_profile.build_system}' "
+                    f"with extra args: {extra_args}"
+                )
                 self._loader.execute_build(build_profile=build_profile)
             else:
-                self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation};")
+                self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation}'")
 
         except Exception as build_error:
             self.perror(f"Build Exception: {build_error}")

@@ -99,7 +99,7 @@ class MakeBuilder(BuilderRunnerInterface):
         # Process pre-build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("pre_build_steps", {})
         if steps_data:
-            self._process_build_steps(steps=steps_data, do_clean=build_profile.do_clean, is_pre=True)
+            self._process_build_steps(steps=steps_data, is_pre=True)
 
         # Validate or create build_path
         build_path = Path(config["build_path"]).expanduser().resolve()
@@ -141,7 +141,7 @@ class MakeBuilder(BuilderRunnerInterface):
         # Process post build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
         if steps_data:
-            self._process_build_steps(steps=steps_data, do_clean=build_profile.do_clean, is_pre=False)
+            self._process_build_steps(steps=steps_data, is_pre=False)
 
         # Check for all expected artifacts
         missing_artifacts = []
@@ -161,20 +161,15 @@ class MakeBuilder(BuilderRunnerInterface):
         self.print_message(message=f"Building of '{build_target_string}' was successful", log_level=logging.INFO)
         return results.return_code
 
-    def _process_build_steps(self, steps: dict[str, str], do_clean: bool = False, is_pre: bool = True) -> None:
+    def _process_build_steps(self, steps: dict[str, str], is_pre: bool = True) -> None:
         """
         Execute a dictionary of build steps where values prefixed with '!' are run as cmd2 shell commands.
         Args:
             steps (dict[str, str]): A dictionary of named build steps to execute.
-            do_clean (bool): Process steps that carries 'clean' label.
             is_pre (bool): Specifies if those are pre- or post-build steps.
         """
         for step_name, command in steps.items():
             prefix = "pre" if is_pre else "post"
-
-            # Skip cleaning steps
-            if not do_clean and step_name == 'clean':
-                continue
 
             self.print_message(message=f"Running {prefix}-build step: '{step_name}'")
 

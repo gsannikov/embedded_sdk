@@ -14,7 +14,7 @@ Classes:
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 from typing import Optional
 
 # Third-party
@@ -91,6 +91,9 @@ class CMakeBuilder(BuilderRunnerInterface):
         config = build_profile.config_data
         self._environment = CoreEnvironment.get_instance()
 
+        if not isinstance(config, dict):
+            raise ValueError("build profile contain invalid configuration")
+
         # Those are essential properties we must get
         mandatory_required_fields = ["build_path", "compiler_options", "artifacts"]
 
@@ -120,7 +123,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Process pre-build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("pre_build_steps", {})
         if steps_data:
-            self._process_build_steps(steps=steps_data, do_clean=build_profile.do_clean, is_pre=True)
+            self._process_build_steps(steps=steps_data, is_pre=True)
 
         # Validate or create build_path
         build_path = Path(config["build_path"]).expanduser().resolve()
@@ -140,8 +143,13 @@ class CMakeBuilder(BuilderRunnerInterface):
             .get("options", [])
         )
 
-        compiler_options = config["compiler_options"]
-        artifacts = config["artifacts"]
+        compiler_options = config.get("compiler_options")
+        artifacts: Optional[Union[list, str]] = config.get("artifacts")
+
+        # Process optional out of build hierarchy argumnets
+        return_code = self._process_extra_args(extra_args=build_profile.extra_args, config=config)
+        if return_code != 0:
+            return return_code
 
         # Merge cmake specific options from the tool chain with the build configuration options into  single list
         if cmake_options and compiler_options:
@@ -185,10 +193,12 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Process post build steps if specified
         steps_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
         if steps_data:
-            self._process_build_steps(steps=steps_data, do_clean=build_profile.do_clean, is_pre=False)
+            self._process_build_steps(steps=steps_data, is_pre=False)
 
         # Check for all expected artifacts
         missing_artifacts = []
+        artifacts = [artifacts] if artifacts else []  # Convert to list
+
         for artifact_path in artifacts:
             artifact_file = Path(artifact_path).expanduser().resolve()
             if not artifact_file.exists():
@@ -205,33 +215,49 @@ class CMakeBuilder(BuilderRunnerInterface):
         self.print_message(message=f"Building of '{build_target_string}' was successful", log_level=logging.INFO)
         return results.return_code
 
-    def _process_build_steps(self, steps: dict[str, str], do_clean: bool = False, is_pre: bool = True) -> None:
+    def _process_extra_args(self, extra_args: Optional[list[str]] = None,
+                            config: Optional[dict[str, Any]] = None) -> int:
+        """
+
+        """
+        for arg in extra_args:
+            if arg in ("--clean", "--clean_exit"):
+                clean_command: Optional[str] = config.get("clean", None)
+                if isinstance(clean_command, str):
+                    return self._execute_single_step(command=clean_command, name=arg)
+
+        return 0
+
+    def _execute_single_step(self, command: str, name: str) -> int:
+        """
+        Execute a single step
+        """
+        if command.startswith("!"):
+            command = command[1:].lstrip()  # Remove a trailing '!'
+        try:
+            results = self._environment.execute_shell_command(command_and_args=command,
+                                                              echo_type=TerminalEchoType.SINGLE_LINE)
+            return results.return_code
+
+        except Exception as execution_error:
+            self.print_message(message=f"Failed to execute '{name}': {execution_error}", log_level=logging.ERROR)
+            return 1
+
+    def _process_build_steps(self, steps: dict[str, str], is_pre: bool = True) -> None:
         """
         Execute a dictionary of build steps where values prefixed with '!' are run as cmd2 shell commands.
         Args:
             steps (dict[str, str]): A dictionary of named build steps to execute.
-            do_clean (bool): Process steps that carries 'clean' label.
             is_pre (bool): Specifies if those are pre- or post-build steps.
         """
         for step_name, command in steps.items():
             prefix = "pre" if is_pre else "post"
 
-            # Skip cleaning steps
-            if not do_clean and step_name == 'clean':
-                continue
-
             self.print_message(message=f"Running {prefix}-build step: '{step_name}'")
-
             command = command.strip()
 
             if command.startswith("!"):
-                command_line = command[1:].lstrip()
-                try:
-                    self._environment.execute_shell_command(command_and_args=command_line,
-                                                            echo_type=TerminalEchoType.SINGLE_LINE)
-                except Exception as execution_error:
-                    self.print_message(message=f"Failed to execute '{step_name}': {execution_error}",
-                                       log_level=logging.ERROR)
+                self._execute_single_step(command=command, name=step_name)
             else:
                 self.print_message(message=f"Step '{step_name}' ignored: no '!' prefix", log_level=logging.WARNING)
 

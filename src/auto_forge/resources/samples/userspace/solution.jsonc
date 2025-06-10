@@ -102,6 +102,10 @@
                     "name": "zephyr_build",
                     "description": "ARM64 compilation of the userspace project.",
                     "tool_chain": "<$ref_solutions[].tool_chains[Arm GNU AArch64 Cross Toolchain]>",
+                    "flags_binding": {
+                        "--clean": "!cmake --build <$ref_build_path> --target clean"
+                    },
+
                     // Per-project configuration
                     "configurations": [
                         {
@@ -127,8 +131,8 @@
                             "artifacts": [
                                 "<$ref_build_path>/n_libs/logger/liblogger.a"
                             ],
+
                             "pre_build_steps": {
-                                "clean": "!cmake --build <$ref_build_path> --target clean"
                             }
                         },
                         {
