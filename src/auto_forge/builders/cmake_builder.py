@@ -318,6 +318,14 @@ class CMakeBuilder(BuilderRunnerInterface):
         Returns:
             Optional[int]: The return code from the build process, or None if not applicable.
         """
+
+        def _normalize_message(_s: str) -> str:
+            """ Make sure the error message is trimmed, capitalized and has dit at the end """
+            if not isinstance(_s, str):
+                return _s
+            _s = _s.strip().capitalize()
+            return _s if _s.endswith('.') else _s + '.'
+
         try:
             print()
             self._tool_box.set_cursor(visible=False)
@@ -329,8 +337,15 @@ class CMakeBuilder(BuilderRunnerInterface):
 
             return self._execute_build(build_profile=build_profile)
 
-        except Exception as build_error:
-            self.print_message(message=f"{str(build_error).capitalize()}", log_level=logging.ERROR)
+        except ExitBuildEarly as exit_build:
+            # Normal early build termination
+            build_message = _normalize_message(str(exit_build))
+            self.print_message(message=f"{build_message}, exit code: {exit_build.exit_code}", log_level=logging.INFO)
+            return exit_build.exit_code
+
+        except Exception as build_exception:
+            build_message = _normalize_message(str(build_exception))
+            self.print_message(message=build_message, log_level=logging.ERROR)
             return 1
 
         finally:
