@@ -1,6 +1,6 @@
 /*
-    AutoForge package internal configuration file.
-    ----------------------------------------------
+    AutoForge package internal configuration.
+    -----------------------------------------
 
     Note:
     This script is formatted as JSON. A JSON preprocessor removes all comments before execution.
@@ -44,8 +44,8 @@
     "prompt_history_file": "$AF_BASE/.auto_forge.history",      // Path to store persistent prompt-toolkit history
     "prompt_max_completion_results": 100,                       // Maximum number of tab-completion results; higher values may slow down completion in large directories
     "git_token_environment_var": "NONE",                        // Optional name of the environment variable that may hold the user's Git token
-    "subprocess_execution_timout": 120.0,                       // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
-    "watchdog_timeout": 10.0,                                   // Default timeout (in seconds) for subprocess execution; can be overridden via the shell_execute method
+    "subprocess_execution_timout": 120.0,                       // Default timeout (in seconds) for sub-process execution; can be overridden via the shell_execute method
+    "watchdog_timeout": 10.0,                                   // Default timeout (in seconds) for sub-process execution; can be overridden via the shell_execute method
     "telemetry_file": "$AF_SOLUTION_BASE/telemetry.log",        // Where to store telemetry logs
 
     // Expected location of solution files in an installed environment.
@@ -100,17 +100,17 @@
         // - "description": A user-friendly description (supports Unicode symbols).
         // - "command_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
 
-        { "alias_name": ".",            "target_command": "start -p .",                        "description": "\uD83D\uDCC2 Open current folder in file manager",           "command_type": "NAVIGATE" },
-        { "alias_name": "..",           "target_command": "cd ..",                             "description": "↑ Go up one directory",                                      "command_type": "NAVIGATE" },
-        { "alias_name": "...",          "target_command": "cd ../../",                         "description": "⬆⬆ Go up two directories",                                   "command_type": "NAVIGATE" },
+        { "alias_name": "..",           "target_command": "cd ..",                             "description": "⬆   Go up one directory",                                    "command_type": "NAVIGATE" },
+        { "alias_name": "...",          "target_command": "cd ../../",                         "description": "⬆⬆  Go up two directories",                                  "command_type": "NAVIGATE" },
         { "alias_name": "....",         "target_command": "cd ../../../",                      "description": "⬆⬆⬆ Go up three directories",                                "command_type": "NAVIGATE" },
-        { "alias_name": "~",            "target_command": "cd $HOME",                          "description": "\uD83C\uDFE0 Go to home directory",                          "command_type": "NAVIGATE" },
+        { "alias_name": "~",            "target_command": "cd $HOME",                          "description": "\uD83C\uDFE0  Go to home directory",                          "command_type": "NAVIGATE" },
         { "alias_name": "$",            "target_command": "cd $PROJ_WORKSPACE",                "description": "\uD83D\uDEE0\uFE0F  Go to workspace directory",              "command_type": "NAVIGATE" },
-        { "alias_name": "gol",          "target_command": "cd $SOLUTION_BASE",                 "description": "\uD83D\uDFE7 Go to solution base path",                      "command_type": "NAVIGATE" },
-        { "alias_name": "gob",          "target_command": "cd $BUILD_OUT",                     "description": "\uD83D\uDFEA Go to build output directory",                  "command_type": "NAVIGATE" },
-        { "alias_name": "gor",          "target_command": "cd $SOURCE_BASE",                   "description": "\uD83D\uDFE5 Go to sources directory",                       "command_type": "NAVIGATE" },
-        { "alias_name": "gos",          "target_command": "cd $SCRIPTS_BASE",                  "description": "\uD83D\uDFE6 Go to scripts directory",                       "command_type": "NAVIGATE" },
+        { "alias_name": "gol",          "target_command": "cd $SOLUTION_BASE",                 "description": "\uD83D\uDFE7  Go to solution base path",                      "command_type": "NAVIGATE" },
+        { "alias_name": "gob",          "target_command": "cd $BUILD_OUT",                     "description": "\uD83D\uDFEA  Go to build output directory",                  "command_type": "NAVIGATE" },
+        { "alias_name": "gor",          "target_command": "cd $SOURCE_BASE",                   "description": "\uD83D\uDFE5  Go to sources directory",                       "command_type": "NAVIGATE" },
+        { "alias_name": "gos",          "target_command": "cd $SCRIPTS_BASE",                  "description": "\uD83D\uDFE6  Go to scripts directory",                       "command_type": "NAVIGATE" },
         { "alias_name": "goss",         "target_command": "cd $SCRIPTS_SOLUTION",              "description": "⚙\uFE0F  Go to the solution JSONs path",                     "command_type": "NAVIGATE" },
+        { "alias_name": ".",            "target_command": "start -p .",                        "description": "\uD83D\uDCC2  Open current folder in file manager",           "command_type": "NAVIGATE" },
         { "alias_name": "log",          "target_command": "sln -l -c",                         "description": "\uD83D\uDCDD Show recent logs",                              "command_type": "UTILITY"  },
         { "alias_name": "showsln",      "target_command": "sln -p",                            "description": "\uD83D\uDCDC Show resolved solution JSON",                   "command_type": "UTILITY"  },
         { "alias_name": "showenv",      "target_command": "sln -e",                            "description": "\uD83D\uDD0E Show managed variables tables",                 "command_type": "UTILITY"  },
