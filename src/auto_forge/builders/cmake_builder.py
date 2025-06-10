@@ -245,25 +245,35 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Update step and optionally handle extra argumnets based on the current state
         self._set_state(build_state=_CMakeBuildStep.DONE_BUILD, extra_args=build_profile.extra_args, config=config)
-
         return results.return_code
 
     def _set_state(self, build_state: _CMakeBuildStep,
                    extra_args: Optional[list[str]] = None,
                    config: Optional[dict[str, Any]] = None) -> int:
         """
-
+        Setting the build state and handling optionally extra arguments which may have to be addressed
+        at a specific state during the build.
+        Args:
+            build_state: The build state to set.
+            extra_args: The extra arguments to pass to the build command.
+            config: The configuration options to pass to the build command.
+        Returns:
+            int: exit code of the execute command.
         """
         self._state = build_state
 
         for arg in extra_args:
-            if arg == "--clean":
+            if arg in ("--clean", "--clean_build"):
                 clean_command: Optional[str] = config.get("clean", None)
                 if isinstance(clean_command, str) and build_state == _CMakeBuildStep.PRE_BUILD:
-                    extra_args.remove("--clean")
                     exit_code = self._execute_single_step(command=clean_command, name=arg)
-                    raise ExitBuildEarly("Build stopped", exit_code=exit_code)
-
+                    extra_args.remove(arg)
+                    if arg == "--clean" and exit_code == 0:
+                        raise ExitBuildEarly("Build stopped after clean", exit_code=exit_code)
+                    elif exit_code != 0:
+                        raise RuntimeError(f"Command failed with exit code: {exit_code}")
+                    else
+                        return exit_code
         return 0
 
     def _execute_single_step(self, command: str, name: str) -> int:
