@@ -112,19 +112,17 @@
                     "name": "zephyr_build",
                     "description": "ARM64 compilation of the userspace project.",
                     "tool_chain": "<$ref_solutions[].tool_chains[Arm GNU AArch64 Cross Toolchain]>",
-                    "flags_binding": {
-                        "--clean": "!cmake --build <$ref_build_path> --target clean"
-                    },
                     // Per-project configuration
                     "configurations": [
                         {
                             "name": "debug",
+                            "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
                             "menu_command": {
                                 "name": "usd",
                                 "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
-                            "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
                             "execute_from": "$SOURCE_BASE/userspace",
+                            "clean": "cmake --build <$ref_build_path> --target clean",
                             "compiler_options": [
                                 "-S .",
                                 "-B <$ref_build_path>",
