@@ -1,6 +1,6 @@
 /*
-    Configuration JSON for the the 'deploy tool'
-    ---------------------------------------------
+    Configuration JSON for the 'deploy tool'
+    -----------------------------------------
 
     Note: This JSONC format supports inline comments, which are useful during development but should be
     removed or ignored by parsers in production environments.
@@ -10,17 +10,19 @@
     "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
     "defaults": {
-        "full_debug": true,
         "break_on_errors": false,
         "create_host_path": true,
         "max_depth": 10,
         "overwrite": "always" // one of ( always, never, when_newer )
     },
 
-    // Required: list of file mappings between archive and host..
+    // Required: list of file mappings between archive and host.
     "files": [
-        { "archive": "apps/test.cmake_dummy.txt",          "host": "test/b/CMakList.txt"                },
-        { "archive": "file_in_root.txt",                   "host": "test/a/test.txt"                    }
+        { "archive": "CMakeLists.txt",                          "host": "CMakeLists.txt"                        },
+        { "archive": "cmake/environment.cmake",                 "host": "cmake/environment.cmake"               },
+        { "archive": "cmake/functions.cmake",                   "host": "cmake/functions.cmake"                 },
+        { "archive": "cmake/linux_rules.cmake",                 "host": "cmake/linux_rules.cmake"               },
+        { "archive": "n_libs/logger/CMakeLists.txt",            "host": "n_libs/logger/CMakeLists.txt"          }
 
     ]
 }

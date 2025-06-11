@@ -27,7 +27,7 @@ AUTO_FORGE_MODULE_VERSION = "1.0"
 
 class _DeployDirectionType(Enum):
     """
-    Defines the direction of the deploy operation:
+    Defines the direction of the deployment operation:
     - ArchiveToHost: Extract files from archive to file system.
     - HostToArchive: Collect files from file system into an archive.
     """
@@ -52,7 +52,7 @@ class _OverwritePolicy(Enum):
 
 class DeployCommand(CommandInterface):
     """
-    Implements the deploy command for syncing files between a ZIP archive and the host file system
+    Implements the deployment command for syncing files between a ZIP archive and the host file system
     based on a structured recipe.
     """
 
@@ -80,7 +80,7 @@ class DeployCommand(CommandInterface):
 
     def _reset(self):
         """
-        Resets internal state in preparation for a new deploy operation.
+        Resets internal state in preparation for a new deployment operation.
         Clears any previously loaded recipe defaults and file mappings.
         """
         self._recipe_defaults_raw = None
@@ -259,7 +259,7 @@ class DeployCommand(CommandInterface):
         Args:
             recipe_file (str): Path to the JSON or JSONC recipe file.
             archive_path (str): Path to the ZIP archive, which could be decompressed or created based on the direction.
-            host_base_path (str): Path to the a directory where files will deployed to or collected from.
+            host_base_path (str): Path to the directory where files will deploy to or collected from.
             direction (_DeployDirectionType): Determines the operation direction.
             verbose (bool, optional): Enable verbose logging if True.
         Returns:

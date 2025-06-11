@@ -111,6 +111,8 @@ class AutoForge(CoreModuleInterface):
         #
 
         self._queue_logger.debug("System initializing..")
+        self._queue_logger.debug(f"Started from {os.getcwd()}")
+
         self._events = EventManager(StatusNotifType)
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()

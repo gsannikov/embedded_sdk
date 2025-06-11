@@ -548,7 +548,7 @@ class BuildProfileType:
     project_name: Optional[str] = None
     config_name: Optional[str] = None
     terminal_leading_text: Optional[str] = None
-    extra_args:Optional[list[str]] = None
+    extra_args: Optional[list[str]] = None
     build_dot_notation: Optional[str] = None
     config_data: Optional[dict[str, Any]] = None
     tool_chain_data: Optional[dict[str, Any]] = None
@@ -744,3 +744,62 @@ class EventManager:
         for event in self.event_map.values():
             event.clear()
         self.any_event_triggered.clear()
+
+
+class DataSizeFormatter:
+    """
+    FDisplay data sizes in human-readable formats (e.g., KB, MB, GB).
+    """
+
+    UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    """Standard units for data size."""
+
+    def __init__(self, bytes_size: int):
+        """
+        Initializes the DataSizeFormatter with a size in bytes.
+        Args:
+            bytes_size: The data size in bytes (integer).
+        """
+        if not isinstance(bytes_size, int) or bytes_size < 0:
+            raise ValueError("bytes_size must be a non-negative integer.")
+        self._bytes_size = bytes_size
+
+    @property
+    def bytes(self) -> int:
+        """Returns the data size in bytes."""
+        return self._bytes_size
+
+    def to_human_readable(self, decimal_places: int = 2) -> str:
+        """
+        Converts the data size to a human-readable string with appropriate units.
+        Args:
+            decimal_places: The number of decimal places for the converted value.
+                Defaults to 2.
+        Returns:
+            A string representing the data size in a human-readable format.
+        """
+        if self._bytes_size == 0:
+            return "0 B"
+
+        if not isinstance(decimal_places, int) or decimal_places < 0:
+            raise ValueError("decimal_places must be a non-negative integer.")
+
+        i = 0
+        bytes_val = float(self._bytes_size)
+        while bytes_val >= 1024 and i < len(self.UNITS) - 1:
+            bytes_val /= 1024
+            i += 1
+
+        return f"{bytes_val:.{decimal_places}f} {self.UNITS[i]}"
+
+    def __str__(self) -> str:
+        """
+        Returns the human-readable representation as the default string representation.
+        """
+        return self.to_human_readable()
+
+    def __repr__(self) -> str:
+        """
+        Returns a developer-friendly representation of the object.
+        """
+        return f"DataSizeFormatter(bytes_size={self._bytes_size})"

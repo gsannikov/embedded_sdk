@@ -28,7 +28,7 @@ import psutil
 from git import GitConfigParser
 
 # AutoForge imports`
-from auto_forge import CoreModuleInterface, SysInfoPackageManagerType, SysInfoLinuxDistroType
+from auto_forge import CoreModuleInterface, SysInfoPackageManagerType, SysInfoLinuxDistroType, DataSizeFormatter
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
 AUTO_FORGE_MODULE_DESCRIPTION = "System information collector"
@@ -73,6 +73,8 @@ class SystemInfo(CoreModuleInterface):
         self._gfx: str = self._get_desktop_and_gfx()
         self._launch_arguments = ' '.join(shlex.quote(arg) for arg in sys.argv[1:])
         self._info_data: Optional[dict] = None
+        self._total_memory_mb: Optional[DataSizeFormatter] = None
+        self._available_memory_mb: Optional[DataSizeFormatter] = None
 
         # Try to fish the email and the fill name from git
         self._git_name, self._git_email = self._get_git_user_info()
@@ -80,26 +82,34 @@ class SystemInfo(CoreModuleInterface):
         if self._system_type == "linux":
             self._linux_distro, self._linux_version = self._get_linux_distro()
 
-        self._total_memory_mb: Optional[int] = self._get_total_memory()
+        system_ram = self._get_total_and_available_memory()
+        if system_ram:
+            total_kb, available_kb = system_ram
+            self._total_memory = DataSizeFormatter(total_kb * 1024)
+            self._available_memory = DataSizeFormatter(available_kb * 1024)
 
         # Pack into a dictionary
         self._info_data = {"system_type": self._system_type, "is_wsl": self._is_wsl,
                            "wsl_home": self._wsl_home if self._wsl_home else None,
                            "wsl_c_mount": self._wsl_c_mount if self._wsl_c_mount else None,
                            "is_docker": self._is_docker,
+                           "work_path": os.getcwd(), "pid": os.getpid(),
+                           "disk_usage": self._get_disk_usage(),
                            "architecture": self._architecture, "python_version": self._python_version,
                            "python venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
                            "ip_address": self._ip_address if self._ip_address else None, "is_admin": self._is_admin,
                            "username": self._username,
                            "package_manager": self._package_manager.name if self._package_manager else None,
                            "linux_distro": self._linux_distro.name if self._linux_distro else None,
-                           "linux_version": self._linux_version, "total_memory_mb": self._total_memory_mb,
+                           "distro_version": self._linux_version,
+                           "total_memory_mb": self._total_memory if self._total_memory else None,
+                           "available_memory_mb": self._available_memory if self._available_memory else None,
                            "linux_kernel_version": self._linux_kernel_version,
                            "linux_shell": self._linux_shell if self._linux_shell else None,
                            "virtualization": self._virtualization, "launch_arguments": self._launch_arguments,
                            "full_name": self._git_name if self._git_name else None,
-                           "email_address": self._git_email if self._git_email else None, "uptime_sec": self._uptime,
-                           "gfx": self._gfx, }
+                           "email_address": self._git_email if self._git_email else None,
+                           "gfx": self._gfx, "uptime": self._uptime}
 
     @staticmethod
     def _get_linux_distro() -> Tuple[SysInfoLinuxDistroType, str]:
@@ -120,6 +130,25 @@ class SystemInfo(CoreModuleInterface):
                 return SysInfoLinuxDistroType.from_id(distro_id), version_id
 
         return SysInfoLinuxDistroType.UNKNOWN, ""
+
+    @staticmethod
+    def _get_disk_usage() -> str:
+        """
+        Get Disk space usage summary for the root filesystem.
+        Returns:
+            str: A human-readable string summarizing total, used, and free disk space in GB.
+                 Returns an error message if disk usage can't be retrieved.
+        """
+        try:
+            total_disk, used_disk, free_disk = shutil.disk_usage('/')
+
+            # Convert bytes to Gigabytes for human readability
+            total_gb = total_disk / (1024 ** 3)
+            used_gb = used_disk / (1024 ** 3)
+            free_gb = free_disk / (1024 ** 3)
+            return f"Disk: Total {total_gb:.2f} GB, Used {used_gb:.2f} GB, Free {free_gb:.2f} GB"
+        except Exception as e:
+            return f"Error retrieving disk usage: {e}"
 
     # noinspection SpellCheckingInspection
     @staticmethod
@@ -161,27 +190,57 @@ class SystemInfo(CoreModuleInterface):
                     return pm
         return None
 
-    def _get_total_memory(self) -> Optional[int]:
+    # noinspection SpellCheckingInspection
+    def _get_total_and_available_memory(self) -> Optional[Tuple[int, int]]:
         """
-        Retrieve the total system memory in megabytes.
+        Retrieve the total and free usable system memory in kilobytes.
         Returns:
-            int: Total memory in MB if successfully determined, else None.
+            Tuple[int, int]: (Total memory in kB, Free usable memory in kB) if successfully determined, else None.
         """
+        total_memory_kb = None
+        available_memory_kb = None
+
         with suppress(Exception):
             if self._system_type == "linux":
                 with open("/proc/meminfo") as f:
-                    for line in f:
-                        if line.startswith("MemTotal:"):
-                            return int(line.split()[1]) // 1024  # in MB
+                    meminfo = f.readlines()  # Read all lines once
+
+                # Iterate through meminfo to find the relevant lines
+                mem_total_line = None
+                mem_available_line = None
+                for line in meminfo:
+                    if line.startswith("MemTotal:"):
+                        mem_total_line = line
+                    elif line.startswith("MemAvailable:"):
+                        mem_available_line = line
+                    # Optimization: if both are found, break early
+                    if mem_total_line and mem_available_line:
+                        break
+
+                if mem_total_line:
+                    # /proc/meminfo values are already in KB
+                    total_memory_kb = int(mem_total_line.split()[1])
+                if mem_available_line:
+                    # /proc/meminfo values are already in KB
+                    available_memory_kb = int(mem_available_line.split()[1])
 
             elif self._system_type == "darwin":
-                # noinspection SpellCheckingInspection
-                output = subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip()
-                return int(output) // (1024 * 1024)
+                # Total memory (hw.memsize is in bytes, so divide by 1024 to get KB)
+                output_total = subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip()
+                total_memory_kb = int(output_total) // 1024
+
+                # Available memory using psutil (psutil.available is in bytes, divide by 1024 for KB)
+                vmem = psutil.virtual_memory()
+                available_memory_kb = vmem.available // 1024
 
             elif self._system_type == "windows":
-                return int(psutil.virtual_memory().total) // (1024 * 1024)
+                # psutil.total and psutil.available are in bytes, divide by 1024 for KB
+                vmem = psutil.virtual_memory()
+                total_memory_kb = int(vmem.total) // 1024
+                available_memory_kb = int(vmem.available) // 1024
 
+        if total_memory_kb is not None and available_memory_kb is not None:
+            return total_memory_kb, available_memory_kb
         return None
 
     @staticmethod

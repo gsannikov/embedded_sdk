@@ -35,7 +35,7 @@ try:
     from auto_forge.common.local_types import (
         AddressInfoType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
         BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType,
-        EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
+        DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
@@ -90,7 +90,7 @@ __all__ = [
     "CommandInterface", "CommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
     "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CoreProcessorProtocol",
     "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "CoreVariablesProtocol",
-    "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
+    "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
     "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
     "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
