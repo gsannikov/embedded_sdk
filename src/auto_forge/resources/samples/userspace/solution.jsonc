@@ -43,6 +43,16 @@
                     "description": "\uD83D\uDC7E Deploy CMake files in a refactored project",
                     "command_type": "AUTOMATION",
                     "hidden": false
+                },
+                {
+                    "alias_name": "call",
+                    "target_command": [
+                        "usd --clean",
+                        "usr --clean"
+                    ],
+                    "description": "\uD83D\uDD28 Clean all",
+                    "command_type": "BUILD",
+                    "hidden": false
                 }
             ],
             "default_editor": "*code*",
@@ -105,7 +115,6 @@
                     "flags_binding": {
                         "--clean": "!cmake --build <$ref_build_path> --target clean"
                     },
-
                     // Per-project configuration
                     "configurations": [
                         {
@@ -131,7 +140,6 @@
                             "artifacts": [
                                 "<$ref_build_path>/n_libs/logger/liblogger.a"
                             ],
-
                             "pre_build_steps": {
                             }
                         },

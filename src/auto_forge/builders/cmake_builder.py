@@ -327,7 +327,6 @@ class CMakeBuilder(BuilderRunnerInterface):
             return _s if _s.endswith('.') else _s + '.'
 
         try:
-            print()
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
 

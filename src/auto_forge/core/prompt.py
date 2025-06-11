@@ -538,23 +538,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             return
 
         @with_argument_list
-        def alias_func(cmd_instance, args) -> Any:
+        def alias_func(cmd_instance, args):
+            """ Dynamic alias handler """
             if isinstance(target_command, str):
-                return cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
+                cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
             elif isinstance(target_command, list):
                 for cmd in target_command:
                     full_cmd = f"{cmd} {' '.join(args)}"
-                    result = cmd_instance.onecmd_plus_hooks(full_cmd)
-                    if isinstance(result, int) and result != 0:  # non-zero or signal to stop
+                    cmd_instance.onecmd_plus_hooks(full_cmd)
+                    if self.last_result:  # non-zero or signal to stop
                         break
             else:
                 cmd_instance.perror("Invalid target_command type")
-                return 1
 
         alias_func.__name__ = f"do_{alias_name}"
         alias_func.__doc__ = description
         setattr(self.__class__, alias_func.__name__, alias_func)
-
         existing = self._aliases_metadata.get(alias_name, {})
 
         # Set metadata
@@ -1244,11 +1243,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if command_record and 'description' in command_record:
             command_method_description = command_record.get('description', None)
         elif command_method and command_method.__doc__:
-            command_method_description = self._tool_box.normalize_docstrings(doc=command_method.__doc__,
-                                                                             wrap_term_width=term_width - 8)
+            command_method_description = (
+                self._tool_box.normalize_docstrings(doc=command_method.__doc__, wrap_term_width=term_width - 8))
         elif man_description:
-            command_method_description = self._tool_box.normalize_docstrings(doc=man_description,
-                                                                             wrap_term_width=term_width - 8)
+            command_method_description = (
+                self._tool_box.normalize_docstrings(doc=man_description, wrap_term_width=term_width - 8))
         else:
             command_method_description = None
 
@@ -1261,7 +1260,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         print()
         return None
 
-    def do_build(self, arg: str) -> int:
+    def do_build(self, arg: str):
         """
         Executes a build based on the dot-separated target notation:
             build <solution>.<project>.<configuration>
@@ -1271,23 +1270,27 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         and toolchain data, the solution is queried to retrieve the relevant configuration.
         """
 
+        self.last_result = 1
+
         try:
             args = shlex.split(arg)
             if not args:
                 self.perror("Expected: <project>.<configuration> [--flags]")
-                return 1
+                return
 
             target = args[0]
             extra_args = args[1:]
 
             if "." not in target:
                 self.perror("Expected: <project>.<configuration>")
-                return 1
+                return
 
             parts = target.split(".")
             if len(parts) != 2:
                 self.perror("Expected exactly 2 parts: <project>.<configuration>")
-                return 1
+                return
+
+            print()
 
             # Construct 'build profile' object
             build_profile = BuildProfileType()
@@ -1316,15 +1319,17 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     f"using '{build_profile.build_system}' "
                     f"with extra args: {extra_args}"
                 )
-                return self._loader.execute_build(build_profile=build_profile)
+
+                exit_code = self._loader.execute_build(build_profile=build_profile)
+                self.last_result = exit_code
             else:
                 self.perror(f"Solution configuration not found for '{build_profile.build_dot_notation}'")
-                return 1
+                self.last_result = 1
 
         except Exception as build_error:
             self.perror(f"Build Exception: {build_error}")
             self._logger.exception(build_error)
-            return 1
+        print()
 
     def default(self, statement: Statement) -> None:
         """
@@ -1337,8 +1342,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Export local variables to an environment mapping
             var_env = self._variables.export(as_env=True)
 
-            results = self._environment.execute_shell_command(command_and_args=statement.command_and_args, env=var_env,
-                                                              echo_type=TerminalEchoType.LINE)
+            results = self._environment.execute_shell_command(
+                command_and_args=statement.command_and_args, env=var_env, echo_type=TerminalEchoType.LINE)
             self.last_result = results.return_code
 
         except KeyboardInterrupt:

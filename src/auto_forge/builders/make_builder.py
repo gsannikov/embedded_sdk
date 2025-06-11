@@ -196,7 +196,6 @@ class MakeBuilder(BuilderRunnerInterface):
             Optional[int]: The return code from the build process, or None if not applicable.
         """
         try:
-            print()
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
 
