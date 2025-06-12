@@ -40,7 +40,7 @@ from rich.console import Console
 
 # AutoForge imports
 from auto_forge import (PROJECT_NAME, PROJECT_VERSION, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
-                        BuildProfileType, CoreEnvironment, CoreLoader, CoreModuleInterface, CoreSolution,
+                        BuildProfileType, CoreEnvironment, CoreDynamicLoader, CoreModuleInterface, CoreSolution,
                         TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, XYType, )
 
 # Basic types
@@ -132,7 +132,7 @@ class _CoreCompleter(Completer):
 
         self._core_prompt = core_prompt
         self._logger = logger
-        self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
+        self._loader: Optional[CoreDynamicLoader] = CoreDynamicLoader.get_instance()
 
     def _should_fallback_to_path_completion(self, cmd: str, arg_text: str, completer_func: Optional[callable]) -> bool:
         """
@@ -306,7 +306,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._prompt_base: Optional[str] = prompt
-        self._loader: Optional[CoreLoader] = CoreLoader.get_instance()
+        self._loader: Optional[CoreDynamicLoader] = CoreDynamicLoader.get_instance()
         self._history_file_name: Optional[str] = None
         self._aliases_metadata: dict[str, Any] = {}
         self._path_completion_rules_metadata: dict[str, Any] = {}

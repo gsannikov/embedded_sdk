@@ -21,9 +21,9 @@ AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
 
 
 @runtime_checkable
-class CoreProcessorProtocol(Protocol):
+class CoreJSONCProcessorProtocol(Protocol):
     """
-    Defines the required interface for CoreProcessor implementations.
+    Defines the required interface for CoreJSONCProcessor implementations.
     """
 
     def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]: ...

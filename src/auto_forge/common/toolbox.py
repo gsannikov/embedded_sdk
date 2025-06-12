@@ -43,7 +43,7 @@ import psutil
 # AutoForge imports
 from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
                         AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType,
-                        CoreProcessorProtocol, CoreVariablesProtocol)
+                        CoreJSONCProcessorProtocol, CoreVariablesProtocol)
 # Runtime import to prevent circular import
 from auto_forge.common.registry import Registry
 
@@ -1480,8 +1480,8 @@ class ToolBox(CoreModuleInterface):
                 # we retrieve their instances dynamically from the registry.
                 variables_class: Optional[CoreVariablesProtocol] = self._registry.get_instance_by_class_name(
                     "CoreVariables", return_protocol=True)
-                processor_class: Optional[CoreProcessorProtocol] = self._registry.get_instance_by_class_name(
-                    "CoreProcessor", return_protocol=True)
+                processor_class: Optional[CoreJSONCProcessorProtocol] = self._registry.get_instance_by_class_name(
+                    "CoreJSONCProcessor", return_protocol=True)
 
                 if not variables_class or not processor_class:
                     raise RuntimeError("required component instances could not be retrieved for this operation")
@@ -1816,7 +1816,7 @@ class ToolBox(CoreModuleInterface):
         """
 
         if data is None:
-            return  None
+            return None
 
         with suppress(Exception):
             if isinstance(data, list):

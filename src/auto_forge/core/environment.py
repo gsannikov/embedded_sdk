@@ -37,7 +37,7 @@ from typing import Any, Callable, Optional, Union, Tuple
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreLoader, CoreModuleInterface,
+from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreDynamicLoader, CoreModuleInterface,
                         VersionCompare, CoreJSONCProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry,
                         ToolBox, ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases,
                         SystemInfo, Watchdog, PROJECT_SHARED_PATH)
@@ -88,7 +88,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._processor = CoreJSONCProcessor.get_instance()  # Instantiate JSON processing library
         self._tool_box: ToolBox = ToolBox.get_instance()
         self._sys_info: SystemInfo = SystemInfo.get_instance()
-        self._loader: CoreLoader = CoreLoader.get_instance()
+        self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._shell_aliases: ShellAliases = ShellAliases.get_instance()
         self._configuration: dict[str, Any] = configuration

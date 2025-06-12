@@ -45,7 +45,8 @@ try:
     )
 
     # Protocols
-    from auto_forge.common.protocols import (CoreProcessorProtocol, CoreVariablesProtocol, CommandInterfaceProtocol)
+    from auto_forge.common.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
+                                             CommandInterfaceProtocol)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -56,14 +57,13 @@ try:
     from auto_forge.common.registry import Registry
     from auto_forge.common.toolbox import ToolBox
     from auto_forge.common.progress_tracker import ProgressTracker
-    from auto_forge.common.pretty_json_printer import PrettyPrinter
     from auto_forge.common.system_info import SystemInfo
     from auto_forge.common.shell_aliases import ShellAliases
     from auto_forge.common.version_compare import VersionCompare
 
     # Core / common modules
-    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
-    from auto_forge.core.loader import CoreLoader
+    from auto_forge.core.jsonc_processor import (CoreJSONCProcessor, JOSNPrettyPrinter)
+    from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.environment import CoreEnvironment
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI
@@ -88,7 +88,8 @@ __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgeModuleType", "AutoForgeWorkModeType", "AutoLogger",
     "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry",
     "CommandInterface", "CommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
-    "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreJSONCProcessor", "CoreProcessorProtocol",
+    "CoreEnvironment", "CoreGUI", "CoreDynamicLoader", "CoreModuleInterface", "CoreJSONCProcessor",
+    "CoreJSONCProcessorProtocol",
     "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "CoreVariablesProtocol",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
@@ -97,7 +98,7 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
-    "PrettyPrinter", "ProgressTracker", "QueueLogger", "Registry",
+    "JOSNPrettyPrinter", "ProgressTracker", "QueueLogger", "Registry",
     "SequenceErrorActionType", "ShellAliases", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
     "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",

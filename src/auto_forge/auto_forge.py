@@ -32,7 +32,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
-    CoreGUI, CoreLoader, CoreModuleInterface, CoreJSONCProcessor, CorePrompt, CoreSolution,
+    CoreGUI, CoreDynamicLoader, CoreModuleInterface, CoreJSONCProcessor, CorePrompt, CoreSolution,
     CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, Registry, ShellAliases,
     StatusNotifType, SystemInfo, ToolBox, Watchdog, )
@@ -61,7 +61,7 @@ class AutoForge(CoreModuleInterface):
         self._variables: Optional[CoreVariables] = None
         self._processor: Optional[CoreJSONCProcessor] = None
         self._gui: Optional[CoreGUI] = None
-        self._loader: Optional[CoreLoader] = None
+        self._loader: Optional[CoreDynamicLoader] = None
         self._prompt: Optional[CorePrompt] = None
         self._telemetry: Optional[BuildTelemetry] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
@@ -141,7 +141,7 @@ class AutoForge(CoreModuleInterface):
         self._init_logger()
 
         # Load all built-in commands
-        self._loader = CoreLoader(configuration=self._configuration)
+        self._loader = CoreDynamicLoader(configuration=self._configuration)
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
         # Start the environment core module
         self._environment = CoreEnvironment(workspace_path=self._workspace_path,
