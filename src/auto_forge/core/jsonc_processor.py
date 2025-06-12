@@ -25,7 +25,7 @@ AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"
 
 
-class JOSNPrettyPrinter:
+class _JOSNPrettyPrinter:
     """
     A Rich-based utility class for pretty-printing JSON data with syntax highlighting,
     line numbers, and optional key highlighting for enhanced terminal readability.
@@ -232,24 +232,24 @@ class CoreJSONCProcessor(CoreModuleInterface):
 
         print()
 
-    def _remove_formatter_hints(self, obj):
+    def _remove_pycharm_formatter_hints(self, _json_obj: Optional[Any]) -> Optional[Any]:
         """
-
+        Remove PyCharm formatting directives: @formatter:off or  @formatter:on
         """
-        if isinstance(obj, dict):
-            return {k: self._remove_formatter_hints(v) for k, v in obj.items() if
+        if isinstance(_json_obj, dict):
+            return {k: self._remove_pycharm_formatter_hints(v) for k, v in _json_obj.items() if
                     not (isinstance(v, str) and "# @formatter:" in v)}
-        elif isinstance(obj, list):
-            return [self._remove_formatter_hints(i) for i in obj]
+        elif isinstance(_json_obj, list):
+            return [self._remove_pycharm_formatter_hints(i) for i in _json_obj]
         else:
-            return obj
+            return _json_obj
 
     @staticmethod
-    def _strip_comments(json_like_str: str) -> str:
+    def _strip_comments(_text: str) -> str:
         """
         Remove various types of comments from a string containing JSON-like content.
         Args:
-            json_like_str (str): A string containing JSON data with embedded comments.
+            _text (str): A string containing JSON data with embedded comments.
         Returns:
             str: The JSON string with all comments removed, ready to be parsed by json.loads()
         """
@@ -263,36 +263,47 @@ class CoreJSONCProcessor(CoreModuleInterface):
                              flags=re.DOTALL | re.MULTILINE)
 
         # Use a function to decide what to replace with
-        def _replace_func(match):
-            s = match.group(0)
-            if s[0] in '"\'':  # If it's a string, return it unchanged
-                return s
+        def _replace_func(_match):
+            _s = _match.group(0)
+            if _s[0] in '"\'':  # If it's a string, return it unchanged
+                return _s
             else:
                 return ''  # Otherwise, it's a comment, replace it with nothing
 
         # Remove comments using the custom replace function
-        cleaned_str = re.sub(pattern, _replace_func, json_like_str)
+        _cleaned = re.sub(pattern, _replace_func, _text)
 
         # Post-processing to fix trailing commas left by removed comments
-        cleaned_str = re.sub(r',\s*([]}])', r'\1',
-                             cleaned_str)  # Remove trailing commas before a closing brace or bracket
+        _cleaned = re.sub(r',\s*([]}])', r'\1',
+                             _cleaned)  # Remove trailing commas before a closing brace or bracket
 
         # Clean up residual whitespaces and new lines if necessary
-        cleaned_str = re.sub(r'\n\s*\n', '\n', cleaned_str)  # Collapse multiple new lines
-        return cleaned_str.strip()
+        _cleaned = re.sub(r'\n\s*\n', '\n', _cleaned)  # Collapse multiple new lines
+        return _cleaned.strip()
+
+    @staticmethod
+    def _normalize_multiline_strings(_text: str) -> str:
+        """ Convert multiline double-quoted strings into valid JSON """
+        def _replacer(_match):
+            _content = _match.group(1)
+            _escaped = _content.replace('\n', '\\n')
+            return f'"{_escaped}"'
+
+        # Match content inside "..." which spans multiple lines
+        _pattern = r'"((?:[^"\\]|\\.)*?)"(?=\s*[:,}])'  # Note: Crude, improve as needed
+        return re.sub(_pattern, _replacer, _text, flags=re.DOTALL)
 
     def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
         """
         Preprocess a JSON or JSONC file to remove embedded comments.
         If the specified file does not exist but a file with the alternate extension
         exists (.json ↔ .jsonc), the alternate will be used.
-
         Args:
             file_name (str | Path): Path to the JSON or JSONC file.
         Returns:
             dict or None: Parsed JSON object, or None if an error occurs.
         """
-        clean_json: Optional[str] = None
+        clean_text: Optional[str] = None
         path_obj = Path(file_name)
         base = path_obj.with_suffix('')  # Remove .json or .jsonc if present
 
@@ -319,22 +330,40 @@ class CoreJSONCProcessor(CoreModuleInterface):
 
             # Load the file as text
             with open(config_file) as text_file:
-                json_with_comments = text_file.read()
+                dirty_json = text_file.read()
+
+            # Handle potential strings spanning across several lines
+            clean_text = self._normalize_multiline_strings(dirty_json)
 
             # Perform comments cleanup
-            clean_json = self._strip_comments(json_with_comments)
+            clean_text = self._strip_comments(clean_text)
 
             # Load and return as JSON dictionary
-            data = json.loads(clean_json)
+            data = json.loads(clean_text)
 
-            # Remove keys with formatter strings in values
-            cleaned_data = self._remove_formatter_hints(data)
+            # Remove PyCharm embedded formatting directives
+            cleaned_data = self._remove_pycharm_formatter_hints(data)
 
             return cleaned_data
 
         except (FileNotFoundError, json.JSONDecodeError, ValueError) as json_parsing_error:
-            if clean_json is not None:
+            if clean_text is not None:
                 error_line = self._get_line_number_from_error(str(json_parsing_error))
                 if error_line is not None:
-                    self._show_debug_message(file_name, clean_json, error_line, json_parsing_error)
+                    self._show_debug_message(file_name, clean_text, error_line, json_parsing_error)
             raise
+
+
+    @staticmethod
+    def pretty_print(obj:Any, indent: int = 4, sort_keys: bool = False, console: Optional[Console] = None,
+                 numbering_width: int = 4, highlight_keys: Optional[list[str]] = None, auto_width: bool = True):
+        """
+        Uses rich to pretty print JSON data with syntax highlighting, line numbers, and optional key highlighting
+        for enhanced terminal readability.
+        """
+        try:
+            pretty_printer = _JOSNPrettyPrinter(indent, sort_keys, console, numbering_width, highlight_keys, auto_width)
+            pretty_printer.render(obj)
+
+        except Exception as printer_error:
+            raise printer_error from printer_error

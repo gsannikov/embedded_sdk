@@ -62,7 +62,7 @@ try:
     from auto_forge.common.version_compare import VersionCompare
 
     # Core / common modules
-    from auto_forge.core.jsonc_processor import (CoreJSONCProcessor, JOSNPrettyPrinter)
+    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.environment import CoreEnvironment
     from auto_forge.core.variables import CoreVariables
@@ -98,7 +98,7 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
-    "JOSNPrettyPrinter", "ProgressTracker", "QueueLogger", "Registry",
+    "ProgressTracker", "QueueLogger", "Registry",
     "SequenceErrorActionType", "ShellAliases", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
     "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
