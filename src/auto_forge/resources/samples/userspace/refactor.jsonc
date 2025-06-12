@@ -1,6 +1,6 @@
 /*
-    Configuration file for the the 'path refactoring tool'.
-    ------------------------------------------------------
+    Configuration file for the 'path refactoring tool'.
+    ---------------------------------------------------
 
     Note:
     This script is formatted as JSON. A JSON preprocessor removes all comments before execution.

@@ -1,6 +1,6 @@
 /*
     Configuration JSON for the 'deploy tool'
-    -----------------------------------------
+    ----------------------------------------
 
     Note: This JSONC format supports inline comments, which are useful during development but should be
     removed or ignored by parsers in production environments.
@@ -10,10 +10,10 @@
     "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
     "defaults": {
-        "break_on_errors": false,
-        "create_host_path": true,
+        "break_on_errors": true,
+        "create_host_path": false,
         "max_depth": 10,
-        "overwrite": "always" // one of ( always, never, when_newer )
+        "overwrite": "when_newer" // one of ( always, never, when_newer )
     },
 
     // Required: list of file mappings between archive and host.
