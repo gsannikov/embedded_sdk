@@ -13,9 +13,6 @@ import argparse
 import logging
 import os
 import shutil
-import stat
-import tempfile
-import zipfile
 from dataclasses import dataclass
 from logging import Logger
 from typing import Any, Optional
@@ -164,80 +161,6 @@ class RefactorCommand(CommandInterface):
         self._defaults = None
         self._folders = None
         self._folders_count = 0
-
-    def _deploy_files(self, source: str, destination_path: str, verbose: bool = False) -> int:
-        """
-        Deploy files starting with 'root.' from source_path to destination_path.
-
-        - If source_path is a ZIP file, it is extracted to a temporary directory and files are taken from there.
-        - Files named 'root.*' are handled using these rules:
-            - The last two segments of the filename form the actual filename.
-            - The segments between 'root' and the filename define nested directories.
-        - Files ending in '.sh' will be set as executable (chmod +x).
-
-        Examples:
-            root.build.sh                      -> destination_path/build.sh
-            root.cmake.env.cmake               -> destination_path/cmake/env.cmake
-            root.cmake.n_libs.logger.CMakeLists.txt -> destination_path/cmake/n_libs/logger/CMakeLists.txt
-        """
-        is_zip = zipfile.is_zipfile(source)
-        workspace_path = self._variables.get(key="PROJ_WORKSPACE")
-        total_deployed = 0
-        temp_dir = None
-
-        # Allow console logger if verbose was specified
-        if verbose:
-            AutoLogger().set_output_enabled(logger=self._logger, state=True)
-
-        try:
-            if is_zip:
-                temp_dir = tempfile.TemporaryDirectory()
-                self._logger.debug(f"Extracting ZIP deploy archive: {os.path.basename(source)} -> {temp_dir.name}")
-                with zipfile.ZipFile(source, 'r') as zip_ref:
-                    zip_ref.extractall(temp_dir.name)
-                working_path = temp_dir.name
-            else:
-                working_path = source
-
-            for entry in os.listdir(working_path):
-                if not entry.startswith("root."):
-                    continue
-
-                parts = entry.split(".")[1:]  # Remove 'root'
-                if len(parts) < 2:
-                    self._logger.warning(f"Skipping malformed deployed filename: '{entry}'")
-                    continue
-
-                filename = ".".join(parts[-2:])  # e.g., 'build.sh'
-                subdir_parts = parts[:-2]  # e.g., ['cmake', 'n_libs', 'logger']
-
-                dest_dir = os.path.join(destination_path, *subdir_parts)
-                os.makedirs(dest_dir, exist_ok=True)
-
-                src_path = os.path.join(working_path, entry)
-                dest_path = os.path.join(dest_dir, filename)
-
-                shutil.copy2(src_path, dest_path)
-
-                # Make .sh files executable
-                if dest_path.endswith(".sh"):
-                    current_mode = os.stat(dest_path).st_mode
-                    os.chmod(dest_path, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-                total_deployed += 1
-                relative_dest_path = os.path.relpath(dest_path, workspace_path)
-                self._logger.debug(f"Deploying: '{os.path.basename(src_path)}' to '{relative_dest_path}'")
-
-            print(f"Done, total {total_deployed} files ware deployed.\n")
-            return total_deployed
-
-        except Exception as copy_error:
-            raise RuntimeError(f"Deploy exception: {copy_error}")
-        finally:
-            if temp_dir:
-                temp_dir.cleanup()
-            if verbose:  # Shutdown console logger
-                AutoLogger().set_output_enabled(logger=self._logger, state=False)
 
     def _load_recipe(self, recipe_file: str, source_path: str, destination_path: str) -> None:
         """
@@ -460,9 +383,7 @@ class RefactorCommand(CommandInterface):
             parser (argparse.ArgumentParser): The parser to extend.
         """
 
-        group = parser.add_mutually_exclusive_group(required=False)
-        group.add_argument("-r", "--recipe", type=str, help="Path to a refactor JSON recipe file.")
-        group.add_argument("-c", "--root_copy", action="store_true", help="Deploy files using the 'root copy' logic")
+        parser.add_argument("-r", "--recipe", type=str, help="Path to a refactor JSON recipe file.")
 
         parser.add_argument("-t", "--tutorial", action="store_true", help="Show the factoring tool tutorial.")
         parser.add_argument("-s", "--source_path", help="Source path to be refactored.")
@@ -499,9 +420,6 @@ class RefactorCommand(CommandInterface):
             return_value = self._refactor(recipe_file=args.recipe, source_path=args.source_path,
                                           destination_path=args.destination,
                                           verbose=args.verbose)
-        elif args.root_copy:
-            return_value = self._deploy_files(source=args.source_path, destination_path=args.destination,
-                                              verbose=args.verbose)
         else:
             return_value = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
 

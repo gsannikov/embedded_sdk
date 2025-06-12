@@ -179,10 +179,15 @@ class CoreJSONCProcessor(CoreModuleInterface):
     JSON pre-processing dedicated class.
     """
 
-    def _initialize(self):
+    def _initialize(self, normalize_multilines: bool = True):
         """
         Initializes the 'Processor' class instance which provide extended functionality around JSON files.
+        Args:
+            normalize_multilines (bool): Handle potential multi line strings in the input.
         """
+
+        self._normalize_multilines: bool = normalize_multilines
+
         # Persist this module instance in the global registry for centralized access
         registry = Registry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -286,11 +291,17 @@ class CoreJSONCProcessor(CoreModuleInterface):
         """ Convert multiline double-quoted strings into valid JSON """
         def _replacer(_match):
             _content = _match.group(1)
-            _escaped = _content.replace('\n', '\\n')
-            return f'"{_escaped}"'
+            _lines = _content.splitlines()
+            if not _lines:
+                return '""'
+            first = _lines[0]
+            rest = [line.strip() for line in _lines[1:]]
+            normalized = '\n'.join([first] + rest)
+            escaped = normalized.replace('\n', '\\n')
+            return f'"{escaped}"'
 
-        # Match content inside "..." which spans multiple lines
-        _pattern = r'"((?:[^"\\]|\\.)*?)"(?=\s*[:,}])'  # Note: Crude, improve as needed
+        # Match content inside "...", non-greedy to support nested structures; crude but works well enough
+        _pattern = r'"((?:[^"\\]|\\.)*?)"(?=\s*[:,}])'
         return re.sub(_pattern, _replacer, _text, flags=re.DOTALL)
 
     def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
@@ -333,10 +344,11 @@ class CoreJSONCProcessor(CoreModuleInterface):
                 dirty_json = text_file.read()
 
             # Handle potential strings spanning across several lines
-            clean_text = self._normalize_multiline_strings(dirty_json)
+            if self._normalize_multilines:
+                dirty_json = self._normalize_multiline_strings(dirty_json)
 
             # Perform comments cleanup
-            clean_text = self._strip_comments(clean_text)
+            clean_text = self._strip_comments(dirty_json)
 
             # Load and return as JSON dictionary
             data = json.loads(clean_text)

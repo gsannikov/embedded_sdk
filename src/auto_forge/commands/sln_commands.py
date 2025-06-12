@@ -59,7 +59,7 @@ class SolutionCommand(CommandInterface):
         console = Console(force_terminal=True)
 
         def _bool_emoji(bool_value: Optional[bool]) -> str:
-            if bool_value is True:
+            if bool_value:
                 return "[green]✔[/]"
             elif bool_value is False:
                 return "[red]✘[/]"

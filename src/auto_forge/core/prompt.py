@@ -403,7 +403,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Export dynamic md based help file
-        self._help_md_file = self._export_help_file(exported_file=f"$BUILD_LOGS/help.md")
+        self._help_md_file = self._export_commands_menu_file(exported_file=f"$BUILD_LOGS/help.md")
 
     def _init_history_file(self) -> bool:
         """
@@ -568,14 +568,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             "description": description or existing.get("description", "No help available"), "command_type": cmd_type,
             "target_command": existing.get("target_command"), "hidden": hidden, }
 
-    def _export_help_file(self, exported_file: Optional[str] = None, export_hidden: bool = False) -> Optional[str]:
+    def _export_commands_menu_file(self, exported_file: Optional[str] = None, export_hidden: bool = False) -> Optional[
+        str]:
         """
         Export all available commands into a formatted Markdown file.
         Args:
             exported_file (Optional[str]): Desired path for the output. If None, a unique file will be created under
             the system temp directory, with a name starting with a common prefix.
             export_hidden(bool): Whether to export commands hidden from the cmd2 application.
-
         Returns:
             Optional[str]: Path to the created file if successful, else None.
         """
@@ -602,10 +602,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                     continue
                 cmd_type = metadata.get("command_type", AutoForgCommandType.BUILTIN)
                 doc = metadata.get("description", "No help available")
-                # Minor string touch up
-                doc = doc.replace('\t', ' ').strip()
-                if not doc.endswith('.'):
-                    doc += '.'
 
                 # Append if not exist
                 if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
@@ -644,8 +640,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
                     # Table Rows
                     for cmd, desc in sorted(commands_by_type[cmd_type]):
+                        # Add command description adjusted to the terminal width
                         safe_desc = desc.replace("|", "\\|")
-                        wrapped_lines = textwrap.wrap(safe_desc, width=description_width - 2, break_long_words=False)
+                        wrapped_lines = []
+                        for para in safe_desc.splitlines():
+                            wrapped_lines.extend(textwrap.wrap(para, width=description_width - 2, break_long_words=False) or [""])
+                        # wrapped_lines = textwrap.wrap(safe_desc, width=description_width - 2, break_long_words=False)
 
                         cmd_str = f"`{cmd}`" if use_backticks else cmd
                         padded_cmd_str = f"{cmd_str:<{command_width}}"

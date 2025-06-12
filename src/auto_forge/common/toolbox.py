@@ -1267,29 +1267,26 @@ class ToolBox(CoreModuleInterface):
         # Protect URLs and emails
         url_pattern = r'\b(?:https?|ftp)://[^\s]+'
         email_pattern = r'\b[\w\.-]+@[\w\.-]+\.\w+\b'
-
         protected = {}
 
-        def protect(match):
+        def _protect(match):
             """ Replaces a matched string with a unique placeholder and stores the original for later restoration. """
             protected_token = f"__PROTECTED_{len(protected)}__"
             protected[protected_token] = match.group(0)
             return protected_token
 
-        cleared_text = re.sub(url_pattern, protect, cleared_text)
-        cleared_text = re.sub(email_pattern, protect, cleared_text)
+        cleared_text = re.sub(url_pattern, _protect, cleared_text)
+        cleared_text = re.sub(email_pattern, _protect, cleared_text)
 
         # Work safely
         cleared_text = re.sub(r'\n+', '.', cleared_text)
         cleared_text = re.sub(r'\.{2,}', '.', cleared_text)
         cleared_text = cleared_text.strip('.').strip()
-
         if not cleared_text:
             return default_text if default_text is not None else ""
 
         # Capitalize sentences, but skip inside __PROTECTED__ blocks
         parts = re.split(r'(__PROTECTED_\d+__)', cleared_text)  # split into normal / protected pieces
-
         result = []
         capitalize_next = True
 

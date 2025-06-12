@@ -9,6 +9,7 @@ Description:
 """
 
 import argparse
+import os
 import zipfile
 from datetime import datetime
 from enum import Enum, auto
@@ -72,7 +73,7 @@ class DeployCommand(CommandInterface):
 
         # Type for  essential JSON sections
         self._recipe_defaults_raw: Optional[dict] = None
-        self._recipe_files: Optional[list[dict]] = None
+        self._recipe_deploy_files: Optional[list[dict]] = None
         self._recipe_defaults: Optional[dict[str, Any]] = None
 
         # Base class initialization
@@ -85,7 +86,7 @@ class DeployCommand(CommandInterface):
         """
         self._recipe_defaults_raw = None
         self._recipe_defaults = None
-        self._recipe_files = None
+        self._recipe_deploy_files = None
 
     @staticmethod
     def _parse_overwrite_policy(policy_str: str) -> _OverwritePolicy:
@@ -125,7 +126,7 @@ class DeployCommand(CommandInterface):
         else:
             return _DeployDirectionType.Unknown
 
-    def _to_archive(self, host_base_path: Path, archive_path: Path) -> Optional[int]:
+    def _to_archive(self, host_base_path: Path, archive_path: Path, archive_overwrite: bool = False) -> Optional[int]:
         """
         Creates a ZIP archive using file entries defined in the loaded recipe.
         For each entry, the 'destination' field is resolved relative to the host base path,
@@ -139,45 +140,35 @@ class DeployCommand(CommandInterface):
         Args:
             host_base_path (Path): Base directory containing the source files on the host system.
             archive_path (Path): Path to the output ZIP archive.
+            archive_overwrite (bool): Allow or disallow deleting an exiting archive file.
         Returns:
             Optional[int]: 0 on success, 1 if any error occurred.
         """
 
         try:
-            raw_overwrite_host_files_policy = self._recipe_defaults.get("overwrite_host_files", "always")
-            policy = self._parse_overwrite_policy(raw_overwrite_host_files_policy)
 
-            if policy == _OverwritePolicy.Unknown:
-                raise ValueError(f"invalid overwrite policy: '{raw_overwrite_host_files_policy}'")
-
+            break_on_errors: bool = self._recipe_defaults.get("break_on_errors", True)
             if archive_path.exists():
-                if policy == _OverwritePolicy.Never:
-                    self._logger.info(f"Archive already exists, skipping due to overwrite policy: never")
-                    return 0
-                elif policy == _OverwritePolicy.WhenNewer:
-                    archive_mtime = datetime.fromtimestamp(archive_path.stat().st_mtime)
-                else:
-                    archive_mtime = None
-            else:
-                archive_mtime = None
+                if not archive_overwrite:
+                    raise RuntimeError(f"an exiting archive file already exists: '{archive_path}'")
 
-            with zipfile.ZipFile(archive_path, mode='w' if policy == _OverwritePolicy.Always else 'a') as archive:
-                for entry in self._recipe_files:
+            # Delete if exist
+            archive_path.unlink(missing_ok=True)
+
+            with zipfile.ZipFile(archive_path, mode='w') as archive:
+                for entry in self._recipe_deploy_files:
                     src_rel = Path(entry["host"])
                     arc_rel = Path(entry["archive"])
                     src_abs = host_base_path / src_rel
 
                     if not src_abs.exists():
-                        self._logger.warning(f"File not found: {src_abs}")
+                        if break_on_errors:
+                            raise RuntimeError(f"host source file not found: {src_abs}")
+
+                        self._logger.warning(f"host source file not found: {src_abs}")
                         continue
 
-                    if policy == _OverwritePolicy.WhenNewer and archive_mtime:
-                        file_mtime = datetime.fromtimestamp(src_abs.stat().st_mtime)
-                        if file_mtime <= archive_mtime:
-                            self._logger.info(f"Skipping {src_abs} (not newer than archive)")
-                            continue
-
-                    self._logger.info(f"Adding to archive: {src_abs} as {arc_rel}")
+                    self._logger.info(f"Adding to archive: {os.path.basename(src_abs)} as {os.path.basename(arc_rel)}")
                     archive.write(src_abs, arcname=str(arc_rel))
 
             return 0
@@ -204,8 +195,10 @@ class DeployCommand(CommandInterface):
             if not archive_path.exists():
                 raise FileNotFoundError(f"archive not found: {archive_path}")
 
-            create_dirs = bool(self._recipe_defaults.get("create_host_path", False))
-            policy = self._parse_overwrite_policy(self._recipe_defaults.get("overwrite", "always"))
+            create_dirs: bool = self._recipe_defaults.get("create_host_path", False)
+            break_on_errors: bool = self._recipe_defaults.get("break_on_errors", True)
+
+            policy = self._parse_overwrite_policy(self._recipe_defaults.get("host_overwrite_policy", "never"))
 
             if policy == _OverwritePolicy.Unknown:
                 raise ValueError(f"invalid overwrite policy in recipe: {self._recipe_defaults.get('overwrite')}")
@@ -213,13 +206,16 @@ class DeployCommand(CommandInterface):
             with zipfile.ZipFile(archive_path, mode='r') as archive:
                 archive_contents = {Path(info.filename): info for info in archive.infolist()}
 
-                for entry in self._recipe_files:
+                for entry in self._recipe_deploy_files:
                     arc_rel = Path(entry["archive"])
                     dst_rel = Path(entry["host"])
                     dst_abs = host_base_path / dst_rel
 
                     if arc_rel not in archive_contents:
-                        self._logger.warning(f"Archive entry not found: {arc_rel}")
+                        status_message = f"Archive entry not found: {os.path.abspath(arc_rel)}"
+                        if break_on_errors:
+                            raise RuntimeError(status_message)
+                        self._logger.warning(status_message)
                         continue
 
                     # Check if we need to create host path
@@ -228,7 +224,10 @@ class DeployCommand(CommandInterface):
                             dst_abs.parent.mkdir(parents=True, exist_ok=True)
                             self._logger.info(f"Created directory: {dst_abs.parent}")
                         else:
-                            self._logger.warning(f"Host path does not exist: {dst_abs.parent}")
+                            status_message = f"Host path does not exist: {os.path.abspath(dst_abs.parent)}"
+                            if break_on_errors:
+                                raise RuntimeError(status_message)
+                            self._logger.warning(status_message)
                             continue
 
                     # Overwrite policy enforcement
@@ -253,6 +252,7 @@ class DeployCommand(CommandInterface):
             raise RuntimeError(f"failed to extract from archive: {extract_error}")
 
     def _process(self, recipe_file: str, archive_path: str, host_base_path: str, direction: _DeployDirectionType,
+                 archive_overwrite: Optional[bool] = False,
                  verbose: Optional[bool] = False) -> Optional[int]:
         """
         Processes the recipe file and sets up the archive-to-host mapping.
@@ -261,6 +261,7 @@ class DeployCommand(CommandInterface):
             archive_path (str): Path to the ZIP archive, which could be decompressed or created based on the direction.
             host_base_path (str): Path to the directory where files will deploy to or collected from.
             direction (_DeployDirectionType): Determines the operation direction.
+            archive_overwrite (bool, optional): Whether to overwrite existing archive or not.
             verbose (bool, optional): Enable verbose logging if True.
         Returns:
             Optional[int]: 1 on failure, None on success.
@@ -289,19 +290,20 @@ class DeployCommand(CommandInterface):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
 
             self._recipe_defaults = recipe_raw.get("defaults", {})
-            self._recipe_files = recipe_raw.get("files", [])
+            self._recipe_deploy_files = recipe_raw.get("files", [])
 
             # Validate presence of mandatory fields
-            if not isinstance(self._recipe_defaults, dict) or not isinstance(self._recipe_files, list):
+            if not isinstance(self._recipe_defaults, dict) or not isinstance(self._recipe_deploy_files, list):
                 raise ValueError(f"missing or malformed 'defaults' or 'files' section in recipe: '{recipe_file}'")
 
-            if not len(self._recipe_files):
+            if not len(self._recipe_deploy_files):
                 raise ValueError(f"not files specified in recipe: '{recipe_file}'")
 
-            self._logger.debug(f"Loaded recipe: {len(self._recipe_files)} file entries found")
+            self._logger.debug(f"Loaded recipe: {len(self._recipe_deploy_files)} file entries found")
 
             if direction == _DeployDirectionType.HostToArchive:
-                return self._to_archive(host_base_path=host_base_path, archive_path=archive_path)
+                return self._to_archive(host_base_path=host_base_path, archive_path=archive_path,
+                                        archive_overwrite=archive_overwrite)
             elif direction == _DeployDirectionType.ArchiveToHost:
                 return self._from_archive(archive_path=archive_path, host_base_path=host_base_path)
             else:
@@ -326,6 +328,9 @@ class DeployCommand(CommandInterface):
 
         parser.add_argument('-b', '--host_base_path',
                             required=True, help='Path to the a directory where files will deployed or collected from.')
+
+        parser.add_argument("-o", "--archive_overwrite", action="store_true",
+                            help="Allow overwriting an exiting archive file.")
 
         parser.add_argument('-d', '--direction',
                             choices=['to-host', 'to-archive'], required=True,
@@ -353,6 +358,7 @@ class DeployCommand(CommandInterface):
 
             # Process the recipe
             return self._process(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_base_path,
-                                 direction=deploy_direction, verbose=args.verbose)
+                                 direction=deploy_direction, verbose=args.verbose,
+                                 archive_overwrite=args.archive_overwrite)
         else:
             return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

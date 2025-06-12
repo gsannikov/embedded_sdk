@@ -72,7 +72,7 @@ class AutoForge(CoreModuleInterface):
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[SystemInfo] = None
         self._shell_aliases: Optional[ShellAliases] = None
-        self._watchdog: Optional[Watchdog] = None
+        self._watchdog_watchdog: Optional[Watchdog] = None
         self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
         self._periodic_timer: Optional[threading.Timer] = None
         self._events_sync_thread: Optional[threading.Thread] = None
@@ -127,6 +127,10 @@ class AutoForge(CoreModuleInterface):
         self._configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
         self.ansi_codes = self._configuration.get("ansi_codes")
 
+        # Configure and start watchdog with default or configuration provided timeout.
+        self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
+        self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
+
         # Handle arguments
         self._init_arguments(*args, **kwargs)
 
@@ -150,10 +154,6 @@ class AutoForge(CoreModuleInterface):
         # Set the switch interval to 0.001 seconds (1 millisecond), it may make threads
         # responsiveness slightly better
         sys.setswitchinterval(0.001)
-
-        # Configure and start watchdog with default or configuration provided timeout.
-        self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
-        self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
 
         # Remove anny previously generated autoforge temporary files.
         self._tool_box.clear_residual_files()
@@ -384,7 +384,6 @@ class AutoForge(CoreModuleInterface):
         try:
 
             # Start remote debugging if enabled.
-
             self._queue_logger.debug(
                 f"Remote debugging enabled using {host}:{port}")
 
@@ -394,6 +393,8 @@ class AutoForge(CoreModuleInterface):
             with contextlib.redirect_stderr(io.StringIO()):
                 pydevd_pycharm.settrace(host=host, port=port, suspend=False,
                                         trace_only_current_thread=False)
+                # No watch in debug mode
+                self._watchdog.stop()
 
         except ImportError:
             self._queue_logger.warning("'pydevd_pycharm' is not installed; skipping remote debugging")

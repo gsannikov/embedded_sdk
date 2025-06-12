@@ -2,7 +2,9 @@
     First run example recipe
     ------------------------
 
-    Note: This JSONC format supports inline comments, which are useful during development but should be
-    removed or ignored by parsers in production environments.
+    Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
+    This allows for improved readability and documentation, but it is not valid standard JSON.
+    Parsers consuming this file must support JSONC or preprocess it accordingly.
+
 */
 
