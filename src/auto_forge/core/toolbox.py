@@ -41,11 +41,14 @@ from urllib.parse import ParseResult, unquote, urlparse
 import psutil
 
 # AutoForge imports
-from auto_forge import (PROJECT_BASE_PATH, PROJECT_SHARED_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, AddressInfoType,
-                        AutoForgeModuleType, CoreModuleInterface, PROJECT_VIEWERS_PATH, MethodLocationType, XYType,
-                        CoreJSONCProcessorProtocol, CoreVariablesProtocol)
+from auto_forge import (
+    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessorProtocol,
+    CoreModuleInterface, CoreVariablesProtocol, MethodLocationType,
+    PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_SHARED_PATH,
+    PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH, XYType
+)
 # Runtime import to prevent circular import
-from auto_forge.common.registry import Registry
+from auto_forge.core.registry import Registry
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -736,7 +739,7 @@ class ToolBox(CoreModuleInterface):
             raise encode_error
 
     @staticmethod
-    def safe_backup_and_erase_file(file_path: Union[str,Path]) -> None:
+    def safe_backup_and_erase_file(file_path: Union[str, Path]) -> None:
         """
         Back up a file by copying it with a timestamped name, then delete the original.
         Args:
@@ -747,7 +750,7 @@ class ToolBox(CoreModuleInterface):
             file_path = Path(file_path)
 
         if not file_path.is_file():
-               return
+            return
 
         # Extract filename components
         timestamp = datetime.now().strftime("%m_%d_%H_%M_%S")
@@ -1607,7 +1610,7 @@ class ToolBox(CoreModuleInterface):
         return help_file_path
 
     @staticmethod
-    def show_help_file(relative_path: Union[str,Path]) -> int:
+    def show_help_file(relative_path: Union[str, Path]) -> int:
         """
         Displays a markdown help file using the textual markdown viewer.
         Args:

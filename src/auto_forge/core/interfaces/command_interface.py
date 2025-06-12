@@ -25,10 +25,10 @@ from abc import ABC, abstractmethod
 from contextlib import suppress
 from typing import IO, Any, Optional
 
-# AutoForge imports
+# Direct internal imports to avoid circular dependencies
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, AutoForgCommandType)
-from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
-from auto_forge.common.toolbox import ToolBox
+from auto_forge.core.registry import Registry  # Runtime import to prevent circular import
+from auto_forge.core.toolbox import ToolBox
 
 
 class _CapturingArgumentParser(argparse.ArgumentParser):

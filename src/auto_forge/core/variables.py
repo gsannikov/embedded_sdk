@@ -21,8 +21,10 @@ from typing import Any, Optional, Union
 from jsonschema.validators import validate
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, CoreModuleInterface, CoreJSONCProcessor, Registry,
-                        ToolBox, VariableFieldType, )
+from auto_forge import (
+    AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
+    CoreModuleInterface, Registry, ToolBox, VariableFieldType
+)
 
 AUTO_FORGE_MODULE_NAME = "Variables"
 AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"

@@ -15,8 +15,8 @@ from types import ModuleType
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, CoreModuleInterface, ModuleInfoType, AutoForgCommandType
-from auto_forge.common import protocols
+from auto_forge import (AutoForgCommandType, AutoForgeModuleType, CoreModuleInterface, ModuleInfoType)
+from auto_forge.core.protocols import protocols
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"

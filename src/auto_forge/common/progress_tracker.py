@@ -17,7 +17,7 @@ Note:
     This module depends on the 'colorama' and 'ANSIGuru' (hypothetical) packages for its
     color handling and cursor control capabilities.
 """
-
+import re
 import shutil
 import sys
 import time
@@ -29,7 +29,7 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (TerminalAnsiGuru, ToolBox)
+from auto_forge import TerminalAnsiGuru
 
 AUTO_FORGE_MODULE_NAME = "ProgressTracker"
 AUTO_FORGE_MODULE_DESCRIPTION = "Terminal-based status and progress reporting helper"
@@ -117,19 +117,26 @@ class ProgressTracker:
         it fits within the defined title length by truncating if necessary and padding with dots.
         Args:
             text (str): The preliminary status message to display.
-
         Returns:
             str: The formatted string ready for display.
         """
 
+        def _get_clear_text(_text: str) -> str:
+            """ Remove ANSI escape sequences from the input string."""
+            if isinstance(_text, str):
+                ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+                _cleared: str = ansi_escape.sub('', _text)
+                return _cleared.strip()
+            return _text
+
         text = text.strip() if text is not None else ""  # Basic normalizing
-        input_len = len(ToolBox.strip_ansi(text).strip())
+        input_len = len(_get_clear_text(text))
 
         time_string = datetime.now().strftime("%H:%M:%S ") if self._add_time_prefix else ""
         title_usable_length = self._title_length - len(time_string)
         if input_len > title_usable_length:
             text = text[-max(0, title_usable_length - 4):]  # Truncate from the left
-            input_len = len(ToolBox.strip_ansi(text).strip())
+            input_len = len(_get_clear_text(text))
 
         text_length = len(time_string) + input_len
         dots_count = self._title_length - text_length - 2
@@ -233,7 +240,6 @@ class ProgressTracker:
             return False
 
         text = text.strip() if text is not None else ""  # Basic normalizing
-
         self._ansi_term.restore_cursor_position()
 
         if status_code == 0:

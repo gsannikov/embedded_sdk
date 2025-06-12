@@ -23,7 +23,7 @@ AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
 @runtime_checkable
 class CoreJSONCProcessorProtocol(Protocol):
     """
-    Defines the required interface for CoreJSONCProcessor implementations.
+    Defines the required interface for the json processor mcore module..
     """
 
     def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]: ...
@@ -32,16 +32,26 @@ class CoreJSONCProcessorProtocol(Protocol):
 @runtime_checkable
 class CoreVariablesProtocol(Protocol):
     """
-    Defines the required interface for core variable expansion handlers.
+    Defines the required interface for core variable module.
     """
 
     def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]: ...
 
 
 @runtime_checkable
+class CoreShellAliasesProtocol(Protocol):
+    """
+    Defines the required interface for shell aliases core module.
+    """
+
+    def create(self, alias: str, command: str, can_update_existing: bool = True) -> bool: ...
+
+    def commit(self) -> bool:...
+
+@runtime_checkable
 class CommandInterfaceProtocol(Protocol):
     """
-    Defines the required interface for CLI command modules.
+    Defines the required interface for the commands interface module.
     """
 
     def get_info(self) -> ModuleInfoType: ...

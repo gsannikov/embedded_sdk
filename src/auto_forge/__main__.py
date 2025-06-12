@@ -26,8 +26,6 @@ def arguments_process() -> Optional[argparse.Namespace]:
     """
 
     with suppress(Exception):
-
-
         version_string = f"{PROJECT_NAME} Ver {PROJECT_VERSION}"
 
         # Check early for the version flag before constructing the parser
@@ -86,7 +84,7 @@ def arguments_process() -> Optional[argparse.Namespace]:
     return None
 
 
-def main()->int:
+def main() -> int:
     """
     The main entry point for the AutoForge package.
     The following will provide you with all you need to know about this method:

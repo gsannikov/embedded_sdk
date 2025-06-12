@@ -37,12 +37,12 @@ from typing import Any, Callable, Optional, Union, Tuple
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AddressInfoType, AutoForgeModuleType, AutoLogger, CoreDynamicLoader, CoreModuleInterface,
-                        VersionCompare, CoreJSONCProcessor, CommandResultType, ExecutionModeType, ProgressTracker, Registry,
-                        ToolBox, ValidationMethodType, TerminalEchoType, SequenceErrorActionType, ShellAliases,
-                        SystemInfo, Watchdog, PROJECT_SHARED_PATH)
-# Delayed import, prevent circular errors.
-from auto_forge.core.variables import CoreVariables
+from auto_forge import (
+    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType, CoreDynamicLoader,
+    CoreJSONCProcessor, CoreModuleInterface, CoreShellAliasesProtocol, CoreVariables,
+    ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH, Registry, SequenceErrorActionType,
+    SystemInfo, TerminalEchoType, ToolBox, ValidationMethodType, VersionCompare, Watchdog
+)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -90,7 +90,6 @@ class CoreEnvironment(CoreModuleInterface):
         self._sys_info: SystemInfo = SystemInfo.get_instance()
         self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
-        self._shell_aliases: ShellAliases = ShellAliases.get_instance()
         self._configuration: dict[str, Any] = configuration
 
         # Get the interactive commands from package configuration or use defaults if not available
@@ -103,9 +102,9 @@ class CoreEnvironment(CoreModuleInterface):
                                                                     self._subprocess_execution_timout)
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                 auto_forge_module_type=AutoForgeModuleType.CORE)
+        self._registry = Registry.get_instance()
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def _print(self, text: str):
         """
@@ -319,8 +318,11 @@ class CoreEnvironment(CoreModuleInterface):
         # and won't be available to the shell after we exit.
         expanded_command = self._variables.expand(key=command)
 
+        aliases_class: Optional[CoreShellAliasesProtocol] = self._registry.get_instance_by_class_name(
+            "CoreShellAliases", return_protocol=True)
+
         # Create and commit, we need both to succeed
-        if self._shell_aliases.create(alias=alias, command=expanded_command) and self._shell_aliases.commit():
+        if aliases_class.create(alias=alias, command=expanded_command) and aliases_class.commit():
             return_code = 0
 
         return CommandResultType(response=alias, return_code=return_code)

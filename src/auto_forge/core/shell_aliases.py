@@ -25,14 +25,16 @@ from pathlib import Path
 from typing import Optional, Union
 
 # AutoForge late imports
-from auto_forge import CoreModuleInterface, ToolBox, LinuxShellType, SystemInfo
-from auto_forge.common.version_compare import VersionCompare
+from auto_forge import (
+    AutoForgeModuleType, CoreModuleInterface, LinuxShellType,
+    Registry, SystemInfo, VersionCompare
+)
 
 AUTO_FORGE_MODULE_NAME = "ShellAliases"
 AUTO_FORGE_MODULE_DESCRIPTION = "Shell Aliases Management Auxiliary Class"
 
 
-class ShellAliases(CoreModuleInterface):
+class CoreShellAliases(CoreModuleInterface):
     """
     Manages shell environment state and aliases for a given shell (bash, zsh, etc.).
     """
@@ -63,7 +65,6 @@ class ShellAliases(CoreModuleInterface):
                 If None, the user's default shell is auto-detected.
         """
 
-        self._tool_box: Optional[ToolBox] = None
         self._shell_name: Optional[str] = None
         self._shell_version: Optional[str] = None
         self._shell_rc_file: Optional[Path] = None
@@ -85,6 +86,11 @@ class ShellAliases(CoreModuleInterface):
         self._prefix_comment: str = self._format_shell_comment(prefix_comment.strip())
         self._suffix_comment: str = self._format_shell_comment(suffix_comment.strip())
         self._env_valid: bool = False
+
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Auto Probe the environment
         self._probe_env(forced_shell=forced_shell)
@@ -112,6 +118,14 @@ class ShellAliases(CoreModuleInterface):
         if not shell_path:
             return None
 
+        def _get_clear_text(_text: str) -> str:
+            """ Remove ANSI escape sequences from the input string. """
+            if isinstance(_text, str):
+                ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+                _cleared: str = ansi_escape.sub('', _text)
+                return _cleared.strip()
+            return _text
+
         def _get_alias_definition(raw: str) -> Optional[str]:
             """Extract the value part from a shell alias output line like: alias foo='bar baz'"""
             match = re.match(rf"^alias\s+{re.escape(alias)}=['\"](.*?)['\"]$", raw)
@@ -131,7 +145,7 @@ class ShellAliases(CoreModuleInterface):
             if result.returncode != 0:
                 return None
 
-            output = self._tool_box.strip_ansi(result.stdout.strip())
+            output = _get_clear_text(result.stdout.strip())
             return _get_alias_definition(output)
 
         return None
@@ -302,10 +316,6 @@ class ShellAliases(CoreModuleInterface):
             bool: True if a valid shell environment was detected and configured.
         """
         with suppress(Exception):
-
-            # Get a toolbox instance
-            if self._tool_box is None:
-                self._tool_box = ToolBox.get_instance()
 
             # Use user-specified shell or detect from environment
             shell_bin = shutil.which(forced_shell) if forced_shell else self._sys_info.linux_shell

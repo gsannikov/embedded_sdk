@@ -44,31 +44,31 @@ try:
         XYType
     )
 
+    # Common modules
+    from auto_forge.common.version_compare import VersionCompare
+    from auto_forge.common.progress_tracker import ProgressTracker
+
     # Protocols
-    from auto_forge.common.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
-                                             CommandInterfaceProtocol)
+    from auto_forge.core.protocols.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
+                                                     CoreShellAliasesProtocol, CommandInterfaceProtocol)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
     from auto_forge.core.interfaces.command_interface import CommandInterface
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
 
-    # Common modules
-    from auto_forge.common.registry import Registry
-    from auto_forge.common.toolbox import ToolBox
-    from auto_forge.common.progress_tracker import ProgressTracker
-    from auto_forge.common.system_info import SystemInfo
-    from auto_forge.common.shell_aliases import ShellAliases
-    from auto_forge.common.version_compare import VersionCompare
-
     # Core / common modules
+    from auto_forge.core.registry import Registry
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
-    from auto_forge.core.dynamic_loader import CoreDynamicLoader
-    from auto_forge.core.environment import CoreEnvironment
+    from auto_forge.core.toolbox import ToolBox
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
     from auto_forge.core.solution import CoreSolution
+    from auto_forge.core.system_info import SystemInfo
+    from auto_forge.core.dynamic_loader import CoreDynamicLoader
+    from auto_forge.core.shell_aliases import CoreShellAliases
+    from auto_forge.core.environment import CoreEnvironment
     from auto_forge.core.prompt import CorePrompt
 
     # AutoForg main
@@ -99,7 +99,8 @@ __all__ = [
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
     "ProgressTracker", "QueueLogger", "Registry",
-    "SequenceErrorActionType", "ShellAliases", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "SequenceErrorActionType", "CoreShellAliases", "CoreShellAliasesProtocol", "Signature", "SignatureFieldType",
+    "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
     "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
     "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "XYType", "start"

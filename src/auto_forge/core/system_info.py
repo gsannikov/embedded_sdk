@@ -27,8 +27,11 @@ from typing import Optional, Tuple
 import psutil
 from git import GitConfigParser
 
-# AutoForge imports`
-from auto_forge import CoreModuleInterface, SysInfoPackageManagerType, SysInfoLinuxDistroType, DataSizeFormatter
+# AutoForge imports
+from auto_forge import (
+    AutoForgeModuleType, CoreModuleInterface, DataSizeFormatter,
+    Registry, SysInfoLinuxDistroType, SysInfoPackageManagerType
+)
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
 AUTO_FORGE_MODULE_DESCRIPTION = "System information collector"
@@ -110,6 +113,11 @@ class SystemInfo(CoreModuleInterface):
                            "full_name": self._git_name if self._git_name else None,
                            "email_address": self._git_email if self._git_email else None,
                            "gfx": self._gfx, "uptime": self._uptime}
+
+        # Persist this module instance in the global registry for centralized access
+        registry = Registry.get_instance()
+        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                 auto_forge_module_type=AutoForgeModuleType.CORE)
 
     @staticmethod
     def _get_linux_distro() -> Tuple[SysInfoLinuxDistroType, str]:

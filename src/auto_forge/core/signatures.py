@@ -21,8 +21,10 @@ from re import Match
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreJSONCProcessor, CoreVariables, Registry,
-                        SignatureFieldType, SignatureSchemaType, )
+from auto_forge import (
+    AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
+    CoreVariables, Registry, SignatureFieldType, SignatureSchemaType
+)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"

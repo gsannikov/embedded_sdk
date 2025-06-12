@@ -39,9 +39,12 @@ from prompt_toolkit.styles import Style
 from rich.console import Console
 
 # AutoForge imports
-from auto_forge import (PROJECT_NAME, PROJECT_VERSION, AutoLogger, AutoForgCommandType, AutoForgeModuleType,
-                        BuildProfileType, CoreEnvironment, CoreDynamicLoader, CoreModuleInterface, CoreSolution,
-                        TerminalEchoType, ModuleInfoType, CoreVariables, ExecutionModeType, Registry, ToolBox, XYType, )
+from auto_forge import (
+    AutoForgCommandType, AutoForgeModuleType, AutoLogger, BuildProfileType,
+    CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreSolution, CoreVariables,
+    ExecutionModeType, ModuleInfoType, PROJECT_NAME, PROJECT_VERSION,
+    Registry, TerminalEchoType, ToolBox, XYType
+)
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Prompt"
@@ -644,7 +647,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                         safe_desc = desc.replace("|", "\\|")
                         wrapped_lines = []
                         for para in safe_desc.splitlines():
-                            wrapped_lines.extend(textwrap.wrap(para, width=description_width - 2, break_long_words=False) or [""])
+                            wrapped_lines.extend(
+                                textwrap.wrap(para, width=description_width - 2, break_long_words=False) or [""])
                         # wrapped_lines = textwrap.wrap(safe_desc, width=description_width - 2, break_long_words=False)
 
                         cmd_str = f"`{cmd}`" if use_backticks else cmd

@@ -20,10 +20,10 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType,
-                        CommandResultType)
-from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
-from auto_forge.common.toolbox import ToolBox
-from auto_forge.common.version_compare import VersionCompare
+                        CommandResultType, VersionCompare)
+# Direct internal imports to avoid circular dependencies
+from auto_forge.core.registry import Registry
+from auto_forge.core.toolbox import ToolBox
 
 AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"

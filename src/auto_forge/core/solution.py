@@ -35,8 +35,10 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # AutoForge imports
-from auto_forge import (PROJECT_SCHEMAS_PATH, AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreJSONCProcessor,
-                        CoreSignatures, CoreVariables, Registry, ToolBox, )
+from auto_forge import (
+    AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
+    CoreSignatures, CoreVariables, PROJECT_SCHEMAS_PATH, Registry, ToolBox
+)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"

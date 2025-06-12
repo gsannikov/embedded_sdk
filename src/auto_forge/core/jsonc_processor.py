@@ -18,8 +18,7 @@ from rich.console import Console
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import AutoForgeModuleType, CoreModuleInterface
-from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, Registry)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"

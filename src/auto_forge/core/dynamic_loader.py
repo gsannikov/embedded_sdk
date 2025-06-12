@@ -23,9 +23,11 @@ from types import ModuleType, FunctionType
 from typing import Any, Optional, Union, Type, cast, Callable
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, BuildProfileType, CommandInterface,
-                        CommandInterfaceProtocol, CoreModuleInterface,
-                        BuilderRunnerInterface, ModuleInfoType, Registry, TerminalTeeStream, ToolBox, )
+from auto_forge import (
+    AutoForgeModuleType, AutoLogger, BuildProfileType, BuilderRunnerInterface,
+    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface,
+    ModuleInfoType, Registry, TerminalTeeStream, ToolBox
+)
 
 AUTO_FORGE_MODULE_NAME = "Loader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load supported modules"

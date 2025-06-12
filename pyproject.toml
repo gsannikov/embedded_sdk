@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_forge"
-version = "1.2.4"
+version = "1.2.5"
 description = "AutoForge: YABS (yet another build system tool)"
 readme = "README.md"
 authors = [{ name = "Eitan Michaelson", email = "eitanm@me.com" }]
@@ -31,9 +31,9 @@ dependencies = ["packaging>=20.0",
     "pyaml==23.12.0",
     "ruamel.yaml>=0.18.6",
     "GitPython>=3.1.40",
-    "prompt_toolkit>=3.0.43",
+    "prompt_toolkit>=3.0.43,<4.0.0",
     "jmespath>=0.10.0,<1.0.0",
-    "textual>=0.40.0",
+    "textual==0.40.0",
     "cmd2==2.3.3"]
 
 [project.urls]
