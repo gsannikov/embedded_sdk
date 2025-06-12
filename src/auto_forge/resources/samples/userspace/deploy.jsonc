@@ -22,6 +22,7 @@
         { "archive": "cmake/environment.cmake",                 "host": "cmake/environment.cmake"               },
         { "archive": "cmake/functions.cmake",                   "host": "cmake/functions.cmake"                 },
         { "archive": "cmake/linux_rules.cmake",                 "host": "cmake/linux_rules.cmake"               },
+        { "archive": "cmake/module_paths.cmake",                "host": "cmake/module_paths.cmake"              },
         { "archive": "n_libs/logger/CMakeLists.txt",            "host": "n_libs/logger/CMakeLists.txt"          }
 
     ]
