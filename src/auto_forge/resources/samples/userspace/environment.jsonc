@@ -135,6 +135,14 @@
                 "alias": "us",
                 "command": "$PROJ_WORKSPACE/env.sh"
             }
+        },
+        {
+            "description": "Create a shell alias to the solution (debug)",
+            "method": "create_alias",
+            "arguments": {
+                "alias": "usd",
+                "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
+            }
         }
     ]
 }
