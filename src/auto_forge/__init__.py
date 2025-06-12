@@ -62,7 +62,7 @@ try:
     from auto_forge.common.version_compare import VersionCompare
 
     # Core / common modules
-    from auto_forge.core.processor import CoreProcessor
+    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.loader import CoreLoader
     from auto_forge.core.environment import CoreEnvironment
     from auto_forge.core.variables import CoreVariables
@@ -88,7 +88,7 @@ __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgeModuleType", "AutoForgeWorkModeType", "AutoLogger",
     "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry",
     "CommandInterface", "CommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
-    "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreProcessor", "CoreProcessorProtocol",
+    "CoreEnvironment", "CoreGUI", "CoreLoader", "CoreModuleInterface", "CoreJSONCProcessor", "CoreProcessorProtocol",
     "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "CoreVariablesProtocol",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",

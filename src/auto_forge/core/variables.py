@@ -21,7 +21,7 @@ from typing import Any, Optional, Union
 from jsonschema.validators import validate
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, CoreModuleInterface, CoreProcessor, Registry,
+from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, CoreModuleInterface, CoreJSONCProcessor, Registry,
                         ToolBox, VariableFieldType, )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
@@ -58,7 +58,7 @@ class CoreVariables(CoreModuleInterface):
         """
         try:
             self._tool_box = ToolBox.get_instance()
-            self._processor: CoreProcessor = CoreProcessor.get_instance()
+            self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
             self._ignore_path_errors: bool = False
             self._essential_variables_essential_variables: Optional[list[dict]] = None
             self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock

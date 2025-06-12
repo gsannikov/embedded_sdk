@@ -35,7 +35,7 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 
 # AutoForge imports
-from auto_forge import (PROJECT_SCHEMAS_PATH, AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor,
+from auto_forge import (PROJECT_SCHEMAS_PATH, AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreJSONCProcessor,
                         CoreSignatures, CoreVariables, Registry, ToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "Solution"
@@ -79,7 +79,7 @@ class CoreSolution(CoreModuleInterface):
         self._variables: Optional[
             CoreVariables] = CoreVariables.get_instance()  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
-        self._processor = CoreProcessor.get_instance()  # Get the JSON preprocessing class instance.
+        self._processor = CoreJSONCProcessor.get_instance()  # Get the JSON preprocessing class instance.
         self._tool_box = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
         self._workspace_path: str = workspace_path  # Creation arguments
 
@@ -91,7 +91,7 @@ class CoreSolution(CoreModuleInterface):
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
-    def get_arbitrary_item(self, key: str, deep_search: bool = False) -> Optional[
+    def get_arbitrary_item(self, key: str, deep_search: bool = False, resolve_external_file: bool = False) -> Optional[
         Union[list[Any], dict[str, Any], str]]:
         """
         Returns a list, dictionary, or string from the solution JSON by key.
@@ -99,36 +99,63 @@ class CoreSolution(CoreModuleInterface):
         Args:
             key (str): The key to search for.
             deep_search (bool): Whether to search deeply through the structure.
+            resolve_external_file (bool): If the retrieved item is a string that looks like a path to file, its content will be returned.
         Returns:
             Optional[Union[list, dict, str]]: The value found, or None if not found or invalid type.
         """
+
         if not self._solution_loaded:
             return None
 
-        def recursive_lookup(obj: Any) -> Optional[Union[list[Any], dict[str, Any], str]]:
+        def _resolve_external_file(_file_name: str) -> Optional[Union[list[Any], dict[str, Any], str]]:
+            """
+            Attempt to load and validate a preprocessed external file.
+            Args:
+                _file_name (str): Path to the file to be processed.
+            Returns:
+                Optional[Union[list, dict, str]]: Parsed content if valid and supported, else None.
+            """
+            if not isinstance(_file_name, str) or not os.path.isfile(_file_name):
+                self._logger.debug(f"Ignoring invalid or missing file: {_file_name!r}")
+                return None
+
+            with suppress(Exception):
+                result = self._processor.preprocess(file_name=_file_name)
+                if isinstance(result, (list, dict, str)):
+                    return result
+                self._logger.debug(f"Unexpected content type from {_file_name!r}: {type(result).__name__}")
+
+            return None
+
+        def _recursive_lookup(_obj: Any) -> Optional[Union[list[Any], dict[str, Any], str]]:
             """ Solution wide recursive search."""
-            if isinstance(obj, dict):
-                for k, v in obj.items():
+            if isinstance(_obj, dict):
+                for k, v in _obj.items():
                     if k == key and isinstance(v, (list, dict, str)):
                         return v
-                    result = recursive_lookup(v)
-                    if result is not None:
-                        return result
-            elif isinstance(obj, list):
-                for item in obj:
-                    result = recursive_lookup(item)
-                    if result is not None:
-                        return result
+                    _result = _recursive_lookup(v)
+                    if _result is not None:
+                        return _result
+            elif isinstance(_obj, list):
+                for item in _obj:
+                    _result = _recursive_lookup(item)
+                    if _result is not None:
+                        return _result
             return None
 
         if not deep_search:
-            value = self._solution_data.get(key)
-            if isinstance(value, (list, dict, str)):
-                return value
+            returned_results = self._solution_data.get(key)
         else:
-            return recursive_lookup(self._solution_data)
+            returned_results = _recursive_lookup(self._solution_data)
 
-        return None
+        if not isinstance(returned_results, (list, dict, str)):
+            return None
+
+        # When we have to resolve potentially included file
+        if resolve_external_file and isinstance(returned_results, str):
+            returned_results = _resolve_external_file(returned_results)
+
+        return returned_results
 
     def query_projects(self, project_name: Optional[str] = None) -> Optional[Union[list, dict]]:
         """

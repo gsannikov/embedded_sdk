@@ -1,5 +1,5 @@
 """
-Script:         processor.py
+Script:         jsonc_processor.py
 Author:         AutoForge Team
 
 Description:
@@ -18,10 +18,10 @@ from auto_forge import AutoForgeModuleType, CoreModuleInterface
 from auto_forge.common.registry import Registry  # Runtime import to prevent circular import
 
 AUTO_FORGE_MODULE_NAME = "Processor"
-AUTO_FORGE_MODULE_DESCRIPTION = "JSON preprocessor"
+AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"
 
 
-class CoreProcessor(CoreModuleInterface):
+class CoreJSONCProcessor(CoreModuleInterface):
     """
     JSON pre-processing dedicated class.
     """

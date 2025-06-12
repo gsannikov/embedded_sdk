@@ -387,7 +387,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Adding built-in aliases based on a dictionary from the package configuration file, and then
         # solution proprietary aliases.
         self._add_dynamic_aliases(self._configuration.get('builtin_aliases'))
-        self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases"))
+        self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases", resolve_external_file=True))
 
         # Exclude built-in cmd2 commands from help display without disabling their functionality
         if self._configuration.get('hide_cmd2_native_commands', False):
@@ -674,8 +674,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Returns:
             Optional[int]: Number of aliases successfully registered, or None on failure.
         """
-
         added_aliases_count = 0
+
+        # We allow anonymous list of dictionaries or named list, either way we weill flattened the input to a bew list.
+        aliases = self._tool_box.extract_bare_list(aliases, "aliases")
 
         if isinstance(aliases, dict):  # Legacy support
             for alias_name, target_command in aliases.items():

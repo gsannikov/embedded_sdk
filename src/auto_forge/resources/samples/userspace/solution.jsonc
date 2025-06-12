@@ -14,40 +14,8 @@
             "name": "userspace",
             "description": "Userspace CMake port",
             "create_environment_sequence": "<$include>environment.jsonc",
-            // Solution specific commands which will be added to the builtin commands and the 'build' commands.
-            "aliases": [
-                {
-                    "alias_name": "refact",
-                    "target_command": "refactor --recipe refactor.jsonc --source_path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
-                    "description": "\uD83D\uDC7E Refactor the userspace repo into a new structure",
-                    "command_type": "AUTOMATION",
-                    "hidden": false
-                },
-                {
-                    "alias_name": "dply",
-                    "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host_base_path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host",
-                    "description": "\uD83D\uDC7E Deploy files in a refactored project",
-                    "command_type": "AUTOMATION",
-                    "hidden": false
-                },
-                {
-                    "alias_name": "dplyr",
-                    "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host_base_path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-archive",
-                    "description": "\uD83D\uDC7E Store deployed files in archive",
-                    "command_type": "AUTOMATION",
-                    "hidden": false
-                },
-                {
-                    "alias_name": "call",
-                    "target_command": [
-                        "usd --clean",
-                        "usr --clean"
-                    ],
-                    "description": "\uD83D\uDD28 Clean all",
-                    "command_type": "BUILD",
-                    "hidden": false
-                }
-            ],
+            "aliases": "<$include>aliases.jsonc",
+            // Include additional project specific commands
             "default_editor": "*code*",
             // Editor selector: index (1-based) or name pattern with wildcards (e.g., "*sublime*"
             "variables": "<$include>variables.jsonc",

@@ -1800,3 +1800,32 @@ class ToolBox(CoreModuleInterface):
             if auto_start:
                 timer.start()
         return timer
+
+    @staticmethod
+    def extract_bare_list(data: Any, name: Optional[str] = None) -> Optional[Any]:
+        """
+        Best-effort extraction of a bare list from input data.
+        If a name is provided and matches a key in a dict holding a list, return that list.
+        If name is not provided, try to extract a list from a dict with a single list-valued key.
+        Otherwise, return the original data.
+        Args:
+            data (Any): JSON-like input data.
+            name (Optional[str]): Expected key holding a list (if known).
+        Returns:
+            Any: A list if extractable, else the original data.
+        """
+
+        if data is None:
+            return  None
+
+        with suppress(Exception):
+            if isinstance(data, list):
+                return data
+            if isinstance(data, dict):
+                if name and name in data and isinstance(data[name], list):
+                    return data[name]
+                if name is None and len(data) == 1:
+                    sole_value = next(iter(data.values()))
+                    if isinstance(sole_value, list):
+                        return sole_value
+        return data

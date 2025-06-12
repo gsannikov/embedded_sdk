@@ -21,7 +21,7 @@ from re import Match
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreProcessor, CoreVariables, Registry,
+from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreJSONCProcessor, CoreVariables, Registry,
                         SignatureFieldType, SignatureSchemaType, )
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
@@ -49,7 +49,7 @@ class CoreSignatures(CoreModuleInterface):
         self._signature_id: Optional[int] = 42
         self._raw_dictionary: Optional[dict[str, Any]] = {}
         self._schemas: list[SignatureSchemaType] = []
-        self._processor: CoreProcessor = CoreProcessor.get_instance()
+        self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
         self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
 
         # Get a logger instance

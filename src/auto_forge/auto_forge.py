@@ -32,7 +32,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
-    CoreGUI, CoreLoader, CoreModuleInterface, CoreProcessor, CorePrompt, CoreSolution,
+    CoreGUI, CoreLoader, CoreModuleInterface, CoreJSONCProcessor, CorePrompt, CoreSolution,
     CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, Registry, ShellAliases,
     StatusNotifType, SystemInfo, ToolBox, Watchdog, )
@@ -59,7 +59,7 @@ class AutoForge(CoreModuleInterface):
         self._tool_box: Optional[ToolBox] = None
         self._environment: Optional[CoreEnvironment] = None
         self._variables: Optional[CoreVariables] = None
-        self._processor: Optional[CoreProcessor] = None
+        self._processor: Optional[CoreJSONCProcessor] = None
         self._gui: Optional[CoreGUI] = None
         self._loader: Optional[CoreLoader] = None
         self._prompt: Optional[CorePrompt] = None
@@ -116,7 +116,7 @@ class AutoForge(CoreModuleInterface):
         self._events = EventManager(StatusNotifType)
         self._registry = Registry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
-        self._processor = CoreProcessor()
+        self._processor = CoreJSONCProcessor()
         self._sys_info = SystemInfo()
         self._shell_aliases = ShellAliases()
 
