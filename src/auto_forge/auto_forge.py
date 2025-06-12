@@ -33,7 +33,7 @@ from colorama import Fore, Style
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreDynamicLoader,
     CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
-    CoreRegistry, CoreShellAliases, CoreSolution, CoreSystemInfo, CoreToolBox,
+    CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox,
     CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes,
     PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, StatusNotifType, Watchdog,
@@ -73,7 +73,7 @@ class AutoForge(CoreModuleInterface):
         self._solution_name: Optional[str] = None
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[CoreSystemInfo] = None
-        self._shell_aliases: Optional[CoreShellAliases] = None
+        self._linux_aliases: Optional[CoreLinuxAliases] = None
         self._watchdog_watchdog: Optional[Watchdog] = None
         self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
         self._periodic_timer: Optional[threading.Timer] = None
@@ -121,7 +121,7 @@ class AutoForge(CoreModuleInterface):
         self._tool_box = CoreToolBox()
         self._processor = CoreJSONCProcessor()
         self._sys_info = CoreSystemInfo()
-        self._shell_aliases = CoreShellAliases()
+        self._linux_aliases = CoreLinuxAliases()
 
         # Reset terminal and clean it's buffer.
         Watchdog.reset_terminal()

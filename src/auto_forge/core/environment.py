@@ -38,10 +38,12 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType, CoreDynamicLoader,
-    CoreJSONCProcessor, CoreModuleInterface, CoreShellAliasesProtocol, CoreSystemInfo, CoreVariables,
-    ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH, CoreRegistry, SequenceErrorActionType,
-    TerminalEchoType, CoreToolBox, ValidationMethodType, VersionCompare, Watchdog
+    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType,
+    CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliasesProtocol, CoreModuleInterface,
+    CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
+    ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH,
+    SequenceErrorActionType, TerminalEchoType, ValidationMethodType,
+    VersionCompare, Watchdog,
 )
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -318,7 +320,7 @@ class CoreEnvironment(CoreModuleInterface):
         # and won't be available to the shell after we exit.
         expanded_command = self._variables.expand(key=command)
 
-        aliases_class: Optional[CoreShellAliasesProtocol] = self._registry.get_instance_by_class_name(
+        aliases_class: Optional[CoreLinuxAliasesProtocol] = self._registry.get_instance_by_class_name(
             "CoreShellAliases", return_protocol=True)
 
         # Create and commit, we need both to succeed
@@ -1552,7 +1554,7 @@ class CoreEnvironment(CoreModuleInterface):
         Carries the last steps of new workspace creation.
         - Copy that startup shell script (env.sh) to the project workspace
         - Copy jsons and zip files from the source package path to the project workspace.
-        - Move any residual install log file into the workspace 'logs' path.
+        - Move any residual log file into the workspace 'logs' path.
         - Create the .config at the workspace root which is required for correctly starting AutoForge later.
         """
 

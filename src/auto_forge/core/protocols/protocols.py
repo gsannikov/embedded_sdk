@@ -55,9 +55,9 @@ class CoreToolBoxProtocol(Protocol):
 
 
 @runtime_checkable
-class CoreShellAliasesProtocol(Protocol):
+class CoreLinuxAliasesProtocol(Protocol):
     """
-    Defines the required interface for shell aliases core module.
+    Defines the required interface for Linux aliases core module.
     """
 
     def create(self, alias: str, command: str, can_update_existing: bool = True) -> bool: ...

@@ -24,7 +24,9 @@ import tty
 from contextlib import suppress
 from typing import Optional
 
-WATCHDOG_DEFAULT_TIMEOUT = 10.0
+AUTO_FORGE_MODULE_NAME = "WatchDog"
+AUTO_FORGE_MODULE_DESCRIPTION = "Watchdog"
+AUTO_FORGE_WATCHDOG_DEFAULT_TIMEOUTD = 10.0
 
 
 class Watchdog:
@@ -59,7 +61,7 @@ class Watchdog:
             return
 
         self._timeout: float = 0
-        self._default_timeout = default_timeout if default_timeout is not None else WATCHDOG_DEFAULT_TIMEOUT
+        self._default_timeout = default_timeout if default_timeout is not None else AUTO_FORGE_WATCHDOG_DEFAULT_TIMEOUTD
         self._auto_start: bool = auto_start
         self._last_refresh: float = time.time()
         self._reset_terminal_on_termination: bool = True

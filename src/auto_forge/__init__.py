@@ -49,7 +49,7 @@ try:
 
     # Protocols
     from auto_forge.core.protocols.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
-                                                     CoreShellAliasesProtocol, CoreToolBoxProtocol,
+                                                     CoreLinuxAliasesProtocol, CoreToolBoxProtocol,
                                                      CommandInterfaceProtocol)
 
     # Interfaces
@@ -67,7 +67,7 @@ try:
     from auto_forge.core.solution import CoreSolution
     from auto_forge.core.system_info import CoreSystemInfo
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
-    from auto_forge.core.shell_aliases import CoreShellAliases
+    from auto_forge.core.linux_aliases import CoreLinuxAliases
     from auto_forge.core.environment import CoreEnvironment
     from auto_forge.core.prompt import CorePrompt
 
@@ -89,7 +89,7 @@ __all__ = [
     "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
     "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
-    "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreShellAliases", "CoreShellAliasesProtocol",
+    "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",
     "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables",
     "CoreVariablesProtocol",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",

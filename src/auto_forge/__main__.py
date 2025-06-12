@@ -91,7 +91,7 @@ def main() -> int:
     https://en.wikipedia.org/wiki/Entry_point
 
     Returns:
-        Shell status, 0 grate success, else not so much.
+        Shell status, 0 success, else failure.
     
     """
     # Package command line starter.

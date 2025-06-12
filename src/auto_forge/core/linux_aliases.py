@@ -1,9 +1,9 @@
 """
-Script:         shell_aliases,py
+Script:         linux_aliases,py
 Author:         AutoForge Team
 
 Description:
-    Provides safe and structured management of shell aliases within a user's shell
+    Provides safe and structured management of Linux shell aliases within a user's shell
     startup file (typically '.zshrc' or '.bashrc'). It supports:
 
     - Querying the current value of an alias via lexical or live-shell resolution.
@@ -30,11 +30,11 @@ from auto_forge import (
     LinuxShellType, VersionCompare
 )
 
-AUTO_FORGE_MODULE_NAME = "ShellAliases"
-AUTO_FORGE_MODULE_DESCRIPTION = "Shell Aliases Management Auxiliary Class"
+AUTO_FORGE_MODULE_NAME = "LinuxAliases"
+AUTO_FORGE_MODULE_DESCRIPTION = "Linux Shell Aliases Management Auxiliary Class"
 
 
-class CoreShellAliases(CoreModuleInterface):
+class CoreLinuxAliases(CoreModuleInterface):
     """
     Manages shell environment state and aliases for a given shell (bash, zsh, etc.).
     """

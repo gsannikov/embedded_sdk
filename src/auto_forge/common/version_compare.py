@@ -12,7 +12,7 @@ import re
 from typing import Optional
 
 # AutoForge imports`
-from auto_forge import ExpectedVersionInfoType
+from auto_forge import (ExpectedVersionInfoType)
 
 AUTO_FORGE_MODULE_NAME = "VersionCompare"
 AUTO_FORGE_MODULE_DESCRIPTION = "Version detection and comparison utilities"
