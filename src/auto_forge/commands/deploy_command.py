@@ -156,7 +156,7 @@ class DeployCommand(CommandInterface):
                 if not archive_overwrite:
                     raise RuntimeError(f"archive '{os.path.basename(archive_path)}' exists, use '-o' to overwrite")
 
-                # Delete if exists, create back if specified
+                # Delete if exists, create backup if specified
                 if self._create_archive_backup:
                     self._logger.warning(f"creating backup for '{os.path.basename(archive_path)}'")
                     ToolBox.safe_backup_and_erase_file(file_path=archive_path)
