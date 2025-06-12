@@ -386,9 +386,9 @@ class LSDCommand(CommandInterface):
         # Add options (optional arguments)
         parser.add_argument("-a", "--all", action="store_true", help="Show all files, including hidden ones.")
         parser.add_argument("-l", "--long", action="store_true", help="Long listing (currently ignored)")
-        parser.add_argument("-g", "--group_directories_first", action="store_true",
+        parser.add_argument("-g", "--group-directories-first", action="store_true",
                             help="Group directories before files.")
-        parser.add_argument("-ni", "--no_icons", action="store_true", help="Disable icons.")
+        parser.add_argument("-ni", "--no-icons", action="store_true", help="Disable icons.")
 
         # Add file/dir arguments: accept 0 or more
         parser.add_argument("paths", nargs="*", help="Files or directories to list")

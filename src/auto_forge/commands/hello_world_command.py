@@ -37,10 +37,10 @@ class HelloCommand(CommandInterface):
         """
         parser.add_argument("-t", "--text", type=str, help="Optional text to print in the console greeting.")
 
-        parser.add_argument("-m", "--message_box_text", type=str,
+        parser.add_argument("-m", "--message-box-text", type=str,
                             help="Optional text to display using the GUI message box.")
 
-        parser.add_argument("-i", "--input_box_text", type=str,
+        parser.add_argument("-i", "--input-box-text", type=str,
                             help="Optional text to display using the GUI input box.")
 
     def run(self, args: argparse.Namespace) -> int:

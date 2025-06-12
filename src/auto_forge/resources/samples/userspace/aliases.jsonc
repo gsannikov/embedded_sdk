@@ -3,9 +3,9 @@
     -------------------------------
     Additional project-specific commands recognized by the build system and added to the menu.
 
-    Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
-    This allows for improved readability and documentation, but it is not valid standard JSON.
-    Parsers consuming this file must support JSONC or preprocess it accordingly.
+  // Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
+  // This allows for improved readability and documentation, but it is not valid standard JSON.
+  // Parsers consuming this file must support JSONC or preprocess it accordingly.
 
 */
 
@@ -15,7 +15,7 @@
 
       {
           "alias_name": "refact",
-          "target_command": "refactor --recipe refactor.jsonc --source_path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
+          "target_command": "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
           "description": "\uD83D\uDC7E Refactor the `userspace` repository into a new structure.
             Internally, this command uses the SDK's `refactor` command along with the recipe file `refactor.jsonc`.
             For full debug output, use `refact -vv` or check the log later using
@@ -25,7 +25,7 @@
       },
       {
           "alias_name": "dply",
-          "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host_base_path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host",
+          "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host",
           "description": "\uD83D\uDC7E Deploy archived CMake files in a refactored project.
             Uses the SDK's `deploy` command to place various CMake files in specific paths, allowing the CMake toolchain to correctly build the project.",
           "command_type": "AUTOMATION",
@@ -33,7 +33,7 @@
       },
       {
           "alias_name": "dplyr",
-          "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host_base_path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-archive",
+          "target_command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-archive",
           "description": "\uD83D\uDC7E Reversed deploy — uses the SDK's `deploy` command along with the
             recipe file `deploy.jsonc` to pick specific CMake resources listed in the recipe and archive them,
             into `deploy.zip`, effectively backing up any modifications to the CMake overlay.",

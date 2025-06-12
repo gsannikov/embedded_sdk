@@ -104,9 +104,9 @@ class ZephyrToolsCommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The parser to extend.
         """
-        parser.add_argument('-p', '--get_zephyr_path', action='store_true',
+        parser.add_argument('-p', '--get-zephyr-path', action='store_true',
                             help='Prints the detected Zephyrs SDK installation path.')
-        parser.add_argument('-z', '--get_zephyr_version', action='store_true',
+        parser.add_argument('-z', '--get-zephyr-version', action='store_true',
                             help='Prints the detected Zephyrs SDK version.')
 
     def run(self, args: argparse.Namespace) -> int:

@@ -440,8 +440,8 @@ class EditCommand(CommandInterface):
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
         parser.add_argument("-p", "--path", type=str, help="File name or path to open")
-        parser.add_argument("-l", "--list_editors", action="store_true", help="Show the list of detected editors")
-        parser.add_argument("-id", "--editor_identifier", type=str,
+        parser.add_argument("-l", "--list-editors", action="store_true", help="Show the list of detected editors")
+        parser.add_argument("-id", "--editor-identifier", type=str,
                             help="Editor identifying text, could be index or string")
 
     def run(self, args: argparse.Namespace) -> int:

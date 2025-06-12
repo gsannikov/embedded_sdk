@@ -75,6 +75,8 @@ class DeployCommand(CommandInterface):
         self._recipe_defaults_raw: Optional[dict] = None
         self._recipe_deploy_files: Optional[list[dict]] = None
         self._recipe_defaults: Optional[dict[str, Any]] = None
+        self._processed_files_count: int = 0
+        self._skipped_files_count: int = 0
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, command_type=AutoForgCommandType.AUTOMATION, hidden=True)
@@ -85,8 +87,10 @@ class DeployCommand(CommandInterface):
         Clears any previously loaded recipe defaults and file mappings.
         """
         self._recipe_defaults_raw = None
-        self._recipe_defaults = None
         self._recipe_deploy_files = None
+        self._recipe_defaults = None
+        self._processed_files_count = 0
+        self._skipped_files_count = 0
 
     @staticmethod
     def _parse_overwrite_policy(policy_str: str) -> _OverwritePolicy:
@@ -144,13 +148,12 @@ class DeployCommand(CommandInterface):
         Returns:
             Optional[int]: 0 on success, 1 if any error occurred.
         """
-
         try:
 
             break_on_errors: bool = self._recipe_defaults.get("break_on_errors", True)
             if archive_path.exists():
                 if not archive_overwrite:
-                    raise RuntimeError(f"an exiting archive file already exists: '{archive_path}'")
+                    raise RuntimeError(f"archive '{os.path.basename(archive_path)}' exists, use '-o' to overwrite")
 
             # Delete if exist
             archive_path.unlink(missing_ok=True)
@@ -166,15 +169,17 @@ class DeployCommand(CommandInterface):
                             raise RuntimeError(f"host source file not found: {src_abs}")
 
                         self._logger.warning(f"host source file not found: {src_abs}")
+                        self._skipped_files_count += 1
                         continue
 
                     self._logger.info(f"Adding to archive: {os.path.basename(src_abs)} as {os.path.basename(arc_rel)}")
                     archive.write(src_abs, arcname=str(arc_rel))
+                    self._processed_files_count += 1
 
             return 0
 
         except Exception as archive_error:
-            raise RuntimeError(f"failed to create archive: {archive_error}")
+            raise archive_error from archive_error
 
     def _from_archive(self, archive_path: Path, host_base_path: Path) -> Optional[int]:
         """
@@ -227,7 +232,9 @@ class DeployCommand(CommandInterface):
                             status_message = f"Host path does not exist: {os.path.abspath(dst_abs.parent)}"
                             if break_on_errors:
                                 raise RuntimeError(status_message)
+
                             self._logger.warning(status_message)
+                            self._skipped_files_count += 1
                             continue
 
                     # Overwrite policy enforcement
@@ -240,20 +247,21 @@ class DeployCommand(CommandInterface):
                             fs_mtime = datetime.fromtimestamp(dst_abs.stat().st_mtime)
                             if fs_mtime >= arc_mtime:
                                 self._logger.info(f"Skipping (up-to-date): {dst_abs}")
+                                self._skipped_files_count += 1
                                 continue
 
                     # Extract to the specified host path
                     with archive.open(str(arc_rel), 'r') as src, open(dst_abs, 'wb') as dst:
                         dst.write(src.read())
+                        self._processed_files_count += 1
 
                     self._logger.info(f"Extracted {arc_rel} -> {dst_abs}")
 
         except Exception as extract_error:
-            raise RuntimeError(f"failed to extract from archive: {extract_error}")
+            raise extract_error from extract_error
 
-    def _process(self, recipe_file: str, archive_path: str, host_base_path: str, direction: _DeployDirectionType,
-                 archive_overwrite: Optional[bool] = False,
-                 verbose: Optional[bool] = False) -> Optional[int]:
+    def _deploy(self, recipe_file: str, archive_path: str, host_base_path: str, direction: _DeployDirectionType,
+                 archive_overwrite: Optional[bool] = False) -> Optional[int]:
         """
         Processes the recipe file and sets up the archive-to-host mapping.
         Args:
@@ -262,18 +270,19 @@ class DeployCommand(CommandInterface):
             host_base_path (str): Path to the directory where files will deploy to or collected from.
             direction (_DeployDirectionType): Determines the operation direction.
             archive_overwrite (bool, optional): Whether to overwrite existing archive or not.
-            verbose (bool, optional): Enable verbose logging if True.
         Returns:
             Optional[int]: 1 on failure, None on success.
         """
         try:
 
+
+            # Check all are non-empty strings
+            if not all(isinstance(x, str) for x in (recipe_file, archive_path, host_base_path,)):
+                raise ValueError("missing or invalid arguments: expected non-empty strings for "
+                                 "recipe_file, archive_path, and host_base_path.")
+
             # Reset class variable
             self._reset()
-
-            # Allow console logger if verbose was specified
-            if verbose:
-                AutoLogger().set_output_enabled(logger=self._logger, state=True)
 
             # Expand variables (environment, etc.)
             recipe_file = self._variables.expand(recipe_file)
@@ -282,7 +291,7 @@ class DeployCommand(CommandInterface):
             archive_path = Path(self._variables.expand(archive_path))
             host_base_path = Path(self._variables.expand(host_base_path))
 
-            self._logger.debug(f"Recipe: {recipe_file}, archive: {archive_path}, host base: {host_base_path}")
+            self._logger.debug(f"Using recipe from: {recipe_file}")
 
             # Load and preprocess the recipe JSONC/JSON file
             recipe_raw: Optional[dict] = self._json_processor.preprocess(file_name=recipe_file)
@@ -301,19 +310,21 @@ class DeployCommand(CommandInterface):
 
             self._logger.debug(f"Loaded recipe: {len(self._recipe_deploy_files)} file entries found")
 
+            print(f"\nStarting deploy process for {len(self._recipe_deploy_files)} listed files..")
+
             if direction == _DeployDirectionType.HostToArchive:
-                return self._to_archive(host_base_path=host_base_path, archive_path=archive_path,
+                exit_code = self._to_archive(host_base_path=host_base_path, archive_path=archive_path,
                                         archive_overwrite=archive_overwrite)
             elif direction == _DeployDirectionType.ArchiveToHost:
-                return self._from_archive(archive_path=archive_path, host_base_path=host_base_path)
+                exit_code = self._from_archive(archive_path=archive_path, host_base_path=host_base_path)
             else:
                 raise ValueError(f"unknown deploy direction: {direction}")
 
+            print(f"Done, total {self._processed_files_count} files processed, {self._skipped_files_count} skipped.\n")
+            return exit_code
+
         except Exception as deploy_error:
-            raise RuntimeError(f"recipe deploy processing failed: {deploy_error}")
-        finally:
-            if verbose:  # Shutdown console logger
-                AutoLogger().set_output_enabled(logger=self._logger, state=False)
+            raise RuntimeError(f"Deploy process failed: {deploy_error}")
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -321,24 +332,15 @@ class DeployCommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
-        parser.add_argument('-r', '--recipe',
-                            required=True, help='Path to the JSONC/JSON recipe describing file mappings.')
 
-        parser.add_argument('-a', '--archive', required=True, help='Path to the ZIP archive file.')
-
-        parser.add_argument('-b', '--host_base_path',
-                            required=True, help='Path to the a directory where files will deployed or collected from.')
-
-        parser.add_argument("-o", "--archive_overwrite", action="store_true",
+        parser.add_argument('-r', '--recipe', help='Path to the JSONC/JSON recipe describing file mappings.')
+        parser.add_argument('-a', '--archive', help='Path to the ZIP archive file.')
+        parser.add_argument('-b', '--host-base-path',
+                            help='Path to the a directory where files will deployed or collected from.')
+        parser.add_argument('-d', '--direction', choices=['to-host', 'to-archive'],
+                            help="Operation mode: 'to-host' extracts from archive to host, 'to-archive' creates archive from host files.")
+        parser.add_argument("-o", "--archive-overwrite", action="store_true",
                             help="Allow overwriting an exiting archive file.")
-
-        parser.add_argument('-d', '--direction',
-                            choices=['to-host', 'to-archive'], required=True,
-                            help="Operation mode: 'to-host' extracts from archive to host, 'to-archive' creates archive from host files."
-                            )
-
-        parser.add_argument("-vv", "--verbose", action="store_true",
-                            help="Show more information while running the recipe.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -348,17 +350,20 @@ class DeployCommand(CommandInterface):
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
-        if args.recipe and args.archive and args.host_base_path and args.direction:
 
-            # Convert the direction into a recognize type
-            deploy_direction: _DeployDirectionType = self._parse_direction(args.direction)
+        deploy_args_group = [args.recipe, args.archive, args.host_base_path, args.direction]
+        if any(deploy_args_group) and not all(deploy_args_group):
+            raise RuntimeError(
+                "Incomplete input: if any of the following options are provided --recipe, --archive, "
+                "--host-base-path, or --direction, then all of them must be specified.")
 
-            if deploy_direction == _DeployDirectionType.Unknown:
-                raise ValueError(f"unknown recipe direction: '{args.direction}'")
+        # Handle deploy operation
+        # Convert the direction into a recognize type
+        deploy_direction: _DeployDirectionType = self._parse_direction(args.direction)
+        if deploy_direction == _DeployDirectionType.Unknown:
+            raise ValueError(f"unknown recipe direction: '{args.direction}'")
 
-            # Process the recipe
-            return self._process(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_base_path,
-                                 direction=deploy_direction, verbose=args.verbose,
-                                 archive_overwrite=args.archive_overwrite)
-        else:
-            return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+        # Process the recipe
+        return self._deploy(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_base_path,
+                             direction=deploy_direction,
+                             archive_overwrite=args.archive_overwrite)

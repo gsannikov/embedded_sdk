@@ -246,25 +246,20 @@ class RefactorCommand(CommandInterface):
             else:
                 self._logger.error(msg)
 
-    def _refactor(self, **kwargs: Any) -> Optional[int]:
+    def _refactor(self, recipe_file: str, source_path: str, destination_path: str) -> Optional[int]:
         """
         Execute the recipe and reconstruct the destination tree accordingly.
         Args:
-            **kwargs: Optional keyword arguments:
-                - recipe_file (str): Path to the JSON recipe file.
-                - source_path (str): Source path to process.
-                - destination path (str): Destination path to generate.
+            recipe_file (str): Path to the recipe file.
+            source_path (str): Base source path for path we would like to refactor.
+            destination_path (str): Base source path the refactored output.
         Returns:
             bool: True if the operation was successful, False otherwise.
         """
         processed_folders_count = 0
         processed_files_count = 0
-        verbose: bool = kwargs.get("verbose", False)
 
         try:
-            source_path: Optional[str] = kwargs.get("source_path")
-            destination_path: Optional[str] = kwargs.get("destination_path")
-            recipe_file: Optional[str] = kwargs.get("recipe_file")
 
             # Check all are non-empty strings
             if not all(isinstance(x, str) for x in (recipe_file, source_path, destination_path)):
@@ -294,8 +289,9 @@ class RefactorCommand(CommandInterface):
             if self._defaults.delete_destination_on_start:
                 if os.path.exists(destination_path):
                     try:
-                        shutil.rmtree(destination_path)
                         self._logger.debug(f"Deleting existing destination: '{destination_path}'")
+                        # Safe erase
+                        self._tool_box.safe_erase_path(target_path=destination_path, force=True)
                     except Exception as exception:
                         raise RuntimeError(f"failed to delete destination directory: {exception}") from exception
             else:
@@ -306,10 +302,6 @@ class RefactorCommand(CommandInterface):
 
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
-
-            # Allow console logger if verbose was specified
-            if verbose:
-                AutoLogger().set_output_enabled(logger=self._logger, state=True)
 
             # Process each folder entry
             for folder in self._folders:
@@ -363,18 +355,12 @@ class RefactorCommand(CommandInterface):
                     self._logger.info(
                         f"Total {copied_files_count} files copied and {copied_graveyard_files_count} sent to graveyard.")
 
-                if verbose:
-                    print()
-
             print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
             return 0
 
         except Exception as refactoring_error:
             # Re-raise for upstream error handling; can be enhanced for logging
             raise RuntimeError(f"{refactoring_error} @ #{processed_folders_count}") from refactoring_error
-        finally:
-            if verbose:
-                AutoLogger().set_output_enabled(logger=self._logger, state=False)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -384,13 +370,8 @@ class RefactorCommand(CommandInterface):
         """
 
         parser.add_argument("-r", "--recipe", type=str, help="Path to a refactor JSON recipe file.")
-
-        parser.add_argument("-t", "--tutorial", action="store_true", help="Show the factoring tool tutorial.")
-        parser.add_argument("-s", "--source_path", help="Source path to be refactored.")
+        parser.add_argument("-s", "--source-path", help="Source path to be refactored.")
         parser.add_argument("-d", "--destination", help="Destination path for the structured project.")
-
-        parser.add_argument("-vv", "--verbose", action="store_true",
-                            help="Show more information while running the recipe.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -401,26 +382,15 @@ class RefactorCommand(CommandInterface):
             int: Exit status (0 for success, non-zero for failure).
         """
 
-        # Enforce that either --tutorial OR both --source_path and --destination are provided
-        if not args.tutorial:
-            if not args.source_path or not args.destination:
-                raise RuntimeError(
-                    "Either '--tutorial' must be specified, or both '--source_path and --destination' must be set.")
-
-        # Handle arguments
-        if args.tutorial:
-            self._tool_box.show_help_file(help_file_relative_path='commands/refactor.md')
-            return 0
-
-        if not args.recipe and not args.root_copy:
+        refactor_args_group = [args.recipe, args.source_path, args.destination]
+        if any(refactor_args_group) and not all(refactor_args_group):
             raise RuntimeError(
-                "Either --recipe or --root_copy must be set.")
+                "Incomplete input: if any of the following options are provided --recipe, --source-path, "
+                "or --destination, then all of them must be specified."
+            )
 
-        if args.recipe:
-            return_value = self._refactor(recipe_file=args.recipe, source_path=args.source_path,
-                                          destination_path=args.destination,
-                                          verbose=args.verbose)
-        else:
-            return_value = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+        # Handle the refactoring operation
 
+        return_value = self._refactor(recipe_file=args.recipe, source_path=args.source_path,
+                                      destination_path=args.destination)
         return return_value

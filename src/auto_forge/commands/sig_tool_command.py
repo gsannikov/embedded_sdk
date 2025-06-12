@@ -233,15 +233,15 @@ class SigToolCommand(CommandInterface):
         parser.add_argument("--update-crc", action="store_true", help="Update the CRC32 in the binary file.")
         parser.add_argument("-g", "--grow", type=lambda x: int(x, 0), nargs="?", const=0, default=0,
                             help="Resize file prior to signing.")
-        parser.add_argument("-git", "--git_path", type=str, required=True,
+        parser.add_argument("-git", "--git-path", type=str, required=True,
                             help="Path where we can retrieve git related info.")
         parser.add_argument("-r", "--replace", type=str,
                             help="Search and replace a signed section with the one created.")
-        parser.add_argument("-m", "--mini_loader", action="store_true", help="Updates NVM mini-loader CRC value.")
+        parser.add_argument("-m", "--mini-loader", action="store_true", help="Updates NVM mini-loader CRC value.")
         parser.add_argument("-s", "--show", action="store_true", help="Show signature content.")
-        parser.add_argument("-i", "--signature_id", type=lambda x: int(x) if int(x) > 0 else argparse.ArgumentTypeError(
+        parser.add_argument("-i", "--signature-id", type=lambda x: int(x) if int(x) > 0 else argparse.ArgumentTypeError(
             f"{x} is not a positive integer"), default=42, help="Signature Id to use")
-        parser.add_argument('-d', '--descriptor_file', required=True, help="The path to the signature descriptor file")
+        parser.add_argument('-d', '--descriptor-file', required=True, help="The path to the signature descriptor file")
 
     def run(self, args: argparse.Namespace) -> int:
         """

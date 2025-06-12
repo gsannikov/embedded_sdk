@@ -157,6 +157,7 @@ class CommandInterface(ABC):
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
         self._args_parser: Optional[_CapturingArgumentParser] = None
+        self._tutorials_relative_path: Optional[str] = None
 
         # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
         self._configuration: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
@@ -199,8 +200,18 @@ class CommandInterface(ABC):
                     prog=self._module_info.name, description=self._module_info.description)
                 self.create_parser(self._args_parser)
 
-                # Make sure we always support version
+                # Ensure all commands support the 'version' and 'verbose' options.
                 self._args_parser.add_argument("-v", "--version", action="store_true", help="Show version and exit.")
+                self._args_parser.add_argument("-vv", "--verbose", action="store_true",
+                                               help="Show more information while running the recipe.")
+
+                # Auto add tutorials if we have an .md file for this command.
+                relative_path = f"commands/{self._module_info.name}.md"
+                if ToolBox.resolve_help_file(relative_path=relative_path):
+                    self._args_parser.add_argument("-t", "--tutorials", action="store_true",
+                                                   help="Show command tutorials.")
+                    self._tutorials_relative_path = relative_path
+
                 return self._args_parser
 
         if self._args_parser is None:
@@ -282,7 +293,9 @@ class CommandInterface(ABC):
         # Invalidate last error
         self._last_error_message = None
         return_value: int = 1
+        verbose: bool = False
 
+        #
         # Ensure the argument parser is initialized.
         self._create_parser()
 
@@ -298,12 +311,27 @@ class CommandInterface(ABC):
                 else:
                     args_list.extend([cli_key, str(value)])
         try:
+
             # Handle arguments special care for version output
             if "-v" in args_list or "--version" in args_list:
                 print(f"AutoForge '{self._module_info.name}' version {self._module_info.version}")
                 return_value = 0
+
+            # Handle tutorials request
+            elif "-t" in args_list or "--tutorials" in args_list:
+                if self._tutorials_relative_path:
+                    return_value = ToolBox.show_help_file(relative_path=self._tutorials_relative_path)
+                else:
+                    raise RuntimeError('tutorials ware not found for this command')
+
             else:
                 args = self._args_parser.parse_args(args_list)
+
+                # Handle verbosity
+                if "-vv" in args_list or "--verbose" in args_list:
+                    AutoLogger().set_output_enabled(logger=self._logger, state=True)
+                    verbose = True
+
                 return_value = self.run(args)
 
             # Auto print help when no arguments provided
@@ -326,6 +354,11 @@ class CommandInterface(ABC):
                     raise RuntimeError(self._last_error_message)
 
             sys.stdout.flush()
+
+            if verbose:
+                # Restore verbosity
+                AutoLogger().set_output_enabled(logger=self._logger, state=False)
+
         return return_value
 
     # noinspection PyMethodMayBeStatic

@@ -583,12 +583,12 @@ class MiniWestCommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The parser to extend.
         """
-        parser.add_argument('-w', '--west_yml', type=str, help='Imported .yml file name')
-        parser.add_argument('-d', '--dest_path', type=str, help='Destination path for cloned projects')
+        parser.add_argument('-w', '--west-yml', type=str, help='Imported .yml file name')
+        parser.add_argument('-d', '--dest-path', type=str, help='Destination path for cloned projects')
         parser.add_argument('-o', '--override', type=str, help='west.yaml overrides')
-        parser.add_argument('-r', '--retry_count', type=int, default=3, help='Git clone attempts')
+        parser.add_argument('-r', '--retry-count', type=int, default=3, help='Git clone attempts')
         parser.add_argument('-i', '--workers', type=int, default=10, help="Concurrent Git instances")
-        parser.add_argument('-l', '--text_len', type=int, default=54, help='Status line length')
+        parser.add_argument('-l', '--text-len', type=int, default=54, help='Status line length')
 
     def run(self, args: argparse.Namespace) -> int:
         """

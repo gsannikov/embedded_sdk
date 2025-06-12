@@ -50,7 +50,7 @@ class SolutionCommand(CommandInterface):
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
 
-    def _print_variables_table(self):
+    def _show_environment_variables(self):
         """
         Display the list of managed variables in a styled table using Rich.
         This method is fully compatible with cmd2 and does not rely on self.console.
@@ -114,7 +114,7 @@ class SolutionCommand(CommandInterface):
 
         console.print('\n', table, '\n')
 
-    def _print_log(self, cheerful: bool) -> None:
+    def _show_log(self, cheerful: bool) -> None:
         """
         Display the AutoForge logger output with color-coded fields.
         Args:
@@ -130,7 +130,7 @@ class SolutionCommand(CommandInterface):
 
         self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
 
-    def _print_solution(self):
+    def _show_solution(self):
         """Use Textual to show the solution viewer with a clean, structured single-solution summary."""
 
         # Full solution data for the main JSON tree
@@ -175,19 +175,20 @@ class SolutionCommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
-        parser.add_argument('-p', '--print-solution', action='store_true',
-                            help='Print the processed solution JSON file to the terminal.')
 
-        parser.add_argument('-j', '--print-json', help='JSON file Viewer.')
+        # This command allow only one option at a time
+        group = parser.add_mutually_exclusive_group(required=False)
 
-        # Logger printout
-        parser.add_argument("-l", "--log", action="store_true", help="Show the log output")
-        parser.add_argument('-t', '--tutorial', action='store_true', help='Show the solution creation tutorial.')
+        # 'Show' commands
+        group.add_argument('-p', '--show-solution', action='store_true',
+                           help='Print the processed solution JSON file to the terminal.')
+        group.add_argument('-e', '--show-environment-variables', action='store_true',
+                           help='Show session environment variables.')
+        group.add_argument("-l", "--show-log", action="store_true", help="Show the log output")
+        group.add_argument('-g', '--show-guide', action='store_true', help='Show the solution creation guide.')
 
-        parser.add_argument("-c", "--cheerful", action="store_true", help="Enable colorful log output (only with -l)")
-
-        parser.add_argument('-e', '--show-environment-variables', action='store_true',
-                            help='Show session environment variables.')
+        # General purpose tools
+        group.add_argument('-j', '--print-json', help='JSON file Viewer.')
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -201,25 +202,26 @@ class SolutionCommand(CommandInterface):
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
 
-        if args.print_solution:
+        if args.show_solution:
             # Show the expanded solution using the JSON viewer
-            self._print_solution()
+            self._show_solution()
+
+        elif args.show_environment_variables:
+            # Show a table with all the project environment variables
+            self._show_environment_variables()
+
+        elif args.show_log:
+            # Show system log
+            self._show_log(cheerful=True)
+
+        elif args.show_guide:
+            # Show tutorials for the solution JSON file structure
+            self._tool_box.show_help_file(relative_path='solution/guide.md')
 
         elif args.print_json:
             # View JSON/C file.
             self._tool_box.show_json_file(json_path_or_data=args.print_json, title=f"File: {args.print_json}")
 
-        elif args.show_environment_variables:
-            # Show a table with all the project environment variables
-            self._print_variables_table()
-
-        elif args.log:
-            # Show system log
-            self._print_log(args.cheerful)
-
-        elif args.tutorial:
-            # Show tutorial regarding the solution structure
-            self._tool_box.show_help_file(help_file_relative_path='solution/guide.md')
         else:
             # Error: no arguments
             return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

@@ -736,6 +736,46 @@ class ToolBox(CoreModuleInterface):
             raise encode_error
 
     @staticmethod
+    def safe_erase_path(target_path: str, min_depth: int = 3, force: bool = False):
+        """
+        Safely erase a directory path if:
+          - It exists.
+          - It's deeper than min_depth levels above root.
+          - It's not inside the user's home directory.
+          - It's empty unless 'force' is True.
+        Args:
+            target_path (str): Path to delete.
+            min_depth (int): Minimum directory depth (e.g., 3 for "/a/b/c").
+            force (bool): If False, refuse to delete non-empty directories.
+        """
+        try:
+            abs_path = Path(target_path).resolve(strict=True)
+            home_path = Path.home().resolve()
+
+            # Check if it's a directory
+            if not abs_path.is_dir():
+                raise ValueError(f"Not a directory:'{abs_path}'")
+
+            # Check not under home
+            if home_path in abs_path.parents or abs_path == home_path:
+                raise ValueError(f"Refusing to delete path under home directory: '{abs_path}'")
+
+            # Check minimum depth from root
+            depth = len(abs_path.parts) - 1  # subtract 1 for the leading '/'
+            if depth < min_depth:
+                raise ValueError(f"Refusing to delete: path depth {depth} < minimum allowed depth '{min_depth}'")
+
+            # If not forcing, ensure directory is empty
+            if not force and any(abs_path.iterdir()):
+                raise ValueError(f"Refusing to delete non-empty directory without force=True: '{abs_path}'")
+
+            # Passed all checks — delete
+            shutil.rmtree(str(abs_path))
+
+        except Exception as erase_error:
+            raise erase_error from erase_error
+
+    @staticmethod
     def set_cursor(visible: bool = False):
         """
         Sets the visibility of the terminal cursor using ANSI escape codes.
@@ -1520,22 +1560,39 @@ class ToolBox(CoreModuleInterface):
             raise viewer_exception from viewer_exception
 
     @staticmethod
-    def show_help_file(help_file_relative_path: str) -> int:
+    def resolve_help_file(relative_path: Union[str, Path]) -> Optional[Path]:
+        """
+        Returns the path to a help markdown file based on its relative name if that the file was found.
+        Args:
+            relative_path (str, Path): Relative path to the help file.
+        Returns:
+            str: The resolved path to the .md help file if the file exists, else None.
+        """
+
+        help_file_path: Path = PROJECT_HELP_PATH / Path(relative_path)
+
+        # Must have a markdown (.md) extension
+        if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
+            return None
+
+        return help_file_path
+
+    @staticmethod
+    def show_help_file(relative_path: Union[str,Path]) -> int:
         """
         Displays a markdown help file using the textual markdown viewer.
         Args:
-            help_file_relative_path (str): Relative path to the help file under PROJECT_HELP_PATH.
+            relative_path (str): Relative path to the help file under PROJECT_HELP_PATH.
         Returns:
             int: 0 on success, 1 on error or suppressed failure.
         """
-        help_viewer_tool: Path = PROJECT_VIEWERS_PATH / "help_viewer.py"
-        help_file_path: Path = PROJECT_HELP_PATH / help_file_relative_path
+        help_viewer_tool = PROJECT_VIEWERS_PATH / "help_viewer.py"
+
+        # Resolve the file path
+        help_file_path = ToolBox.resolve_help_file(relative_path)
 
         with suppress(Exception):
-            if not help_viewer_tool.exists():
-                return 1
-
-            if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
+            if not help_viewer_tool.exists() or not help_file_path:
                 return 1
 
             if help_file_path.stat().st_size > 64 * 1024:

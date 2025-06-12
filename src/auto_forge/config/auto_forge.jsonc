@@ -113,7 +113,7 @@
         { "alias_name": "gos",          "target_command": "cd $SCRIPTS_BASE",                  "description": "\uD83D\uDFE6  Go to scripts directory",                      "command_type": "NAVIGATE" },
         { "alias_name": "gologs",        "target_command": "cd $BUILD_LOGS",                   "description": "\uD83D\uDFE6  Go to the build logs path",                    "command_type": "NAVIGATE", "hidden": true },
         { "alias_name": ".",            "target_command": "start -p .",                        "description": "\uD83D\uDCC2  Open current folder in file manager",          "command_type": "NAVIGATE" },
-        { "alias_name": "log",          "target_command": "sln -l -c",                         "description": "\uD83D\uDCDD Show recent logs",                              "command_type": "UTILITY"  },
+        { "alias_name": "log",          "target_command": "sln -l",                            "description": "\uD83D\uDCDD Show recent logs",                              "command_type": "UTILITY"  },
         { "alias_name": "showsln",      "target_command": "sln -p",                            "description": "\uD83D\uDCDC Show resolved solution JSON",                   "command_type": "UTILITY"  },
         { "alias_name": "showenv",      "target_command": "sln -e",                            "description": "\uD83D\uDD0E Show managed variables tables",                 "command_type": "UTILITY"  },
         { "alias_name": "showeditors",  "target_command": "edit -l",                           "description": "\uD83D\uDD0E Show all detected editors",                     "command_type": "UTILITY"  },
