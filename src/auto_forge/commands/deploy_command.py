@@ -70,6 +70,7 @@ class DeployCommand(CommandInterface):
 
         # Get a logger instance
         self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
+        self._create_archive_backup: bool = True
 
         # Type for  essential JSON sections
         self._recipe_defaults_raw: Optional[dict] = None
@@ -155,9 +156,14 @@ class DeployCommand(CommandInterface):
                 if not archive_overwrite:
                     raise RuntimeError(f"archive '{os.path.basename(archive_path)}' exists, use '-o' to overwrite")
 
-            # Delete if exist
-            archive_path.unlink(missing_ok=True)
+                # Delete if exists, create back if specified
+                if self._create_archive_backup:
+                    self._logger.warning(f"creating backup for '{os.path.basename(archive_path)}'")
+                    ToolBox.safe_backup_and_erase_file(file_path=archive_path)
+                else:
+                    archive_path.unlink(missing_ok=True)
 
+            # Generate fresh archive file
             with zipfile.ZipFile(archive_path, mode='w') as archive:
                 for entry in self._recipe_deploy_files:
                     src_rel = Path(entry["host"])
@@ -179,6 +185,7 @@ class DeployCommand(CommandInterface):
             return 0
 
         except Exception as archive_error:
+            archive_path.unlink(missing_ok=True)  # Delete partial file on error
             raise archive_error from archive_error
 
     def _from_archive(self, archive_path: Path, host_base_path: Path) -> Optional[int]:
@@ -261,7 +268,7 @@ class DeployCommand(CommandInterface):
             raise extract_error from extract_error
 
     def _deploy(self, recipe_file: str, archive_path: str, host_base_path: str, direction: _DeployDirectionType,
-                 archive_overwrite: Optional[bool] = False) -> Optional[int]:
+                archive_overwrite: Optional[bool] = False) -> Optional[int]:
         """
         Processes the recipe file and sets up the archive-to-host mapping.
         Args:
@@ -274,7 +281,6 @@ class DeployCommand(CommandInterface):
             Optional[int]: 1 on failure, None on success.
         """
         try:
-
 
             # Check all are non-empty strings
             if not all(isinstance(x, str) for x in (recipe_file, archive_path, host_base_path,)):
@@ -314,7 +320,7 @@ class DeployCommand(CommandInterface):
 
             if direction == _DeployDirectionType.HostToArchive:
                 exit_code = self._to_archive(host_base_path=host_base_path, archive_path=archive_path,
-                                        archive_overwrite=archive_overwrite)
+                                             archive_overwrite=archive_overwrite)
             elif direction == _DeployDirectionType.ArchiveToHost:
                 exit_code = self._from_archive(archive_path=archive_path, host_base_path=host_base_path)
             else:
@@ -357,13 +363,16 @@ class DeployCommand(CommandInterface):
                 "Incomplete input: if any of the following options are provided --recipe, --archive, "
                 "--host-base-path, or --direction, then all of them must be specified.")
 
-        # Handle deploy operation
-        # Convert the direction into a recognize type
-        deploy_direction: _DeployDirectionType = self._parse_direction(args.direction)
-        if deploy_direction == _DeployDirectionType.Unknown:
-            raise ValueError(f"unknown recipe direction: '{args.direction}'")
+        if any(deploy_args_group):
+            # Handle deploy operation
+            # Convert the direction into a recognize type
+            deploy_direction: _DeployDirectionType = self._parse_direction(args.direction)
+            if deploy_direction == _DeployDirectionType.Unknown:
+                raise ValueError(f"unknown recipe direction: '{args.direction}'")
 
-        # Process the recipe
-        return self._deploy(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_base_path,
-                             direction=deploy_direction,
-                             archive_overwrite=args.archive_overwrite)
+            # Process the recipe
+            return self._deploy(recipe_file=args.recipe, archive_path=args.archive, host_base_path=args.host_base_path,
+                                direction=deploy_direction,
+                                archive_overwrite=args.archive_overwrite)
+        else:
+            return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

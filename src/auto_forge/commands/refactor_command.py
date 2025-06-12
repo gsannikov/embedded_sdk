@@ -390,7 +390,8 @@ class RefactorCommand(CommandInterface):
             )
 
         # Handle the refactoring operation
-
-        return_value = self._refactor(recipe_file=args.recipe, source_path=args.source_path,
-                                      destination_path=args.destination)
-        return return_value
+        if any(refactor_args_group):
+            return self._refactor(recipe_file=args.recipe, source_path=args.source_path,
+                                  destination_path=args.destination)
+        else:
+            return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

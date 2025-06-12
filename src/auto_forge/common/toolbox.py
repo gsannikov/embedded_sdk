@@ -736,6 +736,35 @@ class ToolBox(CoreModuleInterface):
             raise encode_error
 
     @staticmethod
+    def safe_backup_and_erase_file(file_path: Union[str,Path]) -> None:
+        """
+        Back up a file by copying it with a timestamped name, then delete the original.
+        Args:
+            file_path (Path): The full path to the file to be backed up and deleted.
+        """
+
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+
+        if not file_path.is_file():
+               return
+
+        # Extract filename components
+        timestamp = datetime.now().strftime("%m_%d_%H_%M_%S")
+        suffix = ''.join(file_path.suffixes)
+        stem = file_path.name.removesuffix(suffix) if suffix else file_path.stem
+
+        # Create backup filename
+        backup_name = f"{stem}_{timestamp}{suffix}"
+        backup_path = file_path.with_name(backup_name)
+
+        try:
+            shutil.copy2(file_path, backup_path)
+            file_path.unlink(missing_ok=True)
+        except Exception as erase_error:
+            raise erase_error from erase_error
+
+    @staticmethod
     def safe_erase_path(target_path: str, min_depth: int = 3, force: bool = False):
         """
         Safely erase a directory path if:

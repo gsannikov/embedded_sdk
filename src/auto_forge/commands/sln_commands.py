@@ -50,7 +50,7 @@ class SolutionCommand(CommandInterface):
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
 
-    def _show_environment_variables(self):
+    def _show_environment_variables(self) -> Optional[int]:
         """
         Display the list of managed variables in a styled table using Rich.
         This method is fully compatible with cmd2 and does not rely on self.console.
@@ -71,50 +71,53 @@ class SolutionCommand(CommandInterface):
         home_directory = self._tool_box.get_expanded_path(path="$HOME")
 
         if not isinstance(project_workspace, str) or not isinstance(solution_name, str):
-            print("Error: could not get our solution name or project workspace or both")
-            return
+            raise RuntimeError("could not get our solution name or project workspace or both")
 
         if not isinstance(var_list, list) or not var_list:
-            print("Error: no variables to display.")
-            return
+            raise RuntimeError("no variables to display")
 
-        table = Table(title=f"{solution_name.capitalize()}: Managed Variables", box=box.ROUNDED)
+        try:
+            table = Table(title=f"{solution_name.capitalize()}: Managed Variables", box=box.ROUNDED)
 
-        # Define columns based on VariableFieldType
-        table.add_column("Key", style="bold cyan", no_wrap=True)
-        table.add_column("Value", style="green")
-        table.add_column("Description", style="dim")
-        table.add_column("Is Path", style="yellow", justify="center")
-        table.add_column("Create If Missing", justify="center")
+            # Define columns based on VariableFieldType
+            table.add_column("Key", style="bold cyan", no_wrap=True)
+            table.add_column("Value", style="green")
+            table.add_column("Description", style="dim")
+            table.add_column("Is Path", style="yellow", justify="center")
+            table.add_column("Create If Missing", justify="center")
 
-        for var in var_list:
-            key = str(var.get("key", "") or "")
-            description = str(var.get("description", "") or "")
-            is_path = var.get("is_path", False)
-            value = var.get("value", "")
+            for var in var_list:
+                key = str(var.get("key", "") or "")
+                description = str(var.get("description", "") or "")
+                is_path = var.get("is_path", False)
+                value = var.get("value", "")
 
-            # Build styled value text
-            value_text = Text()
-            try:
-                if is_path and isinstance(value, str) and value.startswith(project_workspace):
-                    rel_path = Path(value).relative_to(project_workspace)
-                    value_text.append("$", style="blue")
-                    value_text.append(f"/{rel_path}")
-                elif is_path and isinstance(value, str) and value.startswith(home_directory):
-                    rel_path = Path(value).relative_to(home_directory)
-                    value_text.append("~", style="purple")
-                    value_text.append(f"/{rel_path}")
-                else:
+                # Build styled value text
+                value_text = Text()
+                try:
+                    if is_path and isinstance(value, str) and value.startswith(project_workspace):
+                        rel_path = Path(value).relative_to(project_workspace)
+                        value_text.append("$", style="blue")
+                        value_text.append(f"/{rel_path}")
+                    elif is_path and isinstance(value, str) and value.startswith(home_directory):
+                        rel_path = Path(value).relative_to(home_directory)
+                        value_text.append("~", style="purple")
+                        value_text.append(f"/{rel_path}")
+                    else:
+                        value_text = Text(str(value))
+                except ValueError:
                     value_text = Text(str(value))
-            except ValueError:
-                value_text = Text(str(value))
 
-            table.add_row(key, value_text, description, _bool_emoji(is_path),
-                          _bool_emoji(var.get("create_path_if_not_exist")))
+                table.add_row(key, value_text, description, _bool_emoji(is_path),
+                              _bool_emoji(var.get("create_path_if_not_exist")))
 
-        console.print('\n', table, '\n')
+            console.print('\n', table, '\n')
+            return 0
 
-    def _show_log(self, cheerful: bool) -> None:
+        except Exception as variables_error:
+            raise variables_error from variables_error
+
+    def _show_log(self, cheerful: bool) -> Optional[int]:
         """
         Display the AutoForge logger output with color-coded fields.
         Args:
@@ -128,46 +131,54 @@ class SolutionCommand(CommandInterface):
                         FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
                         FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
 
-        self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
+        try:
+            self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
+            return 0
 
-    def _show_solution(self):
-        """Use Textual to show the solution viewer with a clean, structured single-solution summary."""
+        except Exception as log_error:
+            raise log_error from log_error
 
-        # Full solution data for the main JSON tree
-        solution_data = self._solution.get_loaded_solution(name_only=False)
+    def _show_solution(self) -> Optional[int]:
+        """ Use Textual to show the solution viewer with a clean, structured single-solution summary."""
 
-        # Just the name for summary
-        solution_name = self._solution.get_loaded_solution(name_only=True)
+        try:
+            # Full solution data for the main JSON tree
+            solution_data = self._solution.get_loaded_solution(name_only=False)
 
-        # Build structured solution summary
-        solution_summary = {
-            "Solution": solution_name.capitalize(),
-            "Projects": []
-        }
+            # Just the name for summary
+            solution_name = self._solution.get_loaded_solution(name_only=True)
 
-        for project in self._solution.query_projects():
-            project_name = project.get("name")
-            toolchain = project.get("tool_chain", {}).get("name", "unknown")
+            # Build structured solution summary
+            solution_summary = {
+                "Solution": solution_name.capitalize(),
+                "Projects": []
+            }
 
-            configurations = self._solution.query_configurations(project_name=project_name)
-            config_names = [conf.get("name") for conf in configurations]
+            for project in self._solution.query_projects():
+                project_name = project.get("name")
+                toolchain = project.get("tool_chain", {}).get("name", "unknown")
 
-            solution_summary["Projects"].append({
-                "Name": project_name.capitalize(),
-                "Toolchain": toolchain,
-                "Configurations": config_names
-            })
+                configurations = self._solution.query_configurations(project_name=project_name)
+                config_names = [conf.get("name") for conf in configurations]
 
-        # Encode as base64 to safely pass as argument
-        json_text = json.dumps(solution_summary)
-        panel_arg = base64.b64encode(json_text.encode("utf-8")).decode("ascii")
+                solution_summary["Projects"].append({
+                    "Name": project_name.capitalize(),
+                    "Toolchain": toolchain,
+                    "Configurations": config_names
+                })
 
-        # Show in Textual viewer
-        self._tool_box.show_json_file(
-            json_path_or_data=solution_data,
-            title="Solution Viewer",
-            panel_content=panel_arg
-        )
+            # Encode as base64 to safely pass as argument
+            json_text = json.dumps(solution_summary)
+            panel_arg = base64.b64encode(json_text.encode("utf-8")).decode("ascii")
+
+            # Show in Textual viewer
+            return self._tool_box.show_json_file(
+                json_path_or_data=solution_data,
+                title="Solution Viewer",
+                panel_content=panel_arg, )
+
+        except Exception as solution_error:
+            raise solution_error from solution_error
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -198,32 +209,30 @@ class SolutionCommand(CommandInterface):
         Returns:
             int: 0 on success, non-zero on failure.
         """
-        return_code: int = 0
+
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
 
         if args.show_solution:
             # Show the expanded solution using the JSON viewer
-            self._show_solution()
+            return self._show_solution()
 
         elif args.show_environment_variables:
             # Show a table with all the project environment variables
-            self._show_environment_variables()
+            return self._show_environment_variables()
 
         elif args.show_log:
             # Show system log
-            self._show_log(cheerful=True)
+            return self._show_log(cheerful=True)
 
         elif args.show_guide:
             # Show tutorials for the solution JSON file structure
-            self._tool_box.show_help_file(relative_path='solution/guide.md')
+            return self._tool_box.show_help_file(relative_path='solution/guide.md')
 
         elif args.print_json:
             # View JSON/C file.
-            self._tool_box.show_json_file(json_path_or_data=args.print_json, title=f"File: {args.print_json}")
+            return self._tool_box.show_json_file(json_path_or_data=args.print_json, title=f"File: {args.print_json}")
 
         else:
             # Error: no arguments
-            return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
-
-        return return_code
+            return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
