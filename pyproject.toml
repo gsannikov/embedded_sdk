@@ -49,6 +49,7 @@ package-dir = { "" = "src" }
 packages = ["auto_forge",
     "auto_forge.core",
     "auto_forge.core.interfaces",
+    "auto_forge.core.protocols",
     "auto_forge.common",
     "auto_forge.commands",
     "auto_forge.builders",

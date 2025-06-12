@@ -46,7 +46,8 @@ class CoreShellAliasesProtocol(Protocol):
 
     def create(self, alias: str, command: str, can_update_existing: bool = True) -> bool: ...
 
-    def commit(self) -> bool:...
+    def commit(self) -> bool: ...
+
 
 @runtime_checkable
 class CommandInterfaceProtocol(Protocol):
