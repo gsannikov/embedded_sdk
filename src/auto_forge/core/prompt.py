@@ -43,7 +43,7 @@ from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoLogger, BuildProfileType,
     CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreSolution, CoreVariables,
     ExecutionModeType, ModuleInfoType, PROJECT_NAME, PROJECT_VERSION,
-    Registry, TerminalEchoType, ToolBox, XYType
+    CoreRegistry, TerminalEchoType, ToolBox, XYType
 )
 
 # Basic types
@@ -331,7 +331,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-        self._registry: Registry = Registry.get_instance()
+        self._registry: CoreRegistry = CoreRegistry.get_instance()
 
         # Clear command line buffer
         sys.argv = [sys.argv[0]]

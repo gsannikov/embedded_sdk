@@ -26,8 +26,8 @@ from typing import Optional, Union
 
 # AutoForge late imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, LinuxShellType,
-    Registry, SystemInfo, VersionCompare
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSystemInfo,
+    LinuxShellType, VersionCompare
 )
 
 AUTO_FORGE_MODULE_NAME = "ShellAliases"
@@ -71,7 +71,7 @@ class CoreShellAliases(CoreModuleInterface):
         self._shell_type: LinuxShellType = LinuxShellType.UNKNOWN
         self._home_dir: Path = Path.home()
         self._rc_files_backup_path: Optional[Path] = Path(rc_files_backup_path) if rc_files_backup_path else None
-        self._sys_info: SystemInfo = SystemInfo().get_instance()
+        self._sys_info: CoreSystemInfo = CoreSystemInfo().get_instance()
 
         if prefix_comment is None:
             # Generate default comments with dynamic date in MM-DD-YY format
@@ -88,7 +88,7 @@ class CoreShellAliases(CoreModuleInterface):
         self._env_valid: bool = False
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 

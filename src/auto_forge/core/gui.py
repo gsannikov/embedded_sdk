@@ -26,7 +26,7 @@ with suppress(ImportError):
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, InputBoxButtonType, InputBoxLineType,
-                        InputBoxTextType, MessageBoxType, Registry, )
+                        InputBoxTextType, MessageBoxType, CoreRegistry, )
 
 AUTO_FORGE_MODULE_NAME = "GUI"
 AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"
@@ -63,8 +63,8 @@ class CoreGUI(CoreModuleInterface):
         atexit.register(self._shutdown)
 
         # Add to AutoForge modules registry
-        Registry.get_instance().register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                                auto_forge_module_type=AutoForgeModuleType.CORE)
+        CoreRegistry.get_instance().register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                                    auto_forge_module_type=AutoForgeModuleType.CORE)
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
 

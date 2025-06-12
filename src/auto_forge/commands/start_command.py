@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional, Union, Any
 
 # AutoForge imports
-from auto_forge import (CommandInterface, SystemInfo, )
+from auto_forge import (CommandInterface, CoreSystemInfo, )
 
 AUTO_FORGE_MODULE_NAME = "start"
 AUTO_FORGE_MODULE_DESCRIPTION = "Windows start command"
@@ -48,7 +48,7 @@ class StartCommand(CommandInterface):
             path: The path to open in the file manager. Can be a string or a Path object.
                   If None, the current working directory will be opened.
         """
-        sys_info: SystemInfo = SystemInfo.get_instance()
+        sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
 
         if path is None:
             target_path = Path.cwd()

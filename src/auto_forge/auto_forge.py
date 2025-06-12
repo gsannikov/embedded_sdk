@@ -34,8 +34,8 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
     CoreGUI, CoreDynamicLoader, CoreModuleInterface, CoreJSONCProcessor, CorePrompt, CoreSolution,
     CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes, PROJECT_BUILDERS_PATH,
-    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, Registry, CoreShellAliases,
-    StatusNotifType, SystemInfo, ToolBox, Watchdog, )
+    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, CoreRegistry, CoreShellAliases,
+    StatusNotifType, CoreSystemInfo, ToolBox, Watchdog, )
 
 
 class AutoForge(CoreModuleInterface):
@@ -54,7 +54,7 @@ class AutoForge(CoreModuleInterface):
 
         self._queue_logger: QueueLogger = QueueLogger()
 
-        self._registry: Optional[Registry] = None
+        self._registry: Optional[CoreRegistry] = None
         self._solution: Optional[CoreSolution] = None
         self._tool_box: Optional[ToolBox] = None
         self._environment: Optional[CoreEnvironment] = None
@@ -70,7 +70,7 @@ class AutoForge(CoreModuleInterface):
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
         self._steps_file: Optional[str] = None
-        self._sys_info: Optional[SystemInfo] = None
+        self._sys_info: Optional[CoreSystemInfo] = None
         self._shell_aliases: Optional[CoreShellAliases] = None
         self._watchdog_watchdog: Optional[Watchdog] = None
         self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
@@ -114,10 +114,10 @@ class AutoForge(CoreModuleInterface):
         self._queue_logger.debug(f"Started from {os.getcwd()}")
 
         self._events = EventManager(StatusNotifType)
-        self._registry = Registry()  # Must be first—anchors the core system
+        self._registry = CoreRegistry()  # Must be first—anchors the core system
         self._tool_box = ToolBox()
         self._processor = CoreJSONCProcessor()
-        self._sys_info = SystemInfo()
+        self._sys_info = CoreSystemInfo()
         self._shell_aliases = CoreShellAliases()
 
         # Reset the terminal, clean its buffer.

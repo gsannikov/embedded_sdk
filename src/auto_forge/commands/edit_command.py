@@ -28,7 +28,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, SystemInfo, AutoLogger, CoreSolution)
+from auto_forge import (CoreVariables, CommandInterface, CoreSystemInfo, AutoLogger, CoreSolution)
 
 AUTO_FORGE_MODULE_NAME = "edit"
 AUTO_FORGE_MODULE_DESCRIPTION = "Invokes the preferred editor to open files or directories"
@@ -49,7 +49,7 @@ class EditCommand(CommandInterface):
 
         # Extract optional parameters
         self._detected_editors: Optional[list[dict[str, Any]]] = []
-        self._sys_info: SystemInfo = SystemInfo.get_instance()
+        self._sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
         self._selected_editor_index: Optional[int] = None
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._solution: Optional[CoreSolution] = None

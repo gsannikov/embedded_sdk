@@ -26,7 +26,7 @@ from typing import Any, Optional, Union, Type, cast, Callable
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, BuildProfileType, BuilderRunnerInterface,
     CommandInterface, CommandInterfaceProtocol, CoreModuleInterface,
-    ModuleInfoType, Registry, TerminalTeeStream, ToolBox
+    ModuleInfoType, CoreRegistry, TerminalTeeStream, ToolBox
 )
 
 AUTO_FORGE_MODULE_NAME = "Loader"
@@ -57,7 +57,7 @@ class CoreDynamicLoader(CoreModuleInterface):
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-        self._registry: Registry = Registry.get_instance()
+        self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._toolbox: ToolBox = ToolBox.get_instance()
         self._loaded_commands: int = 0
         self._configuration: dict[str, Any] = configuration

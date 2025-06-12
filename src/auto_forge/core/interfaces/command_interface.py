@@ -27,7 +27,7 @@ from typing import IO, Any, Optional
 
 # Direct internal imports to avoid circular dependencies
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, AutoForgCommandType)
-from auto_forge.core.registry import Registry  # Runtime import to prevent circular import
+from auto_forge.core.registry import CoreRegistry  # Runtime import to prevent circular import
 from auto_forge.core.toolbox import ToolBox
 
 
@@ -175,7 +175,7 @@ class CommandInterface(ABC):
         self._logger = AutoLogger().get_logger(name=command_name.capitalize())
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
             registry.register_module(name=command_name, description=caller_module_description,
                                      version=caller_module_version,

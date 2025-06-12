@@ -30,14 +30,14 @@ from git import GitConfigParser
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, DataSizeFormatter,
-    Registry, SysInfoLinuxDistroType, SysInfoPackageManagerType
+    CoreRegistry, SysInfoLinuxDistroType, SysInfoPackageManagerType
 )
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
 AUTO_FORGE_MODULE_DESCRIPTION = "System information collector"
 
 
-class SystemInfo(CoreModuleInterface):
+class CoreSystemInfo(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
@@ -48,7 +48,7 @@ class SystemInfo(CoreModuleInterface):
 
     def _initialize(self) -> None:
         """
-        Initialize CoreSysInfo and collect system metadata. This includes platform type,
+        Initialize CoreSystemInfo and collect system metadata. This includes platform type,
         virtualization/container status, user and host info, package manager, memory,
         and (on Linux) distribution details.
         """
@@ -115,7 +115,7 @@ class SystemInfo(CoreModuleInterface):
                            "gfx": self._gfx, "uptime": self._uptime}
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
@@ -481,4 +481,4 @@ class SystemInfo(CoreModuleInterface):
     @property
     def linux_shell(self) -> None:
         """ Returns the detected Linux user default shell """
-        return SystemInfo._detect_login_shell()
+        return CoreSystemInfo._detect_login_shell()

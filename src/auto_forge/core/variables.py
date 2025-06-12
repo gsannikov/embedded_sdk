@@ -23,7 +23,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
-    CoreModuleInterface, Registry, ToolBox, VariableFieldType
+    CoreModuleInterface, CoreRegistry, ToolBox, VariableFieldType
 )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
@@ -94,7 +94,7 @@ class CoreVariables(CoreModuleInterface):
             self._reset()
 
             # Persist this module instance in the global registry for centralized access
-            registry = Registry.get_instance()
+            registry = CoreRegistry.get_instance()
             registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                      auto_forge_module_type=AutoForgeModuleType.CORE)
         except Exception as exception:

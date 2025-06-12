@@ -58,14 +58,14 @@ try:
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
 
     # Core / common modules
-    from auto_forge.core.registry import Registry
+    from auto_forge.core.registry import CoreRegistry
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import ToolBox
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
     from auto_forge.core.solution import CoreSolution
-    from auto_forge.core.system_info import SystemInfo
+    from auto_forge.core.system_info import CoreSystemInfo
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.shell_aliases import CoreShellAliases
     from auto_forge.core.environment import CoreEnvironment
@@ -86,11 +86,11 @@ except Exception as exception:
 # Exported symbols
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgeModuleType", "AutoForgeWorkModeType", "AutoLogger",
-    "BuilderRunnerInterface", "BuilderToolChain", "BuildProfileType", "BuildTelemetry",
-    "CommandInterface", "CommandInterfaceProtocol", "COMMAND_TYPE_COLOR_MAP", "CommandResultType",
-    "CoreEnvironment", "CoreGUI", "CoreDynamicLoader", "CoreModuleInterface", "CoreJSONCProcessor",
-    "CoreJSONCProcessorProtocol",
-    "CorePrompt", "CoreSignatures", "CoreSolution", "CoreVariables", "CoreVariablesProtocol",
+    "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuilderToolChain",
+    "COMMAND_TYPE_COLOR_MAP", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
+    "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
+    "CoreModuleInterface", "CorePrompt", "CoreShellAliases", "CoreShellAliasesProtocol", "CoreSignatures",
+    "CoreSolution", "CoreSystemInfo", "CoreVariables", "CoreVariablesProtocol",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
     "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
@@ -98,10 +98,9 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
-    "ProgressTracker", "QueueLogger", "Registry",
-    "SequenceErrorActionType", "CoreShellAliases", "CoreShellAliasesProtocol", "Signature", "SignatureFieldType",
-    "SignatureFileHandler",
-    "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "SystemInfo",
+    "ProgressTracker", "QueueLogger", "CoreRegistry",
+    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
     "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "XYType", "start"
 ]

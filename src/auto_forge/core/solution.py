@@ -37,7 +37,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
-    CoreSignatures, CoreVariables, PROJECT_SCHEMAS_PATH, Registry, ToolBox
+    CoreSignatures, CoreVariables, PROJECT_SCHEMAS_PATH, CoreRegistry, ToolBox
 )
 
 AUTO_FORGE_MODULE_NAME = "Solution"
@@ -89,7 +89,7 @@ class CoreSolution(CoreModuleInterface):
         self._preprocess(solution_file_name=solution_config_file_name, solution_name=solution_name)
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 

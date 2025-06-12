@@ -48,7 +48,7 @@ from auto_forge import (
     PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH, XYType
 )
 # Runtime import to prevent circular import
-from auto_forge.core.registry import Registry
+from auto_forge.core.registry import CoreRegistry
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -72,7 +72,7 @@ class ToolBox(CoreModuleInterface):
         self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
 
         # Persist this module instance in the global registry for centralized access
-        self._registry = Registry.get_instance()
+        self._registry = CoreRegistry.get_instance()
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 

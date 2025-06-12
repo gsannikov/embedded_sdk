@@ -22,7 +22,7 @@ AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
 
 
-class Registry(CoreModuleInterface):
+class CoreRegistry(CoreModuleInterface):
     """
     Core module responsible for tracking and managing dynamically registered modules
     within the AutoForge system.

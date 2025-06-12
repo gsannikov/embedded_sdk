@@ -23,7 +23,7 @@ from typing import Any, Optional, cast
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
-    CoreVariables, Registry, SignatureFieldType, SignatureSchemaType
+    CoreVariables, CoreRegistry, SignatureFieldType, SignatureSchemaType
 )
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
@@ -138,7 +138,7 @@ class CoreSignatures(CoreModuleInterface):
             self._schemas.append(schema)
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 

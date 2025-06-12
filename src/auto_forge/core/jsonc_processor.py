@@ -18,7 +18,7 @@ from rich.console import Console
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreModuleInterface, Registry)
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"
@@ -188,7 +188,7 @@ class CoreJSONCProcessor(CoreModuleInterface):
         self._normalize_multilines: bool = normalize_multilines
 
         # Persist this module instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 

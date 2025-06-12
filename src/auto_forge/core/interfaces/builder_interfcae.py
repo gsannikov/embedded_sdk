@@ -22,7 +22,7 @@ from colorama import Fore, Style
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType,
                         CommandResultType, VersionCompare)
 # Direct internal imports to avoid circular dependencies
-from auto_forge.core.registry import Registry
+from auto_forge.core.registry import CoreRegistry
 from auto_forge.core.toolbox import ToolBox
 
 AUTO_FORGE_MODULE_NAME = "MakeBuilder"
@@ -190,7 +190,7 @@ class BuilderRunnerInterface(ABC):
         self._tool_box = ToolBox().get_instance()
 
         # Persist this builder instance in the global registry for centralized access
-        registry = Registry.get_instance()
+        registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
             registry.register_module(name=self._build_system, description=caller_module_description,
                                      version=caller_module_version, auto_forge_module_type=AutoForgeModuleType.BUILDER))

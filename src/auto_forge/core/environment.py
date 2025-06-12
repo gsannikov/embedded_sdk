@@ -40,8 +40,8 @@ from colorama import Fore, Style
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType, CoreDynamicLoader,
     CoreJSONCProcessor, CoreModuleInterface, CoreShellAliasesProtocol, CoreVariables,
-    ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH, Registry, SequenceErrorActionType,
-    SystemInfo, TerminalEchoType, ToolBox, ValidationMethodType, VersionCompare, Watchdog
+    ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH, CoreRegistry, SequenceErrorActionType,
+    CoreSystemInfo, TerminalEchoType, ToolBox, ValidationMethodType, VersionCompare, Watchdog
 )
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -87,7 +87,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
         self._processor = CoreJSONCProcessor.get_instance()  # Instantiate JSON processing library
         self._tool_box: ToolBox = ToolBox.get_instance()
-        self._sys_info: SystemInfo = SystemInfo.get_instance()
+        self._sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
         self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._configuration: dict[str, Any] = configuration
@@ -102,7 +102,7 @@ class CoreEnvironment(CoreModuleInterface):
                                                                     self._subprocess_execution_timout)
 
         # Persist this module instance in the global registry for centralized access
-        self._registry = Registry.get_instance()
+        self._registry = CoreRegistry.get_instance()
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
