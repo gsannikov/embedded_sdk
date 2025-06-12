@@ -29,8 +29,8 @@ from git import GitConfigParser
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, DataSizeFormatter,
-    CoreRegistry, SysInfoLinuxDistroType, SysInfoPackageManagerType
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, DataSizeFormatter,
+    SysInfoLinuxDistroType, SysInfoPackageManagerType
 )
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"

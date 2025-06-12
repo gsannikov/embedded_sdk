@@ -20,10 +20,9 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType,
-                        CommandResultType, VersionCompare)
+                        CommandResultType, VersionCompare, CoreToolBoxProtocol, )
 # Direct internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
-from auto_forge.core.toolbox import ToolBox
 
 AUTO_FORGE_MODULE_NAME = "MakeBuilder"
 AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
@@ -31,16 +30,28 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
 
 class BuilderToolChain:
     """
-    Abstract base class for toolchain definitions.
-    Implementing classes must provide 'validate()' to check structural and semantic correctness.
-    Common resolution logic is built-in.
+    Tool chaim validation auxiliary cass.
     """
 
     def __init__(self, toolchain: dict[str, object], builder_instance: Optional["BuilderRunnerInterface"]) -> None:
+        """
+        Checks that the specified tool chin exists and that its different components,has the correct version.
+        Args:
+            toolchain (dict[str, object]): The toolchain to check.
+            builder_instance (Optional[BuilderRunnerInterface]): The parent builder instance.
+
+        """
         self._toolchain = toolchain
         self._resolved_tools: dict[str, str] = {}
-        self._tool_box = ToolBox().get_instance()
         self._builder_instance = builder_instance
+
+        self._registry = CoreRegistry.get_instance()
+        # Retrieve a Toolbox instance and its protocol interface via the registry.
+        # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
+        self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
+            "CoreToolBox", return_protocol=True)
+        if self._tool_box_proto is None:
+            raise RuntimeError("unable to instantiate dependent core module")
 
     def validate(self, show_help_on_error: bool = False) -> Optional[bool]:
         """
@@ -79,7 +90,7 @@ class BuilderToolChain:
                 # If we have to auto show help
                 if show_help_on_error:
                     if help_path:
-                        if self._tool_box.show_help_file(help_path) != 0:
+                        if self._tool_box_proto.show_help_file(help_path) != 0:
                             self._builder_instance.print_message(
                                 message=f"Error displaying help file '{help_path}' see log for details",
                                 log_level=logging.WARNING)
@@ -187,13 +198,20 @@ class BuilderRunnerInterface(ABC):
         self._logger = AutoLogger().get_logger(name=self._build_system)
         # Set optional build label
         self._build_label: str = build_label if build_label is not None else "AutoForge"
-        self._tool_box = ToolBox().get_instance()
 
         # Persist this builder instance in the global registry for centralized access
-        registry = CoreRegistry.get_instance()
+        self._registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
-            registry.register_module(name=self._build_system, description=caller_module_description,
-                                     version=caller_module_version, auto_forge_module_type=AutoForgeModuleType.BUILDER))
+            self._registry.register_module(name=self._build_system, description=caller_module_description,
+                                           version=caller_module_version,
+                                           auto_forge_module_type=AutoForgeModuleType.BUILDER))
+
+        # Retrieve a Toolbox instance and its protocol interface via the registry.
+        # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
+        self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
+            "CoreToolBox", return_protocol=True)
+        if self._tool_box_proto is None:
+            raise RuntimeError("unable to instantiate dependent core module")
 
         super().__init__()
 
@@ -262,7 +280,7 @@ class BuilderRunnerInterface(ABC):
 
         else:
             leading_text = f"-- {self._build_label}: "
-            message = self._tool_box.strip_ansi(text=message, bare_text=True)
+            message = self._tool_box_proto.strip_ansi(text=message, bare_text=True)
 
         # Optionally log the message
         if log_level is not None:

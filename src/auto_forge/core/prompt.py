@@ -3,7 +3,7 @@ Script:         prompt.py
 Author:         AutoForge Team
 
 Description:
-    Core module that defines and manages the PromptEngine class, which integrates the cmd2
+    Core module that defines and manages the CorePrompt class, which integrates the cmd2
     interactive shell with prompt_toolkit to provide a rich command-line interface for the
     AutoForge build system.
 """
@@ -41,9 +41,11 @@ from rich.console import Console
 # AutoForge imports
 from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoLogger, BuildProfileType,
-    CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreSolution, CoreVariables,
-    ExecutionModeType, ModuleInfoType, PROJECT_NAME, PROJECT_VERSION,
-    CoreRegistry, TerminalEchoType, ToolBox, XYType
+    CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry,
+    CoreSolution, CoreToolBox, CoreVariables,
+    ExecutionModeType, ModuleInfoType,
+    PROJECT_NAME, PROJECT_VERSION,
+    TerminalEchoType, XYType,
 )
 
 # Basic types
@@ -304,7 +306,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             prompt (Optional[str]): Optional custom base prompt string instead of the solution name.
         """
 
-        self._tool_box = ToolBox.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._solution: CoreSolution = CoreSolution.get_instance()

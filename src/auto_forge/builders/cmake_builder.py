@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType,
-                        CoreEnvironment, CorePrompt, )
+                        CoreEnvironment, CorePrompt, CoreToolBox )
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -65,6 +65,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         self._prompt: Optional[CorePrompt] = None
         self._toolchain: Optional[BuilderToolChain] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
+        self._tool_box:CoreToolBox= CoreToolBox.get_instance()
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
@@ -120,12 +121,12 @@ class CMakeBuilder(BuilderRunnerInterface):
             if field not in config:
                 raise ValueError(f"missing mandatory field in configuration: '{field}'")
 
-        # Update step and optionally handle extra argumnets based on the current state
+        # Update step and optionally handle extra arguments based on the current state
         self._set_state(build_state=_CMakeBuildStep.PRE_CONFIGURE, extra_args=build_profile.extra_args, config=config)
 
         # Get optional 'execute_from' property and validate it
         execute_from = config.get("execute_from", None)
-        if execute_from is not None:
+        if isinstance(execute_from, str):
             execute_from = Path(self._tool_box.get_expanded_path(execute_from))
             # Validate it's a path since we have it.
             if not execute_from.is_dir():
@@ -180,7 +181,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         # out of 2 when building with Ninja.
         try:
 
-            # Update step and optionally handle extra argumnets based on the current state
+            # Update step and optionally handle extra arguments based on the current state
             self._set_state(build_state=_CMakeBuildStep.PRE_CONFIGURE, extra_args=build_profile.extra_args,
                             config=config)
 
@@ -196,14 +197,14 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
 
-        # Update step and optionally handle extra argumnets based on the current state
+        # Update step and optionally handle extra arguments based on the current state
         self._set_state(build_state=_CMakeBuildStep.PRE_BUILD, extra_args=build_profile.extra_args, config=config)
 
         # Check if the previous step was configuration and if so verify that we have Ninja
         if is_config_step and ninja_build_command is not None:
             try:
 
-                # Update step and optionally handle extra argumnets based on the current state
+                # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
 
                 ninja_command_line = f"{ninja_build_command} -C {str(build_path)}"
@@ -217,7 +218,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)
 
-            # Update step and optionally handle extra argumnets based on the current state
+            # Update step and optionally handle extra arguments based on the current state
             self._set_state(build_state=_CMakeBuildStep.POST_BUILD, extra_args=build_profile.extra_args, config=config)
 
         # Process post build steps if specified
@@ -243,7 +244,7 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         self.print_message(message=f"Building of '{build_target_string}' was successful", log_level=logging.INFO)
 
-        # Update step and optionally handle extra argumnets based on the current state
+        # Update step and optionally handle extra arguments based on the current state
         self._set_state(build_state=_CMakeBuildStep.DONE_BUILD, extra_args=build_profile.extra_args, config=config)
         return results.return_code
 

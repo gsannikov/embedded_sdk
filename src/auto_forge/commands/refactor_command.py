@@ -18,7 +18,7 @@ from logging import Logger
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, AutoForgCommandType, ToolBox, AutoLogger)
+from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, AutoForgCommandType, CoreToolBox, AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "refactor"
 AUTO_FORGE_MODULE_DESCRIPTION = "Directory tree restructure assistant"
@@ -131,7 +131,7 @@ class RefactorCommand(CommandInterface):
         """
 
         self._json_processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()  # JSON preprocessor instance
-        self._tool_box: ToolBox = ToolBox.get_instance()
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
 
         # Get a logger instance

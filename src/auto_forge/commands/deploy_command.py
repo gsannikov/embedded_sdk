@@ -19,7 +19,7 @@ from typing import Any
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, ToolBox, AutoLogger, AutoForgCommandType)
+from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, AutoLogger, AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "deploy"
 AUTO_FORGE_MODULE_DESCRIPTION = "Recipe Deployer"
@@ -65,7 +65,7 @@ class DeployCommand(CommandInterface):
         """
 
         self._json_processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()  # JSON preprocessor instance
-        self._tool_box: ToolBox = ToolBox.get_instance()
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
 
         # Get a logger instance
@@ -159,7 +159,7 @@ class DeployCommand(CommandInterface):
                 # Delete if exists, create backup if specified
                 if self._create_archive_backup:
                     self._logger.warning(f"creating backup for '{os.path.basename(archive_path)}'")
-                    ToolBox.safe_backup_and_erase_file(file_path=archive_path)
+                    CoreToolBox.safe_backup_and_erase_file(file_path=archive_path)
                 else:
                     archive_path.unlink(missing_ok=True)
 

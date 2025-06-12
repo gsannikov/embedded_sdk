@@ -22,7 +22,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType,
-                        CoreEnvironment, CorePrompt, )
+                        CoreEnvironment, CorePrompt, CoreToolBox)
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
@@ -48,6 +48,7 @@ class MakeBuilder(BuilderRunnerInterface):
         self._environment: Optional[CoreEnvironment] = None
         self._prompt: Optional[CorePrompt] = None
         self._toolchain: Optional[BuilderToolChain] = None
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
@@ -81,7 +82,7 @@ class MakeBuilder(BuilderRunnerInterface):
 
         # Get optional 'execute_from' property and validate it
         execute_from = config.get("execute_from", None)
-        if execute_from is not None:
+        if isinstance(execute_from, str):
             execute_from = Path(self._tool_box.get_expanded_path(execute_from))
             # Validate it's a path since we have it.
             if not execute_from.is_dir():

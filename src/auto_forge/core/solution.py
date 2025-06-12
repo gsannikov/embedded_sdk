@@ -37,7 +37,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
-    CoreSignatures, CoreVariables, PROJECT_SCHEMAS_PATH, CoreRegistry, ToolBox
+    CoreSignatures, CoreVariables, CoreRegistry, CoreToolBox, PROJECT_SCHEMAS_PATH
 )
 
 AUTO_FORGE_MODULE_NAME = "Solution"
@@ -82,7 +82,7 @@ class CoreSolution(CoreModuleInterface):
             CoreVariables] = CoreVariables.get_instance()  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreJSONCProcessor.get_instance()  # Get the JSON preprocessing class instance.
-        self._tool_box = ToolBox.get_instance()  # Get the TooBox auxiliary class instance.
+        self._tool_box = CoreToolBox.get_instance()  # Get the TooBox auxiliary class instance.
         self._workspace_path: str = workspace_path  # Creation arguments
 
         # Load the solution

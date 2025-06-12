@@ -21,7 +21,7 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreJSONCProcessor, ToolBox,
+from auto_forge import (CommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreJSONCProcessor, CoreToolBox,
                         FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
@@ -44,7 +44,7 @@ class SolutionCommand(CommandInterface):
         self._solution: Optional[CoreSolution] = None
         self._variables: Optional[CoreVariables] = None
         self._environment: Optional[CoreEnvironment] = None
-        self._tool_box: Optional[ToolBox] = ToolBox.get_instance()
+        self._tool_box: Optional[CoreToolBox] = CoreToolBox.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
 
         # Base class initialization

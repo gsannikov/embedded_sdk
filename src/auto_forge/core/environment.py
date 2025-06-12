@@ -39,9 +39,9 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType, CoreDynamicLoader,
-    CoreJSONCProcessor, CoreModuleInterface, CoreShellAliasesProtocol, CoreVariables,
+    CoreJSONCProcessor, CoreModuleInterface, CoreShellAliasesProtocol, CoreSystemInfo, CoreVariables,
     ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH, CoreRegistry, SequenceErrorActionType,
-    CoreSystemInfo, TerminalEchoType, ToolBox, ValidationMethodType, VersionCompare, Watchdog
+    TerminalEchoType, CoreToolBox, ValidationMethodType, VersionCompare, Watchdog
 )
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -86,7 +86,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._workspace_path: str = workspace_path
         self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
         self._processor = CoreJSONCProcessor.get_instance()  # Instantiate JSON processing library
-        self._tool_box: ToolBox = ToolBox.get_instance()
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
         self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
@@ -630,12 +630,12 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Cleanup
         if isinstance(command_and_args, str):
-            command_and_args = ToolBox.normalize_text(text=command_and_args)
+            command_and_args = CoreToolBox.normalize_text(text=command_and_args)
             command_list = command_and_args.strip().split()
         elif isinstance(command_and_args, list):
             command_list = []
             for item in command_and_args:
-                cleaned = ToolBox.normalize_text(text=item)
+                cleaned = CoreToolBox.normalize_text(text=item)
                 command_list.append(cleaned)
         else:
             raise TypeError("command_and_args must be a string or a list of strings")

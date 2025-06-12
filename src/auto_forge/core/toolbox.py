@@ -43,18 +43,16 @@ import psutil
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreJSONCProcessorProtocol,
-    CoreModuleInterface, CoreVariablesProtocol, MethodLocationType,
+    CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_SHARED_PATH,
     PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH, XYType
 )
-# Runtime import to prevent circular import
-from auto_forge.core.registry import CoreRegistry
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
 
 
-class ToolBox(CoreModuleInterface):
+class CoreToolBox(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
@@ -349,8 +347,8 @@ class ToolBox(CoreModuleInterface):
             for file in files:
                 if file.endswith(".py"):
                     file_path = os.path.join(subdir, file)
-                    if ToolBox.class_name_in_file(class_name,
-                                                  file_path):  # Assuming this method checks the file content for the class name
+                    if CoreToolBox.class_name_in_file(class_name,
+                                                      file_path):  # Assuming this method checks the file content for the class name
                         module_name = os.path.splitext(os.path.basename(file_path))[0]
                         try:
                             # Load the module from a given file path
@@ -679,7 +677,7 @@ class ToolBox(CoreModuleInterface):
         Generates a unique temporary filename without creating a persistent file on disk.
         """
         try:
-            temp_path_name = ToolBox.get_temp_pathname(create_path=True)
+            temp_path_name = CoreToolBox.get_temp_pathname(create_path=True)
             fd, temp_file = tempfile.mkstemp(dir=temp_path_name, suffix=".temp.af")
             os.close(fd)  # Close the file descriptor to avoid resource leakage
             os.remove(temp_file)  # Delete the file, keeping the path
@@ -788,9 +786,9 @@ class ToolBox(CoreModuleInterface):
             if not abs_path.is_dir():
                 raise ValueError(f"Not a directory:'{abs_path}'")
 
-            # Check not under home
-            if home_path in abs_path.parents or abs_path == home_path:
-                raise ValueError(f"Refusing to delete path under home directory: '{abs_path}'")
+            # Refuse to delete if the path is directly under home (e.g., ~/Desktop)
+            if abs_path.parent == home_path:
+                raise ValueError(f"Refusing to delete path directly under home directory: '{abs_path}'")
 
             # Check minimum depth from root
             depth = len(abs_path.parts) - 1  # subtract 1 for the leading '/'
@@ -889,14 +887,14 @@ class ToolBox(CoreModuleInterface):
         Returns:
             str: Path to the directory where files were extracted.
         """
-        archive_path = ToolBox.get_expanded_path(archive_path)
+        archive_path = CoreToolBox.get_expanded_path(archive_path)
         if not os.path.isfile(archive_path):
             raise FileNotFoundError(f"Archive '{archive_path}' does not exist or is not a file.")
 
         if destination_path is None:
             destination_path = os.path.dirname(archive_path)
         else:
-            destination_path = ToolBox.get_expanded_path(destination_path)
+            destination_path = CoreToolBox.get_expanded_path(destination_path)
 
         try:
             if zipfile.is_zipfile(archive_path):
@@ -1230,7 +1228,7 @@ class ToolBox(CoreModuleInterface):
         sys.stdout.flush()
 
         if terminal_title is not None:
-            ToolBox.set_terminal_title(terminal_title)
+            CoreToolBox.set_terminal_title(terminal_title)
 
     @staticmethod
     def get_formatted_size(num_bytes: int, precision: int = 1) -> str:
@@ -1621,7 +1619,7 @@ class ToolBox(CoreModuleInterface):
         help_viewer_tool = PROJECT_VIEWERS_PATH / "help_viewer.py"
 
         # Resolve the file path
-        help_file_path = ToolBox.resolve_help_file(relative_path)
+        help_file_path = CoreToolBox.resolve_help_file(relative_path)
 
         with suppress(Exception):
             if not help_viewer_tool.exists() or not help_file_path:
@@ -1742,35 +1740,6 @@ class ToolBox(CoreModuleInterface):
         with suppress(Exception), lzma.open(file_path, 'rt', encoding='utf-8') as f:
             if _validate_json_any_format(f):
                 return 'lzma'
-
-        return None
-
-    @staticmethod
-    def find_variable_in_stack(module_name: str, variable_name: str) -> Optional[Any]:
-        """
-        Searches the call stack for a frame originating from the given module name
-        and attempts to retrieve a variable or attribute by name.
-        Args:
-            module_name (str): Name of the module (e.g., 'auto_forge').
-            variable_name (str): The name of the attribute or variable to retrieve.
-
-        Returns:
-            Optional[Any]: The value if found, else None.
-        """
-        with suppress(Exception):
-            for frame_info in inspect.stack():
-                frame = frame_info.frame
-                module = inspect.getmodule(frame)
-
-                if module and module.__name__.endswith(module_name):
-                    # Try to fetch from instance attribute
-                    self_obj = frame.f_locals.get("self")
-                    if self_obj and hasattr(self_obj, variable_name):
-                        return getattr(self_obj, variable_name)
-
-                    # Fallback to locals
-                    if variable_name in frame.f_locals:
-                        return frame.f_locals[variable_name]
 
         return None
 

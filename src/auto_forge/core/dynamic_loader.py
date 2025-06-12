@@ -25,8 +25,8 @@ from typing import Any, Optional, Union, Type, cast, Callable
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, BuildProfileType, BuilderRunnerInterface,
-    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface,
-    ModuleInfoType, CoreRegistry, TerminalTeeStream, ToolBox
+    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox,
+    ModuleInfoType, CoreRegistry, TerminalTeeStream
 )
 
 AUTO_FORGE_MODULE_NAME = "Loader"
@@ -58,7 +58,7 @@ class CoreDynamicLoader(CoreModuleInterface):
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._registry: CoreRegistry = CoreRegistry.get_instance()
-        self._toolbox: ToolBox = ToolBox.get_instance()
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._loaded_commands: int = 0
         self._configuration: dict[str, Any] = configuration
 
@@ -93,7 +93,7 @@ class CoreDynamicLoader(CoreModuleInterface):
         if class_instance is None:
             raise RuntimeError(f"could not find an instance of '{name}' in the registry")
 
-        if not self._toolbox.has_method(class_instance, required_method):
+        if not self._tool_box.has_method(class_instance, required_method):
             raise RuntimeError(f"module '{name}' does not implement '{required_method}'")
 
         return class_instance
@@ -216,7 +216,7 @@ class CoreDynamicLoader(CoreModuleInterface):
                     # detailed information than the default description.
 
                     command_name = module_info.name
-                    docstring_description = self._toolbox.get_module_docstring(python_module_type=python_module_type)
+                    docstring_description = self._tool_box.get_module_docstring(python_module_type=python_module_type)
                     command_description = docstring_description if docstring_description else module_info.description
 
                     # The command should have automatically updated its metadata in the registry; next we validate this.

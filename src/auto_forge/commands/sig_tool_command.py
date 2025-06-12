@@ -17,7 +17,7 @@ from typing import Any, Optional
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import CommandInterface, CoreSignatures, ToolBox
+from auto_forge import CommandInterface, CoreSignatures, CoreToolBox
 
 AUTO_FORGE_MODULE_NAME = "sig_tool"
 AUTO_FORGE_MODULE_DESCRIPTION = "Binary file signing tool"
@@ -33,7 +33,7 @@ class SigToolCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        self._toolbox = ToolBox.get_instance()  # AutoForge swissknife handy class
+        self._toolbox = CoreToolBox.get_instance()  # AutoForge swissknife handy class
 
         self._sig_tool: Optional[CoreSignatures] = None
         self._descriptor_file: Optional[str] = None

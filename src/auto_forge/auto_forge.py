@@ -31,11 +31,13 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreEnvironment,
-    CoreGUI, CoreDynamicLoader, CoreModuleInterface, CoreJSONCProcessor, CorePrompt, CoreSolution,
-    CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes, PROJECT_BUILDERS_PATH,
-    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE, PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, CoreRegistry, CoreShellAliases,
-    StatusNotifType, CoreSystemInfo, ToolBox, Watchdog, )
+    AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreDynamicLoader,
+    CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
+    CoreRegistry, CoreShellAliases, CoreSolution, CoreSystemInfo, CoreToolBox,
+    CoreVariables, ExceptionGuru, EventManager, LogHandlersTypes,
+    PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
+    PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, StatusNotifType, Watchdog,
+)
 
 
 class AutoForge(CoreModuleInterface):
@@ -56,7 +58,7 @@ class AutoForge(CoreModuleInterface):
 
         self._registry: Optional[CoreRegistry] = None
         self._solution: Optional[CoreSolution] = None
-        self._tool_box: Optional[ToolBox] = None
+        self._tool_box: Optional[CoreToolBox] = None
         self._environment: Optional[CoreEnvironment] = None
         self._variables: Optional[CoreVariables] = None
         self._processor: Optional[CoreJSONCProcessor] = None
@@ -113,14 +115,15 @@ class AutoForge(CoreModuleInterface):
         self._queue_logger.debug("System initializing..")
         self._queue_logger.debug(f"Started from {os.getcwd()}")
 
+        # Instantiate core modules
         self._events = EventManager(StatusNotifType)
         self._registry = CoreRegistry()  # Must be first—anchors the core system
-        self._tool_box = ToolBox()
+        self._tool_box = CoreToolBox()
         self._processor = CoreJSONCProcessor()
         self._sys_info = CoreSystemInfo()
         self._shell_aliases = CoreShellAliases()
 
-        # Reset the terminal, clean its buffer.
+        # Reset terminal and clean it's buffer.
         Watchdog.reset_terminal()
 
         # Load package configuration and several dictionaries we might need later
@@ -353,7 +356,7 @@ class AutoForge(CoreModuleInterface):
 
         # Expand and check if the workspace exists
         self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
-        if not ToolBox.looks_like_unix_path(self._workspace_path):
+        if not CoreToolBox.looks_like_unix_path(self._workspace_path):
             raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
 
         self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
@@ -596,6 +599,6 @@ def auto_forge_start(args: argparse.Namespace) -> Optional[int]:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
     finally:
-        ToolBox.set_terminal_input(state=True)  # Restore terminal input
+        CoreToolBox.set_terminal_input(state=True)  # Restore terminal input
 
     return result

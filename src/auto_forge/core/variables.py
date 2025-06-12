@@ -23,7 +23,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
-    CoreModuleInterface, CoreRegistry, ToolBox, VariableFieldType
+    CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType
 )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
@@ -59,7 +59,7 @@ class CoreVariables(CoreModuleInterface):
             to support early startup execution.
         """
         try:
-            self._tool_box = ToolBox.get_instance()
+            self._tool_box = CoreToolBox.get_instance()
             self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
             self._ignore_path_errors: bool = False
             self._essential_variables_essential_variables: Optional[list[dict]] = None

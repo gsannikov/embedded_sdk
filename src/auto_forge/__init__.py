@@ -31,7 +31,7 @@ try:
     from auto_forge.common.watchdog import Watchdog
     from auto_forge.logger import (AutoLogger, QueueLogger, LogHandlersTypes)
 
-    # Basic types
+    # Common types
     from auto_forge.common.local_types import (
         AddressInfoType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
         BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType,
@@ -40,8 +40,7 @@ try:
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
-        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType,
-        XYType
+        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, XYType
     )
 
     # Common modules
@@ -50,7 +49,8 @@ try:
 
     # Protocols
     from auto_forge.core.protocols.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
-                                                     CoreShellAliasesProtocol, CommandInterfaceProtocol)
+                                                     CoreShellAliasesProtocol, CoreToolBoxProtocol,
+                                                     CommandInterfaceProtocol)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -60,7 +60,7 @@ try:
     # Core / common modules
     from auto_forge.core.registry import CoreRegistry
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
-    from auto_forge.core.toolbox import ToolBox
+    from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
@@ -89,8 +89,9 @@ __all__ = [
     "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
     "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
-    "CoreModuleInterface", "CorePrompt", "CoreShellAliases", "CoreShellAliasesProtocol", "CoreSignatures",
-    "CoreSolution", "CoreSystemInfo", "CoreVariables", "CoreVariablesProtocol",
+    "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreShellAliases", "CoreShellAliasesProtocol",
+    "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables",
+    "CoreVariablesProtocol",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
     "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
@@ -98,9 +99,9 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
-    "ProgressTracker", "QueueLogger", "CoreRegistry",
+    "ProgressTracker", "QueueLogger",
     "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
-    "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ToolBox",
+    "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream",
     "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "XYType", "start"
 ]

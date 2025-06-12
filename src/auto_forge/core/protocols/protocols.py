@@ -39,6 +39,22 @@ class CoreVariablesProtocol(Protocol):
 
 
 @runtime_checkable
+class CoreToolBoxProtocol(Protocol):
+    """
+    Defines the required interface for core toolbox module.
+    """
+
+    @staticmethod
+    def resolve_help_file(relative_path: Union[str, Path]) -> Optional[Path]: ...
+
+    @staticmethod
+    def show_help_file(relative_path: Union[str, Path]) -> int: ...
+
+    @staticmethod
+    def strip_ansi(text: str, bare_text: bool = False) -> str: ...
+
+
+@runtime_checkable
 class CoreShellAliasesProtocol(Protocol):
     """
     Defines the required interface for shell aliases core module.

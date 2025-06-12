@@ -28,7 +28,7 @@ import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import CommandInterface, ToolBox
+from auto_forge import CommandInterface, CoreToolBox
 
 AUTO_FORGE_MODULE_NAME = "mini_west"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' Complimentary Tool"
@@ -81,7 +81,7 @@ class MiniWestCommand(CommandInterface):
         self._ignored_projects_list = set()  # Manifest projects to exclude
         self._automated_mode: Optional[bool] = False  # Indicate if we're allowed to use colors
         self._projects: list[_WestProject] = []  # List of 'WestProject' class instances
-        self._toolbox = ToolBox.get_instance()  # Toolbox class instance
+        self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
@@ -602,12 +602,12 @@ class MiniWestCommand(CommandInterface):
         if args.west_yml:
 
             destination_path = os.getcwd() if not args.dest_path else args.dest_path
-            destination_path = self._toolbox.get_expanded_path(destination_path)
-            west_yml_path = self._toolbox.get_expanded_path(args.west_yml) if args.west_yml else None
+            destination_path = self._tool_box.get_expanded_path(destination_path)
+            west_yml_path = self._tool_box.get_expanded_path(args.west_yml) if args.west_yml else None
 
             # Validate that the destination path is empty (Git will fail if it's not)
             if os.path.exists(destination_path):
-                self._toolbox.is_directory_empty(path=destination_path, raise_exception=True)
+                self._tool_box.is_directory_empty(path=destination_path, raise_exception=True)
 
             # Validate that the specified 'west.yml' exists
             if not os.path.exists(west_yml_path):

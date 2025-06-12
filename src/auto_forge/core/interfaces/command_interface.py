@@ -26,9 +26,10 @@ from contextlib import suppress
 from typing import IO, Any, Optional
 
 # Direct internal imports to avoid circular dependencies
-from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, AutoForgCommandType)
-from auto_forge.core.registry import CoreRegistry  # Runtime import to prevent circular import
-from auto_forge.core.toolbox import ToolBox
+from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType,
+                        AutoForgCommandType, CoreToolBoxProtocol)
+# Direct internal imports to avoid circular dependencies
+from auto_forge.core.registry import CoreRegistry
 
 
 class _CapturingArgumentParser(argparse.ArgumentParser):
@@ -42,7 +43,6 @@ class _CapturingArgumentParser(argparse.ArgumentParser):
         Initializes the parser and sets up an internal buffer to capture error messages.
         Args and kwargs are passed directly to the base ArgumentParser constructor.
         """
-        self._tool_box = ToolBox.get_instance()
         self.error_output = io.StringIO()
         super().__init__(*args, **kwargs)
 
@@ -151,7 +151,6 @@ class CommandInterface(ABC):
             hidden (bool, optional): Whether to hide commands from the menu.
         """
 
-        self._tool_box = ToolBox.get_instance()  # Gets the toolbox class instance
         self._last_error_message: Optional[str] = None
         self._last_exception: Optional[Exception] = None
         self._hidden = hidden if hidden else False
@@ -159,9 +158,9 @@ class CommandInterface(ABC):
         self._args_parser: Optional[_CapturingArgumentParser] = None
         self._tutorials_relative_path: Optional[str] = None
 
-        # Slightly non-traditional way for extracting the package configuration from the probably not yet created main AutoForge class.
-        self._configuration: Optional[dict[str, Any]] = self._tool_box.find_variable_in_stack(
-            module_name='auto_forge', variable_name='_configuration')
+        # Get the configuration from the not yet created 'AutoForge' main class.
+        self._configuration: Optional[dict[str, Any]] = self._search_stack(module='auto_forge',
+                                                                           variable='_configuration')
 
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
@@ -175,18 +174,53 @@ class CommandInterface(ABC):
         self._logger = AutoLogger().get_logger(name=command_name.capitalize())
 
         # Persist this module instance in the global registry for centralized access
-        registry = CoreRegistry.get_instance()
+        self._registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
-            registry.register_module(name=command_name, description=caller_module_description,
-                                     version=caller_module_version,
-                                     auto_forge_module_type=AutoForgeModuleType.COMMAND, hidden=self._hidden,
-                                     command_type=command_type))
+            self._registry.register_module(name=command_name, description=caller_module_description,
+                                           version=caller_module_version,
+                                           auto_forge_module_type=AutoForgeModuleType.COMMAND, hidden=self._hidden,
+                                           command_type=command_type))
+
+        # Retrieve a Toolbox instance and its protocol interface via the registry.
+        # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
+        self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
+            "CoreToolBox", return_protocol=True)
+        if self._tool_box_proto is None:
+            raise RuntimeError("unable to instantiate dependent core module")
 
         # Optional tool initialization logic
         if not self.initialize():
             raise RuntimeError(f"failed to initialize '{self._module_info.name}' command")
 
         super().__init__()
+
+    @staticmethod
+    def _search_stack(module: str, variable: str) -> Optional[Any]:
+        """
+        Searches the call stack for a frame originating from the given module name
+        and attempts to retrieve a variable or attribute by name.
+        Args:
+            module (str): Name of the module (e.g., 'auto_forge').
+            variable (str): The name of the attribute or variable to retrieve.
+        Returns:
+            Optional[Any]: The value if found, else None.
+        """
+        with suppress(Exception):
+            for frame_info in inspect.stack():
+                frame = frame_info.frame
+                module_name = inspect.getmodule(frame)
+
+                if module_name and module_name.__name__.endswith(module):
+                    # Try to fetch from instance attribute
+                    self_obj = frame.f_locals.get("self")
+                    if self_obj and hasattr(self_obj, variable):
+                        return getattr(self_obj, variable)
+
+                    # Fallback to locals
+                    if variable in frame.f_locals:
+                        return frame.f_locals[variable]
+
+        return None
 
     def _create_parser(self) -> Optional[_CapturingArgumentParser]:
         """
@@ -207,7 +241,8 @@ class CommandInterface(ABC):
 
                 # Auto add tutorials if we have an .md file for this command.
                 relative_path = f"commands/{self._module_info.name}.md"
-                if ToolBox.resolve_help_file(relative_path=relative_path):
+
+                if self._tool_box_proto.resolve_help_file(relative_path=relative_path):
                     self._args_parser.add_argument("-t", "--tutorials", action="store_true",
                                                    help="Show command tutorials.")
                     self._tutorials_relative_path = relative_path
@@ -320,7 +355,7 @@ class CommandInterface(ABC):
             # Handle tutorials request
             elif "-t" in args_list or "--tutorials" in args_list:
                 if self._tutorials_relative_path:
-                    return_value = ToolBox.show_help_file(relative_path=self._tutorials_relative_path)
+                    return_value = self._tool_box_proto.show_help_file(relative_path=self._tutorials_relative_path)
                 else:
                     raise RuntimeError('tutorials ware not found for this command')
 

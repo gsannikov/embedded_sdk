@@ -14,12 +14,12 @@
   "aliases": [
 
       {
-          "alias_name": "refact",
-          "target_command": "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
-          "description": "\uD83D\uDC7E Refactor the `userspace` repository into a new structure.
-            Internally, this command uses the SDK's `refactor` command along with the recipe file `refactor.jsonc`.
-            For full debug output, use `refact -vv` or check the log later using
-            the `log` command.",
+          "alias_name": "usgen",
+          "target_command": [
+              "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
+              "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host"
+          ],
+          "description": "\uD83D\uDC7E Generate the new `userspace` repo using current repo sources, the `refactor` and the `deploy` command",
           "command_type": "AUTOMATION",
           "hidden": false
       },

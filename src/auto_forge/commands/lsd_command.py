@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, ToolBox, )
+from auto_forge import (CommandInterface, CoreToolBox, )
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
@@ -60,8 +60,10 @@ class LSDCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
+        self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
+
         # Retrieve the ANSI codes map from the main AutoForge instance.
-        self._ansi_codes: Optional[dict[str, Any]] = ToolBox.get_instance().auto_forge.ansi_codes
+        self._ansi_codes: Optional[dict[str, Any]] = CoreToolBox.get_instance().auto_forge.ansi_codes
 
         # Placeholder for the large icons dictionary
         self._terminal_icons: Optional[dict[str, Any]] = None
