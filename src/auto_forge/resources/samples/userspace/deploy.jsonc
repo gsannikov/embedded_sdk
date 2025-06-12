@@ -11,9 +11,9 @@
 
     "defaults": {
         "break_on_errors": true,
-        "create_host_path": false,
+        "create_host_path": true,
         "max_depth": 10,
-        "overwrite": "when_newer" // one of ( always, never, when_newer )
+        "overwrite_host_files": "new" // one of ( always, never, new )
     },
 
     // Required: list of file mappings between archive and host.

@@ -92,7 +92,7 @@ class DeployCommand(CommandInterface):
         """
         Normalize a string into a valid OverwritePolicy enum value.
         Args:
-            policy_str (str): Input string (e.g., "Always", "never", "WHEN_NEWER").
+            policy_str (str): Input string (e.g., "Always", "never", "new").
         Returns:
             _OverwritePolicy: Matching enum value, or OverwritePolicy.Unknown if invalid.
         """
@@ -102,7 +102,7 @@ class DeployCommand(CommandInterface):
             return _OverwritePolicy.Always
         elif normalized == "never":
             return _OverwritePolicy.Never
-        elif normalized in ("when_newer", "whennewer"):  # allow both forms
+        elif normalized == "new":
             return _OverwritePolicy.WhenNewer
         else:
             return _OverwritePolicy.Unknown
@@ -144,11 +144,11 @@ class DeployCommand(CommandInterface):
         """
 
         try:
-            raw_policy = self._recipe_defaults.get("overwrite", "always")
-            policy = self._parse_overwrite_policy(raw_policy)
+            raw_overwrite_host_files_policy = self._recipe_defaults.get("overwrite_host_files", "always")
+            policy = self._parse_overwrite_policy(raw_overwrite_host_files_policy)
 
             if policy == _OverwritePolicy.Unknown:
-                raise ValueError(f"invalid overwrite policy: '{raw_policy}'")
+                raise ValueError(f"invalid overwrite policy: '{raw_overwrite_host_files_policy}'")
 
             if archive_path.exists():
                 if policy == _OverwritePolicy.Never:
