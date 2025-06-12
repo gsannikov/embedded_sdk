@@ -42,7 +42,7 @@ import psutil
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessorProtocol,
+    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_SHARED_PATH,
     PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH, XYType
@@ -71,6 +71,8 @@ class CoreToolBox(CoreModuleInterface):
 
         # Persist this module instance in the global registry for centralized access
         self._registry = CoreRegistry.get_instance()
+        self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
+
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
@@ -1547,15 +1549,13 @@ class CoreToolBox(CoreModuleInterface):
                 # we retrieve their instances dynamically from the registry.
                 variables_class: Optional[CoreVariablesProtocol] = self._registry.get_instance_by_class_name(
                     "CoreVariables", return_protocol=True)
-                processor_class: Optional[CoreJSONCProcessorProtocol] = self._registry.get_instance_by_class_name(
-                    "CoreJSONCProcessor", return_protocol=True)
 
-                if not variables_class or not processor_class:
+                if not variables_class:
                     raise RuntimeError("required component instances could not be retrieved for this operation")
 
                 json_file_path: Optional[str] = variables_class.expand(key=json_path_or_data, quiet=True)
                 if json_file_path and os.path.exists(json_file_path):
-                    json_path_or_data = processor_class.preprocess(file_name=json_file_path)
+                    json_path_or_data = self._preprocessor.preprocess(file_name=json_file_path)
 
             if isinstance(json_path_or_data, dict):
                 # Pretty print the dictionary to a JSON string

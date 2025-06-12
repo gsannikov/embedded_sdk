@@ -39,7 +39,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType,
-    CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliasesProtocol, CoreModuleInterface,
+    CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface,
     CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
     ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType,
@@ -93,6 +93,7 @@ class CoreEnvironment(CoreModuleInterface):
         self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._configuration: dict[str, Any] = configuration
+        self._linux_aliases: CoreLinuxAliases = CoreLinuxAliases.get_instance()
 
         # Get the interactive commands from package configuration or use defaults if not available
         self._interactive_commands = self._configuration.get('interactive_commands',
@@ -320,11 +321,8 @@ class CoreEnvironment(CoreModuleInterface):
         # and won't be available to the shell after we exit.
         expanded_command = self._variables.expand(key=command)
 
-        aliases_class: Optional[CoreLinuxAliasesProtocol] = self._registry.get_instance_by_class_name(
-            "CoreLinuxAliases", return_protocol=True)
-
         # Create and commit, we need both to succeed
-        if aliases_class.create(alias=alias, command=expanded_command) and aliases_class.commit():
+        if self._linux_aliases.create(alias=alias, command=expanded_command) and self._linux_aliases.commit():
             return_code = 0
 
         return CommandResultType(response=alias, return_code=return_code)
