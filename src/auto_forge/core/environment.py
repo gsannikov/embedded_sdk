@@ -43,7 +43,7 @@ from auto_forge import (
     CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
     ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType,
-    VersionCompare, Watchdog,
+    VersionCompare, Watchdog
 )
 
 AUTO_FORGE_MODULE_NAME = "Environment"
@@ -321,7 +321,7 @@ class CoreEnvironment(CoreModuleInterface):
         expanded_command = self._variables.expand(key=command)
 
         aliases_class: Optional[CoreLinuxAliasesProtocol] = self._registry.get_instance_by_class_name(
-            "CoreShellAliases", return_protocol=True)
+            "CoreLinuxAliases", return_protocol=True)
 
         # Create and commit, we need both to succeed
         if aliases_class.create(alias=alias, command=expanded_command) and aliases_class.commit():
