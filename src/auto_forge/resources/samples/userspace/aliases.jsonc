@@ -56,8 +56,7 @@
               "cd $PROJ_WORKSPACE/../../auto_forge/",
               "git add .",
               "git commit -m \"Updates\"",
-              "git push",
-              "\"git push\","
+              "git push"
           ],
           "description": "Push latest updates",
           "command_type": "BUILD",
