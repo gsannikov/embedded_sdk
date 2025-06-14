@@ -45,7 +45,7 @@
               "usd --clean",
               "usr --clean"
           ],
-          "description": "\uD83D\uDD28 Clean everything by batch-running all configurations with
+          "description": "\uD83D\uDD28 Clean all builds by batch-running all configurations with
             the `--clean` flag.",
           "command_type": "BUILD",
           "hidden": false
