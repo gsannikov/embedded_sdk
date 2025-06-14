@@ -303,7 +303,7 @@ class CoreJSONCProcessor(CoreModuleInterface):
         _pattern = r'"((?:[^"\\]|\\.)*?)"(?=\s*[:,}])'
         return re.sub(_pattern, _replacer, _text, flags=re.DOTALL)
 
-    def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
+    def render(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
         """
         Preprocess a JSON or JSONC file to remove embedded comments.
         If the specified file does not exist but a file with the alternate extension

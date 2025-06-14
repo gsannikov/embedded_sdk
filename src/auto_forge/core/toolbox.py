@@ -1555,7 +1555,7 @@ class CoreToolBox(CoreModuleInterface):
 
                 json_file_path: Optional[str] = variables_class.expand(key=json_path_or_data, quiet=True)
                 if json_file_path and os.path.exists(json_file_path):
-                    json_path_or_data = self._preprocessor.preprocess(file_name=json_file_path)
+                    json_path_or_data = self._preprocessor.render(file_name=json_file_path)
 
             if isinstance(json_path_or_data, dict):
                 # Pretty print the dictionary to a JSON string

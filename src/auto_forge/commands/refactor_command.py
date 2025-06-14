@@ -18,7 +18,8 @@ from logging import Logger
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, AutoForgCommandType, CoreToolBox, AutoLogger)
+from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, AutoForgCommandType, CoreToolBox,
+                        AutoLogger)
 
 AUTO_FORGE_MODULE_NAME = "refactor"
 AUTO_FORGE_MODULE_DESCRIPTION = "Directory tree restructure assistant"
@@ -181,7 +182,7 @@ class RefactorCommand(CommandInterface):
                 recipe_file = self._variables.expand(key=alternative_path)
 
             # Preprocess the JSON file (e.g., strip comments)
-            self._recipe_data = self._json_processor.preprocess(file_name=recipe_file)
+            self._recipe_data = self._json_processor.render(file_name=recipe_file)
 
             # Validate and parse 'defaults' section
             if "defaults" not in self._recipe_data:

@@ -122,7 +122,7 @@ class CoreSolution(CoreModuleInterface):
                 return None
 
             with suppress(Exception):
-                result = self._processor.preprocess(file_name=_file_name)
+                result = self._processor.render(file_name=_file_name)
                 if isinstance(result, (list, dict, str)):
                     return result
                 self._logger.debug(f"Unexpected content type from {_file_name!r}: {type(result).__name__}")
@@ -341,7 +341,7 @@ class CoreSolution(CoreModuleInterface):
             expanded_path = self._variables.expand(key=sequence_ref)
             if not os.path.exists(expanded_path):
                 raise RuntimeError(f"Sequence include file '{expanded_path}' does not exist.")
-            return self._processor.preprocess(expanded_path)
+            return self._processor.render(expanded_path)
 
         return sequence_ref
 
@@ -356,7 +356,7 @@ class CoreSolution(CoreModuleInterface):
         """
 
         # Preprocess the solution to clear non JSON data and load as JSON.
-        self._root_context = self._processor.preprocess(file_name=solution_file_name)
+        self._root_context = self._processor.render(file_name=solution_file_name)
         self._config_file_name = solution_file_name
 
         # Store the solution's path since we may have to load other files from that path
@@ -393,7 +393,7 @@ class CoreSolution(CoreModuleInterface):
         # Initialize the variables core module based on the configuration file we got
 
         if self._schema_files is not None and self._schema_files.get("variables"):
-            variables_schema = self._processor.preprocess(file_name=self._schema_files.get("variables"))
+            variables_schema = self._processor.render(file_name=self._schema_files.get("variables"))
         self._variables.load_from_file(config_file_name=variables_config_file_name, variables_schema=variables_schema)
 
         if self._schema_files is not None and self._schema_files.get("signatures"):
@@ -404,7 +404,7 @@ class CoreSolution(CoreModuleInterface):
 
         # Preprocess the solution schema file if we have it
         if self._schema_files is not None and self._schema_files.get("solution"):
-            self._solution_schema = self._processor.preprocess(file_name=self._schema_files.get("solution"))
+            self._solution_schema = self._processor.render(file_name=self._schema_files.get("solution"))
         else:
             self._logger.warning("Solution schema file not foud")
 
@@ -1070,7 +1070,7 @@ class CoreSolution(CoreModuleInterface):
                 if return_path:
                     return expanded_path
                 with suppress(Exception):
-                    return self._processor.preprocess(file_name=expanded_path)
+                    return self._processor.render(file_name=expanded_path)
 
         return None
 

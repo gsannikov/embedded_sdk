@@ -127,7 +127,7 @@ class AutoForge(CoreModuleInterface):
         Watchdog.reset_terminal()
 
         # Load package configuration and several dictionaries we might need later
-        self._configuration = self._processor.preprocess(PROJECT_CONFIG_FILE)
+        self._configuration = self._processor.render(PROJECT_CONFIG_FILE)
         self.ansi_codes = self._configuration.get("ansi_codes")
 
         # Configure and start watchdog with default or configuration provided timeout.

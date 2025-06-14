@@ -257,7 +257,7 @@ class CoreVariables(CoreModuleInterface):
         with (self._lock):
 
             # Preprocess
-            variables_root: Optional[dict[str, Any]] = self._processor.preprocess(file_name=config_file_name)
+            variables_root: Optional[dict[str, Any]] = self._processor.render(file_name=config_file_name)
             if variables_root is None:
                 raise RuntimeError(f"unable to load variables file: {config_file_name}")
 

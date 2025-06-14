@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType,
-                        CoreEnvironment, CorePrompt, CoreToolBox )
+                        CoreEnvironment, CorePrompt, CoreToolBox)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -65,7 +65,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         self._prompt: Optional[CorePrompt] = None
         self._toolchain: Optional[BuilderToolChain] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
-        self._tool_box:CoreToolBox= CoreToolBox.get_instance()
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 

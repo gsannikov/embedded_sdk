@@ -19,7 +19,8 @@ from typing import Any
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, AutoLogger, AutoForgCommandType)
+from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, AutoLogger,
+                        AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "deploy"
 AUTO_FORGE_MODULE_DESCRIPTION = "Recipe Deployer"
@@ -300,7 +301,7 @@ class DeployCommand(CommandInterface):
             self._logger.debug(f"Using recipe from: {recipe_file}")
 
             # Load and preprocess the recipe JSONC/JSON file
-            recipe_raw: Optional[dict] = self._json_processor.preprocess(file_name=recipe_file)
+            recipe_raw: Optional[dict] = self._json_processor.render(file_name=recipe_file)
             if not isinstance(recipe_raw, dict):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
 
