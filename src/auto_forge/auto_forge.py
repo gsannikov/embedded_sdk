@@ -414,11 +414,13 @@ class AutoForge(CoreModuleInterface):
         """
 
         if timer_name == "PeriodicDurationTimer":
-            # Get CPU utilization percentage for all cores averaged over 1 second
-            cpu_percent = psutil.cpu_percent(interval=1)
-            self._logger.debug(f"Utilization: {cpu_percent}%")
 
-            # Restart
+            # Get CPU utilization percentage for all cores averaged over 1 second
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            if cpu_percent > 50:
+                self._logger.warning(f"High CPU utilization: {cpu_percent}%")
+
+            # Restart timer
             self._periodic_timer = self._tool_box.set_timer(timer=self._periodic_timer,
                                                             interval=self._periodic_timer_interval,
                                                             expiration_routine=self._timer_expired,

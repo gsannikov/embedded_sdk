@@ -143,7 +143,8 @@
             "method": "create_alias",
             "arguments": {
                 "alias": "usd",
-                "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
+                "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose",
+                "commit_changes": true
             }
         }
     ]

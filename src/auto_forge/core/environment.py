@@ -305,12 +305,13 @@ class CoreEnvironment(CoreModuleInterface):
         except Exception as exception:
             raise exception
 
-    def create_alias(self, alias: str, command: str) -> Optional[CommandResultType]:
+    def create_alias(self, alias: str, command: str, commit_changes: bool = False) -> Optional[CommandResultType]:
         """
         Create / update a shell alias using the ShellAliases Core module
         Args:
             alias (str): The shell alias name.
             command (str): The shell alias command.
+            commit_changes (bool): If true, the shell alias will be committed to the shell startup script (e.g. '~/.bahsrc')
         Returns:
             CommandResultType: The result object containing the command output and return code,
         """
@@ -322,9 +323,14 @@ class CoreEnvironment(CoreModuleInterface):
         expanded_command = self._variables.expand(key=command)
 
         # Create and commit, we need both to succeed
-        if self._linux_aliases.create(alias=alias, command=expanded_command) and self._linux_aliases.commit():
+        if self._linux_aliases.create(alias=alias, command=expanded_command):
             return_code = 0
 
+            if commit_changes:
+                if not self._linux_aliases.commit():
+                    return_code = 1
+
+        # Wrap return code the command result type
         return CommandResultType(response=alias, return_code=return_code)
 
     def environment_append_to_path(self, path: str):
