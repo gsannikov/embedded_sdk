@@ -484,6 +484,29 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             return True
         return False
 
+    def _get_command_metadata(self, command_name: str) -> Optional[dict]:
+        """
+        Retrieves metadata for a given cmd2 command, if available.
+        Args:
+            command_name (str): Name of the command (e.g., 'build', 'hello') without the 'do_' prefix.
+        Returns:
+            Optional[dict]: Dictionary containing metadata (e.g., description, type, etc.), or None if not found.
+        """
+        method = getattr(self, f"do_{command_name}", None)
+
+        # Try to access the unbound function object
+        func = None
+        if method and hasattr(method, "__func__"):
+            func = method.__func__
+        elif hasattr(self.__class__, f"do_{command_name}"):
+            func = getattr(self.__class__, f"do_{command_name}")
+
+        if func and hasattr(func, "command_metadata"):
+            return func.command_metadata
+
+        return None
+
+
     def _set_command_metadata(self, command_name: str, description: Optional[str] = None,
                               command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN, hidden: bool = False,
                               patch_doc: bool = False, is_alias: bool = False) -> None:
@@ -545,6 +568,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         @with_argument_list
         def alias_func(cmd_instance, args):
             """ Dynamic alias handler """
+
+            # Safe extraction of base command name
+            raw_command = target_command if isinstance(target_command, str) else target_command[0]
+            command_name = raw_command.strip().split()[0]  # ← This gets 'lsd' from 'lsd -g'
+
+            if command_name:
+                metadata = cmd_instance._get_command_metadata(command_name)
+
             if isinstance(target_command, str):
                 cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
             elif isinstance(target_command, list):
