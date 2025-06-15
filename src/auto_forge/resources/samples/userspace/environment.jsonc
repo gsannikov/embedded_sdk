@@ -131,7 +131,7 @@
             }
         },
         {
-            "description": "Create a shell alias to the solution",
+            "description": "Create a solution shell alias",
             "method": "create_alias",
             "arguments": {
                 "alias": "us",
@@ -139,11 +139,19 @@
             }
         },
         {
-            "description": "Create a shell alias to the solution (debug)",
+            "description": "Create a shell for running in debug",
             "method": "create_alias",
             "arguments": {
                 "alias": "usd",
-                "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose",
+                "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
+            }
+        },
+        {
+            "description": "Create a shell alias for single command",
+            "method": "create_alias",
+            "arguments": {
+                "alias": "usc",
+                "command": "$PROJ_WORKSPACE/env.sh --run_command",
                 "commit_changes": true
             }
         }
