@@ -81,7 +81,7 @@
                             "name": "debug",
                             "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
                             "menu_command": {
-                                "name": "usd",
+                                "name": "busd",
                                 "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "execute_from": "$SOURCE_BASE/userspace",
@@ -108,7 +108,7 @@
                             "name": "release",
                             "data": "<$derived_from_solutions[].projects[].configurations[debug]>",
                             "menu_command": {
-                                "name": "usr",
+                                "name": "busr",
                                 "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "compiler_options": [
