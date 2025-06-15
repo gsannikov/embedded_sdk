@@ -40,7 +40,7 @@ from rich.console import Console
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgCommandType, AutoForgeModuleType, AutoLogger, BuildProfileType,
+    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, AutoLogger, BuildProfileType,
     CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry,
     CoreSolution, CoreToolBox, CoreVariables,
     ExecutionModeType, ModuleInfoType,
@@ -322,6 +322,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
         self._dynamic_path_styles: Optional[dict] = None
+        self._work_mode: Optional[AutoForgeWorkModeType] = self.auto_forge.work_mode
 
         # Disable user input until the prompt is active
         self._tool_box.set_terminal_input()
@@ -375,8 +376,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         #
 
         # Greetings earthlings, we're here!
-        self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._loaded_solution_name}",
-                                  blink_pixel=XYType(x=1, y=5))
+        if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
+            self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._loaded_solution_name}",
+                                      blink_pixel=XYType(x=1, y=5))
 
         self.default_to_shell = True
         self.last_result = 0

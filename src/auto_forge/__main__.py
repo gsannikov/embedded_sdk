@@ -56,6 +56,16 @@ def arguments_process() -> Optional[argparse.Namespace]:
                                   "The package path will be validated at runtime, if not specified, the solution will "
                                   "be searched for in the local solution workspace path under 'scripts/solution'"))
 
+        # Other optional configuration arguments
+        parser.add_argument("-d", "--remote-debugging", type=str, required=False,
+                            help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)")
+
+        parser.add_argument("--proxy-server", type=str, required=False,
+                            help="Optional proxy server endpoint in the format <ip-address>:<port> (e.g., 192.168.1.1:8080).")
+
+        parser.add_argument("--git-token", type=str, required=False,
+                            help="Optional GitHub token to use for authenticating HTTP requests.")
+
         # AutoForge supports two mutually exclusive non-interactive modes:
         # (1) Running step recipe data (typically used to set up a fresh workspace),
         # (2) Running a single command from an existing workspace.
@@ -66,16 +76,9 @@ def arguments_process() -> Optional[argparse.Namespace]:
                            help="Solution properties name which points to a sequence of operations")
         group.add_argument("-r", "--run-command", type=str, required=False,
                            help="Name of known command which will be executed")
-
-        # Other optional configuration arguments
-        parser.add_argument("-d", "--remote-debugging", type=str, required=False,
-                            help="Remote debugging endpoint in the format <ip-address>:<port> (e.g., 127.0.0.1:5678)")
-
-        parser.add_argument("--proxy-server", type=str, required=False,
-                            help="Optional proxy server endpoint in the format <ip-address>:<port> (e.g., 192.168.1.1:8080).")
-
-        parser.add_argument("--git-token", type=str, required=False,
-                            help="Optional GitHub token to use for authenticating HTTP requests.")
+        # This captures everything that comes after -- (REMAINDER)
+        parser.add_argument("run_command_args", nargs=argparse.REMAINDER,
+                            help="Arguments to pass to the command specified by --run-command")
 
         return parser.parse_args()
 

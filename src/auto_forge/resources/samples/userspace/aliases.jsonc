@@ -39,8 +39,8 @@
       {
           "name": "call",
           "command": [
-              "usd --clean",
-              "usr --clean"
+              "busd --clean",
+              "busr --clean"
           ],
           "description": "\uD83D\uDD28 Clean all builds by batch-running all configurations with
             the `--clean` flag.",

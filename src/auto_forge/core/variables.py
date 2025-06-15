@@ -72,7 +72,7 @@ class CoreVariables(CoreModuleInterface):
                 raise RuntimeError("missing package configuration data")
 
             # Set to ignore invalid path when in environment t creation mode
-            if work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:
+            if work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
                 self._ignore_path_errors = True
 
             # Get the workspace from AutoForge

@@ -55,6 +55,8 @@ class AutoForge(CoreModuleInterface):
         # all records stored in RAM will be flushed to the package logger.
 
         self._queue_logger: QueueLogger = QueueLogger()
+        self._initial_path: Path = Path.cwd().resolve()  # Store our initial works path
+        self._exit_code: int = 0
 
         self._registry: Optional[CoreRegistry] = None
         self._solution: Optional[CoreSolution] = None
@@ -85,6 +87,7 @@ class AutoForge(CoreModuleInterface):
         self._workspace_path: Optional[str] = None
         self._workspace_exist: Optional[bool] = None
         self._run_command_name: Optional[str] = None
+        self._run_command_args: Optional[list] = None
         self._run_sequence_ref_name: Optional[str] = None
         self._solution_package_path: Optional[str] = None
         self._solution_package_file: Optional[str] = None
@@ -123,9 +126,6 @@ class AutoForge(CoreModuleInterface):
         self._sys_info = CoreSystemInfo()
         self._linux_aliases = CoreLinuxAliases()
 
-        # Reset terminal and clean it's buffer.
-        Watchdog.reset_terminal()
-
         # Load package configuration and several dictionaries we might need later
         self._configuration = self._processor.render(PROJECT_CONFIG_FILE)
         self.ansi_codes = self._configuration.get("ansi_codes")
@@ -136,6 +136,10 @@ class AutoForge(CoreModuleInterface):
 
         # Handle arguments
         self._init_arguments(*args, **kwargs)
+
+        # Reset terminal and clean it's buffer.
+        if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
+            Watchdog.reset_terminal()
 
         if self._remote_debugging is not None:
             self._init_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
@@ -225,14 +229,14 @@ class AutoForge(CoreModuleInterface):
             # Patch it with timestamp so we will have dedicated log for each build system run.
             log_file = self._tool_box.append_timestamp_to_path(log_file)
 
+        # Use different log file name when in one command mode
+        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            log_file = str(self._initial_path / f"{self._solution_name}.log")
+
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._configuration)
         self._auto_logger.set_log_file_name(log_file)
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-
-        # Enable console logger when in continuos integration mode
-        if self._work_mode == AutoForgeWorkModeType.CI:
-            allow_console_output = True
 
         self._logger: logging.Logger = self._auto_logger.get_logger(console_stdout=allow_console_output)
         if log_file is None:
@@ -243,7 +247,7 @@ class AutoForge(CoreModuleInterface):
         self._queue_logger.flush()
 
         self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
-        self._logger.info(self._sys_info)
+        self._logger.info(str(self._sys_info))
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -349,10 +353,30 @@ class AutoForge(CoreModuleInterface):
         self._solution_name = kwargs.get("solution_name")  # Required argument
         self._workspace_path = kwargs.get("workspace_path")  # Required argument
 
-        # Non-interactive operations specifier, could be either a single command or reference to
-        # a solution properties which provide the actual OpenSolaris sequence
+        # ==============================================================
+        # Interactive vs. non-interactive mode selection.
+        # If no non-interactive mode is specified, the interactive
+        # prompt starts.
+        # ==============================================================
+
         self._run_sequence_ref_name = kwargs.get("run_sequence")
-        self._run_command_name = kwargs.get("run_command")
+        if self._run_sequence_ref_name is not None:
+            self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE
+        else:
+            self._run_command_name = kwargs.get("run_command")
+            if self._run_command_name is not None:
+
+                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND
+
+                # Handle 'single-command' arguments
+                self._run_command_args = kwargs.get("run_command_args", [])
+                # Drop the leading '--' left by 'argparse' when using 'REMAINDER' to consume all reminder args
+                if self._run_command_args and self._run_command_args[0] == '--':
+                    self._run_command_args = self._run_command_args[1:]
+
+        # If none of non-interactive modes was detected we falldown to interactive.
+        if self._work_mode == AutoForgeWorkModeType.UNKNOWN:
+            self._work_mode = AutoForgeWorkModeType.INTERACTIVE
 
         # Expand and check if the workspace exists
         self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
@@ -363,14 +387,6 @@ class AutoForge(CoreModuleInterface):
         # Move to the workspace path of we have it
         if self._workspace_exist:
             os.chdir(self._workspace_path)
-
-        # Set non-interactive mode if we have either --run-command ot --run_sequence
-        if self._run_sequence_ref_name or self._run_command_name:
-            self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE
-            self._queue_logger.info("Starting in non-interactive mode")
-        else:
-            self._work_mode = AutoForgeWorkModeType.INTERACTIVE
-            self._queue_logger.info("Starting in interactive mode")
 
         # Orchestrate)
         _validate_solution_package()
@@ -487,41 +503,63 @@ class AutoForge(CoreModuleInterface):
         """
         Load a solution and fire the AutoForge shell.
         """
-        return_code = 1
-
-        # Start events loop thread
-        self._events_sync_thread.start()
 
         try:
 
             if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
+
+                # Start events loop thread
+                self._events_sync_thread.start()
 
                 # ==============================================================
                 # User interactive shell.
                 # Indefinite loop until user exits the shell using 'quit'
                 # ==============================================================
 
-                # Start blocking build system user mode shell
+                self._logger.debug("Running in interactive user shell mode")
 
                 self._gui: CoreGUI = CoreGUI()
                 self._prompt = CorePrompt()
 
                 # Start user prompt loop
                 self._prompt.cmdloop()
-                return_code = self._prompt.last_result
+                self._exit_code = self._prompt.last_result
 
-            elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE:
+            else:
 
                 # ==============================================================
                 #  Execute a command or sequence of operations in non-
                 #  interactive mode and exit.
                 # ==============================================================
 
-                if self._run_sequence_ref_name is not None:
+                if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
 
                     # ==============================================================
-                    #  Running sequence of operations.
+                    #  Running single command from an exiting workspace in
+                    #  non-interactive mode.
                     # ==============================================================
+
+                    self._logger.debug("Running in single command automatic non-interactive mode")
+
+                    # Prepare the prompt instance
+                    self._prompt = CorePrompt()
+
+                    # Compose the full command string (with arguments, if any)
+                    command_line = " ".join([self._run_command_name.strip()] + self._run_command_args)
+                    self._logger.debug("Executing command: %s", command_line)
+
+                    # Execute the command (same way cmdloop does internally)
+                    self._prompt.onecmd_plus_hooks(command_line)
+                    self._exit_code = self._prompt.last_result if self._prompt.last_result is not None else 0
+
+                elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
+
+                    # ==============================================================
+                    #  Running sequence of operations in non interactive-mode,
+                    #  typically for creating a new workspace.
+                    # ==============================================================
+
+                    self._logger.debug("Running in sequence execution non-interactive mode")
 
                     # Get the sequence dictionary from the solution
                     sequence_data = self._solution.get_sequence_by_name(sequence_name=self._run_sequence_ref_name)
@@ -530,24 +568,16 @@ class AutoForge(CoreModuleInterface):
                             f"sequence reference name '{self._run_sequence_ref_name}' was not found in '{self._solution_name}'")
 
                     # Execute sequence
-                    return_code = self._environment.run_sequence(sequence_data=sequence_data)
-                    if return_code == 0:
+                    self._exit_code = self._environment.run_sequence(sequence_data=sequence_data)
+                    if self._exit_code == 0:
                         # Finalize workspace creation
                         self._environment.finalize_workspace_creation(solution_name=self._solution_name,
                                                                       solution_package_path=self._solution_package_path,
                                                                       sequence_log_file=self._sequence_log_file)
-                elif self._run_command_name:
+                else:
+                    raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
-                    # ==============================================================
-                    #  Running command in non interactive mode.
-                    # ==============================================================
-
-                    raise RuntimeError(f"running command '{self._run_command_name}' is not yet implemented")
-
-            else:
-                raise RuntimeError(f"work mode '{self._work_mode}' not supported")
-
-            return return_code
+                return self._exit_code
 
         except Exception:  # Propagate
             raise
@@ -566,6 +596,11 @@ class AutoForge(CoreModuleInterface):
     def watchdog(self) -> Optional[Watchdog]:
         """ Returns the Package watchdog instance """
         return self._watchdog
+
+    @property
+    def work_mode(self) -> Optional[AutoForgeWorkModeType]:
+        """Return whether the application was started in interactive or non-interactive mode."""
+        return self._work_mode
 
     @property
     def root_logger(self) -> Optional[AutoLogger]:
