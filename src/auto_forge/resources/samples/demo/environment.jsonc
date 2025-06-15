@@ -27,7 +27,7 @@
     "status_post_message": "\n\nSetup is completed.\n",
     "steps": [
         {
-            "description": "Looking for 'python' 3.9.0 or grater",
+            "description": "Looking for 'python' 3.9.0 or greater",
             "method": "validate_prerequisite",
             "arguments": {
                 "command": "python3",
