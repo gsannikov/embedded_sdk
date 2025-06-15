@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from datetime import timedelta
 from enum import Enum, auto
 from types import ModuleType
-from typing import Any, NamedTuple, Optional, TextIO
+from typing import Any, NamedTuple, Optional, TextIO, Union
 
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
@@ -65,6 +65,32 @@ class AutoForgCommandType(Enum):
     SHELL = 10
     ALIASES = 11
     BUILTIN = 12
+
+    @classmethod
+    def from_str(cls, value: str, default: Union[str, 'AutoForgCommandType'] = None) -> 'AutoForgCommandType':
+        """
+        Safely convert a string to an AutoForgCommandType enum value.
+        Args:
+            value (str): The string to convert (case-insensitive).
+            default (Union[str, AutoForgCommandType]): The fallback value if conversion fails.
+                Can be a string or an enum member. If omitted, defaults to AutoForgCommandType.UNKNOWN.
+        Returns:
+            AutoForgCommandType: Matching enum member or fallback.
+        """
+        # Normalize default first
+        if default is None:
+            default_enum = cls.UNKNOWN
+        elif isinstance(default, str):
+            default_enum = cls.__members__.get(default.strip().upper(), cls.UNKNOWN)
+        elif isinstance(default, cls):
+            default_enum = default
+        else:
+            default_enum = cls.UNKNOWN
+
+        if not isinstance(value, str):
+            return default_enum
+
+        return cls.__members__.get(value.strip().upper(), default_enum)
 
 
 # @formatter:off
@@ -128,6 +154,7 @@ class ModuleInfoType(NamedTuple):
     version: Optional[str] = None
     hidden: bool = False  # Applicable for commands
     command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN
+    metadata: Optional[dict[str, Any]] = None
 
 
 class ValidationMethodType(Enum):

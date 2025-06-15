@@ -27,7 +27,7 @@ class HelloCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        super().__init__(command_name="hello", hidden=False, command_type=AutoForgCommandType.MISCELLANEOUS)
+        super().__init__(command_name="hello", hidden=True, command_type=AutoForgCommandType.MISCELLANEOUS)
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """

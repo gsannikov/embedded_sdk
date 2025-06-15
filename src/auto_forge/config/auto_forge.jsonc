@@ -39,7 +39,6 @@
     ],
 
 
-    "hide_cmd2_native_commands": false,                         // Hide cmd2 built-in commands from the user-facing menu
     "complete_while_typing": true,                              // Controls how aggressively prompt-toolkit attempts tab-completion while typing
     "prompt_history_file": "$AF_BASE/.auto_forge.history",      // Path to store persistent prompt-toolkit history
     "prompt_max_completion_results": 100,                       // Maximum number of tab-completion results; higher values may slow down completion in large directories
@@ -47,6 +46,22 @@
     "subprocess_execution_timout": 120.0,                       // Default timeout (in seconds) for sub-process execution; can be overridden via the shell_execute method
     "watchdog_timeout": 10.0,                                   // Default timeout (in seconds) for sub-process execution; can be overridden via the shell_execute method
     "telemetry_file": "$AF_SOLUTION_BASE/telemetry.log",        // Where to store telemetry logs
+
+    "hidden_commands": [
+        // Commands hidden from the user menu, typically useful for clearing up the cmd2 builtin commands.
+        "macro",
+        "edit",
+        "run_pyscript",
+        "run_script",
+        "_relative_run_script",
+        "shortcuts",
+        "history",
+        "shell",
+        "set",
+        "alias",
+        "quit",
+        "help"
+    ],
 
     // Expected location of solution files in an installed environment.
     // This variable is read during an early initialization stage, please avoid using any local variables
@@ -95,42 +110,42 @@
 
         // Built-in shell aliases that map shorthand commands to predefined behaviors.
         // Each entry includes:
-        // - "alias_name": The shortcut or symbol used by the user (e.g., ".", "..").
+        // - "name": The shortcut or symbol used by the user (e.g., ".", "..").
         // - "target_command": The actual command that will be executed.
         // - "description": A user-friendly description (supports Unicode symbols).
-        // - "command_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
+        // - "cmd_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
 
-        { "alias_name": "..",           "target_command": "cd ..",                             "description": "⬆   Go up one directory",                                    "command_type": "NAVIGATE" },
-        { "alias_name": "...",          "target_command": "cd ../../",                         "description": "⬆⬆  Go up two directories",                                  "command_type": "NAVIGATE" },
-        { "alias_name": "....",         "target_command": "cd ../../../",                      "description": "⬆⬆⬆ Go up three directories",                                "command_type": "NAVIGATE" },
-        { "alias_name": "~",            "target_command": "cd $HOME",                          "description": "\uD83C\uDFE0  Go to home directory",                         "command_type": "NAVIGATE" },
-        { "alias_name": "goss",         "target_command": "cd $SCRIPTS_SOLUTION",              "description": "⚙\uFE0F   Go to the solution JSONs path",                    "command_type": "NAVIGATE" },
-        { "alias_name": "$",            "target_command": "cd $PROJ_WORKSPACE",                "description": "\uD83D\uDEE0\uFE0F   Go to workspace directory",             "command_type": "NAVIGATE", "hidden": true },
-        { "alias_name": "gop",          "target_command": "cd $PROJ_WORKSPACE/$SOLUTION_NAME",  "description": "\uD83D\uDFE7  Go to project root path",                     "command_type": "NAVIGATE" },
-        { "alias_name": "gow",          "target_command": "cd $PROJ_WORKSPACE",                "description": "\uD83D\uDFE7  Go to workspace root path",                    "command_type": "NAVIGATE" },
-        { "alias_name": "gob",          "target_command": "cd $BUILD_OUT",                     "description": "\uD83D\uDFEA  Go to build output directory",                 "command_type": "NAVIGATE" },
-        { "alias_name": "src",          "target_command": "cd $SOURCE_BASE",                   "description": "\uD83D\uDFE5  Go to sources root directory",                 "command_type": "NAVIGATE" },
-        { "alias_name": "gos",          "target_command": "cd $SCRIPTS_BASE",                  "description": "\uD83D\uDFE6  Go to scripts directory",                      "command_type": "NAVIGATE" },
-        { "alias_name": "gologs",        "target_command": "cd $BUILD_LOGS",                   "description": "\uD83D\uDFE6  Go to the build logs path",                    "command_type": "NAVIGATE", "hidden": true },
-        { "alias_name": ".",            "target_command": "start -p .",                        "description": "\uD83D\uDCC2  Open current folder in file manager",          "command_type": "NAVIGATE" },
-        { "alias_name": "log",          "target_command": "sln -l",                            "description": "\uD83D\uDCDD Show recent logs",                              "command_type": "UTILITY"  },
-        { "alias_name": "showsln",      "target_command": "sln -p",                            "description": "\uD83D\uDCDC Show resolved solution JSON",                   "command_type": "UTILITY"  },
-        { "alias_name": "showenv",      "target_command": "sln -e",                            "description": "\uD83D\uDD0E Show managed variables tables",                 "command_type": "UTILITY"  },
-        { "alias_name": "showeditors",  "target_command": "edit -l",                           "description": "\uD83D\uDD0E Show all detected editors",                     "command_type": "UTILITY"  },
-        { "alias_name": "e",            "target_command": "edit -p",                           "description": "\uD83D\uDCDD Open file or path in default editor",           "command_type": "UTILITY"  },
-        { "alias_name": "j",            "target_command": "sln -j",                            "description": "\uD83E\uDD8B JSON pretty viewer",                            "command_type": "SYSTEM"   },
-        { "alias_name": "ls",           "target_command": "/bin/ls --color=auto -F",           "description": "\uD83D\uDDC4\uFE0F List (short) using built-in 'ls",         "command_type": "SYSTEM"   },
-        { "alias_name": "ll",           "target_command": "/bin/ls -la --color=auto -F",       "description": "\uD83D\uDDC4\uFE0F List (long) using built-in 'ls'",         "command_type": "SYSTEM"   },
-        { "alias_name": "l",            "target_command": "lsd -g",                            "description": "\uD83D\uDDC4\uFE0F List files (fancy) using 'lsd'",          "command_type": "SYSTEM"   },
-        { "alias_name": "exit",         "target_command": "quit",                              "description": "Exit the shell",                                             "command_type": "SYSTEM",  "hidden": true },
-        { "alias_name": "x",            "target_command": "quit",                              "description": "Exit the shell",                                             "command_type": "SYSTEM",  "hidden": true },
-        { "alias_name": "q",            "target_command": "quit",                              "description": "Exit the shell",                                             "command_type": "SYSTEM",  "hidden": true },
-        { "alias_name": "cls",          "target_command": "clear",                             "description": "Clear screen",                                               "command_type": "SYSTEM",  "hidden": true },
-        { "alias_name": "cln",          "target_command": "clear",                             "description": "Clear screen",                                               "command_type": "SYSTEM",  "hidden": true },
-        { "alias_name": "gs",           "target_command": "git status",                        "description": "Git status",                                                 "command_type": "GIT"      },
-        { "alias_name": "ga",           "target_command": "git add .",                         "description": "Git add all",                                                "command_type": "GIT"      },
-        { "alias_name": "gc",           "target_command": "git commit -m",                     "description": "Git commit",                                                 "command_type": "GIT"      },
-        { "alias_name": "gp",           "target_command": "git push",                          "description": "Git push",                                                   "command_type": "GIT"      }
+        { "name": "..",           "command": "cd ..",                             "description": "⬆   Go up one directory",                                    "cmd_type": "NAVIGATE" },
+        { "name": "...",          "command": "cd ../../",                         "description": "⬆⬆  Go up two directories",                                  "cmd_type": "NAVIGATE" },
+        { "name": "....",         "command": "cd ../../../",                      "description": "⬆⬆⬆ Go up three directories",                                "cmd_type": "NAVIGATE" },
+        { "name": "~",            "command": "cd $HOME",                          "description": "\uD83C\uDFE0  Go to home directory",                         "cmd_type": "NAVIGATE" },
+        { "name": "goss",         "command": "cd $SCRIPTS_SOLUTION",              "description": "⚙\uFE0F   Go to the solution JSONs path",                    "cmd_type": "NAVIGATE" },
+        { "name": "$",            "command": "cd $PROJ_WORKSPACE",                "description": "\uD83D\uDEE0\uFE0F   Go to workspace directory",             "cmd_type": "NAVIGATE", "hidden": true },
+        { "name": "gop",          "command": "cd $PROJ_WORKSPACE/$SOLUTION_NAME",  "description": "\uD83D\uDFE7  Go to project root path",                     "cmd_type": "NAVIGATE" },
+        { "name": "gow",          "command": "cd $PROJ_WORKSPACE",                "description": "\uD83D\uDFE7  Go to workspace root path",                    "cmd_type": "NAVIGATE" },
+        { "name": "gob",          "command": "cd $BUILD_OUT",                     "description": "\uD83D\uDFEA  Go to build output directory",                 "cmd_type": "NAVIGATE" },
+        { "name": "src",          "command": "cd $SOURCE_BASE",                   "description": "\uD83D\uDFE5  Go to sources root directory",                 "cmd_type": "NAVIGATE" },
+        { "name": "gos",          "command": "cd $SCRIPTS_BASE",                  "description": "\uD83D\uDFE6  Go to scripts directory",                      "cmd_type": "NAVIGATE" },
+        { "name": "gologs",        "command": "cd $BUILD_LOGS",                   "description": "\uD83D\uDFE6  Go to the build logs path",                    "cmd_type": "NAVIGATE", "hidden": true },
+        { "name": ".",            "command": "start -p .",                        "description": "\uD83D\uDCC2  Open current folder in file manager",          "cmd_type": "NAVIGATE" },
+        { "name": "log",          "command": "sln -l",                            "description": "\uD83D\uDCDD Show recent logs",                              "cmd_type": "UTILITY"  },
+        { "name": "showsln",      "command": "sln -p",                            "description": "\uD83D\uDCDC Show resolved solution JSON",                   "cmd_type": "UTILITY"  },
+        { "name": "showenv",      "command": "sln -e",                            "description": "\uD83D\uDD0E Show managed variables tables",                 "cmd_type": "UTILITY"  },
+        { "name": "showeditors",  "command": "edit -l",                           "description": "\uD83D\uDD0E Show all detected editors",                     "cmd_type": "UTILITY"  },
+        { "name": "e",            "command": "edit -p",                           "description": "\uD83D\uDCDD Open file or path in default editor",           "cmd_type": "UTILITY"  },
+        { "name": "j",            "command": "sln -j",                            "description": "\uD83E\uDD8B JSON pretty viewer",                            "cmd_type": "SYSTEM"   },
+        { "name": "ls",           "command": "/bin/ls --color=auto -F",           "description": "\uD83D\uDDC4\uFE0F List (short) using built-in 'ls",         "cmd_type": "SYSTEM"   },
+        { "name": "ll",           "command": "/bin/ls -la --color=auto -F",       "description": "\uD83D\uDDC4\uFE0F List (long) using built-in 'ls'",         "cmd_type": "SYSTEM"   },
+        { "name": "l",            "command": "lsd -g",                            "description": "\uD83D\uDDC4\uFE0F List files (fancy) using 'lsd'",          "cmd_type": "SYSTEM"   },
+        { "name": "exit",         "command": "quit",                              "description": "Exit the shell",                                             "cmd_type": "SYSTEM",  "hidden": true },
+        { "name": "x",            "command": "quit",                              "description": "Exit the shell",                                             "cmd_type": "SYSTEM",  "hidden": true },
+        { "name": "q",            "command": "quit",                              "description": "Exit the shell",                                             "cmd_type": "SYSTEM",  "hidden": true },
+        { "name": "cls",          "command": "clear",                             "description": "Clear screen",                                               "cmd_type": "SYSTEM",  "hidden": true },
+        { "name": "cln",          "command": "clear",                             "description": "Clear screen",                                               "cmd_type": "SYSTEM",  "hidden": true },
+        { "name": "gs",           "command": "git status",                        "description": "Git status",                                                 "cmd_type": "GIT"      },
+        { "name": "ga",           "command": "git add .",                         "description": "Git add all",                                                "cmd_type": "GIT"      },
+        { "name": "gc",           "command": "git commit -m",                     "description": "Git commit",                                                 "cmd_type": "GIT"      },
+        { "name": "gp",           "command": "git push",                          "description": "Git push",                                                   "cmd_type": "GIT"      }
     ],
 
     "interactive_commands": [

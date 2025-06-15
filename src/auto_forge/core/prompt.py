@@ -18,11 +18,11 @@ import sys
 import termios
 import textwrap
 from collections.abc import Iterable
-from contextlib import suppress
+from contextlib import suppress, contextmanager, nullcontext
 from itertools import islice
 from pathlib import Path
 from types import MethodType
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Callable
 
 # Third-party
 import cmd2
@@ -207,7 +207,7 @@ class _CoreCompleter(Completer):
                     if name.startswith("do_") and callable(method):
                         cmd_name = name[3:]
                         # Check if its one of the aliases that gets executed through a dynamic do_ implementation.
-                        is_known_alias = (cmd_name in self._core_prompt.aliases_metadata)
+                        is_known_alias = (cmd_name in self._core_prompt.commands_metadata)
                         if cmd_name.startswith(partial):
                             if not is_known_alias:
                                 matches.append(
@@ -313,9 +313,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_base: Optional[str] = prompt
         self._loader: Optional[CoreDynamicLoader] = CoreDynamicLoader.get_instance()
         self._history_file_name: Optional[str] = None
-        self._aliases_metadata: dict[str, Any] = {}
         self._path_completion_rules_metadata: dict[str, Any] = {}
         self._commands_metadata: dict[str, Any] = {}
+        self._hidden_commands: list[str] = []
         self._executables_metadata: Optional[dict[str, Any]] = {}
         self._configuration: Optional[dict[str, Any]] = None
         self._max_completion_results = 100
@@ -384,7 +384,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Adding dynamic 'build' commands based on the loaded solution tree.
         for proj, cfg, cmd in self._solution.iter_menu_commands_with_context() or []:
             self._add_dynamic_build_command(project=proj, configuration=cfg, description=cmd['description'],
-                                            command_name=cmd['name'])
+                                            name=cmd['name'])
+
+        # Allow to hide specific commands from the user menu.
+        self._hidden_commands = self._configuration.get('hidden_commands', [])
 
         # Adding dynamically registered commands.
         self._add_dynamic_commands()
@@ -394,12 +397,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._add_dynamic_aliases(self._configuration.get('builtin_aliases'))
         self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases", resolve_external_file=True))
 
-        # Exclude built-in cmd2 commands from help display without disabling their functionality
-        if self._configuration.get('hide_cmd2_native_commands', False):
-            for cmd in ['macro', 'edit', 'run_pyscript', 'run_script', 'shortcuts', 'history', 'shell', 'set', 'alias',
-                        'quit', 'help']:
-                self._remove_command(command_name=cmd)
-
         # Load optional Toolkit-path styles from configuration
         self._dynamic_path_styles: Optional[dict] = self._configuration.get('dynamic_path_styles', {})
 
@@ -408,7 +405,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Export dynamic md based help file
-        self._help_md_file = self._export_commands_menu_file(exported_file=f"$BUILD_LOGS/help.md")
+        self._help_md_file = self._export_commands_to_markdown(exported_file=f"$BUILD_LOGS/help.md")
 
     def _init_history_file(self) -> bool:
         """
@@ -441,269 +438,174 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             return True
         return False  # Probably suppressed exception
 
-    def _remove_command(self, command_name: str, disable_functionality: bool = False,
-                        disable_help: bool = False) -> None:
-        """
-        Hides and optionally disables a built-in cmd2 command.
-        Args:
-            command_name (str): The name of the command to hide or disable (e.g., 'quit').
-            disable_functionality (bool): If True, replaces the command with a stub that prints an error.
-            disable_help (bool): If True, removes help and completion support for the command.
-        """
-        # Mark the command as hidden for custom help menus
-        if not hasattr(self, "hidden_commands"):
-            self.hidden_commands = []
-        if command_name not in self.hidden_commands:
-            self.hidden_commands.append(command_name)
-
-        method_name = f"do_{command_name}"
-
-        if disable_functionality:
-            def disabled_command(_self, _):
-                """ Override the command with a disabled stub if requested """
-                _self.perror(f"The '{command_name}' command is disabled in this shell.")
-
-            setattr(self, method_name, disabled_command)
-
-        # Optionally suppress help and tab completion
-        if disable_help:
-            setattr(self, f"help_{command_name}", lambda _self: None)
-            setattr(self, f"complete_{command_name}", lambda *_: [])
-
-    def _is_command_exist(self, command_or_alias: str) -> bool:
-        """
-        Check if the given command or alias exists in either alias or dynamic command metadata.
-        Args:
-            command_or_alias (str): The name to check.
-        Returns:
-            bool: True if the command or alias exists, False otherwise.
-        """
-        if command_or_alias in self._aliases_metadata:
-            return True
-        if command_or_alias in self._commands_metadata:
-            return True
-        return False
-
-    def _get_command_metadata(self, command_name: str) -> Optional[dict]:
+    def _get_command_metadata(self, name: str) -> Optional[dict]:
         """
         Retrieves metadata for a given cmd2 command, if available.
         Args:
-            command_name (str): Name of the command (e.g., 'build', 'hello') without the 'do_' prefix.
+            name (str): Name of the command (e.g., 'build', 'hello') without the 'do_' prefix.
         Returns:
             Optional[dict]: Dictionary containing metadata (e.g., description, type, etc.), or None if not found.
         """
-        method = getattr(self, f"do_{command_name}", None)
+        method = getattr(self, f"do_{name}", None)
 
         # Try to access the unbound function object
         func = None
         if method and hasattr(method, "__func__"):
             func = method.__func__
-        elif hasattr(self.__class__, f"do_{command_name}"):
-            func = getattr(self.__class__, f"do_{command_name}")
+        elif hasattr(self.__class__, f"do_{name}"):
+            func = getattr(self.__class__, f"do_{name}")
 
-        if func and hasattr(func, "command_metadata"):
-            return func.command_metadata
+        if func and hasattr(func, "metadata"):
+            return func.metadata
 
         return None
 
-
-    def _set_command_metadata(self, command_name: str, description: Optional[str] = None,
-                              command_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN, hidden: bool = False,
-                              patch_doc: bool = False, is_alias: bool = False) -> None:
+    def _set_command_metadata(self, name: str, patch_doc: bool = False, **metadata: Any) -> None:
         """
         Sets or updates metadata for any cmd2 command, including dynamic aliases.
         Args:
-            command_name (str): Name of the command (e.g., 'hello', 'build').
-            description (str, optional): Help text to associate with the command.
-            command_type (AutoForgCommandType): Logical category of the command.
-            hidden (bool): Whether the command should be hidden from help menus.
-            patch_doc (bool): Whether to update the command's __doc__ string.
-            is_alias (bool): Whether this is a dynamically created alias.
+            name (str): Name of the command (e.g., 'hello', 'build').
+            patch_doc (bool): If True and 'description' is present, also updates the function's docstring.
+            **metadata: Arbitrary keyword arguments to store in the command's metadata.
+                       Common keys include: 'description', 'command_type', 'hidden', 'is_alias', etc.
         """
-
         # Try to get the bound method from the instance
-        method = getattr(self, f"do_{command_name}", None)
-        func = None
-
-        # Get the original function (not the bound method) to attach attributes
-        if method and hasattr(method, "__func__"):
-            func = method.__func__
-        elif hasattr(self.__class__, f"do_{command_name}"):
-            func = getattr(self.__class__, f"do_{command_name}")
+        method = getattr(self, f"do_{name}", None)
+        func = getattr(method, "__func__", None) if method and hasattr(method, "__func__") else None
+        if not func and hasattr(self.__class__, f"do_{name}"):
+            func = getattr(self.__class__, f"do_{name}")
 
         if func:
-            if not hasattr(func, "command_metadata"):
-                func.command_metadata = {}
 
-            func.command_metadata.update(
-                {"description": description, "command_type": command_type, "hidden": hidden, "is_alias": is_alias, })
+            # Create empty metadata property if it does not exist
+            if not hasattr(func, "metadata"):
+                func.metadata = {}
 
-            if patch_doc and description:
+            func.metadata.update(metadata)
+            if patch_doc and 'description' in metadata:
                 with suppress(AttributeError, TypeError):
-                    func.__doc__ = description
+                    func.__doc__ = metadata['description']
 
-    def _add_alias_with_description(self, alias_name: str, description: str, target_command: Union[list, str],
-                                    cmd_type: AutoForgCommandType = AutoForgCommandType.UNKNOWN,
-                                    hidden: bool = False) -> None:
+    def _add_alias(self,
+                   name: str,
+                   command: Union[list, str],
+                   **metadata: Any) -> None:
         """
-        Adds a dynamically defined alias command to the cmd2 application with metadata used for help 
-        display and categorization. If alias maps directly to a known builtin command (e.g., 'q' -> 'quit'), 
-        it will register via the native cmd2 alias system to avoid collisions.
-        it will be registered via the native cmd2 alias system to avoid collisions.
+        Adds a dynamically defined alias using required positional arguments and flexible keyword metadata.
+        Args:
+            - name (str)
+            - command (str | list)
+            - **metadata: Arbitrary keyword arguments to store in the command's metadata.
+        All metadata is passed through to _set_command_metadata.
         """
-        # Normalize target_cmd_root for builtin alias logic
-        first_cmd = (target_command.split()[0]
-                     if isinstance(target_command, str) and target_command else "")
 
-        # If this alias maps 1-to-1 to a builtin command, use cmd2's alias system
-        if (
-                alias_name not in self._builtin_commands and
-                isinstance(target_command, str) and
-                target_command == first_cmd and
-                first_cmd in self._builtin_commands
-        ):
-            self.aliases[alias_name] = target_command
-            return
+        # Patch metadata with several mandatory fields
+        cmd_type = metadata.get('cmd_type', None)
+        if cmd_type is None:
+            metadata["cmd_type"] = "ALIASES"
+
+        #  metadata["name"] = name
+        metadata["command"] = command
+        metadata["is_alias"] = True
+
+        handler = self._make_dynamic_alias_handler(name, command)
+        setattr(self.__class__, handler.__name__, handler)
+
+        self._set_command_metadata(name=name, patch_doc=True, **metadata)
+
+        if metadata.get("hidden", False) and name not in self._hidden_commands:
+            self._hidden_commands.append(name)
+
+        # Store the alias and it's metadat also in a global dictionary
+        self._commands_metadata[name] = metadata
+
+    @staticmethod
+    def _make_dynamic_alias_handler(name: str, command: Union[str, list]) -> Optional[
+        Callable[[Any, Any], None]]:
+        """
+        Implements a dynamic function which will be executed when an alias is invoked by the prompt.
+        Args:
+            name (str): Name of the alias (e.g., 'q').
+            command (Union[str,list]): Target command(s) to execute. If a list is specified, each command will be
+                executed in order. Execution stops on the first non-zero result.
+        Returns:
+            Callable: Function to be attached as do_<name> for cmd2.
+        """
 
         @with_argument_list
-        def alias_func(cmd_instance, args):
-            """ Dynamic alias handler """
+        def _alias_dynamic_func(cmd_instance: CorePrompt, args: Any):
+            """Generic dynamic alias handler"""
+            metadata = cmd_instance._get_command_metadata(name)
 
-            # Safe extraction of base command name
-            raw_command = target_command if isinstance(target_command, str) else target_command[0]
-            command_name = raw_command.strip().split()[0]  # ← This gets 'lsd' from 'lsd -g'
+            if metadata is None:
+                cmd_instance.perror(f"Could not retrieve command metadata for alias '{name}'")
+                cmd_instance.last_result = 1
 
-            if command_name:
-                metadata = cmd_instance._get_command_metadata(command_name)
+            def _run_commands() -> bool:
+                try:
+                    if isinstance(command, str):
+                        stop = cmd_instance.onecmd_plus_hooks(f"{command} {' '.join(args)}")
+                        if stop:
+                            return True  # Relay quit/exit signal to outer loop
+                    elif isinstance(command, list):
+                        for cmd in command:
+                            full_cmd = f"{cmd} {' '.join(args)}"
+                            stop = cmd_instance.onecmd_plus_hooks(full_cmd)
+                            if stop:
+                                return True  # Relay quit/exit signal to outer loop
 
-            if isinstance(target_command, str):
-                cmd_instance.onecmd_plus_hooks(f"{target_command} {' '.join(args)}")
-            elif isinstance(target_command, list):
-                for cmd in target_command:
-                    full_cmd = f"{cmd} {' '.join(args)}"
-                    cmd_instance.onecmd_plus_hooks(full_cmd)
-                    if self.last_result:  # non-zero or signal to stop
-                        break
-            else:
-                cmd_instance.perror("Invalid target_command type")
+                            result = getattr(cmd_instance, "last_result", None)
+                            if result not in (None, 0):
+                                break
+                    else:
+                        cmd_instance.perror("Invalid target_command type")
+                        cmd_instance.last_result = 1
 
-        alias_func.__name__ = f"do_{alias_name}"
-        alias_func.__doc__ = description
-        setattr(self.__class__, alias_func.__name__, alias_func)
-        existing = self._aliases_metadata.get(alias_name, {})
+                    return False
 
-        # Set metadata
-        self._set_command_metadata(alias_name, description=description, command_type=cmd_type, hidden=hidden,
-                                   patch_doc=True, is_alias=True)
-        # Hide if specified
-        if hidden and alias_name not in self.hidden_commands:
-            self.hidden_commands.append(alias_name)
+                except Exception as command_execution_error:
+                    raise command_execution_error from command_execution_error
 
-        # Register in the global aliases metadata registry
-        self._aliases_metadata[alias_name] = {
-            "description": description or existing.get("description", "No help available"), "command_type": cmd_type,
-            "target_command": existing.get("target_command"), "hidden": hidden, }
+            ctx = cmd_instance.restore_cwd() if metadata.get("restore_cwd") else nullcontext()
+            with ctx:
+                return _run_commands()
 
-    def _export_commands_menu_file(self, exported_file: Optional[str] = None, export_hidden: bool = False) -> Optional[
-        str]:
+        _alias_dynamic_func.__name__ = f"do_{name}"
+        _alias_dynamic_func.__doc__ = f"Alias: {name}"
+        _alias_dynamic_func._alias_name = name
+        return _alias_dynamic_func
+
+    @staticmethod
+    def _make_dynamic_command_handler(name: str, doc: str) -> Callable:
         """
-        Export all available commands into a formatted Markdown file.
+        Creates a dynamic command handler bound to the command loader.
         Args:
-            exported_file (Optional[str]): Desired path for the output. If None, a unique file will be created under
-            the system temp directory, with a name starting with a common prefix.
-            export_hidden(bool): Whether to export commands hidden from the cmd2 application.
+            name (str): The command's registered name.
+            doc (str): The docstring to assign to the command function.
         Returns:
-            Optional[str]: Path to the created file if successful, else None.
+            Callable: A function object (unbound) to be turned into a cmd2 command.
         """
-        command_width = 14
-        description_width = 80
-        use_backticks = True
 
-        try:
-            if exported_file:
-                exported_file = self._variables.expand(exported_file)
-                output_path = Path(exported_file)
-            else:
-                output_path = Path(self._tool_box.get_temp_filename())
+        def _run_command(cmd_instance: CorePrompt, arg: Any):
+            """Dynamic command dispatcher."""
+            try:
+                if isinstance(arg, Statement):
+                    args = arg.args
+                elif isinstance(arg, str):
+                    args = arg.strip()
+                else:
+                    raise RuntimeError(f"command {name} has an unsupported argument type: {type(arg)}")
 
-            # Ensure the extension is '.md'
-            if output_path.suffix.lower() != ".md":
-                output_path = output_path.with_suffix(".md")
+                result = cmd_instance._loader.execute_command(name, args)
+                cmd_instance.last_result = result if isinstance(result, int) else 0
 
-            commands_by_type = {}
+            except Exception as command_runtime_error:
+                cmd_instance.perror(str(command_runtime_error))
+                cmd_instance.last_result = 1
 
-            # Collect alias-based commands
-            for cmd, metadata in self._aliases_metadata.items():
-                if not export_hidden and cmd in self.hidden_commands:
-                    continue
-                cmd_type = metadata.get("command_type", AutoForgCommandType.BUILTIN)
-                doc = metadata.get("description", "No help available")
-
-                # Append if not exist
-                if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
-                    commands_by_type[cmd_type].append((cmd, doc))
-
-            # Collect docstring-based commands
-            for cmd in sorted(self.get_all_commands()):
-                method = getattr(self, f'do_{cmd}', None)
-                if not method:
-                    continue
-
-                metadata = getattr(method, "command_metadata", {})
-                if metadata.get("hidden", False) and cmd not in self.hidden_commands:
-                    self.hidden_commands.append(cmd)
-
-                # Append if not exist
-                if not export_hidden and (cmd in self.hidden_commands or cmd in self._aliases_metadata):
-                    continue
-
-                cmd_type = metadata.get("command_type", AutoForgCommandType.BUILTIN)
-                doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
-                if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
-                    commands_by_type[cmd_type].append((cmd, doc))
-
-            # Write to Markdown file
-            with output_path.open("w", encoding="utf-8") as f:
-                f.write("<!-- Auto-generated by AutoForge. Do not edit manually. -->\n")
-                f.write("# AutoForge Command Menu\n\n")
-
-                for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t.value):
-                    f.write(f"## {cmd_type.name.title()} Commands\n\n")
-
-                    # Header
-                    f.write(f"| {'Commands':<{command_width}} | {'Description':<{description_width}} |\n")
-                    f.write(f"| {'-' * command_width} | {'-' * description_width} |\n")
-
-                    # Table Rows
-                    for cmd, desc in sorted(commands_by_type[cmd_type]):
-                        # Add command description adjusted to the terminal width
-                        safe_desc = desc.replace("|", "\\|")
-                        wrapped_lines = []
-                        for para in safe_desc.splitlines():
-                            wrapped_lines.extend(
-                                textwrap.wrap(para, width=description_width - 2, break_long_words=False) or [""])
-                        # wrapped_lines = textwrap.wrap(safe_desc, width=description_width - 2, break_long_words=False)
-
-                        cmd_str = f"`{cmd}`" if use_backticks else cmd
-                        padded_cmd_str = f"{cmd_str:<{command_width}}"
-
-                        # First line with command
-                        first_line_str = f"`{wrapped_lines[0]}`" if use_backticks else wrapped_lines[0]
-                        f.write(f"| {padded_cmd_str} | {first_line_str:<{description_width}} |\n")
-
-                        # Remaining wrapped lines without command
-                        for line in wrapped_lines[1:]:
-                            line_str = f"`{line}`" if use_backticks else line
-                            f.write(f"| {'':<{command_width}} | {line_str:<{description_width}} |\n")
-
-                    f.write("\n")
-
-            self._logger.debug(f"Dynamic help file generated in {output_path.name}")
-            return str(output_path)
-
-        except Exception as export_error:
-            self._logger.error(f"Could not export help help file {export_error}")
-            return None
+        _run_command.__doc__ = doc
+        _run_command._command_name = name
+        return _run_command
 
     def _add_dynamic_aliases(self, aliases: Optional[Union[dict, list[dict]]]) -> Optional[int]:
         """
@@ -711,68 +613,57 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Returns:
             Optional[int]: Number of aliases successfully registered, or None on failure.
         """
-        added_aliases_count = 0
+        added_aliases_count: int = 0
 
         # We allow anonymous list of dictionaries or named list, either way we weill flattened the input to a bew list.
-        aliases = self._tool_box.extract_bare_list(aliases, "aliases")
+        aliases: Optional[list] = self._tool_box.extract_bare_list(aliases, "aliases")
 
-        if isinstance(aliases, dict):  # Legacy support
-            for alias_name, target_command in aliases.items():
-                try:
-                    # Filter existing
-                    if self._is_command_exist(command_or_alias=alias_name):
-                        self._logger.warning(f"Duplicate alias '{alias_name}' already exists.")
-                        continue
+        # Aliases must be a list of dictionaries
+        if not isinstance(aliases, list):
+            self._logger.warning("No aliases registered provided typ is a 'list'")
+            return 0
 
-                    self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
-                                                     description="No description provided",
-                                                     cmd_type=AutoForgCommandType.ALIASES)
-                    added_aliases_count += 1
-                except Exception as alias_add_error:
-                    self._logger.warning(f"Failed to add legacy alias '{alias_name}': {alias_add_error}")
+        for alias in aliases:
+            try:
+                if not isinstance(alias, dict):
+                    self._logger.error(f"Invalid alias entry: expected dict, got {type(alias).__name__}")
+                    continue
 
-        elif isinstance(aliases, list):
-            for alias in aliases:
-                try:
-                    alias_name = alias["alias_name"]
-                    target_command = alias["target_command"]
-                    description = alias.get("description", "No description provided")
-                    cmd_type_str = alias.get("command_type", "ALIASES")
-                    hidden = alias.get("hidden", False)
+                name = alias.get("name")
+                command = alias.get("command")
 
-                    # Filter existing
-                    if self._is_command_exist(command_or_alias=alias_name):
-                        self._logger.warning(f"Duplicate alias '{alias_name}' already exists.")
-                        continue
+                # Validate required fields and their types
+                if not isinstance(name, str) or not isinstance(command, (str, list)):
+                    self._logger.warning(f"Alias entry must have 'name' as str and 'command' as str or list: {alias}")
+                    continue
 
-                    try:
-                        cmd_type = AutoForgCommandType[cmd_type_str.upper()]
-                    except KeyError:
-                        self._logger.warning(
-                            f"Unknown command_type '{cmd_type_str}' for alias '{alias_name}', defaulting to ALIASES")
-                        cmd_type = AutoForgCommandType.ALIASES
+                if name in self._commands_metadata:
+                    self._logger.warning(f"Duplicate alias '{name}' already exists.")
+                    continue
 
-                    self._add_alias_with_description(alias_name=alias_name, target_command=target_command,
-                                                     description=description, cmd_type=cmd_type, hidden=hidden)
-                    added_aliases_count += 1
-                except Exception as alias_add_error:
-                    self._logger.warning(f"Failed to add alias from entry {alias}: {alias_add_error}")
+                # Extract optional metadata
+                known_keys = {"name", "command"}
+                metadata = {k: v for k, v in alias.items() if k not in known_keys}
 
-        else:
-            self._logger.warning("'aliases' must be a dictionary or list of dictionaries")
+                self._add_alias(
+                    name=name,
+                    command=command,
+                    **metadata,
+                )
+                added_aliases_count += 1
 
-        if added_aliases_count == 0:
-            self._logger.warning("No aliases registered")
+            except Exception as alias_add_error:
+                self._logger.warning(f"Failed to add alias '{alias.get('name', '?')}': {alias_add_error}")
 
         return added_aliases_count
 
-    def _add_dynamic_commands(self):
+    def _add_dynamic_commands(self) -> int:
         """
-        Dynamically adds AutoForge dynamically loaded command to the Prompt.
-        Each command is dispatched via the loader's `execute()` method using its registered name.
+        Retrieves all dynamically loaded commands from the registry and registers them with cmd2.
         Returns:
-            int: The number of commands added or exception.
+            int: The number of successfully added commands.
         """
+
         added_commands: int = 0
 
         # Get the loaded commands list from registry
@@ -785,54 +676,45 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             return 0
 
         for cmd_info in commands_list:
-            command_name = cmd_info.name
-            command_type = cmd_info.command_type
-            description = "Description not provided" if cmd_info.description is None else cmd_info.description
+
+            name = cmd_info.name
+            cmd_type = cmd_info.command_type.name
+            doc = cmd_info.description or "Description not provided"
             hidden = cmd_info.hidden
+            metadata = cmd_info.metadata or {}
 
-            def make_cmd(name: str, doc: str):
-                """ Define the function and attach a docstring BEFORE binding """
+            # Make sure we got the essentials
+            if not isinstance(name, str):
+                logging.warning(f"'name' was not specified for dynamic command, skipping to next command")
+                continue
 
-                # noinspection PyShadowingNames
-                def dynamic_cmd(self, arg):
-                    """ Command wrapper """
-                    try:
-                        if isinstance(arg, Statement):
-                            args = arg.args
-                        elif isinstance(arg, str):
-                            args = arg.strip()
-                        else:
-                            raise RuntimeError(f"command {name} has an unsupported arguments type")
+            # Get the dynamic command function
+            handler = self._make_dynamic_command_handler(name=name, doc=doc)
 
-                        result = self._loader.execute_command(name, args)
-                        self.last_result = result if isinstance(result, int) else 0
-                    except Exception as command_runtime_error:
-                        self.perror(f"{command_runtime_error}")
-                        self.last_result = 1
-
-                dynamic_cmd.__doc__ = doc
-                return dynamic_cmd
-
-            unbound_func = make_cmd(command_name, description)
-            method_name = f"do_{command_name}"
-            bound_method = MethodType(unbound_func, self)
+            # Bind and attach
+            method_name = f"do_{name}"
+            bound_method = MethodType(handler, self)
             setattr(self, method_name, bound_method)
 
-            self._set_command_metadata(command_name=command_name, description=description, command_type=command_type,
-                                       hidden=hidden)
+            # Register metadata
+            metadata = {
+                "command": method_name,
+                "description": doc,
+                "hidden": hidden,
+                "command_type": cmd_type,
+                **metadata
+            }
+
+            self._set_command_metadata(name, patch_doc=True, **metadata)
+            if hidden and name not in self._hidden_commands:
+                self._hidden_commands.append(name)
+
+            self._commands_metadata[name] = metadata
             added_commands += 1
 
-            # Register in the global commands metadat registry
-            self._commands_metadata[command_name] = {"description": description, "command_type": command_type,
-                                                     "target_command": method_name, "hidden": hidden, }
-
-            added_commands += 1
-
-        if added_commands == 0:
-            self._logger.warning("No dynamic commands loaded")
         return added_commands
 
-    def _add_dynamic_build_command(self, project: str, configuration: str, command_name: str,
+    def _add_dynamic_build_command(self, project: str, configuration: str, name: str,
                                    description: Optional[str] = None):
         """
         Registers a user-friendly build command alias.
@@ -841,16 +723,16 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Args:
             project (str): The project name within the solution.
             configuration (str): The specific build configuration.
-            command_name (str): The alias command name to be added.
+            name (str): The alias command name to be added.
             description (Optional[str]): A description of the command to be shown in help.
                                                  Defaults to a generated description if not provided.
         """
-        target_command = f"build {project}.{configuration}"
+        command = f"build {project}.{configuration}"
         if not description:
             description = f"Build {project}/{configuration}"
 
-        self._add_alias_with_description(alias_name=command_name, description=description,
-                                         target_command=target_command, cmd_type=AutoForgCommandType.BUILD)
+        self._add_alias(name=name, command=command,
+                        description=description, cmd_type=AutoForgCommandType.BUILD.name)
 
     def _build_executable_index(self) -> None:
         """
@@ -1042,6 +924,127 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             # Bind the generated completer to `self` under the expected name (e.g., complete_cd)
             setattr(self, completer_name, MethodType(make_completer(cmd, only_dirs), self))
+
+    def _export_commands_to_markdown(self, exported_file: Optional[str] = None, export_hidden: bool = False) -> \
+            Optional[
+                str]:
+        """
+        Export all available commands into a formatted Markdown file.
+        Args:
+            exported_file (Optional[str]): Desired path for the output. If None, a unique file will be created under
+            the system temp directory, with a name starting with a common prefix.
+            export_hidden(bool): Whether to export commands hidden from the cmd2 application.
+        Returns:
+            Optional[str]: Path to the created file if successful, else None.
+        """
+        command_width = 14
+        description_width = 80
+        use_backticks = True
+
+        def _refresh_hidden_commands():
+            """ Refresh commands hidden from the cmd2 application """
+            for _cmd in sorted(self.get_all_commands()):
+                _do_method = getattr(self, f'do_{_cmd}', None)
+                if not _do_method:
+                    continue
+
+                _do_metadata = getattr(_do_method, "metadata", {})
+                if _do_metadata.get("hidden", False) and _cmd not in self._hidden_commands:
+                    self._hidden_commands.append(_cmd)
+
+        try:
+            if exported_file:
+                exported_file = self._variables.expand(exported_file)
+                output_path = Path(exported_file)
+            else:
+                output_path = Path(self._tool_box.get_temp_filename())
+
+            # Ensure the extension is '.md'
+            if output_path.suffix.lower() != ".md":
+                output_path = output_path.with_suffix(".md")
+
+            commands_by_type = {}
+            _refresh_hidden_commands()
+
+            # Collect commands from global metadata table
+            for cmd, metadata in self._commands_metadata.items():
+                if not export_hidden and cmd in self._hidden_commands:
+                    continue
+                cmd_type = AutoForgCommandType.from_str(metadata.get("cmd_type", "BUILTIN")).name
+                doc = metadata.get("description", "No help available")
+
+                # Append if not exist
+                if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
+                    commands_by_type[cmd_type].append((cmd, doc))
+
+            # Collect all cmd2 builtin commands
+            for cmd in sorted(self.get_all_commands()):
+                method = getattr(self, f'do_{cmd}', None)
+                if not method:
+                    continue
+
+                metadata = getattr(method, "metadata", {})
+
+                # Append if not exist
+                if not export_hidden and (cmd in self._hidden_commands):
+                    continue
+
+                cmd_type = AutoForgCommandType.from_str(metadata.get("cmd_type", "BUILTIN")).name
+                doc = self._tool_box.flatten_text(method.__doc__, default_text="No help available")
+                if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
+                    commands_by_type[cmd_type].append((cmd, doc))
+
+            # Write to Markdown file
+            with output_path.open("w", encoding="utf-8") as f:
+                f.write("<!-- Auto-generated by AutoForge. Do not edit manually. -->\n")
+                f.write("# AutoForge Command Menu\n\n")
+
+                for cmd_type in sorted(commands_by_type.keys(), key=lambda t: t):
+                    f.write(f"## {cmd_type.title()} Commands\n\n")
+
+                    # Header
+                    f.write(f"| {'Commands':<{command_width}} | {'Description':<{description_width}} |\n")
+                    f.write(f"| {'-' * command_width} | {'-' * description_width} |\n")
+
+                    # Table Rows
+                    for cmd, desc in sorted(commands_by_type[cmd_type]):
+                        # Add command description adjusted to the terminal width
+                        safe_desc = desc.replace("|", "\\|")
+                        wrapped_lines = []
+                        for para in safe_desc.splitlines():
+                            wrapped_lines.extend(
+                                textwrap.wrap(para, width=description_width - 2, break_long_words=False) or [""])
+                        # wrapped_lines = textwrap.wrap(safe_desc, width=description_width - 2, break_long_words=False)
+
+                        cmd_str = f"`{cmd}`" if use_backticks else cmd
+                        padded_cmd_str = f"{cmd_str:<{command_width}}"
+
+                        # First line with command
+                        first_line_str = f"`{wrapped_lines[0]}`" if use_backticks else wrapped_lines[0]
+                        f.write(f"| {padded_cmd_str} | {first_line_str:<{description_width}} |\n")
+
+                        # Remaining wrapped lines without command
+                        for line in wrapped_lines[1:]:
+                            line_str = f"`{line}`" if use_backticks else line
+                            f.write(f"| {'':<{command_width}} | {line_str:<{description_width}} |\n")
+
+                    f.write("\n")
+
+            self._logger.debug(f"Dynamic help file generated in {output_path.name}")
+            return str(output_path)
+
+        except Exception as export_error:
+            self._logger.error(f"Could not export help help file {export_error}")
+            return None
+
+    @staticmethod
+    @contextmanager
+    def restore_cwd():
+        original = os.getcwd()
+        try:
+            yield
+        finally:
+            os.chdir(original)
 
     def get_safe_style(self, name: str) -> str:
         """
@@ -1429,11 +1432,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         return self._commands_metadata
 
     @property
-    def aliases_metadata(self) -> dict[str, Any]:
-        """ Get aliases metadata """
-        return self._aliases_metadata
-
-    @property
     def max_completion_results(self) -> int:
         """ Get max allowed completion results """
         return self._max_completion_results
@@ -1536,6 +1534,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 if stop:
                     break
 
+            except SystemExit:
+                break
             except KeyboardInterrupt:
                 continue
             except EOFError:
