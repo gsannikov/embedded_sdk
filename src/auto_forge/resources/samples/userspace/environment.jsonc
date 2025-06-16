@@ -4,7 +4,7 @@
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
     This allows for improved readability and documentation, but it is not valid standard JSON.
-    Parsers consuming this file must support JSONC or preprocess it accordingly.
+    Parsers consuming this file must support JSONC or pre-eprocess it accordingly.
 
 */
 
@@ -14,7 +14,7 @@
     "status_new_line": true,
     // Enables multi-line status output instead of in-place updates
     "status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
-    "status_post_message": "\n\nSetup is completed.",
+    "status_post_message": "\n\nSetup done. Reopen terminal to apply changes.",
     "steps": [
         {
             "description": "Looking for 'dt'",
@@ -131,7 +131,7 @@
             }
         },
         {
-            "description": "Create a solution shell alias",
+            "description": "Create a shell alias to the solution",
             "method": "create_alias",
             "arguments": {
                 "alias": "us",
@@ -139,20 +139,11 @@
             }
         },
         {
-            "description": "Create a shell for running in debug",
+            "description": "Create a shell alias to the solution (debug)",
             "method": "create_alias",
             "arguments": {
                 "alias": "usd",
                 "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
-            }
-        },
-        {
-            "description": "Create a shell alias for single command",
-            "method": "create_alias",
-            "arguments": {
-                "alias": "usc",
-                "command": "$PROJ_WORKSPACE/env.sh --run_command",
-                "commit_changes": true
             }
         }
     ]
