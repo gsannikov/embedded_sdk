@@ -50,6 +50,7 @@ class AutoForgeModuleType(Enum):
     PROMPT = 5  # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
 
 
+# noinspection DuplicatedCode
 class AutoForgCommandType(Enum):
     """Enumeration of known AutoForge command types."""
     UNKNOWN = 0
@@ -76,6 +77,47 @@ class AutoForgCommandType(Enum):
                 Can be a string or an enum member. If omitted, defaults to AutoForgCommandType.UNKNOWN.
         Returns:
             AutoForgCommandType: Matching enum member or fallback.
+        """
+        # Normalize default first
+        if default is None:
+            default_enum = cls.UNKNOWN
+        elif isinstance(default, str):
+            default_enum = cls.__members__.get(default.strip().upper(), cls.UNKNOWN)
+        elif isinstance(default, cls):
+            default_enum = default
+        else:
+            default_enum = cls.UNKNOWN
+
+        if not isinstance(value, str):
+            return default_enum
+
+        return cls.__members__.get(value.strip().upper(), default_enum)
+
+
+# noinspection DuplicatedCode
+class AutoForgFolderType(Enum):
+    """Enumeration of known AutoForge folder types."""
+    UNKNOWN = 0
+    BUILD = 1
+    SOURCES = 2
+    DOCUMENTS = 3
+    SCRIPTS = 4
+    RESOURCES = 5
+    EXTERNALS = 6
+    IMAGES = 7
+    LOGS = 8
+    AUTOMATION = 9
+
+    @classmethod
+    def from_str(cls, value: Optional[str], default: Optional[Union[str, 'AutoForgFolderType']] = None) -> 'AutoForgFolderType':
+        """
+        Safely convert a string to an AutoForgFolderType enum value.
+        Args:
+            value (str): The string to convert (case-insensitive).
+            default (Union[str, AutoForgFolderType]): The fallback value if conversion fails.
+                Can be a string or an enum member. If omitted, defaults to AutoForgFolderType.UNKNOWN.
+        Returns:
+            AutoForgFolderType: Matching enum member or fallback.
         """
         # Normalize default first
         if default is None:
@@ -319,6 +361,7 @@ class VariableFieldType:
     is_path: Optional[bool] = None
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None
+    folder_type: Optional[AutoForgFolderType] = AutoForgFolderType.UNKNOWN
     kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 

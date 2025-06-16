@@ -133,6 +133,7 @@ class AutoForge(CoreModuleInterface):
         # Configure and start watchdog with default or configuration provided timeout.
         self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
         self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
+        self._watchdog.stop()
 
         # Handle arguments
         self._init_arguments(*args, **kwargs)

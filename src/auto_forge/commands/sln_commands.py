@@ -21,8 +21,9 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreEnvironment, CoreSolution, CoreVariables, CoreJSONCProcessor, CoreToolBox,
-                        FieldColorType)
+from auto_forge import (AutoForgFolderType, CommandInterface, CoreEnvironment, CoreSolution, CoreVariables,
+                        CoreJSONCProcessor, CoreToolBox, FieldColorType
+)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -83,14 +84,20 @@ class SolutionCommand(CommandInterface):
             table.add_column("Key", style="bold cyan", no_wrap=True)
             table.add_column("Value", style="green")
             table.add_column("Description", style="dim")
-            table.add_column("Is Path", style="yellow", justify="center")
-            table.add_column("Create If Missing", justify="center")
+            table.add_column("Path?", style="yellow", justify="center")
+            table.add_column("Auto Create", justify="center")
+            table.add_column("Type", justify="center")
 
             for var in var_list:
                 key = str(var.get("key", "") or "")
                 description = str(var.get("description", "") or "")
                 is_path = var.get("is_path", False)
                 value = var.get("value", "")
+                folder_type = var.get("folder_type", AutoForgFolderType.UNKNOWN)
+
+                # Get and format folder type
+                folder_type_str = folder_type.name if isinstance(folder_type, AutoForgFolderType) else ""
+                folder_type_str = folder_type_str.replace("UNKNOWN", "-")
 
                 # Build styled value text
                 value_text = Text()
@@ -109,7 +116,7 @@ class SolutionCommand(CommandInterface):
                     value_text = Text(str(value))
 
                 table.add_row(key, value_text, description, _bool_emoji(is_path),
-                              _bool_emoji(var.get("create_path_if_not_exist")))
+                              _bool_emoji(var.get("create_path_if_not_exist")),folder_type_str)
 
             console.print('\n', table, '\n')
             return 0

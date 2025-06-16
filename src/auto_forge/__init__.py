@@ -33,7 +33,7 @@ try:
 
     # Common types
     from auto_forge.common.local_types import (
-        AddressInfoType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
+        AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
         BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
@@ -85,8 +85,8 @@ except Exception as exception:
 
 # Exported symbols
 __all__ = [
-    "AddressInfoType", "AutoForgCommandType", "AutoForgeModuleType", "AutoForgeWorkModeType", "AutoLogger",
-    "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuilderToolChain",
+    "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
+    "AutoLogger", "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
     "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
     "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",

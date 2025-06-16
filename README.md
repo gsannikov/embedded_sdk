@@ -9,7 +9,8 @@ preparation, through compilation and deployment, all the way to logging, error h
 At its core, AutoForge is driven by a set of simple, declarative JSON definitions, allowing teams to configure build
 behavior with minimal boilerplate.
 
-Key features include:
+Key features include: 
+Key features include: 
 
 - Modular, CLI-driven architecture
 - Standardized logging and structured error reporting

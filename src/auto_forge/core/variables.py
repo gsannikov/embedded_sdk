@@ -22,7 +22,7 @@ from jsonschema.validators import validate
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
+    AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
     CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType
 )
 
@@ -112,8 +112,8 @@ class CoreVariables(CoreModuleInterface):
         Returns:
             list[dict]: List of dictionaries representing full variable records.
         """
-        keys = ["name", "value", "description", "path_must_exist", "create_path_if_not_exist"]
-        defaults = [None, None, None, True, True]
+        keys = ["name", "value", "description", "path_must_exist", "create_path_if_not_exist", "folder_type"]
+        defaults = [None, None, None, True, True, AutoForgFolderType.UNKNOWN]
 
         if not isinstance(compressed_list, list) or not all(isinstance(row, list) for row in compressed_list):
             raise TypeError("expected a list of lists")
@@ -147,12 +147,18 @@ class CoreVariables(CoreModuleInterface):
                 raise ValueError(f"Variable entry at index {i} is missing 'name' or 'value': {var}")
 
             # Collect any unexpected fields as additional kwargs
-            known_fields = {"name", "value", "description", "is_path", "path_must_exist", "create_path_if_not_exist"}
+            known_fields = {"name", "value", "description", "is_path", "path_must_exist", "create_path_if_not_exist",
+                            "folder_type"}
             extra_kwargs = {k: v for k, v in var.items() if k not in known_fields}
+
+            folder_type = var.get("folder_type")
+            if not isinstance(folder_type, AutoForgFolderType):
+                folder_type = AutoForgFolderType.from_str(var.get("folder_type", None))
 
             self.add(key=key, value=value, description=var.get("description", "Description not provided"),
                      is_path=var.get("is_path", True), path_must_exist=var.get("path_must_exist", True),
-                     create_path_if_not_exist=var.get("create_path_if_not_exist", True), **extra_kwargs, )
+                     create_path_if_not_exist=var.get("create_path_if_not_exist", True), folder_type=folder_type,
+                     **extra_kwargs, )
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:
@@ -285,7 +291,6 @@ class CoreVariables(CoreModuleInterface):
             key (str): The name of the Variable to find.
             flexible (bool): If True, allows partial matching of a variable prefix.
             quiet (bool): If True, exceptions will be suppressed.
-
         Returns:
             Optional[str]: The value converted to string if found, raises Exception otherwise.
         """
@@ -315,6 +320,34 @@ class CoreVariables(CoreModuleInterface):
 
             return self._to_string(self._variables[index].value)
 
+    def get_by_folder_type(self, folder_type: Union[AutoForgFolderType, str]) -> Optional[Union[list[str], str]]:
+        """
+        Retrieves variable values whose folder_type matches the given type.
+        Args:
+            folder_type (AutoForgFolderType): The folder type to search for.
+        Returns:
+            Optional[Union[list[str], str]]:
+                - None if no match is found.
+                - str if a single match is found.
+                - list of str if multiple matches are found.
+        """
+
+        if not isinstance(folder_type, AutoForgFolderType):
+            folder_type = AutoForgFolderType.from_str(folder_type)
+
+        with self._lock:
+            matches = [
+                self._to_string(var.value)
+                for var in self._variables
+                if var.folder_type == folder_type and var.value is not None
+            ]
+
+            if not matches:
+                return None
+            if len(matches) == 1:
+                return matches[0]
+            return matches
+
     def set(self, key: str, value: str) -> bool:
         """
         Update the value of a variable identified by its key.
@@ -335,7 +368,8 @@ class CoreVariables(CoreModuleInterface):
             return True
 
     def add(self, key: str, value: str, description: str, is_path: bool = True, path_must_exist: bool = True,
-            create_path_if_not_exist: bool = True, **_kwargs) -> Optional[bool]:
+            create_path_if_not_exist: bool = True, folder_type: AutoForgFolderType = AutoForgFolderType.UNKNOWN,
+            **_kwargs) -> Optional[bool]:
         """
         Adds a new Variable to the list if no variable with the same key name already exists.
         Args:
@@ -345,6 +379,7 @@ class CoreVariables(CoreModuleInterface):
             is_path (bool): Whether the variable is a path or not.
             path_must_exist (bool): If True, the path will be validated.
             create_path_if_not_exist (bool): If True, the path will be created.
+            folder_type (AutoForgFolderType): The type of the path, when it's a path.
             _kwargs(optional): Additional keyword arguments to pass to the variable.
 
         Returns:
@@ -355,6 +390,7 @@ class CoreVariables(CoreModuleInterface):
         new_var = VariableFieldType()
         new_var.key = key.strip().upper()
         new_var.description = description
+        new_var.folder_type = folder_type
 
         index = self._get_index(new_var.key)
         if index != -1:
@@ -395,6 +431,10 @@ class CoreVariables(CoreModuleInterface):
                                 f"path '{new_var.value}' required by '{key}' does not exist and marked as must exist")
 
         new_var.kwargs = _kwargs
+
+        # Invalidate 'folder_type' when it's not a path
+        if not new_var.is_path:
+            new_var.folder_type = AutoForgFolderType.UNKNOWN
 
         with self._lock:
             if self._variables is None:

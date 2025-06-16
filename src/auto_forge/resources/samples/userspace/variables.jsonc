@@ -2,11 +2,18 @@
     AutoForge project variables file
     ---------------------------------
 
-    Optionals:                  Type        Default		Description
-    -----------------------------------------------------------------------------------------
-    path_must_exist             boolean		true		If True, the path will be validated
-    create_path_if_not_exist	boolean		true		If True, the path will be created.
-    is_path                  	boolean		true		Whether the variable is a path or not.
+    Fields:
+    ------
+
+      - key:                         Unique variable name.
+      - value:                       The value assigned to the variable.
+      - description:                 (Optional, default: "Not provided") A human-readable description.
+      - path_must_exist:             (Optional, default: true) If the variable represents a file system path,
+                                     this flag indicates whether the path is expected to exist.
+      - create_path_if_not_exist:    (Optional, default: true) If the path does not exist and this flag is set,
+                                     it will be created automatically.
+      - folder_type:                 (Optional, default: "UNKNOWN") Describes the folder type.
+                                     Valid values: UNKNOWN, BUILD, SOURCES, DOCUMENTS, SCRIPTS, EXTERNALS, IMAGES.
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
     This allows for improved readability and documentation, but it is not valid standard JSON.
@@ -21,7 +28,8 @@
             "value": "$HOME/projects/mmg_new_repo/sources",
             "description": "Userspace MMG new repo",
             "path_must_exist": true,
-            "create_path_if_not_exist": false
+            "create_path_if_not_exist": false,
+            "folder_type": "SOURCES"
         }
     ]
 }

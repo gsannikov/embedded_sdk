@@ -10,34 +10,44 @@
     "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
     // List of variable names that must be defined in the "variables" section.
-    // These are considered critical for proper project configuration.
-    // Each entry in the "variables" array must include an object with a matching "name" field.
-    // Validation will fail if any of these are missing.
+    // These variables are critical for proper project configuration.
+    // Each entry in the "variables" array must be an object with a matching "name" field.
+    // Validation will fail if any required variables are missing.
+    //
+    // Fields:
+    //   - key:                         Unique variable name.
+    //   - value:                       The value assigned to the variable.
+    //   - description:                 (Optional, default: "Not provided") A human-readable description.
+    //   - path_must_exist:             (Optional, default: true) If the variable represents a file system path,
+    //                                  this flag indicates whether the path is expected to exist.
+    //   - create_path_if_not_exist:    (Optional, default: true) If the path does not exist and this flag is set,
+    //                                  it will be created automatically.
+    //   - folder_type:                 (Optional, default: "UNKNOWN") Describes the folder type.
+    //                                  Valid values: UNKNOWN, BUILD, SOURCES, DOCUMENTS, SCRIPTS, EXTERNALS, IMAGES.
 
     "essential_variables": [
-        //                                                                                                         Path must Exist (default true)
-        //   Key                    Value                                       Description                Crate path if not exist (default true)
-	    //---------------------------------------------------------------------------------------------------------------------------------------
+        //
+        //   Key                 Value                               Description                                Path must exist, Crate path, Folder type
+	    //-----------------------------------------------------------------------------------------------------------------------------------------------
 
-            ["AF_BASE",             "$HOME/.auto_forge",                        "AutoForge persistent directory"                                ],
-            ["AF_BIN",              "$AF_BASE/bin",                             "AutoForge persistent binaries"                                 ],
-            ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",                     "AutoForge persistent tool-chains"                              ],
-            ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                  "AutoForge persistent solution resources"                       ],
-            ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                    "AutoForge persistent solution binaries"                        ],
-            ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Solution root directory"                                       ],
-            ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                    "Base path for compilers outputs"                               ],
-            ["BUILD_OUT",           "$BUILD_BASE/out",                          "Compilation outputs and temporary files"                       ],
-            ["BUILD_IMAGES",        "$BUILD_BASE/images",                       "Compiled binaries"                                             ],
-            ["BUILD_LOGS",          "$BUILD_BASE/logs",                         "Runtime build logs"                                            ],
-            ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",                  "Foreign non versioned resources"                               ],
-            ["PYTHON_VENV",         "$PROJ_WORKSPACE/.venv",                    "Python virtual environment",         	        true, false	    ],
-            ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",           "Project base path"                                             ],
-            ["DOCS_BASE",           "$PROJ_BASE/docs",                          "Project Documents"                                             ],
-            ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                       "Project scripts"                                               ],
-            ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                   "Solution JSON configuration files"                             ],
-            ["SOURCE_BASE",         "$PROJ_BASE/src",                           "Sources base path"                                             ]
+        ["AF_BASE",             "$HOME/.auto_forge",                "AutoForge persistent directory",              null,    null,   null                ],
+        ["AF_BIN",              "$AF_BASE/bin",                     "AutoForge persistent binaries",               null,    null,   null                ],
+        ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",             "AutoForge persistent tool-chains",            null,    null,   null                ],
+        ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",          "AutoForge persistent solution resources",     null,    null,   null                ],
+        ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",            "AutoForge persistent solution binaries",      null,    null,   null                ],
+        ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Solution root directory",                     null,    null,   null                ],
+        ["BUILD_BASE",          "$PROJ_WORKSPACE/build",            "Base path for compilers outputs",             null,    null,   null                ],
+        ["BUILD_OUT",           "$BUILD_BASE/out",                  "Compilation outputs and temporary files",     null,    null,   "BUILD"             ],
+        ["BUILD_IMAGES",        "$BUILD_BASE/images",               "Compiled binaries",                           null,    null,   "IMAGES"            ],
+        ["BUILD_LOGS",          "$BUILD_BASE/logs",                 "Runtime build logs",                          null,    null,   "LOGS"              ],
+        ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",          "Foreign non versioned resources",             null,    null,   "EXTERNALS"         ],
+        ["PYTHON_VENV",         "$PROJ_WORKSPACE/.venv",            "Python virtual environment",                  true,    false,  null                ],
+        ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Project base path",                           null,    null,   null                ],
+        ["DOCS_BASE",           "$PROJ_BASE/docs",                  "Project Documents",                           null,    null,   "DOCUMENTS"         ],
+        ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",               "Project scripts",                             null,    null,   "SCRIPTS"           ],
+        ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",           "Solution JSON configuration files",           null,    null,   "SCRIPTS"           ],
+        ["SOURCE_BASE",         "$PROJ_BASE/src",                   "Sources base path",                           null,    null,   "SOURCES"           ]
     ],
-
 
     "complete_while_typing": true,                              // Controls how aggressively prompt-toolkit attempts tab-completion while typing
     "prompt_history_file": "$AF_BASE/.auto_forge.history",      // Path to store persistent prompt-toolkit history
