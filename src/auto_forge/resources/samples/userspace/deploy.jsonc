@@ -20,13 +20,28 @@
 
     // Required: list of file mappings between archive and host.
     "files": [
-        { "archive": "CMakeLists.txt",                          "host": "CMakeLists.txt"                        },
-        { "archive": "cmake/environment.cmake",                 "host": "cmake/environment.cmake"               },
-        { "archive": "cmake/functions.cmake",                   "host": "cmake/functions.cmake"                 },
-        { "archive": "cmake/linux_rules.cmake",                 "host": "cmake/linux_rules.cmake"               },
-        { "archive": "cmake/module_paths.cmake",                "host": "cmake/module_paths.cmake"              },
-        { "archive": "n_libs/logger/CMakeLists.txt",            "host": "n_libs/logger/CMakeLists.txt"          },
-        { "archive": "n_libs/linux_utils/CMakeLists.txt",       "host": "n_libs/linux_utils/CMakeLists.txt"     }
+        { "archive": "CMakeLists.txt",                                      "host": "CMakeLists.txt"                                            },
+        { "archive": "cmake/environment.cmake",                             "host": "cmake/environment.cmake"                                   },
+        { "archive": "cmake/functions.cmake",                               "host": "cmake/functions.cmake"                                     },
+        { "archive": "cmake/linux_rules.cmake",                             "host": "cmake/linux_rules.cmake"                                   },
+        { "archive": "cmake/module_paths.cmake",                            "host": "cmake/module_paths.cmake"                                  },
 
+        { "archive": "n_libs/CMakeLists.txt",                               "host": "n_libs/CMakeLists.txt"                                     },
+        { "archive": "n_libs/infra_gt/CMakeLists.txt",                      "host": "n_libs/infra_gt/CMakeLists.txt"                            },
+        { "archive": "n_libs/infra_hi/CMakeLists.txt",                      "host": "n_libs/infra_hi/CMakeLists.txt"                            },
+        { "archive": "n_libs/lib_bmd/CMakeLists.txt",                       "host": "n_libs/lib_bmd/CMakeLists.txt"                             },
+        { "archive": "n_libs/linux_utils/CMakeLists.txt",                   "host": "n_libs/linux_utils/CMakeLists.txt"                         },
+        { "archive": "n_libs/logger/CMakeLists.txt",                        "host": "n_libs/logger/CMakeLists.txt"                              },
+
+        { "archive": "n_libs/libs/CMakeLists.txt",                          "host": "n_libs/libs/CMakeLists.txt"                                },
+        { "archive": "n_libs/libs/lib_elastic_handler/CMakeLists.txt",      "host": "n_libs/libs/lib_elastic_handler/CMakeLists.txt"            },
+        { "archive": "n_libs/libs/lib_icqh/CMakeLists.txt",                 "host": "n_libs/libs/lib_icqh/CMakeLists.txt"                       },
+        { "archive": "n_libs/libs/lib_ipumgmtd/CMakeLists.txt",             "host": "n_libs/libs/lib_ipumgmtd/CMakeLists.txt"                   },
+        { "archive": "n_libs/libs/lib_ipumgmtd/cmake/mev1.cmake",           "host": "n_libs/libs/lib_ipumgmtd/cmake/mev1.cmake"                 },
+        { "archive": "n_libs/libs/lib_ipumgmtd/cmake/mev_ts.cmake",         "host": "n_libs/libs/lib_ipumgmtd/cmake/mev_ts.cmake"               },
+        { "archive": "n_libs/libs/lib_ipumgmtd/cmake/mmg.cmake",            "host": "n_libs/libs/lib_ipumgmtd/cmake/mmg.cmake"                  },
+        { "archive": "n_libs/libs/lib_logger/CMakeLists.txt",               "host": "n_libs/libs/lib_logger/CMakeLists.txt"                     },
+        { "archive": "n_libs/libs/lib_mac/CMakeLists.txt",                  "host": "n_libs/libs/lib_mac/CMakeLists.txt"                        },
+        { "archive": "n_libs/libs/lib_telemetry/CMakeLists.txt",            "host": "n_libs/libs/lib_telemetry/CMakeLists.txt"                  }
     ]
 }

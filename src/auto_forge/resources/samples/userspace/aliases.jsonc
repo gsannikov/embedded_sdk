@@ -12,7 +12,6 @@
 {
   "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
   "aliases": [
-
       {
           "name": "usgen",
           "command": [
