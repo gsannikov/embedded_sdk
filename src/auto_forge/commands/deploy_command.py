@@ -179,7 +179,7 @@ class DeployCommand(CommandInterface):
                         self._skipped_files_count += 1
                         continue
 
-                    self._logger.info(f"Adding to archive: {os.path.basename(src_abs)} as {entry["archive"]}")
+                    self._logger.info(f"Adding to archive: {os.path.basename(src_abs)} as {entry['archive']}")
                     archive.write(src_abs, arcname=str(arc_rel))
                     self._processed_files_count += 1
 
