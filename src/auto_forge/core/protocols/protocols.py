@@ -23,10 +23,10 @@ AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
 @runtime_checkable
 class CoreJSONCProcessorProtocol(Protocol):
     """
-    Defines the required interface for the json processor mcore module..
+    Defines the required interface for the json processor mcore module.
     """
 
-    def preprocess(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]: ...
+    def render(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]: ...
 
 
 @runtime_checkable

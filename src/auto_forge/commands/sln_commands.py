@@ -198,7 +198,7 @@ class SolutionCommand(CommandInterface):
         group = parser.add_mutually_exclusive_group(required=False)
 
         # 'Show' commands
-        group.add_argument('-p', '--show-solution', action='store_true',
+        group.add_argument('-s', '--show-solution', action='store_true',
                            help='Print the processed solution JSON file to the terminal.')
         group.add_argument('-e', '--show-environment-variables', action='store_true',
                            help='Show session environment variables.')
@@ -206,7 +206,7 @@ class SolutionCommand(CommandInterface):
         group.add_argument('-g', '--show-guide', action='store_true', help='Show the solution creation guide.')
 
         # General purpose tools
-        group.add_argument('-j', '--print-json', help='JSON file Viewer.')
+        group.add_argument('-j', '--show-json', help='JSON file Viewer.')
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -236,9 +236,9 @@ class SolutionCommand(CommandInterface):
             # Show tutorials for the solution JSON file structure
             return self._tool_box.show_help_file(relative_path='solution/guide.md')
 
-        elif args.print_json:
+        elif args.show_json:
             # View JSON/C file.
-            return self._tool_box.show_json_file(json_path_or_data=args.print_json, title=f"File: {args.print_json}")
+            return self._tool_box.show_json_file(json_path_or_data=args.show_json, title=f"File: {args.show_json}")
 
         else:
             # Error: no arguments
