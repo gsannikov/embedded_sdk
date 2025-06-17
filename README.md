@@ -119,13 +119,13 @@ Copy and paste the following into your terminal.
 #
 # ⚠ No 'sudo' is required, and no files are deleted without consent.
 
-GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge"
-GITHUB_TOKEN=$(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)
+GITHUB_REPO="intel-innersource/firmware.ethernet.devops.auto_forge"
+GITHUB_TOKEN=$(dt github print-token https://github.com/${GITHUB_REPO})
 
 curl -sSL \
   -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Cache-Control: no-store" \
-  "${GITHUB_REPO}/raw/refs/heads/main/src/auto_forge/resources/shared/bootstrap.sh" \
+  "https://raw.githubusercontent.com/${GITHUB_REPO}/main/src/auto_forge/resources/shared/bootstrap.sh" \
   | bash -s -- \
       -n userspace \
       -w ws \

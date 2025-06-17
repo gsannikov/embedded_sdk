@@ -114,7 +114,7 @@
             "method": "python_package_add",
             "arguments": {
                 "venv_path": ".venv",
-                "package_or_requirements": "git+https://github.com/emichael72/auto_forge.git"
+                "package_or_requirements": "git+https://github.com/intel-innersource/firmware.ethernet.devops.auto-forge.git"
             }
         },
         {
@@ -131,7 +131,7 @@
             }
         },
         {
-            "description": "Create a shell alias to the solution",
+            "description": "Create a shell 'us' alias to the solution",
             "method": "create_alias",
             "arguments": {
                 "alias": "us",
@@ -139,7 +139,7 @@
             }
         },
         {
-            "description": "Create a shell alias to the solution (debug)",
+            "description": "Create a shell alias 'usd' to the solution (debug)",
             "method": "create_alias",
             "arguments": {
                 "alias": "usd",
