@@ -1,60 +1,77 @@
-# AutoForge
+# Welcome to **AutoForge**
 
-Welcome to **AutoForge**.
+**AutoForge** is an extensible, Python-based framework built to streamline complex build and validation workflows across embedded and software systems. Designed with automation, clarity, and scale in mind, AutoForge empowers developers to define, run, and manage sophisticated build pipelines with minimal friction and maximum control.
 
-**AutoForge** is a flexible and extensible Python framework designed to streamline and enhance modern build workflows.
-It provides a powerful set of tools to define and manage complete build systems — from initial setup and environment
-preparation, through compilation and deployment, all the way to logging, error handling, and reporting.
+## 🔧 What is AutoForge?
 
-At its core, AutoForge is driven by a set of simple, declarative JSON definitions, allowing teams to configure build
-behavior with minimal boilerplate.
+AutoForge turns JSON-based declarative definitions into fully automated build flows. It handles everything from environment preparation and configuration validation to build orchestration, logging, error recovery, and post-build analytics. Whether you're compiling a single RTOS image or coordinating cross-platform toolchains, AutoForge provides a unified interface to do it efficiently.
 
-Key features include: 
-Key features include: 
+---
 
-- Modular, CLI-driven architecture
-- Standardized logging and structured error reporting
-- Automated environment setup and teardown
-- JSON-based configuration for repeatable builds
-- Dynamic command loading for easy extension
+## 🌟 Key Features
 
-AutoForge was built with scalability in mind — whether you're managing a small embedded project or orchestrating complex
-multi-stage builds, it provides the right balance of automation, clarity, and control.
+- **Declarative Build Recipes**  
+  Define and reuse build flows using structured, human-readable JSONC files with support for dynamic variable resolution and dependency injection.
 
-### Setup Instructions.
+- **Modular CLI Framework**  
+  Add and extend functionality via self-registering Python modules that conform to a common `CLICommandInterface`.
 
-The following link installs a demo solution that builds the top command.
+- **Integrated Help System**  
+  Discover commands, arguments, and usage examples via a built-in help interface—accessible from the terminal without leaving your workflow.
+
+- **Robust Logging and Telemetry**  
+  Structured, colorized logs and build-time telemetry for auditability and debugging across local and CI environments.
+
+- **Environment Virtualization & Probing**  
+  Automated setup and teardown of environment variables, toolchains, and paths—including native detection of SDKs, tool versions, and platform capabilities.
+
+- **Plugin-Based Extensibility**  
+  Dynamically discoverable plugins let teams introduce new command types, validators, and tool integrations without altering the core.
+
+---
+
+## 🧠 AI-Friendly by Design
+
+AutoForge’s predictable structure, rich metadata, and standardized error handling make it ideal for AI-assisted development and debugging. Its JSON-based configuration, uniform logging, and consistent directory layout allow AI tools to:
+
+- Understand project state quickly  
+- Locate build artifacts and failures reliably  
+- Offer actionable suggestions with minimal context  
+
+This makes AutoForge particularly suitable for advanced workflows involving intelligent assistants and automated analysis tools.
+
+---
+
+## 🚀 Scales from Local to Enterprise
+
+From embedded targets like Zephyr RTOS to large multi-stage Linux builds, AutoForge adapts to your development environment. Built-in safety checks, rollback handling, and modular architecture make it ideal for everything from rapid prototyping to enterprise-level CI/CD.
+
+---
+
+## 🧩 Why Use AutoForge?
+
+If you're tired of scattered shell scripts, brittle CI jobs, and inconsistent build behaviors—AutoForge gives you a single, maintainable system for reproducible builds, insightful logs, and a consistent developer experience across the board.
+
+---
+
+## Setup Instructions.
+
+The following link installs the 'userspace' demo solution.
 To use it, copy and paste the command below into your terminal.
 
 ```bash
-curl -sSL \
+curl -sSL -H "Authorization: token $(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)" \
   -H "Cache-Control: no-store" \
-  "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh" \
-  | bash -s -- -n demo -w ws -s create_environment_sequence -p https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/btop
+  "https://raw.githubusercontent.com/intel-innersource/firmware.ethernet.devops.auto-forge/refs/heads/main/src/auto_forge/resources/shared/bootstrap.sh" \
+   | bash -s -- -n userspace -w ws -s create_environment_sequence -p "<samples>/userspace"
 ```
 
-The following link installs the 'userspace' solution.
-To use it, copy and paste the command below into your terminal.
-
-```bash
-curl -sSL   -H "Cache-Control: no-store" \
-  "https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh" \
-   | bash -s -- -n userspace -w ws -s create_environment_sequence -p https://github.com/emichael72/auto_forge/tree/main/src/auto_forge/resources/samples/userspace
-```
-### Installing CMake and Ninja on Fedora
-
-To install both CMake and Ninja, run:
-
-```bash
-sudo dnf install cmake ninja-build
-```
-
-### Installing the package.
+## Installing the package.
 
 To install the latest AutoForge package use the following command:
 
 ```bash
-pip install git+https://github.com/emichael72/auto_forge.git --force-reinstall
+pip install git+https://github.com/intel-innersource/firmware.ethernet.devops.auto-forge.git --force-reinstall
 ```
 
 ## License

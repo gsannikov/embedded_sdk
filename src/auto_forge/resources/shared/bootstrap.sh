@@ -84,7 +84,6 @@ main() {
 		echo "  -n, --name      	[name]      Solution name to use."
 		echo "  -p, --package   	[path/url]  Solution package to use (local path or URL)."
 		echo "  -s, --sequence  	[name]      Reference sequence name in specified solution"
-		echo "  -t, --token     	[token]     Optional Git token for remote solution."
 		echo "  -a, --auto_forge    [url]    	Optional override AutoForge package URL."
 		echo "  -h, --help                  	Display this help and exit."
 		echo
@@ -107,10 +106,6 @@ main() {
 			;;
 		-s | --sequence)
 			sequence_name="$2"
-			shift 2
-			;;
-		-t | --token)
-			token="$2"
 			shift 2
 			;;
 		-h | --help)
@@ -166,7 +161,9 @@ main() {
 		autoforge_cmd+=(--proxy-server "$HTTP_PROXY_SERVER")
 	fi
 
-	if [[ -n "$token" ]]; then
+	# Attempt to get Git token using 'dt'
+	if output="$(dt github print-token 2>/dev/null)"; then
+    	token="$output"
 		autoforge_cmd+=(--git-token "$token")
 	fi
 
