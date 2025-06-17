@@ -9,7 +9,7 @@ across embedded and software systems. Built with automation, clarity, and scalab
 it enables developers to define, run, and manage sophisticated build pipelines with minimal
 friction and maximum control.
 
-## In A Nutshell
+### In A Nutshell
 
 <div style="text-align: center;">
   <img src="src/auto_forge/resources/package/clip_art/flow.png" alt="Build Flow" style="width: 300px;">
@@ -21,7 +21,6 @@ structured logging, error recovery, and post-build analytics.
 Whether you're compiling a single RTOS image or coordinating cross-platform
 toolchains, this tool offers a unified interface to get the job done efficiently.
 
----
 
 ### Key Features
 
@@ -51,6 +50,7 @@ toolchains, this tool offers a unified interface to get the job done efficiently
 
 ### AI-Friendly by Design
 
+<br>
 <div style="text-align: center;">
   <img src="src/auto_forge/resources/package/clip_art/ai.png" alt="AI Ready" style="width: 200px;">
 </div>
@@ -82,6 +82,7 @@ Rather than replacing your existing `userspace` build flow, this demo is designe
 already cloned repository. This approach lets you explore the tool in a realistic environment
 without disrupting your current working setup.
 
+Copy the following -not so onne liner- to your terminal and behold
 ```bash
 # Install the AutoForge demo overlay for 'userspace'
 GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto-forge"
