@@ -69,6 +69,7 @@ try:
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.linux_aliases import CoreLinuxAliases
     from auto_forge.core.environment import CoreEnvironment
+    from auto_forge.core.xray import CoreXRay
     from auto_forge.core.prompt import CorePrompt
 
     # AutoForg main
@@ -91,7 +92,7 @@ __all__ = [
     "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
     "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",
     "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables",
-    "CoreVariablesProtocol", "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType",
+    "CoreVariablesProtocol", "CoreXRay", "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType",
     "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
     "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
     "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",

@@ -8,14 +8,14 @@ Description:
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreVariables
 )
 
 AUTO_FORGE_MODULE_NAME = "XRay"
 AUTO_FORGE_MODULE_DESCRIPTION = "Files search tool"
 
 
-class CoreSystemXRay(CoreModuleInterface):
+class CoreXRay(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
@@ -26,8 +26,10 @@ class CoreSystemXRay(CoreModuleInterface):
 
     def _initialize(self) -> None:
         """
-        Initialize CoreSystemXRay.
+        Initialize CoreXRay.
         """
+
+        self._variables = CoreVariables.get_instance()
 
         # Persist this module instance in the global registry for centralized access
         registry = CoreRegistry.get_instance()
