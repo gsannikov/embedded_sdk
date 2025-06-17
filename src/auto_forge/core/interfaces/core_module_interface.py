@@ -40,11 +40,10 @@ import time
 from abc import ABCMeta
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, cast
 
-# Third-party
-from colorama import Fore, Style
-
 # Import AutoForge only during static type checking to avoid circular import issues at runtime
 from auto_forge import ExceptionGuru
+
+# Third-party
 
 if TYPE_CHECKING:
     # noinspection PyUnusedImports
@@ -189,14 +188,6 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         Override this method in subclasses to perform custom init using arguments passed on first instantiation.
         """
         pass
-
-    @staticmethod
-    def who_we_are() -> str:
-        """`
-        Returns the decorated AutoForge branding string.
-        Includes colored segments and an emoji.
-        """
-        return f"{Fore.LIGHTBLUE_EX}Auto{Fore.LIGHTWHITE_EX}🛠️Forge{Style.RESET_ALL}"
 
     @property
     def auto_forge(self) -> "AutoForge":

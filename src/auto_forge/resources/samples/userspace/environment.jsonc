@@ -3,8 +3,7 @@
     -----------------------------------------
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
-    This allows for improved readability and documentation, but it is not valid standard JSON.
-    Parsers consuming this file must support JSONC or pre-eprocess it accordingly.
+    This allows for improved readability and documentation which are not valid standard JSON.
 
 */
 
@@ -14,7 +13,7 @@
     "status_new_line": true,
     // Enables multi-line status output instead of in-place updates
     "status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
-    "status_post_message": "\n\nSetup done. Reopen terminal to apply changes.",
+    "status_post_message": "\n\nSetup done.\nReopen terminal to apply changes.",
     "steps": [
         {
             "description": "Looking for 'dt'",
@@ -69,7 +68,7 @@
             }
         },
         {
-            "description": "Getting git access token using 'dt'",
+            "description": "Getting GitHub access token using 'dt'",
             "method": "execute_shell_command",
             "status_on_error": "\nFailed to retrieve Git token using 'dt'.\nPlease ensure it is installed correctly.",
             "action_on_error": "resume",

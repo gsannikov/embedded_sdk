@@ -4,8 +4,7 @@
     Use sln -t to view a full tutorial on this file structure.
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
-    This allows for improved readability and documentation, but it is not valid standard JSON.
-    Parsers consuming this file must support JSONC or preprocess it accordingly.
+    This allows for improved readability and documentation which are not valid standard JSON.
 
 */
 
@@ -82,7 +81,7 @@
                             "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
                             "menu_command": {
                                 "name": "busd",
-                                "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                                "description": "🔨 Build `userspace` <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "execute_from": "$SOURCE_BASE/userspace",
                             "clean": "cmake --build <$ref_build_path> --target clean",
@@ -109,7 +108,7 @@
                             "data": "<$derived_from_solutions[].projects[].configurations[debug]>",
                             "menu_command": {
                                 "name": "busr",
-                                "description": "\uD83D\uDD28 Build 'userspace' <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
+                                "description": "🔨 Build `userspace` <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "compiler_options": [
                                 "-S .",

@@ -109,7 +109,8 @@ class AutoForgFolderType(Enum):
     AUTOMATION = 9
 
     @classmethod
-    def from_str(cls, value: Optional[str], default: Optional[Union[str, 'AutoForgFolderType']] = None) -> 'AutoForgFolderType':
+    def from_str(cls, value: Optional[str],
+                 default: Optional[Union[str, 'AutoForgFolderType']] = None) -> 'AutoForgFolderType':
         """
         Safely convert a string to an AutoForgFolderType enum value.
         Args:
@@ -236,12 +237,6 @@ class CommandResultType(NamedTuple):
     extra_value: Optional[
         int] = None  # Optional additional return value, for ex. HTTP status from a method that handles downloads.
     extra_data: Optional[Any] = None  # Optional additional return data, could be anything.
-
-
-class XYType(NamedTuple):
-    """ Generic type for X,Y coordinates """
-    x: int = 0
-    y: int = 0
 
 
 class MessageBoxType(Enum):

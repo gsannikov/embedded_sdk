@@ -40,7 +40,7 @@ try:
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
-        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, XYType
+        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType
     )
 
     # Common modules
@@ -102,5 +102,5 @@ __all__ = [
     "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream",
-    "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "XYType", "start"
+    "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "start"
 ]

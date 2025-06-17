@@ -39,13 +39,14 @@ from urllib.parse import ParseResult, unquote, urlparse
 
 # Third-party
 import psutil
+from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_SHARED_PATH,
-    PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH, XYType
+    PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
 )
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
@@ -397,7 +398,6 @@ class CoreToolBox(CoreModuleInterface):
         Returns a MethodLocationType tuple with the class name (if found), method name, and module path.
         If the method is found in global scope, class_name will be None.
         Returns None if the method is not found or if any error occurs during the search.
-
         Args:
             method_name (str): Name of the method to search for.
             directory (Optional[Union[str, os.PathLike[str]]]): Root directory to search in.
@@ -424,7 +424,8 @@ class CoreToolBox(CoreModuleInterface):
                 module_path = ""
 
                 with suppress(Exception):
-                    module_path = os.path.relpath(str(file_path), str(directory)).replace(os.sep, '.')[:-3]
+                    module_path = str(os.path.relpath(str(file_path), str(directory)))
+                    module_path = module_path.replace(os.sep, '.')[:-3]
                     if base_package_name not in module_path:
                         module_path = f"{base_package_name}.{module_path}"
 
@@ -1173,7 +1174,7 @@ class CoreToolBox(CoreModuleInterface):
         return text.strip()
 
     def print_logo(self, banner_file: Optional[str] = None, clear_screen: bool = False,
-                   terminal_title: Optional[str] = None, blink_pixel: Optional[XYType] = None) -> None:
+                   terminal_title: Optional[str] = None) -> None:
         """
         Displays an ASCII logo from a file using a consistent horizontal RGB gradient
         (same for every line, from dark to bright).
@@ -1206,26 +1207,17 @@ class CoreToolBox(CoreModuleInterface):
 
         max_line_len = max(len(line) for line in lines)
 
-        def get_rgb_gradient(height, width):
+        def get_rgb_gradient(pos, width):
             """ Computes an RGB ANSI color escape sequence based on horizontal gradient position. """
-            t = height / max(1, width - 1)
+            t = pos / max(1, width - 1)
             r = int(r_base + r_delta * t)
             g = int(g_base + g_delta * t)
             b = int(b_base + b_delta * t)
             return f"\033[38;2;{r};{g};{b}m"
 
-        for y, line in enumerate(lines):
-            colored_line = ""
-            for x, ch in enumerate(line):
-                color_code = get_rgb_gradient(x, max_line_len)
-
-                # Check for blink position
-                if blink_pixel:
-                    if blink_pixel.x == x and blink_pixel.y == y:
-                        colored_line += f"\033[5m{color_code}{ch}\033[25m"
-                    else:
-                        colored_line += f"{color_code}{ch}"
-
+        for line in lines:
+            colored_line = "".join(f"{get_rgb_gradient(x, max_line_len)}{ch}"
+                                   for x, ch in enumerate(line))
             sys.stdout.write(colored_line + "\033[0m\n")
 
         sys.stdout.write('\n')
@@ -1256,6 +1248,46 @@ class CoreToolBox(CoreModuleInterface):
                 return f"{size:.{precision}f} {unit}"
             size /= 1024.0
         return f"{size:.{precision}f} PB"
+
+    @staticmethod
+    def get_text_width(text: str, tab_spaces: int = 4) -> Optional[int]:
+        """
+        Calculates the "display width" of a string, factoring in ANSI escape codes,
+        emojis, and tabs. It uses wcwidth for accurate Unicode character width.
+        Args:
+            text: The input string.
+            tab_spaces: The number of spaces a tab character (\\t) should represent.
+        Returns:
+            The raw character count as an integer, or None if an unexpected error occurs.
+            Any exceptions are forwarded to the caller.
+        """
+        try:
+            # Regular expression to find ANSI escape codes
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+            # Remove ANSI escape codes
+            cleaned_text = ansi_escape.sub('', text)
+
+            width = 0
+            for char in cleaned_text:
+                if char == '\t':
+                    width += tab_spaces
+                else:
+                    # Use wcwidth to get the display width of the character
+                    char_width = wcswidth(char)
+                    if char_width == -1:
+                        # -1 means the character is not printable or has an indeterminate width.
+                        # This might indicate a problem or a character that shouldn't be displayed.
+                        # For a general purpose method, we might treat it as 0 or 1,
+                        # depending on the desired behavior.
+                        # For now, let's treat it as 0 (doesn't occupy space).
+                        width += 0
+                    else:
+                        width += char_width
+            return width
+        except Exception as parser_error:
+            # Re-raise any unexpected exceptions to the caller
+            raise parser_error from parser_error
 
     @staticmethod
     def get_module_docstring(python_module_type: Optional[ModuleType] = None) -> Optional[str]:

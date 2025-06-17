@@ -584,6 +584,11 @@ class AutoForge(CoreModuleInterface):
             raise
 
     @property
+    def version(self) -> str:
+        """ Return package version string """
+        return PROJECT_VERSION
+
+    @property
     def configuration(self) -> Optional[dict[str, Any]]:
         """ Returns the package configuration processed JSON """
         return self._configuration

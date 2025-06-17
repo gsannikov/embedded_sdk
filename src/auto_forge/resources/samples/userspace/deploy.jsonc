@@ -3,8 +3,7 @@
     ----------------------------------------
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
-    This allows for improved readability and documentation, but it is not valid standard JSON.
-    Parsers consuming this file must support JSONC or preprocess it accordingly.
+    This allows for improved readability and documentation which are not valid standard JSON.
 
 */
 

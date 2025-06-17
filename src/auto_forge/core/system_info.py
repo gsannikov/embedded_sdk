@@ -443,6 +443,45 @@ class CoreSystemInfo(CoreModuleInterface):
         # An error occurred while retrieving kernel information
         return None
 
+    def to_markdown(self, as_table: bool = True, heading_level: int = 2) -> str:
+        """
+        Return system info as a Markdown-formatted string.
+        Args:
+            as_table (bool): If True, format as a table. If False, format as a bulleted list.
+            heading_level (int): Number of '#' characters for headings (1-6 recommended).
+        Returns:
+            str: Markdown-formatted representation of system info.
+        """
+
+        base_level = max(1, min(heading_level, 6))
+        heading_prefix = "#" * base_level
+        lines = [f"{heading_prefix} System Information", ""]
+
+        for key, value in self._info_data.items():
+            # Normalize value
+            if value is None or value == "":
+                continue
+            elif isinstance(value, (list, tuple)):
+                value_str = ", ".join(map(str, value))
+            elif isinstance(value, dict):
+                value_str = ", ".join(f"{k}: {v}" for k, v in value.items())
+            else:
+                value_str = str(value)
+
+            # Escape pipes and prettify keys
+            key_escaped = key.replace("|", "\\|").replace('_', ' ').title()
+            value_escaped = value_str.replace("|", "\\|")
+
+            if as_table:
+                if len(lines) == 2:
+                    lines.append("| Key | Value |")
+                    lines.append("|-----|-------|")
+                lines.append(f"| `{key_escaped}` | {value_escaped} |")
+            else:
+                lines.append(f"- {key_escaped}: {value_escaped}\n")
+
+        return "\n".join(lines)
+
     def __str__(self) -> str:
         """
         Return a human-readable, formatted string of system information.
@@ -450,11 +489,11 @@ class CoreSystemInfo(CoreModuleInterface):
             str: A multi-line string representing key system details.
         """
 
-        def beautify_key(key: str) -> str:
+        def _beautify_key(key: str) -> str:
             return key.replace('_', ' ').title()
 
         info_summary = "\n".join(
-            f"{beautify_key(k):20}: {v if v is not None else 'N/A'}" for k, v in self._info_data.items())
+            f"{_beautify_key(k):20}: {v if v is not None else 'N/A'}" for k, v in self._info_data.items())
 
         return f"System Information:\n{info_summary}"
 

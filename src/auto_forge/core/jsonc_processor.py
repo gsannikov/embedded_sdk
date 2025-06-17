@@ -289,9 +289,9 @@ class CoreJSONCProcessor(CoreModuleInterface):
         _cleaned = re.sub(r'\n\s*\n', '\n', _cleaned)  # Collapse multiple new lines
         return _cleaned.strip()
 
-
     @staticmethod
     def _normalize_anon_lists(_text: str) -> str:
+        # noinspection GrazieInspection
         """
         Detects and normalizes top-level key: [ [...], [...], ... ] anonymous list-of-lists structures.
         Pads missing values (e.g. from `,,`) with 'null' and validates consistency.
@@ -299,12 +299,10 @@ class CoreJSONCProcessor(CoreModuleInterface):
             _text (str): Comment-free JSONC-like text.
         Returns:
             str: Cleaned-up JSON text with valid, normalized list segments.
-
-        Raises:
-            ValueError: If any list contains inconsistent blank usage or results in invalid JSON.
         """
 
         def _sanitize_blanks(_raw: str) -> str:
+            # noinspection GrazieInspection
             """
             Replaces empty fields (",,") in a list-like structure with "null",
             supporting repeated blanks and cases like [,,] and trailing commas.
@@ -404,7 +402,6 @@ class CoreJSONCProcessor(CoreModuleInterface):
 
             return f'"{_key}": {_normalized_json}'
 
-
         # Manual scan for key: [ ...balanced list... ]
         output = []
         pos = 0
@@ -462,21 +459,37 @@ class CoreJSONCProcessor(CoreModuleInterface):
 
     @staticmethod
     def _normalize_multiline_strings(_text: str) -> str:
-        """ Convert multiline double-quoted strings into valid JSON """
-        def _replacer(_match):
-            _content = _match.group(1)
-            _lines = _content.splitlines()
-            if not _lines:
+        """
+        Normalize both:
+        - Multiline content within a single quoted string
+        - Adjacent quoted strings split across multiple lines
+        """
+
+        def _replacer(match):
+            # Handle multiline content within one quoted string
+            content = match.group(1)
+            lines = content.splitlines()
+            if not lines:
                 return '""'
-            first = _lines[0]
-            rest = [line.strip() for line in _lines[1:]]
+            first = lines[0]
+            rest = [line.strip() for line in lines[1:]]
             normalized = '\n'.join([first] + rest)
             escaped = normalized.replace('\n', '\\n')
             return f'"{escaped}"'
 
-        # Match content inside "...", non-greedy to support nested structures; crude but works well enough
-        _pattern = r'"((?:[^"\\]|\\.)*?)"(?=\s*[:,}])'
-        return re.sub(_pattern, _replacer, _text, flags=re.DOTALL)
+        # Step 1: Merge adjacent quoted strings like: "line 1"\n"line 2"
+        def _merge_adjacent_strings(match):
+            strings = re.findall(r'"((?:[^"\\]|\\.)*)"', match.group(0))
+            merged = '\\n'.join(s.strip() for s in strings)
+            return f'"{merged}"'
+
+        # Merge adjacent strings first
+        _text = re.sub(r'(?:"(?:[^"\\]|\\.)*"\s*){2,}', _merge_adjacent_strings, _text, flags=re.DOTALL)
+
+        # Then normalize any internal multiline strings
+        _text = re.sub(r'"((?:[^"\\]|\\.)*?)"(?=\s*[:,}])', _replacer, _text, flags=re.DOTALL)
+
+        return _text
 
     def render(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]:
         """
@@ -516,23 +529,23 @@ class CoreJSONCProcessor(CoreModuleInterface):
             with open(config_file) as text_file:
                 dirty_json = text_file.read()
 
+            # Comments cleanup
+            dirty_json = self._strip_comments(_text=dirty_json)
+
             # Handle multi-line strings
             if self._normalize_multilines:
                 dirty_json = self._normalize_multiline_strings(_text=dirty_json)
 
-            # Comments cleanup
-            dirty_json = self._strip_comments(_text=dirty_json)
-
             # Replaces blanks with 'null' in anonymous lists
             if self._normalize_anonymous_lists:
-                clean_text = self._normalize_anon_lists(_text=dirty_json)
+                dirty_json = self._normalize_anon_lists(_text=dirty_json)
 
             # Load and return as JSON dictionary
-            data = json.loads(clean_text)
+            json_data = json.loads(dirty_json)
 
             # Remove PyCharm embedded formatting directives
-            cleaned_data = self._remove_pycharm_formatter_hints(data)
-            return cleaned_data
+            json_data = self._remove_pycharm_formatter_hints(_json_obj=json_data)
+            return json_data
 
         except (FileNotFoundError, json.JSONDecodeError, ValueError) as json_parsing_error:
             if clean_text is not None:

@@ -3,59 +3,57 @@
     -------------------------------
     Additional project-specific commands recognized by the build system and added to the menu.
 
-  // Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
-  // This allows for improved readability and documentation, but it is not valid standard JSON.
-  // Parsers consuming this file must support JSONC or preprocess it accordingly.
-
+    Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
+    This allows for improved readability and documentation which are not valid standard JSON.
 */
 
 {
-  "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
-  "aliases": [
-      {
-          "name": "usgen",
-          "command": [
-              "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
-              "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host"
-          ],
-          "description": "\uD83D\uDC7E Generate the new `userspace` repo using current repo sources, the `refactor` and the `deploy` command",
-          "cmd_type": "AUTOMATION"
-      },
-      {
-          "name": "dply",
-          "command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host",
-          "description": "\uD83D\uDC7E Deploy archived CMake files in a refactored project.
-            Uses the SDK's `deploy` command to place various CMake files in specific paths, allowing the CMake toolchain to correctly build the project.",
-          "cmd_type": "AUTOMATION"
-      },
-      {
-          "name": "dplyr",
-          "command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-archive -o",
-          "description": "\uD83D\uDC7E Reversed deploy — uses the SDK's `deploy` command along with the
-            recipe file `deploy.jsonc` to pick specific CMake resources listed in the recipe and archive them into `deploy.zip`, effectively backing up any modifications done to the CMake overlay.",
-          "cmd_type": "AUTOMATION"
-      },
-      {
-          "name": "call",
-          "command": [
-              "busd --clean",
-              "busr --clean"
-          ],
-          "description": "\uD83D\uDD28 Clean all builds by batch-running all configurations with
-            the `--clean` flag.",
-          "cmd_type": "BUILD"
-      },
-      {
-          "name": "update",
-          "command": [
-              "cd $PROJ_WORKSPACE/../../auto_forge/",
-              "git add .",
-              "git commit -m \"Updates\"",
-              "git push"
-          ],
-          "restore_cwd": true,
-          "description": "Push latest updates",
-          "cmd_type": "BUILD"
-      }
-  ]
+    "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
+    "aliases": [
+        {
+            "name": "usgen",
+            "command": [
+                "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace"
+                "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host"
+            ],
+            "description": "👾 Generate the new `userspace` repo using current repo sources the `refactor` and the `deploy` commands",
+            "cmd_type": "AUTOMATION"
+        },
+        {
+            "name": "dply",
+            "command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host",
+            "description": "👾 Deploy archived CMake files in a refactored project."
+                "Uses the SDK's `deploy` command to place various CMake files in specific paths, allowing the CMake toolchain to correctly build the project.",
+            "cmd_type": "AUTOMATION"
+        },
+        {
+            "name": "dplyr",
+            "command": "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-archive -o",
+            "description": "👾 Reversed deploy — uses the SDK's `deploy` command along with the"
+                "recipe file `deploy.jsonc` to pick specific CMake resources listed in the recipe and archive them into `deploy.zip`, "
+                "effectively backing up any modifications done to the CMake overlay.",
+            "cmd_type": "AUTOMATION"
+        },
+        {
+            "name": "call",
+            "command": [
+                "busd --clean",
+                "busr --clean"
+            ],
+            "description": "🔨 Clean all builds by batch-running all configurations with the `--clean` flag.",
+            "cmd_type": "BUILD"
+        },
+        {
+            "name": "update",
+            "command": [
+                "cd $PROJ_WORKSPACE/../../auto_forge/",
+                "git add .",
+                "git commit -m \"Updates\"",
+                "git push"
+            ],
+            "restore_cwd": true,
+            "description": "Push latest updates",
+            "cmd_type": "GIT"
+        }
+    ]
 }
