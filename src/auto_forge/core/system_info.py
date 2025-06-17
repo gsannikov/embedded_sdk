@@ -41,8 +41,8 @@ class CoreSystemInfo(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         super().__init__(*args, **kwargs)
 

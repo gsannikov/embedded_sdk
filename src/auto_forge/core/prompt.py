@@ -294,7 +294,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     """
 
     def __init__(self, *args, **kwargs):
-
+        """
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
+        """
         self._prompt_session: Optional[PromptSession] = None
         self._prompt_path_style: Optional[Style] = None
         self._loop_stop_flag = False

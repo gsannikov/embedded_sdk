@@ -57,8 +57,8 @@ class CoreEnvironment(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         self._workspace_path: Optional[str] = None
         self._steps_data: Optional[list[tuple[str, Any]]] = None

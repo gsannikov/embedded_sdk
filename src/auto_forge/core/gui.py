@@ -34,7 +34,10 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"
 
 class CoreGUI(CoreModuleInterface):
     def __init__(self, *args, **kwargs):
-
+        """
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
+        """
         self._alive = True
         self._gui_thread = None  # Optional joinable thread
 

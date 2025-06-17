@@ -37,8 +37,8 @@ class CoreDynamicLoader(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         self._execution_output: Optional[str] = None
 

@@ -57,8 +57,8 @@ class CoreToolBox(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         self._ansi_codes: Optional[dict[str, str]] = None
         self._preprocessor: Optional[CoreJSONCProcessor] = None

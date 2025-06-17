@@ -41,8 +41,8 @@ class CoreLinuxAliases(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         self._pending_alias_updates: dict[str, str] = {}
         self._aliases_to_delete = set()

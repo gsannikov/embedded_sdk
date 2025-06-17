@@ -39,8 +39,8 @@ class CoreVariables(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Extra initialization required for assigning runtime values to attributes declared earlier in `__init__()`
-        See 'CoreModuleInterface' usage.
+        Extra initialization required for assigning runtime values to attributes declared
+        earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted listy of objects
         super().__init__(*args, **kwargs)
