@@ -156,8 +156,8 @@ class CoreVariables(CoreModuleInterface):
                 folder_type = AutoForgFolderType.from_str(var.get("folder_type", None))
 
             self.add(key=key, value=value, description=var.get("description", "Description not provided"),
-                     is_path=var.get("is_path", True), path_must_exist=var.get("path_must_exist", True),
-                     create_path_if_not_exist=var.get("create_path_if_not_exist", True), folder_type=folder_type,
+                     is_path=var.get("is_path", True), path_must_exist=var.get("path_must_exist"),
+                     create_path_if_not_exist=var.get("create_path_if_not_exist"), folder_type=folder_type,
                      **extra_kwargs, )
 
     @staticmethod
@@ -208,8 +208,10 @@ class CoreVariables(CoreModuleInterface):
                     candidate_name = key[:prefix_len]
                     key_candidate = (False, candidate_name)
                     idx = bisect_left(self._search_keys, key_candidate)
-                    if idx != len(self._variables) and self._variables[idx].key == candidate_name:
-                        return idx
+                    if idx != len(self._variables):
+                        var_at_index: VariableFieldType = self._variables[idx]
+                        if var_at_index.key == candidate_name:
+                            return idx
 
             return -1
 
@@ -354,7 +356,6 @@ class CoreVariables(CoreModuleInterface):
         Args:
             key (str): The name of the variable to update.
             value (Any): The new value to assign to the variable.
-
         Returns:
             bool: True if the variable was found and updated, False otherwise.
         """
@@ -367,8 +368,12 @@ class CoreVariables(CoreModuleInterface):
             self._variables[index].value = value
             return True
 
-    def add(self, key: str, value: str, description: str, is_path: bool = True, path_must_exist: bool = True,
-            create_path_if_not_exist: bool = True, folder_type: AutoForgFolderType = AutoForgFolderType.UNKNOWN,
+    def add(self, key: str, value: str,
+            is_path: Optional[bool] = None,
+            description: Optional[str] = None,
+            path_must_exist: Optional[bool] = True,
+            create_path_if_not_exist: Optional[bool] = True,
+            folder_type: Optional[AutoForgFolderType] = AutoForgFolderType.UNKNOWN,
             **_kwargs) -> Optional[bool]:
         """
         Adds a new Variable to the list if no variable with the same key name already exists.
@@ -389,32 +394,36 @@ class CoreVariables(CoreModuleInterface):
 
         new_var = VariableFieldType()
         new_var.key = key.strip().upper()
-        new_var.description = description
-        new_var.folder_type = folder_type
+
+        # Force defaults when not provided
+        new_var.description = description if description is not None else "Description not specified"
+        new_var.folder_type = folder_type if folder_type is not None else AutoForgFolderType.UNKNOWN
+        new_var.is_path = is_path if is_path is not None else self._tool_box.looks_like_unix_path(value)
+        new_var.path_must_exist = path_must_exist if path_must_exist is not None else True
+        new_var.create_path_if_not_exist = create_path_if_not_exist if create_path_if_not_exist is not None else True
+        new_var.kwargs = _kwargs
+
+        # Normalize description field
+        new_var.description = new_var.description.strip().capitalize()
 
         index = self._get_index(new_var.key)
         if index != -1:
             raise RuntimeError(f"variable '{new_var.key}' already exists at index {index}")
 
-        # Format fields
-        new_var.description = new_var.description.strip().capitalize()
-
         # When it's not a path
-        if not is_path:
-            new_var.is_path = False
+        if not new_var.is_path:
+            # Normalize other properties when variable is not a path
             new_var.path_must_exist = False
             new_var.create_path_if_not_exist = False
+            new_var.folder_type = AutoForgFolderType.UNKNOWN
             new_var.value = value
         else:
-            new_var.is_path = True
+
             new_var.value = self.expand(value)
 
             # The variable should be treated as a path
             if not self._tool_box.looks_like_unix_path(new_var.value):
                 raise RuntimeError(f"value '{new_var.value}' set by '{new_var.key}' does not look like a unix path")
-
-            new_var.path_must_exist = path_must_exist
-            new_var.create_path_if_not_exist = create_path_if_not_exist
 
             # Only enforce 'create_path_if_not_exist' and 'path_must_exist' directives during normal operation,
             # not during initial workspace creation.
@@ -429,12 +438,6 @@ class CoreVariables(CoreModuleInterface):
                         if not new_var.create_path_if_not_exist:
                             raise RuntimeError(
                                 f"path '{new_var.value}' required by '{key}' does not exist and marked as must exist")
-
-        new_var.kwargs = _kwargs
-
-        # Invalidate 'folder_type' when it's not a path
-        if not new_var.is_path:
-            new_var.folder_type = AutoForgFolderType.UNKNOWN
 
         with self._lock:
             if self._variables is None:

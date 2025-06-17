@@ -31,10 +31,11 @@
 	    //-----------------------------------------------------------------------------------------------------------------------------------------------
 
         ["AF_BASE",             "$HOME/.auto_forge",                "AutoForge persistent directory",              null,    null,   null                ],
-        ["AF_BIN",              "$AF_BASE/bin",                     "AutoForge persistent binaries",               null,    null,   null                ],
-        ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",             "AutoForge persistent tool-chains",            null,    null,   null                ],
-        ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",          "AutoForge persistent solution resources",     null,    null,   null                ],
-        ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",            "AutoForge persistent solution binaries",      null,    null,   null                ],
+        ["AF_BIN",              "$AF_BASE/bin",                     "Persistent binaries path",                    null,    null,   null                ],
+        ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",             "Persistent tool-chains",                      null,    null,   null                ],
+        ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",          "Persistent solution resources",               null,    null,   null                ],
+        ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",        "Persistent solution resources",               null,    null,   "INDEX"             ],
+        ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",            "Persistent solution binaries",                null,    null,   null                ],
         ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Solution root directory",                     null,    null,   null                ],
         ["BUILD_BASE",          "$PROJ_WORKSPACE/build",            "Base path for compilers outputs",             null,    null,   null                ],
         ["BUILD_OUT",           "$BUILD_BASE/out",                  "Compilation outputs and temporary files",     null,    null,   "BUILD"             ],

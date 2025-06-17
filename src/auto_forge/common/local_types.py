@@ -105,8 +105,9 @@ class AutoForgFolderType(Enum):
     RESOURCES = 5
     EXTERNALS = 6
     IMAGES = 7
-    LOGS = 8
-    AUTOMATION = 9
+    INDEX = 8
+    LOGS = 9
+    AUTOMATION = 10
 
     @classmethod
     def from_str(cls, value: Optional[str],
