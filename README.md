@@ -1,3 +1,4 @@
+<!--suppress HtmlDeprecatedAttribute -->
 <br>
 <div align="center">
   <img src="src/auto_forge/resources/package/clip_art/logo.png" alt="Logo" style="width: 300px;">

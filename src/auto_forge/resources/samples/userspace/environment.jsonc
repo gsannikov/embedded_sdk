@@ -47,6 +47,26 @@
             }
         },
         {
+            "description": "Looking for 'cmake'",
+            "method": "validate_prerequisite",
+            "status_on_error": "'cmake' could not be found.\nUse 'sudo dnf install cmake' to install it and try again.",
+            "arguments": {
+                "command": "cmake",
+                "arguments": "--version",
+                "version": ">=3.0.0"
+            }
+        },
+        {
+            "description": "Looking for 'ninja'",
+            "method": "validate_prerequisite",
+            "status_on_error": "'ninja' could not be found.\nUse 'sudo dnf install ninja-build' to install it and try again.",
+            "arguments": {
+                "command": "ninja",
+                "arguments": "--version",
+                "version": ">=1.0.0"
+            }
+        },
+        {
             "description": "Getting git access token using 'dt'",
             "method": "execute_shell_command",
             "status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",
@@ -131,19 +151,20 @@
             }
         },
         {
-            "description": "Create a shell 'us' alias to the solution",
-            "method": "create_alias",
-            "arguments": {
-                "alias": "us",
-                "command": "$PROJ_WORKSPACE/env.sh"
-            }
-        },
-        {
-            "description": "Create a shell alias 'usd' to the solution (debug)",
+            "description": "Adding shell alias 'usd' to the solution",
             "method": "create_alias",
             "arguments": {
                 "alias": "usd",
                 "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
+            }
+        },
+        {
+            "description": "Adding shell alias 'us' to the solution",
+            "method": "create_alias",
+            "arguments": {
+                "alias": "us",
+                "command": "$PROJ_WORKSPACE/env.sh",
+                "commit_changes": true
             }
         }
     ]
