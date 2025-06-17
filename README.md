@@ -87,8 +87,26 @@ without disrupting your current working setup.
 Copy the following — `not-so-one-liner` — into your terminal and behold the magic.
 
 ```bash
-# Install the AutoForge demo overlay for 'userspace'
-GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto-forge"
+
+# The following not-so-one-liner below does quite a bit. Here’s a breakdown:
+#
+# 1. Executes the 'bootstrap' script 'bootstrap.sh' directly from the Package Git repository.
+# 2. Tell 'bootstrap' to use the solution 'userspace', which is part of the built-in sample set.
+# 3. Next, 'bootstrap' will:
+#    - Install the latest AutoForge package into the user scope (via pip).
+#    - Load the 'userspace' sample from the package.
+#    - Create a new workspace in a local folder named 'ws'.
+#    - Execute the sequence 'create_environment_sequence' defined by the solution.
+#
+# This sequence typically:
+#    - Validates that required tools are installed,
+#    - Creates a dedicated Python virtual environment inside the workspace,
+#    - Installs required Python packages into the venv,
+#    - Performs any additional environment setup steps defined by the solution.
+#
+# ⚠ No actions require 'sudo', and nothing is deleted without consent.
+
+GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge"
 TOKEN=$(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)
 
 curl -sSL \
