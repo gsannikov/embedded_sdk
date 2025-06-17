@@ -19,7 +19,7 @@
         {
             "description": "Looking for 'dt'",
             "method": "validate_prerequisite",
-            "status_on_error": "'dt' could not be found. Please make sure it is installed and try again.",
+            "status_on_error": "\nPackage 'dt' could not be found. Please make sure it is installed and try again.",
             "action_on_error": "resume",
             // Recommended: use 'break' or omit this field in production
             "arguments": {
@@ -40,6 +40,7 @@
         {
             "description": "Looking for 'git'",
             "method": "validate_prerequisite",
+            "status_on_error": "\nPackage 'git' could not be found.\nUse 'sudo dnf install git' to install it and try again.",
             "arguments": {
                 "command": "git",
                 "arguments": "--version",
@@ -49,7 +50,7 @@
         {
             "description": "Looking for 'cmake'",
             "method": "validate_prerequisite",
-            "status_on_error": "'cmake' could not be found.\nUse 'sudo dnf install cmake' to install it and try again.",
+            "status_on_error": "\nPackage 'cmake' could not be found.\nUse 'sudo dnf install cmake' to install it and try again.",
             "arguments": {
                 "command": "cmake",
                 "arguments": "--version",
@@ -59,7 +60,7 @@
         {
             "description": "Looking for 'ninja'",
             "method": "validate_prerequisite",
-            "status_on_error": "'ninja' could not be found.\nUse 'sudo dnf install ninja-build' to install it and try again.",
+            "status_on_error": "\nPackage 'ninja' could not be found.\nUse 'sudo dnf install ninja-build' to install it and try again.",
             "arguments": {
                 "command": "ninja",
                 "arguments": "--version",
