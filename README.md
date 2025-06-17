@@ -86,21 +86,13 @@ without disrupting your current working setup.
 
 Before we continue, make sure the following tools are installed:
 
-- `​**dt (Developer Tool)**​`  
+- `dt` Developer Tool:  
   Intel-internal command-line tool used to link your private GitHub account with your Intel SSO, allowing access to
   Intel’s private repositories.
 
-- `​**cmake**​`  
-  A widely-used build system generator that defines how software is configured and compiled across platforms.
+- Usually preinstalled — if not, just add them manually:
   > 📦 Install via package manager:  
-  `​dnf install cmake​`  
-  `​apt install cmake​`
-
-- `​**ninja**​`  
-  A fast, small build system often used alongside CMake to speed up incremental builds.
-  > 📦 Install via package manager:  
-  `​dnf install ninja-build​`  
-  `​apt install ninja-build​`
+  `sudo dnf install cmake ninja-build`
 
 ### Setup Instructions
 
