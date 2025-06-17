@@ -1,9 +1,8 @@
 <br>
-<div style="text-align: center;">
+<div align="center">
   <img src="src/auto_forge/resources/package/clip_art/logo.png" alt="Logo" style="width: 300px;">
 </div>
 <br>
-
 
 **AutoForge** is an extensible, Python-based framework designed to streamline complex build and validation workflows
 across embedded and software systems. Built with automation, clarity, and scalability in mind,
@@ -33,11 +32,7 @@ toolchains, this tool offers a unified interface to get the job done efficiently
 - **Modular CLI Framework**  
   Add and extend functionality via self-registering Python modules that conform to a common `CLICommandInterface`. The
   system includes a user-friendly interactive shell with support for tab-completion, history-based suggestions, and
-  contextual help.
-
-<div style="text-align: center;">
-  <img src="src/auto_forge/resources/package/clip_art/auto_complete.png" alt="Auto Complete" style="width: 350px;">
-</div>
+  contextual help. <br><br><img src="src/auto_forge/resources/package/clip_art/auto_complete.png" alt="Auto Complete" style="width: 350px;"><br>
 
 - **Integrated Help System**  
   Discover commands, arguments, and usage examples via a built-in help interface—accessible from the terminal without
@@ -56,10 +51,10 @@ toolchains, this tool offers a unified interface to get the job done efficiently
 
 ### AI-Friendly by Design
 
-<br>
 <div style="text-align: center;">
   <img src="src/auto_forge/resources/package/clip_art/ai.png" alt="AI Ready" style="width: 200px;">
 </div>
+<br>
 
 **AutoForge's** predictable structure, rich metadata, and standardized error handling make it ideal for AI-assisted
 development **and debugging. Its JSON-based configuration, uniform logging,
@@ -74,7 +69,7 @@ assistants and automated analysis tools.
 
 ---
 
-## Awesome! what's in for me?
+### Awesome! what's in it for me?
 
 If you're tired of scattered shell scripts, fragile CI jobs, and inconsistent build behaviors—**AutoForge** gives you a
 single, maintainable system for reproducible builds, insightful logs, and a consistent developer experience across the
@@ -88,21 +83,26 @@ already cloned repository. This approach lets you explore the tool in a realisti
 without disrupting your current working setup.
 
 ```bash
-curl -sSL -H "Authorization: token $(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)" \
+# Install the AutoForge demo overlay for 'userspace'
+GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto-forge"
+TOKEN=$(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)
+
+curl -sSL \
+  -H "Authorization: token ${TOKEN}" \
   -H "Cache-Control: no-store" \
-  "https://raw.githubusercontent.com/intel-innersource/firmware.ethernet.devops.auto-forge/refs/heads/main/src/auto_forge/resources/shared/bootstrap.sh" \
-   | bash -s -- -n userspace -w ws -s create_environment_sequence -p "<samples>/userspace"
+  "${GITHUB_REPO}/raw/refs/heads/main/src/auto_forge/resources/shared/bootstrap.sh" \
+  | bash -s -- \
+      -n userspace \
+      -w ws \
+      -s create_environment_sequence \
+      -p "<samples>/userspace"
 ```
 
----
-
-
-<br>
 <div style="text-align: center;">
   <img src="src/auto_forge/resources/package/clip_art/fork.png" alt="Get Involved">
 </div>
 
-Got ideas or improvements? Jump in and help make **AutoForge** even better — contributions are always welcome!
+Got ideas or improvements?<br>Jump in and help make **AutoForge** even better - contributions are always welcome!
 
 ## License
 
