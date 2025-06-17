@@ -11,7 +11,7 @@ friction and maximum control.
 
 ### In A Nutshell
 
-<div style="text-align: center;">
+<div align="center">
   <img src="src/auto_forge/resources/package/clip_art/flow.png" alt="Build Flow" style="width: 300px;">
 </div>
 
@@ -51,7 +51,7 @@ toolchains, this tool offers a unified interface to get the job done efficiently
 ### AI-Friendly by Design
 
 <br>
-<div style="text-align: center;">
+<div align="center">
   <img src="src/auto_forge/resources/package/clip_art/ai.png" alt="AI Ready" style="width: 200px;">
 </div>
 <br>
