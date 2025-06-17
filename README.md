@@ -21,7 +21,6 @@ structured logging, error recovery, and post-build analytics.
 Whether you're compiling a single RTOS image or coordinating cross-platform
 toolchains, this tool offers a unified interface to get the job done efficiently.
 
-
 ### Key Features
 
 - **Declarative Build Recipes**  
@@ -31,17 +30,18 @@ toolchains, this tool offers a unified interface to get the job done efficiently
 - **Modular CLI Framework**  
   Add and extend functionality via self-registering Python modules that conform to a common `CLICommandInterface`. The
   system includes a user-friendly interactive shell with support for tab-completion, history-based suggestions, and
-  contextual help. <br><br><img src="src/auto_forge/resources/package/clip_art/auto_complete.png" alt="Auto Complete" style="width: 350px;"><br>
+  contextual
+  help. <br><br><img src="src/auto_forge/resources/package/clip_art/auto_complete.png" alt="Auto Complete" style="width: 350px;"><br>
 
 - **Integrated Help System**  
-  Discover commands, arguments, and usage examples via a built-in help interface—accessible from the terminal without
+  Discover commands, arguments, and usage examples via a built-in help interface accessible from the terminal without
   leaving your workflow.
 
 - **Robust Logging and Telemetry**  
   Structured, colorized logs and build-time telemetry for auditability and debugging across local and CI environments.
 
 - **Environment Virtualization & Probing**  
-  Automated setup and teardown of environment variables, toolchains, and paths—including native detection of SDKs, tool
+  Automated setup and teardown of environment variables, toolchains, and paths including native detection of SDKs, tool
   versions, and platform capabilities.
 
 - **Plugin-Based Extensibility**  
@@ -69,20 +69,23 @@ assistants and automated analysis tools.
 
 ---
 
-### Awesome! what's in it for me?
+### Awesome! What's In It For Me?
 
-If you're tired of scattered shell scripts, fragile CI jobs, and inconsistent build behaviors—**AutoForge** gives you a
+If you're tired of scattered shell scripts, fragile CI jobs, and inconsistent build behaviors **AutoForge** gives you a
 single, maintainable system for reproducible builds, insightful logs, and a consistent developer experience across the
 board.
 
-### Demo Project Setup Instructions
+### The Demo Project
 
 The following link installs the `userspace` demo solution.
 Rather than replacing your existing `userspace` build flow, this demo is designed to overlay an
 already cloned repository. This approach lets you explore the tool in a realistic environment
 without disrupting your current working setup.
 
-Copy the following -not so onne liner- to your terminal and behold
+#### Setup Instructions
+
+Copy the following — `not-so-one-liner` — into your terminal and behold the magic.
+
 ```bash
 # Install the AutoForge demo overlay for 'userspace'
 GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto-forge"
