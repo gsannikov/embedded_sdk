@@ -31,6 +31,7 @@
         {
             "description": "Looking for 'python' 3.9.0 or greater",
             "method": "validate_prerequisite",
+            "status_on_error": "\nPython 3.9 or newer is required.\nRun 'sudo dnf install python3' to install the latest and try again.",
             "arguments": {
                 "command": "python3",
                 "arguments": "--version",
@@ -40,7 +41,7 @@
         {
             "description": "Looking for 'git'",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'git' could not be found.\nUse 'sudo dnf install git' to install it and try again.",
+            "status_on_error": "\nPackage 'git' not found.\nRun 'sudo dnf install gt' and try again.",
             "arguments": {
                 "command": "git",
                 "arguments": "--version",
@@ -50,7 +51,7 @@
         {
             "description": "Looking for 'cmake'",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'cmake' could not be found.\nUse 'sudo dnf install cmake' to install it and try again.",
+            "status_on_error": "\nPackage 'cmake' not found.\nRun 'sudo dnf install cmake' and try again.",
             "arguments": {
                 "command": "cmake",
                 "arguments": "--version",
@@ -60,7 +61,7 @@
         {
             "description": "Looking for 'ninja'",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'ninja' could not be found.\nUse 'sudo dnf install ninja-build' to install it and try again.",
+            "status_on_error": "\nPackage 'ninja' not found.\nRun 'sudo dnf install ninja-build' and try again.",
             "arguments": {
                 "command": "ninja",
                 "arguments": "--version",
@@ -70,7 +71,7 @@
         {
             "description": "Getting git access token using 'dt'",
             "method": "execute_shell_command",
-            "status_on_error": "Failed to retrieve Git token using 'dt'. Please ensure it is installed correctly.",
+            "status_on_error": "\nFailed to retrieve Git token using 'dt'.\nPlease ensure it is installed correctly.",
             "action_on_error": "resume",
             // Recommended: use 'break' or omit this field in production
             "arguments": {
@@ -154,6 +155,7 @@
         {
             "description": "Adding shell alias 'usd' to the solution",
             "method": "create_alias",
+            "action_on_error": "resume",
             "arguments": {
                 "alias": "usd",
                 "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
@@ -162,6 +164,7 @@
         {
             "description": "Adding shell alias 'us' to the solution",
             "method": "create_alias",
+            "action_on_error": "resume",
             "arguments": {
                 "alias": "us",
                 "command": "$PROJ_WORKSPACE/env.sh",
