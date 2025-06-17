@@ -69,48 +69,69 @@ assistants and automated analysis tools.
 
 ---
 
-### Awesome! What's In It For Me?
+## Awesome! What's In It For Me?
 
 If you're tired of scattered shell scripts, fragile CI jobs, and inconsistent build behaviors **AutoForge** gives you a
 single, maintainable system for reproducible builds, insightful logs, and a consistent developer experience across the
 board.
 
-### The Demo Project
+## The Demo Project
 
 The following link installs the `userspace` demo solution.
 Rather than replacing your existing `userspace` build flow, this demo is designed to overlay an
 already cloned repository. This approach lets you explore the tool in a realistic environment
 without disrupting your current working setup.
 
-#### Setup Instructions
+### 🛠 Prerequisites
 
-Copy the following — `not-so-one-liner` — into your terminal and behold the magic.
+Before we continue, make sure the following tools are installed:
+
+- `​**dt (Developer Tool)**​`  
+  Intel-internal command-line tool used to link your private GitHub account with your Intel SSO, allowing access to
+  Intel’s private repositories.
+
+- `​**cmake**​`  
+  A widely-used build system generator that defines how software is configured and compiled across platforms.
+  > 📦 Install via package manager:  
+  `​dnf install cmake​`  
+  `​apt install cmake​`
+
+- `​**ninja**​`  
+  A fast, small build system often used alongside CMake to speed up incremental builds.
+  > 📦 Install via package manager:  
+  `​dnf install ninja-build​`  
+  `​apt install ninja-build​`
+
+### Setup Instructions
+
+Copy and paste the following into your terminal.
 
 ```bash
 
-# The following not-so-one-liner below does quite a bit. Here’s a breakdown:
+# The following command does quite a bit. Here's a breakdown:
 #
-# 1. Executes the 'bootstrap' script 'bootstrap.sh' directly from the Package Git repository.
-# 2. Tell 'bootstrap' to use the solution 'userspace', which is part of the built-in sample set.
-# 3. Next, 'bootstrap' will:
-#    - Install the latest AutoForge package into the user scope (via pip).
-#    - Load the 'userspace' sample from the package.
-#    - Create a new workspace in a local folder named 'ws'.
-#    - Execute the sequence 'create_environment_sequence' defined by the solution.
+# 1. Uses the 'dt' tool to retrieve a GitHub token for accessing Intel private repositories.
+# 2. Downloads the 'bootstrap' script from the package Git repo using 'curl' and executes it.
 #
-# This sequence typically:
-#    - Validates that required tools are installed,
-#    - Creates a dedicated Python virtual environment inside the workspace,
-#    - Installs required Python packages into the venv,
-#    - Performs any additional environment setup steps defined by the solution.
+# The 'bootstrap' script then:
 #
-# ⚠ No actions require 'sudo', and nothing is deleted without consent.
+# 3. Installs the latest AutoForge package into the user scope (via pip).
+# 4. Loads the built-in 'userspace' sample.
+# 5. Uses the solution also named 'userspace' from that sample.
+# 6. Creates a new workspace in a local folder named 'ws'.
+# 7. Runs the 'create_environment_sequence' defined by the solution, which:
+#    - Verifies required tools are installed,
+#    - Creates a dedicated Python virtual environment,
+#    - Installs required Python packages,
+#    - Performs any additional setup defined by the solution.
+#
+# ⚠ No 'sudo' is required, and no files are deleted without consent.
 
 GITHUB_REPO="https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge"
-TOKEN=$(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)
+GITHUB_TOKEN=$(dt github print-token https://github.com/intel-innersource/firmware.ethernet.devop)
 
 curl -sSL \
-  -H "Authorization: token ${TOKEN}" \
+  -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Cache-Control: no-store" \
   "${GITHUB_REPO}/raw/refs/heads/main/src/auto_forge/resources/shared/bootstrap.sh" \
   | bash -s -- \
