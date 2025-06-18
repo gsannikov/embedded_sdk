@@ -74,6 +74,38 @@
         "help"
     ],
 
+    "max_index_size_kb": 1024,         // Max file size (KB)
+    "min_index_size_bytes": 2,         // Min file size (bytes)
+    "extra_indexing_verbosity": false, // Log skipped/warnings
+    "purify_content": true,            // Clean lines before indexing
+    "indexing_report_frequency":10000, // How often we should log indexing progress
+
+    "indexed_items": [
+        // List of file extensions and special filenames to index for fast content search
+        "c", "h",                       // C/C++ source and headers
+        "py",                           // Python
+        "CMakeLists.txt", "cmake",      // CMake main file + *.cmake scripts
+        "make", "Makefile",             // Makefiles
+        "sh",                           // Shell and Windows scripts
+        "json", "jsonc", "yaml", "yml", "toml" ,  // Config/data
+        "txt", "md", "rst", "cfg", "conf", "ini" // Misc text formats
+    ],
+
+    "non_indexed_path_patterns": [
+        ".git", ".svn", ".hg",          // version control
+        ".venv", "__pycache__",         // Python junk
+        ".mypy_cache", ".pytest_cache",
+        ".idea", ".vscode", ".DS_Store",
+        "tmp", "temp", "build", "out"   // build and temp dirs
+    ],
+
+    "quiet_skipped_file_patterns": [
+        ".*csr_.*\\.h$",                // CSR headers
+        ".*_regs\\.h$",                 // Auto-generated register headers
+        ".*_regs_regs\\.h$",            // Double-regs headers
+        ".*buildhistory.*\\.txt$"
+    ],
+
     // Expected location of solution files in an installed environment.
     // This variable is read during an early initialization stage, please avoid using any local variables
     // other than the workspace path and the solution name.

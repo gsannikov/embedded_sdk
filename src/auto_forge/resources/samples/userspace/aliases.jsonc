@@ -13,7 +13,7 @@
         {
             "name": "usgen",
             "command": [
-                "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace"
+                "refactor --recipe refactor.jsonc --source-path $USERSPACE_MMG/imc/userspace --destination $SOURCE_BASE/userspace",
                 "deploy --recipe $SCRIPTS_SOLUTION/deploy.jsonc --host-base-path $SOURCE_BASE/userspace --archive $SCRIPTS_SOLUTION/deploy.zip --direction to-host"
             ],
             "description": "👾 Generate the new `userspace` repo using current repo sources the `refactor` and the `deploy` commands",
