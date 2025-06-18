@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2059 ## Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+# shellcheck disable=SC2059 ## Do not use variables in the printf format string.
 
 # ------------------------------------------------------------------------------
 #
@@ -10,7 +10,9 @@
 #
 # ------------------------------------------------------------------------------
 
-AUTO_FORGE_BOOTSTRAP_URL="https://raw.githubusercontent.com/emichael72/auto_forge/main/src/auto_forge/resources/shared/bootstrap.sh"
+GITHUB_RAW="https://raw.githubusercontent.com"
+GITHUB_REPO="emichael72/auto_forge"
+GITHUB_PATH="src/auto_forge/resources/shared/bootstrap.sh"
 
 #
 # @brief Checks if the script was sourced or executed directly.
@@ -45,10 +47,11 @@ install_auto_forge() {
     local dest_workspace_path="" # Path for the new workspace
     local solution_name=""       # In this context: also the sample path name
     local solution_package=""
-    local bootstrap_url=""
+    local bootstrap_url="${GITHUB_RAW}/${GITHUB_REPO}/main/${GITHUB_PATH}"
     local auto_start=false
     local allow_non_empty=false
     local verbose=false
+    local token=""
     local workspace_name=""
 
     # Define ANSI style variables
@@ -187,21 +190,38 @@ install_auto_forge() {
     }
 
     # If no solution package was specified, use the <samples> placeholder.
-    # AutoForge will resolve it to a built-in sample directory.
+    # AutoForge will try to resolve it to a built-in sample directory.
     if [[ -z "$solution_package" ]]; then
         _verbose_print "No solution package specified, attempting to load a built-in sample..."
         solution_package="<samples>/$solution_name"
     fi
 
-    # Use the default internal bootstrap URL if none was specified
-    if [[ -z "$bootstrap_url" ]]; then
-        _verbose_print "Using internally defined bootstrap URL: $AUTO_FORGE_BOOTSTRAP_URL"
-        bootstrap_url="$AUTO_FORGE_BOOTSTRAP_URL"
+    # Attempt to get Git token using 'dt'
+    if output="$(dt github print-token 2>/dev/null)"; then
+        token="$output"
+        _verbose_print "Using GitHub token."
+    else
+        _verbose_print "No GitHub token available, continuing without it."
+        token=""
     fi
 
-    # Execute AutoForge bootstrap and point it to the required solution and let it handle the rest.
-    if ! curl -sSL -H "Cache-Control: no-store" "$bootstrap_url" |
-        bash -s -- -p "$solution_package" -w "$workspace_name" -n "$solution_name" -s create_environment_sequence; then
+    # Construct curl options
+    curl_args=(
+        -sSL
+        -H "Cache-Control: no-store"
+    )
+
+    if [[ -n "$token" ]]; then
+        curl_args+=(-H "Authorization: token ${token}")
+    fi
+
+    # Attempt bootstrap
+    if ! curl "${curl_args[@]}" "$bootstrap_url" | bash -s -- \
+        -n "$solution_name" \
+        -w "$workspace_name" \
+        -s create_environment_sequence \
+        -p "$solution_package"; then
+
         echo "Bootstrap failed"
         return 1
     fi
@@ -238,7 +258,6 @@ main() {
     fi
 
     return $ret_val
-
 }
 
 #
