@@ -1404,14 +1404,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             results = self._environment.execute_shell_command(
                 command_and_args=statement.command_and_args, env=var_env, echo_type=TerminalEchoType.LINE)
             self.last_result = results.return_code
+            return None
 
         except KeyboardInterrupt:
-            pass
+            return None
 
         except subprocess.CalledProcessError as exception:
             self._logger.warning(f"Command '{exception.cmd}' failed with {exception.returncode}")
             self.last_result = exception.returncode
-            pass
+            return None
 
         except Exception as exception:
             self._logger.exception(f"Exception: {exception}")

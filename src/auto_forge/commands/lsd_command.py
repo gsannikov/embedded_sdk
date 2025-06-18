@@ -11,7 +11,7 @@ Description:
     It requires the terminal or code editor to use a compatible Nerd Font, or icons will appear
     as blank boxes or question marks.
 
-    📦 Nerd Fonts: https://www.nerdfonts.com/font-downloads
+    Nerd Fonts: https://www.nerdfonts.com/font-downloads
 
     To use these icons correctly, install one of the patched fonts (e.g. FiraCode Nerd Font, Hack Nerd Font)
     and configure your terminal emulator or IDE to use it.

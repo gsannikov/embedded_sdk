@@ -530,6 +530,7 @@ class AutoForge(CoreModuleInterface):
                 # Start user prompt loop
                 self._prompt.cmdloop()
                 self._exit_code = self._prompt.last_result
+                return self._exit_code
 
             else:
 

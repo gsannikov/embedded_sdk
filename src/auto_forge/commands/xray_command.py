@@ -3,7 +3,7 @@ Module: xray_command.py
 Author: AutoForge Team
 
 Description:
-    Provides functionality for running queries on the build system SQLite DB.
+    Provides samples for running queries on XRayDB - the integrate SQLite DB.
 """
 
 import argparse
@@ -11,7 +11,7 @@ import re
 from logging import Logger
 from typing import Any, Optional
 
-from rich import box, panel
+from rich import box
 from rich.console import Console
 from rich.table import Table
 
@@ -93,8 +93,8 @@ class XRayCommand(CommandInterface):
             self._console.print(table)
             return 0
 
-        except Exception as e:
-            print(f"[!] Error while finding duplicates: {e}")
+        except Exception as xray_error:
+            raise xray_error
 
     def _find_all_mains(self, limit: int = 500) -> Optional[int]:
         """
@@ -150,7 +150,7 @@ class XRayCommand(CommandInterface):
             return 0
 
         except Exception as xray_error:
-            print(f"Error while searching for main functions: {xray_error}")
+            raise xray_error
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
