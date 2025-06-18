@@ -34,7 +34,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreDynamicLoader,
     CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox,
-    CoreVariables, CoreXRay, ExceptionGuru, EventManager, LogHandlersTypes,
+    CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersTypes,
     PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, StatusNotifType, Watchdog,
 )
@@ -68,7 +68,7 @@ class AutoForge(CoreModuleInterface):
         self._loader: Optional[CoreDynamicLoader] = None
         self._prompt: Optional[CorePrompt] = None
         self._telemetry: Optional[BuildTelemetry] = None
-        self._xray: Optional[CoreXRay] = None
+        self._xray: Optional[CoreXRayDB] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
         self._auto_logger: Optional[AutoLogger] = None
         self._sequence_log_file: Optional[Path] = None
@@ -524,7 +524,7 @@ class AutoForge(CoreModuleInterface):
                 self._prompt = CorePrompt()
 
                 # Initializes XRay SQLite background indexing
-                self._xray = CoreXRay()
+                self._xray = CoreXRayDB(no_index_rebuild=True)
                 self._xray.start()
 
                 # Start user prompt loop

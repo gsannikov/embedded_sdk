@@ -3,8 +3,19 @@ Script:         xray.py
 Author:         AutoForge Team
 
 Description:
-    Provides ...
+    Provides fast, full-text search indexing and querying for developer source trees.
+    The core module uses SQLite with FTS5 (trigram tokenizer) to index source files and
+    supports optional content purification to normalize formatting and remove noise.
+
+Features:
+    - Multi-threaded file scanning and indexing
+    - Content de-duplication using checksums
+    - Optional whitespace and encoding normalization ("purify")
+    - Live progress reporting with file skip/error counts
+    - CLI-friendly interface for structured and ad-hoc SQL queries
+
 """
+
 import hashlib
 import os
 import re
@@ -13,7 +24,6 @@ import threading
 import time
 from contextlib import suppress
 from dataclasses import dataclass
-from enum import auto, Enum
 from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
@@ -21,24 +31,15 @@ from typing import Optional, Any
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreVariables, AutoLogger
+    AutoLogger, AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreVariables, XRayStateType
 )
 
-AUTO_FORGE_MODULE_NAME = "XRay"
+AUTO_FORGE_MODULE_NAME = "XRayDB"
 AUTO_FORGE_MODULE_DESCRIPTION = "Files search tool"
 
 
-class XRayState(Enum):
-    NO_INITIALIZED = auto()
-    INITIALIZED = auto()
-    INDEXING = auto()
-    RUNNING = auto()
-    STOPPING = auto()
-    ERROR = auto()
-
-
 @dataclass
-class XRayStats:
+class _XRayStats:
     processed: int = 0
     skipped: int = 0
     errors: int = 0
@@ -51,13 +52,13 @@ class XRayStats:
         self.start_time = time.time()
 
 
-NUM_WORKERS = os.cpu_count() or 4
-NUM_READERS = 4
-BATCH_SIZE = 50
+XRAY_NUM_WORKERS = os.cpu_count() or 4
+XRAY_NUM_READERS = 4
+XRAY_BATCH_SIZE = 50
 
 
 # noinspection SqlNoDataSourceInspection
-class CoreXRay(CoreModuleInterface):
+class CoreXRayDB(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
@@ -77,9 +78,11 @@ class CoreXRay(CoreModuleInterface):
         self._indexing_report_frequency: int = 1000
         self._has_indexed: bool = False
         self._fresh_db: bool = False
+        self._rebuild_index_on_start = True  # User arguments to start()
+        self._drop_current_index = False  # User arguments to start()
         self._purify_content: bool = True
         self._indexing_start_time: float = 0
-        self._state: XRayState = XRayState.NO_INITIALIZED
+        self._state: XRayStateType = XRayStateType.NO_INITIALIZED
 
         super().__init__(*args, **kwargs)
 
@@ -117,18 +120,17 @@ class CoreXRay(CoreModuleInterface):
             self._compiled_quiet_patterns = [re.compile(p) for p in self._quiet_skipped_file_patterns]
 
             self._sql_db_file = self._index_path / "autoforge.db"
-            self._init_sqlite_index(self._sql_db_file)
 
             # Registry for centralized access
             registry = CoreRegistry.get_instance()
             registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                      auto_forge_module_type=AutoForgeModuleType.CORE)
 
-            self._state = XRayState.INITIALIZED
+            self._state = XRayStateType.INITIALIZED
 
         # Forward exceptions
         except Exception as exception:
-            self._state = XRayState.ERROR
+            self._state = XRayStateType.ERROR
             raise exception
 
     def _get_and_validate_paths(self):
@@ -178,14 +180,23 @@ class CoreXRay(CoreModuleInterface):
             return sqlite3.connect(f"file:{self._sql_db_file}?mode=ro", uri=True)
         return sqlite3.connect(str(self._sql_db_file))
 
-    def _init_sqlite_index(self, db_path: Path, force_new: bool = False) -> None:
+    # noinspection SpellCheckingInspection
+    def _init_sqlite_index(self, db_path: Path, drop_current_index: bool = False) -> None:
         """
-        Crate or open sqlite index file.
+        Create or open the SQLite index database.
+        If the database file does not exist, a new one is created with the required tables and
+        indexing structure (FTS5 for full-text content and metadata table for checksums).
+        If `force_new` is True, an existing database will be deleted and rebuilt from scratch.
+
+        Args:
+            db_path (Path): Path to the SQLite database file.
+            drop_current_index (bool): If True, existing DB will be deleted and recreated.
         """
 
-        if db_path.exists() and force_new:
-            self._logger.warning(f"Existing SQLite index '{db_path}' deleted")
-            db_path.unlink()
+        if drop_current_index:
+            if db_path.exists():
+                self._logger.warning(f"Existing SQLite index '{db_path}' deleted")
+                db_path.unlink()
 
         if not db_path.exists():
             self._fresh_db = True
@@ -221,7 +232,6 @@ class CoreXRay(CoreModuleInterface):
                 cursor.execute("EXPLAIN QUERY PLAN SELECT checksum FROM file_meta WHERE path = ?", ("some_path",))
                 plan = cursor.fetchall()
                 self._logger.debug(f"Query plan for metadata lookup: {plan}")
-
                 conn.close()
 
             except Exception as sql_error:
@@ -280,17 +290,31 @@ class CoreXRay(CoreModuleInterface):
             conn.close()
 
     def _indexer_thread(self):
+        """
+        Internal thread entry point for performing the indexing process.
+        This function is intended to be executed in a background thread.
+        """
         try:
-            # Actual indexing logic
-            self._has_indexed = self._perform_indexing()
+
+            # Initialize the database
+            self._init_sqlite_index(db_path=self._sql_db_file, drop_current_index=self._drop_current_index)
+
+            # Perform indexing
+            if not self._rebuild_index_on_start:
+                self._logger.warning("Indexes building canceled")
+                self._has_indexed = True
+            else:
+                self._has_indexed = self._perform_indexing()
+
             if self._has_indexed:
                 with self._lock:
-                    self._state = XRayState.RUNNING
+                    self._logger.warning("XRay is in running mode")
+                    self._state = XRayStateType.RUNNING
 
         except Exception as indexing_error:
             self._logger.error(f"Indexer error: {indexing_error}")
             with self._lock:
-                self._state = XRayState.ERROR
+                self._state = XRayStateType.ERROR
 
     # noinspection SpellCheckingInspection
     @staticmethod
@@ -362,33 +386,51 @@ class CoreXRay(CoreModuleInterface):
         """
 
         def _should_skip_path(_path: Path) -> bool:
+            """
+            Determine if a path should be skipped during indexing.
+            Skips any path that contains:
+            - Hidden directories or files (starting with '.')
+            - Directories matching the patterns in `self._non_indexed_path_patterns`
+            Args:
+                _path (Path): The path to evaluate.
+            Returns:
+                bool: True if the path should be skipped, False otherwise.
+            """
             return any(
                 _part.startswith(".") or _part in self._non_indexed_path_patterns
                 for _part in _path.parts
             )
 
         def _matches(_file: Path, _indexed_items: list[str]) -> bool:
+            """ Regex callback implementation """
             return _file.name in _indexed_items or _file.suffix.lstrip(".") in _indexed_items
 
         file_queue = Queue()
         result_queue = Queue()
         count_lock = Lock()
         total_processed: int = 0
-        read_stats: XRayStats = XRayStats()
-        write_stats: XRayStats = XRayStats()
+        read_stats: _XRayStats = _XRayStats()
+        write_stats: _XRayStats = _XRayStats()
         self._indexing_start_time = time.time()
         last_log_time = self._indexing_start_time
 
         with self._lock:
             paths = list(self._managed_paths or [])
             indexed_items = list(self._indexed_items or [])
-            self._state = XRayState.INDEXING
+            self._state = XRayStateType.INDEXING
 
         self._logger.info("Starting background indexing...")
         if self._purify_content:
             self._logger.warning("Files will be purified prior to indexing")
 
         def _log_stats(_summarize: bool = False):
+            """
+            Periodically or finally log indexing statistics.
+            Logs the number of files handled, the rate of processing,
+            and optionally the number of skipped and error files.
+            Args:
+                _summarize (bool): If True, forces a final summary log regardless of frequency.
+            """
             nonlocal read_stats, write_stats, total_processed, last_log_time
 
             with count_lock:
@@ -429,6 +471,12 @@ class CoreXRay(CoreModuleInterface):
                 write_stats.processed = write_stats.skipped = write_stats.errors = 0
 
         def _reader_worker():
+            """
+            Thread worker that reads and optionally purifies file content from the queue.
+            - Skips large, binary, or excluded files.
+            - Computes checksum.
+            - Passes valid results to the writer queue.
+            """
             nonlocal read_stats
             read_stats.start_time = time.time()
 
@@ -471,6 +519,12 @@ class CoreXRay(CoreModuleInterface):
                     file_queue.task_done()
 
         def _writer_worker():
+            """
+            Thread worker that consumes parsed file data and writes it to the SQLite index.
+            - Skips unchanged files based on checksum.
+            - Commits batched inserts.
+            - Updates statistics.
+            """
             _conn = self._get_sql_connection()
             _conn.execute("BEGIN")
             _batch = []
@@ -508,7 +562,7 @@ class CoreXRay(CoreModuleInterface):
                     _meta_batch.append((_path, _mtime, _checksum))
                     write_stats.processed += 1
 
-                    if len(_batch) >= BATCH_SIZE:
+                    if len(_batch) >= XRAY_BATCH_SIZE:
                         try:
                             _conn.executemany("""
                                 INSERT OR REPLACE INTO files (path, content, modified, checksum)
@@ -555,7 +609,8 @@ class CoreXRay(CoreModuleInterface):
             _batch = []
             _meta_batch = []
 
-        readers = [Thread(target=_reader_worker, daemon=True, name="IndexerReader") for _ in range(NUM_READERS)]
+        """ Indexer entrypoint """
+        readers = [Thread(target=_reader_worker, daemon=True, name="IndexerReader") for _ in range(XRAY_NUM_READERS)]
         writer = Thread(target=_writer_worker, daemon=True, name="IndexerWriter")
 
         for r in readers:
@@ -588,7 +643,31 @@ class CoreXRay(CoreModuleInterface):
         Returns:
             Optional[str]: Result rows joined by newlines, or None on failure.
         """
-        if self._state != XRayState.RUNNING:
+        if self._state != XRayStateType.RUNNING:
+            raise RuntimeError("XRay is not running")
+
+        conn = self._get_sql_connection(read_only=True)
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        conn.close()
+        if not rows:
+            return None
+
+        return "\n".join(" | ".join(str(cell) for cell in row) for row in rows)
+
+    def query_raw(self, query: str) -> Optional[list[tuple[str, str]]]:
+        """
+        Execute a raw SQL query and return raw (path, content) tuples.
+        This is primarily used for internal analysis or full-text scanning,
+        where the full content of matching files is needed for further filtering.
+        Args:
+            query (str): SQL query to run.
+        Returns:
+            Optional[list[tuple[str, str]]]: List of (path, content) tuples,
+            or None if query fails or returns no results.
+        """
+        if self._state != XRayStateType.RUNNING:
             raise RuntimeError("XRay is not running")
 
         with suppress(Exception):
@@ -597,33 +676,52 @@ class CoreXRay(CoreModuleInterface):
             cursor.execute(query)
             rows = cursor.fetchall()
             conn.close()
-            if not rows:
-                return None
-
-            return "\n".join(" | ".join(str(cell) for cell in row) for row in rows)
+            return rows
 
         return None
 
-    def start(self) -> None:
+    def start(self, skip_index_refresh: bool = False, drop_current_index: bool = False) -> None:
+        """
+        Start the background indexing thread.
+
+        Initializes the SQLite index (creating it if needed) and begins
+        scanning the workspace for indexable files. The method returns
+        immediately while indexing continues in the background.
+        Args:
+            skip_index_refresh (bool, optional): If True, skip index refresh
+            drop_current_index (bool, optional): If True, drop current index and create new
+        """
         with self._lock:
-            if self._state not in {XRayState.INITIALIZED, XRayState.STOPPING}:
+
+            if self._state not in {XRayStateType.INITIALIZED, XRayStateType.STOPPING}:
                 raise RuntimeError(f"Cannot start; current state is {self._state.name}")
 
             if self._thread and self._thread.is_alive():
                 self._logger.debug("Indexer thread already running.")
                 return
 
+            # Store user arguments
+            self._drop_current_index = drop_current_index
+            if skip_index_refresh:
+                self._rebuild_index_on_start = False
+
             self._stop_flag.clear()
             self._thread = threading.Thread(target=self._indexer_thread, name="CoreXRayIndexer", daemon=True)
             self._thread.start()
-            self._state = XRayState.INDEXING
+            self._state = XRayStateType.INDEXING
 
     def stop(self) -> None:
+        """
+        Stop the background indexing process, if running.
+
+        Gracefully signals all background threads to shut down and waits
+        for completion. Does nothing if already stopped or uninitialized.
+        """
         with self._lock:
-            if self._state not in {XRayState.INDEXING, XRayState.RUNNING}:
+            if self._state not in {XRayStateType.INDEXING, XRayStateType.RUNNING}:
                 raise RuntimeError("Stop ignored: Indexer is not running.")
 
-            self._state = XRayState.STOPPING
+            self._state = XRayStateType.STOPPING
             self._stop_flag.set()
             with self._pause_condition:
                 self._pause_condition.notify_all()
@@ -631,4 +729,8 @@ class CoreXRay(CoreModuleInterface):
                 self._thread.join()
                 self._thread = None
 
-            self._state = XRayState.INITIALIZED
+            self._state = XRayStateType.INITIALIZED
+
+    @property
+    def state(self) -> XRayStateType:
+        return self._state

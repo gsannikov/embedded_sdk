@@ -435,7 +435,7 @@ class EditCommand(CommandInterface):
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
-        Adds command-line arguments for the hello command.
+        Adds command-line arguments.
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
@@ -446,7 +446,7 @@ class EditCommand(CommandInterface):
 
     def run(self, args: argparse.Namespace) -> int:
         """
-        Executes the hello command based on parsed arguments.
+        Executes 'edit' command based on parsed arguments.
         Args:
             args (argparse.Namespace): Parsed command-line arguments.
         Returns:

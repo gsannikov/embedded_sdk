@@ -155,6 +155,17 @@ COMMAND_TYPE_COLOR_MAP = {
 }
 # @formatter:on
 
+
+class XRayStateType(Enum):
+    """ XRay data base status types"""
+    NO_INITIALIZED = auto()
+    INITIALIZED = auto()
+    INDEXING = auto()
+    RUNNING = auto()
+    STOPPING = auto()
+    ERROR = auto()
+
+
 class SequenceErrorActionType(Enum):
     """Enum for error actions, storing both int value and string label."""
     DEFAULT = (0, "default")
