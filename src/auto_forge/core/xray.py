@@ -295,13 +295,15 @@ class CoreXRayDB(CoreModuleInterface):
         This function is intended to be executed in a background thread.
         """
         try:
-
             # Initialize the database
             self._init_sqlite_index(db_path=self._sql_db_file, drop_current_index=self._drop_current_index)
 
+            if self._fresh_db and not self._rebuild_index_on_start:
+                raise RuntimeError("Database does not exist and index rebuild is disabled. XRay cannot proceed.")
+
             # Perform indexing
             if not self._rebuild_index_on_start:
-                self._logger.warning("Indexes building canceled")
+                self._logger.warning("Indexes building was skipped")
                 self._has_indexed = True
             else:
                 self._has_indexed = self._perform_indexing()
