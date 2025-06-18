@@ -24,6 +24,7 @@ import threading
 import time
 from contextlib import suppress
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
@@ -31,7 +32,7 @@ from typing import Optional, Any
 
 # AutoForge imports
 from auto_forge import (
-    AutoLogger, AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreVariables, XRayStateType
+    AutoLogger, AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSolution, CoreVariables, XRayStateType
 )
 
 AUTO_FORGE_MODULE_NAME = "XRayDB"
@@ -92,6 +93,7 @@ class CoreXRayDB(CoreModuleInterface):
         """
         try:
             self._variables = CoreVariables.get_instance()
+            self._solution = CoreSolution.get_instance()
 
             # Get a logger instance
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -115,6 +117,12 @@ class CoreXRayDB(CoreModuleInterface):
             self._extra_indexing_verbosity = bool(self._configuration.get("extra_indexing_verbosity", False))
             self._indexing_report_frequency = int(
                 self._configuration.get("indexing_report_frequency", self._indexing_report_frequency))
+
+            # Load excluded paths list from the solution
+            self._excluded_paths: Any = self._solution.get_arbitrary_item(key="xray_excluded_path")
+            if not isinstance(self._excluded_paths, list) or len(self._excluded_paths) < 1:
+                self._logger.warning("Solution excluded paths are not either not defined or invalid")
+                self._excluded_paths = []
 
             # Create regex pattern based on the configuration list
             self._compiled_quiet_patterns = [re.compile(p) for p in self._quiet_skipped_file_patterns]
@@ -390,18 +398,32 @@ class CoreXRayDB(CoreModuleInterface):
         def _should_skip_path(_path: Path) -> bool:
             """
             Determine if a path should be skipped during indexing.
-            Skips any path that contains:
-            - Hidden directories or files (starting with '.')
-            - Directories matching the patterns in `self._non_indexed_path_patterns`
+
+            Skips if:
+            - Any part starts with '.' (hidden files/dirs)
+            - Any part matches `self._non_indexed_path_patterns`
+            - Full path matches any pattern in `self._excluded_paths`
             Args:
                 _path (Path): The path to evaluate.
             Returns:
                 bool: True if the path should be skipped, False otherwise.
             """
-            return any(
-                _part.startswith(".") or _part in self._non_indexed_path_patterns
-                for _part in _path.parts
-            )
+            # Check hidden parts and known non-indexed path names
+            if any(
+                    _part.startswith(".") or _part in self._non_indexed_path_patterns
+                    for _part in _path.parts
+            ):
+                return True
+
+            # Check against excluded path patterns
+            if self._excluded_paths:
+                _path_str = str(_path)
+                if any(fnmatch(_path_str, pattern) for pattern in self._excluded_paths):
+                    if self._extra_indexing_verbosity:
+                        self._logger.warning(f"Skipping '{_path_str}' due to excluded paths rule")
+                    return True
+
+            return False
 
         def _matches(_file: Path, _indexed_items: list[str]) -> bool:
             """ Regex callback implementation """
@@ -619,6 +641,7 @@ class CoreXRayDB(CoreModuleInterface):
             r.start()
         writer.start()
 
+        # Exclude paths
         for path in paths:
             for file in path.rglob("*"):
                 if file.is_file() and _matches(file, indexed_items) and not _should_skip_path(file):
