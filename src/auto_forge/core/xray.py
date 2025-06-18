@@ -166,36 +166,46 @@ class CoreXRay(CoreModuleInterface):
 
         self._index_path = index_path
 
-    def _get_sql_connection(self) -> sqlite3.Connection:
+    def _get_sql_connection(self, read_only: bool = False) -> sqlite3.Connection:
+        """
+        Returns a connection to the SQLite database.
+        Args:
+            read_only (bool): If True, opens the database in read-only mode.
+        Returns:
+            sqlite3.Connection: SQLite connection object.
+        """
+        if read_only:
+            return sqlite3.connect(f"file:{self._sql_db_file}?mode=ro", uri=True)
         return sqlite3.connect(str(self._sql_db_file))
 
     def _init_sqlite_index(self, db_path: Path, force_new: bool = False) -> None:
-        create_table = False
+        """
+        Crate or open sqlite index file.
+        """
 
-        if db_path.exists():
-            if force_new:
-                self._logger.warning(f"Exiting SQLite index '{db_path}' deleted")
-                db_path.unlink()
+        if db_path.exists() and force_new:
+            self._logger.warning(f"Existing SQLite index '{db_path}' deleted")
+            db_path.unlink()
 
         if not db_path.exists():
-            create_table = True
             self._fresh_db = True
         else:
             self._logger.debug(f"Opening SQLite index: {db_path}")
             try:
                 conn = sqlite3.connect(str(db_path))
-                conn.execute("PRAGMA journal_mode=WAL;")
-
                 cursor = conn.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL;")
-                # cursor.execute("PRAGMA synchronous=NORMAL;")
-                cursor.execute("PRAGMA temp_store=MEMORY;")
-                cursor.execute("PRAGMA cache_size = -512000;")  # 512 MB in KB (negative = size in KB)
-                cursor.execute("PRAGMA mmap_size = 536870912;")  # 512 MB in bytes
-                cursor.execute("PRAGMA foreign_keys = OFF;")
-                cursor.execute("PRAGMA locking_mode=EXCLUSIVE;")  # Reduces locking overhead
-                cursor.execute("PRAGMA synchronous=OFF;")  # Max speed, lower safety
 
+                # Fast settings for read-heavy use
+                cursor.executescript("""
+                    PRAGMA journal_mode = WAL;
+                    PRAGMA synchronous = OFF;
+                    PRAGMA temp_store = MEMORY;
+                    PRAGMA cache_size = -512000;
+                    PRAGMA mmap_size = 536870912;
+                    PRAGMA foreign_keys = OFF;
+                """)
+
+                # Detect presence of existing tables
                 cursor.execute("""
                                SELECT name
                                FROM sqlite_master
@@ -203,25 +213,31 @@ class CoreXRay(CoreModuleInterface):
                                  AND name = 'files';
                                """)
                 if not cursor.fetchone():
-                    create_table = True
+                    self._fresh_db = True
                 else:
-                    cursor.execute("SELECT * FROM files LIMIT 1;")
+                    cursor.execute("SELECT 1 FROM files LIMIT 1;")  # Fast schema check
+
+                # Check if index is being used
+                cursor.execute("EXPLAIN QUERY PLAN SELECT checksum FROM file_meta WHERE path = ?", ("some_path",))
+                plan = cursor.fetchall()
+                self._logger.debug(f"Query plan for metadata lookup: {plan}")
+
                 conn.close()
-            except Exception as e:
-                self._logger.warning(f"Existing index is invalid or incompatible: {e}")
+
+            except Exception as sql_error:
+                self._logger.warning(f"Existing index is invalid or incompatible: {sql_error}")
                 try:
                     db_path.unlink(missing_ok=True)
                     self._logger.info(f"Deleted corrupted index file: {db_path}")
                 except Exception as delete_error:
                     self._logger.error(f"Failed to delete corrupted index file: {delete_error}")
-                create_table = True
+                self._fresh_db = True
 
-        if create_table:
+        if self._fresh_db:
             self._logger.info(f"Creating new SQLite index at: {db_path}")
             conn = sqlite3.connect(str(db_path))
             cursor = conn.cursor()
 
-            # Create the FTS5 content index
             cursor.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS files USING fts5(
                     path UNINDEXED,
@@ -232,7 +248,6 @@ class CoreXRay(CoreModuleInterface):
                 );
             """)
 
-            # Create the metadata table
             cursor.execute("""
                            CREATE TABLE IF NOT EXISTS file_meta
                            (
@@ -246,9 +261,20 @@ class CoreXRay(CoreModuleInterface):
                                TEXT
                            );
                            """)
+
             cursor.execute("""
                            CREATE INDEX IF NOT EXISTS idx_file_meta_path ON file_meta(path);
                            """)
+
+            # PRAGMAs for new DB
+            cursor.executescript("""
+                PRAGMA journal_mode = WAL;
+                PRAGMA synchronous = OFF;
+                PRAGMA temp_store = MEMORY;
+                PRAGMA cache_size = -512000;
+                PRAGMA mmap_size = 536870912;
+                PRAGMA foreign_keys = OFF;
+            """)
 
             conn.commit()
             conn.close()
@@ -347,12 +373,11 @@ class CoreXRay(CoreModuleInterface):
         file_queue = Queue()
         result_queue = Queue()
         count_lock = Lock()
-        indexed_count = [0]
-        start_time = time.time()
         total_processed: int = 0
         read_stats: XRayStats = XRayStats()
         write_stats: XRayStats = XRayStats()
         self._indexing_start_time = time.time()
+        last_log_time = self._indexing_start_time
 
         with self._lock:
             paths = list(self._managed_paths or [])
@@ -364,36 +389,44 @@ class CoreXRay(CoreModuleInterface):
             self._logger.warning("Files will be purified prior to indexing")
 
         def _log_stats(_summarize: bool = False):
+            nonlocal read_stats, write_stats, total_processed, last_log_time
 
-            nonlocal read_stats, write_stats, total_processed
             with count_lock:
-                processed_count: int = write_stats.processed + write_stats.skipped
-                error_count: int = read_stats.errors + write_stats.errors
+                processed_count = write_stats.processed + write_stats.skipped
+                error_count = read_stats.errors + write_stats.errors
+
                 if not processed_count:
                     return
 
+                now = time.time()
+
                 if not _summarize:
                     if processed_count % self._indexing_report_frequency == 0:
-                        elapsed = time.time() - write_stats.start_time
-                        rate = processed_count / elapsed if elapsed > 0 else 0
+                        elapsed = now - last_log_time
+                        last_log_time = now  # Update for next round
+
+                        rate = int(processed_count / elapsed) if elapsed > 0 else 0
                         total_processed += processed_count
-                        self._logger.info(
-                            f"Handled {total_processed} files ({rate:.1f} files/sec) ({write_stats.skipped} skipped, {error_count} errors)"
-                        )
+
+                        details = [f"Handled {total_processed:>7,d} files ({rate:>5,d} files/sec)"]
+                        if write_stats.skipped:
+                            details.append(f"{write_stats.skipped} skipped")
+                        if error_count:
+                            details.append(f"{error_count} errors")
+
+                        self._logger.info(" | ".join(details))
                     else:
                         return
                 else:
-                    # Final summary
-                    total_processed += processed_count
-                    elapsed = time.time() - self._indexing_start_time
+                    elapsed = now - self._indexing_start_time
                     rate = total_processed / elapsed if elapsed > 0 else 0
                     self._logger.info(
-                        f"Final: Indexed {total_processed} files ({rate:.1f} files/sec)d"
+                        f"Final: Indexed {total_processed} files ({rate:.1f} files/sec)"
                     )
 
-                # Reset counters after reporting
-                read_stats.reset()
-                write_stats.reset()
+                # Reset counters but not the start time
+                read_stats.processed = read_stats.errors = 0
+                write_stats.processed = write_stats.skipped = write_stats.errors = 0
 
         def _reader_worker():
             nonlocal read_stats
@@ -446,10 +479,18 @@ class CoreXRay(CoreModuleInterface):
             nonlocal write_stats
             write_stats.start_time = time.time()
 
+            # Before loop starts
+            self._logger.info(f"Preloading metadata..")
+            meta_lookup = {
+                row[0]: row[1]
+                for row in _conn.execute("SELECT path, checksum FROM file_meta")
+            }
+            self._logger.info(f"Metadata preloaded size {len(meta_lookup)}")
+
             while True:
                 _item = result_queue.get()
                 if _item is None:
-                    self._logger.error(f"Queue is empty, consumer thread stopped")
+                    self._logger.info(f"Queue is empty, consumer thread stopped")
                     break
 
                 _log_stats()
@@ -459,10 +500,7 @@ class CoreXRay(CoreModuleInterface):
 
                     # Skip unchanged files
                     if not self._fresh_db:
-                        existing_checksum = _conn.execute(
-                            "SELECT checksum FROM files WHERE path = ?", (_path,)
-                        ).fetchone()
-                        if existing_checksum and existing_checksum[0] == _checksum:
+                        if meta_lookup.get(_path) == _checksum:
                             write_stats.skipped += 1
                             continue
 
@@ -539,9 +577,32 @@ class CoreXRay(CoreModuleInterface):
         result_queue.put(None)
         writer.join()
 
-        duration = time.time() - start_time
-        self._logger.info(f"Indexing complete. Total indexed: {indexed_count[0]} files in {duration:.2f} seconds.")
+        _log_stats(_summarize=True)
         return True
+
+    def query(self, query: str) -> Optional[str]:
+        """
+        Execute a raw SQL query against the content database and return the result as a string.
+        Args:
+            query (str): SQL query string.
+        Returns:
+            Optional[str]: Result rows joined by newlines, or None on failure.
+        """
+        if self._state != XRayState.RUNNING:
+            raise RuntimeError("XRay is not running")
+
+        with suppress(Exception):
+            conn = self._get_sql_connection(read_only=True)
+            cursor = conn.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            conn.close()
+            if not rows:
+                return None
+
+            return "\n".join(" | ".join(str(cell) for cell in row) for row in rows)
+
+        return None
 
     def start(self) -> None:
         with self._lock:

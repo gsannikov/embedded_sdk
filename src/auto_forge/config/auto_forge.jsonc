@@ -78,7 +78,7 @@
     "min_index_size_bytes": 2,         // Min file size (bytes)
     "extra_indexing_verbosity": false, // Log skipped/warnings
     "purify_content": true,            // Clean lines before indexing
-    "indexing_report_frequency":10000, // How often we should log indexing progress
+    "indexing_report_frequency":10000,// How often we should log indexing progress
 
     "indexed_items": [
         // List of file extensions and special filenames to index for fast content search
