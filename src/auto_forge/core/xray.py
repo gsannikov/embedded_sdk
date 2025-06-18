@@ -36,7 +36,7 @@ from auto_forge import (
 )
 
 AUTO_FORGE_MODULE_NAME = "XRayDB"
-AUTO_FORGE_MODULE_DESCRIPTION = "Files search tool"
+AUTO_FORGE_MODULE_DESCRIPTION = "Source Tree Data Base"
 
 
 @dataclass
@@ -318,7 +318,7 @@ class CoreXRayDB(CoreModuleInterface):
 
             if self._has_indexed:
                 with self._lock:
-                    self._logger.warning("XRay is running")
+                    self._logger.info("XRayDB is running")
                     self._state = XRayStateType.RUNNING
 
         except Exception as indexing_error:
@@ -445,7 +445,7 @@ class CoreXRayDB(CoreModuleInterface):
 
         self._logger.info("Starting background indexing...")
         if self._purify_content:
-            self._logger.warning("Files will be purified prior to indexing")
+            self._logger.info("Files will be purified prior to indexing")
 
         def _log_stats(_summarize: bool = False):
             """
@@ -552,17 +552,19 @@ class CoreXRayDB(CoreModuleInterface):
             _conn.execute("BEGIN")
             _batch = []
             _meta_batch = []
+            _meta_lookup = {}
             _path = "<unknown>"
             nonlocal write_stats
             write_stats.start_time = time.time()
 
             # Before loop starts
-            self._logger.debug(f"Preloading metadata..")
-            meta_lookup = {
-                row[0]: row[1]
-                for row in _conn.execute("SELECT path, checksum FROM file_meta")
-            }
-            self._logger.debug(f"Metadata preloaded size {len(meta_lookup)}")
+            if not self._fresh_db:
+                self._logger.debug(f"Preloading metadata..")
+                _meta_lookup = {
+                    row[0]: row[1]
+                    for row in _conn.execute("SELECT path, checksum FROM file_meta")
+                }
+                self._logger.debug(f"Metadata preloaded size {len(_meta_lookup)}")
 
             while True:
                 _item = result_queue.get()
@@ -577,7 +579,7 @@ class CoreXRayDB(CoreModuleInterface):
 
                     # Skip unchanged files
                     if not self._fresh_db:
-                        if meta_lookup.get(_path) == _checksum:
+                        if _meta_lookup.get(_path) == _checksum:
                             write_stats.skipped += 1
                             continue
 
@@ -668,7 +670,7 @@ class CoreXRayDB(CoreModuleInterface):
             Optional[str]: Result rows joined by newlines, or None on failure.
         """
         if self._state != XRayStateType.RUNNING:
-            raise RuntimeError("XRay is not running")
+            raise RuntimeError("XRayDB is not running")
 
         conn = self._get_sql_connection(read_only=True)
         cursor = conn.cursor()
@@ -692,7 +694,7 @@ class CoreXRayDB(CoreModuleInterface):
             or None if query fails or returns no results.
         """
         if self._state != XRayStateType.RUNNING:
-            raise RuntimeError("XRay is not running")
+            raise RuntimeError("XRayDB is not running")
 
         with suppress(Exception):
             conn = self._get_sql_connection(read_only=True)
@@ -707,7 +709,6 @@ class CoreXRayDB(CoreModuleInterface):
     def start(self, skip_index_refresh: bool = False, drop_current_index: bool = False) -> None:
         """
         Start the background indexing thread.
-
         Initializes the SQLite index (creating it if needed) and begins
         scanning the workspace for indexable files. The method returns
         immediately while indexing continues in the background.
@@ -737,7 +738,6 @@ class CoreXRayDB(CoreModuleInterface):
     def stop(self) -> None:
         """
         Stop the background indexing process, if running.
-
         Gracefully signals all background threads to shut down and waits
         for completion. Does nothing if already stopped or uninitialized.
         """
