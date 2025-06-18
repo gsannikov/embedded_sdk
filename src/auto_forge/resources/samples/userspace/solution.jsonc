@@ -24,11 +24,10 @@
             "build_path": "$BUILD_OUT",
             "workspace": "$PROJ_WORKSPACE",
             "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
-            "non_indexed_paths": [
+
+            "xray_excluded_path": [
                 "*kernel/[0-9]*",                   // Versioned kernel trees like kernel/6.6.4
                 "*linux-[0-9]*",                    // Directories like linux-5.10, linux-6.1.1
-                "*drivers/net/*",                   // Network driver code (high duplication across versions)
-                "*arch/*",                          // Architecture-specific folders in kernels
                 "*include/uapi/*",                  // UAPI headers (often duplicated)
                 "*kernel-old*",                     // Backup or archived kernel folders
                 "*backups/*",                       // Generic backup directories

@@ -121,7 +121,7 @@ class CoreXRayDB(CoreModuleInterface):
             # Load excluded paths list from the solution
             self._excluded_paths: Any = self._solution.get_arbitrary_item(key="xray_excluded_path")
             if not isinstance(self._excluded_paths, list) or len(self._excluded_paths) < 1:
-                self._logger.warning("Solution excluded paths are not either not defined or invalid")
+                self._logger.warning("Solution's excluded paths are either undefined or incorrectly formatted.")
                 self._excluded_paths = []
 
             # Create regex pattern based on the configuration list

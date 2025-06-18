@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_forge"
-version = "1.2.5"
+version = "1.2.6"
 description = "AutoForge: YA-BS (yet another build system)"
 readme = "README.md"
 authors = [{ name = "Michaelson, Eitan", email = "eitan.michaelson@intel.com" }]
