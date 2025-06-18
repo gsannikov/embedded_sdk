@@ -146,7 +146,7 @@ class XRayCommand(CommandInterface):
                 file_link = f"[link=file://{path}]{path}[/link]"
                 table.add_row(file_link, str(lineno), line)
 
-            self._console.print(panel)
+            self._console.print(table)
             return 0
 
         except Exception as xray_error:

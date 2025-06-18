@@ -318,7 +318,7 @@ class CoreXRayDB(CoreModuleInterface):
 
             if self._has_indexed:
                 with self._lock:
-                    self._logger.warning("XRay is in running mode")
+                    self._logger.warning("XRay is running")
                     self._state = XRayStateType.RUNNING
 
         except Exception as indexing_error:
@@ -465,7 +465,6 @@ class CoreXRayDB(CoreModuleInterface):
                     return
 
                 now = time.time()
-
                 if not _summarize:
                     if processed_count % self._indexing_report_frequency == 0:
                         elapsed = now - last_log_time
@@ -480,15 +479,15 @@ class CoreXRayDB(CoreModuleInterface):
                         if error_count:
                             details.append(f"{error_count} errors")
 
-                        self._logger.info(" | ".join(details))
+                        self._logger.debug(" | ".join(details))
                     else:
                         return
                 else:
+                    # Print summary statics
                     elapsed = now - self._indexing_start_time
-                    rate = total_processed / elapsed if elapsed > 0 else 0
-                    self._logger.info(
-                        f"Final: Indexed {total_processed} files ({rate:.1f} files/sec)"
-                    )
+                    rate = int(total_processed / elapsed) if elapsed > 0 else 0
+                    details = f"Handled {total_processed:>7,d} files ({rate:>5,d} files/sec)"
+                    self._logger.info(f"Summary {details}")
 
                 # Reset counters but not the start time
                 read_stats.processed = read_stats.errors = 0
@@ -558,17 +557,17 @@ class CoreXRayDB(CoreModuleInterface):
             write_stats.start_time = time.time()
 
             # Before loop starts
-            self._logger.info(f"Preloading metadata..")
+            self._logger.debug(f"Preloading metadata..")
             meta_lookup = {
                 row[0]: row[1]
                 for row in _conn.execute("SELECT path, checksum FROM file_meta")
             }
-            self._logger.info(f"Metadata preloaded size {len(meta_lookup)}")
+            self._logger.debug(f"Metadata preloaded size {len(meta_lookup)}")
 
             while True:
                 _item = result_queue.get()
                 if _item is None:
-                    self._logger.info(f"Queue is empty, consumer thread stopped")
+                    self._logger.debug(f"Queue is empty, consumer thread stopped")
                     break
 
                 _log_stats()

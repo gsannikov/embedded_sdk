@@ -525,7 +525,7 @@ class AutoForge(CoreModuleInterface):
 
                 # Initializes XRay SQLite background indexing
                 self._xray = CoreXRayDB()
-                self._xray.start(skip_index_refresh=True)
+                self._xray.start(skip_index_refresh=False)
 
                 # Start user prompt loop
                 self._prompt.cmdloop()

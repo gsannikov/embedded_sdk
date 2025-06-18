@@ -75,7 +75,7 @@
     ],
 
     "max_index_size_kb": 1024,          // Max file size (KB)
-    "min_index_size_bytes": 2,          // Min file size (bytes)
+    "min_index_size_bytes": 10,         // Min file size (bytes)
     "extra_indexing_verbosity": false,  // Log skipped/warnings
     "purify_content": true,             // Slightly optimize files content before indexing
     "indexing_report_frequency":10000,  // How often we should log indexing progress
