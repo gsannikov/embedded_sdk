@@ -1166,6 +1166,51 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         return sorted(completions, key=lambda c: c.text.lower())
 
+    def complete_cd(self, _text: str, line: str, _begin_idx: int, end_idx: int) -> list[Completion]:
+        """
+        Autocompletion handler for the `cd` command.
+        1. Environment-like variable completions: If the argument contains a `$` character,
+           it will suggest variable names from the internal variable registry (not system env).
+           Matching is done based on prefix (e.g., typing `$AF_` will suggest `$AF_BASE`, etc.).
+        2. Filesystem path completions (fallback) : If no variable is detected or in addition to variable
+           suggestions, standard path completions are appended using `_CorePathCompleter`.
+        Args:
+            _text (str): The current word being completed (ignored, we use `line` instead).
+            line (str): The full command line entered so far.
+            _begin_idx (int): The beginning index of the word being completed (unused).
+            end_idx (int): The current cursor position in the input line.
+
+        Returns:
+            list[Completion]: A list of Completion objects with suggestions for variable
+                              and/or filesystem paths.
+        """
+
+        completions = []
+
+        # Check if we’re trying to complete a variable (starts with $ or part of it)
+        dollar_start = line.rfind('$', 0, end_idx)
+        if dollar_start != -1:
+            prefix = line[dollar_start + 1:end_idx]
+            clue = f"{prefix.upper()}*"
+            matching_keys = self._variables.get_matching_keys(clue=clue)
+            for key in matching_keys:
+                completions.append(Completion(
+                    text=f"${key}",
+                    start_position=dollar_start - end_idx
+                ))
+
+            # If user explicitly typed `$`, do not return paths
+            if line[dollar_start:end_idx].startswith("$") and prefix:
+                return completions
+
+        # Fallback to injected generic path completer
+        comp = _CorePathCompleter(core_prompt=self, command_name='cd', only_directories=True)
+        event = CompleteEvent(completion_requested=True)
+        path_completions = comp.get_completions(Document(text=line, cursor_position=end_idx), event)
+        completions.extend(path_completions)
+
+        return completions
+
     def complete_build(self, text: str, line: str, begin_idx: int, _end_idx: int) -> list[Completion]:
         """
         Completes the 'build' command in progressive dot-separated segments:
@@ -1244,8 +1289,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if not path:
             return
 
-        # Expand
+        # Expand ann normalize
         path = self._variables.expand(key=path, quiet=True)
+        path = os.path.normpath(path)
+
         try:
             if not os.path.exists(path):
                 raise RuntimeError(f"no such file or directory: {path}")

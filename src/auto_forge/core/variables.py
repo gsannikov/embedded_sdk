@@ -15,7 +15,7 @@ import threading
 from bisect import bisect_left
 from contextlib import suppress
 from dataclasses import asdict
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Iterator
 
 # Third-party
 from jsonschema.validators import validate
@@ -368,6 +368,24 @@ class CoreVariables(CoreModuleInterface):
             self._variables[index].value = value
             return True
 
+    def iter_matching_keys(self, clue: str) -> Iterator[VariableFieldType]:
+        """
+        Yields VariableFieldType entries whose key matches the given clue (prefix-based).
+        Supports glob-style '*' wildcard as a suffix.
+        Args:
+            clue (str): The clue to match - can use wildcards.
+        """
+        use_wildcard = clue.endswith('*')
+        prefix = clue[:-1] if use_wildcard else clue
+
+        for var in self._variables:
+            if var.key and var.key.startswith(prefix):
+                yield var
+
+    def get_matching_keys(self, clue: str) -> list[str]:
+        """ Gets a list of variables with a key matching the given clue (prefix-based)."""
+        return [var.key for var in self.iter_matching_keys(clue) if var.key is not None]
+
     def add(self, key: str, value: str,
             is_path: Optional[bool] = None,
             description: Optional[str] = None,
@@ -452,7 +470,6 @@ class CoreVariables(CoreModuleInterface):
         Removes a specified variable from the internal variables list if it exists.
         Args:
             key (str): The Variable name to be removed.
-
         Returns:
             Optional[bool]: Returns True if the variable was successfully removed.
                             Raises RuntimeError for any issues encountered.

@@ -473,7 +473,7 @@ class CoreXRayDB(CoreModuleInterface):
                         rate = int(processed_count / elapsed) if elapsed > 0 else 0
                         total_processed += processed_count
 
-                        details = [f"Handled {total_processed:>7,d} files ({rate:>5,d} files/sec)"]
+                        details = [f"Index {total_processed:>7,d} files ({rate:>6,d} files/sec)"]
                         if write_stats.skipped:
                             details.append(f"{write_stats.skipped} skipped")
                         if error_count:
@@ -486,8 +486,8 @@ class CoreXRayDB(CoreModuleInterface):
                     # Print summary statics
                     elapsed = now - self._indexing_start_time
                     rate = int(total_processed / elapsed) if elapsed > 0 else 0
-                    details = f"Handled {total_processed:>7,d} files ({rate:>5,d} files/sec)"
-                    self._logger.info(f"Summary {details}")
+                    details = f"Index {total_processed:>7,d} files ({rate:>6,d} files/sec)"
+                    self._logger.info(f"Summary: {details}")
 
                 # Reset counters but not the start time
                 read_stats.processed = read_stats.errors = 0
