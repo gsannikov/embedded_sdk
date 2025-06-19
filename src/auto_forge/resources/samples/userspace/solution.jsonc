@@ -21,6 +21,7 @@
             // Editor selector: index (1-based) or name pattern with wildcards (e.g., "*sublime*"
             "variables": "<$include>variables.jsonc",
             "schema": "1.0",
+            "show_banner": true,
             "build_path": "$BUILD_OUT",
             "workspace": "$PROJ_WORKSPACE",
             "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.

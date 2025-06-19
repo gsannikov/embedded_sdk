@@ -37,16 +37,16 @@ from types import ModuleType
 from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
 
-# Third-party
 import psutil
+# Third-party
+from pyfiglet import Figlet
 from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType,
-    PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_SHARED_PATH,
-    PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
+    PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
 )
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
@@ -1173,39 +1173,44 @@ class CoreToolBox(CoreModuleInterface):
 
         return text.strip()
 
-    def print_logo(self, banner_file: Optional[str] = None, clear_screen: bool = False,
-                   terminal_title: Optional[str] = None) -> None:
+    def print_banner(self, text: str, font_name: str = "ansi_shadow", clear_screen: bool = False,
+                     terminal_title: Optional[str] = None) -> None:
         """
-        Displays an ASCII logo from a file using a consistent horizontal RGB gradient
+        Displays an ASCII logo rendered from `text` using pyfiglet and a consistent horizontal RGB gradient
         (same for every line, from dark to bright).
+        Args:
+            text (str): The text to render as ASCII art.
+            font_name (str): The pyfiglet font name to use. Defaults to 'ansi_shadow'.
+            clear_screen (bool): If True, clears the screen before printing.
+            terminal_title (Optional[str]): Optional terminal window title to set.
         """
-        demo_file = str(PROJECT_SHARED_PATH / "banner.txt")
-        banner_file = banner_file or demo_file
-
-        if not os.path.isfile(banner_file):
+        if not text:
             return
 
-        # Retrieve the ANSI codes map from the main AutoForge instance.
+        # Retrieve ANSI codes
         if self._ansi_codes is None:
             self._ansi_codes = self.auto_forge.ansi_codes
         if self._ansi_codes is None:
-            return  # Could not get the ANSI codes tables
+            return  # Could not get the ANSI codes table
 
         if clear_screen:
             sys.stdout.write(self._ansi_codes.get('SCREEN_CLS_SB'))
         sys.stdout.write('\n')
 
-        with open(banner_file, encoding='utf-8') as f:
-            lines = [line.rstrip('\n') for line in f]
+        # Generate ASCII art using pyfiglet
+        banner_lines: Optional[list] = None
+        with suppress(Exception):
+            fig = Figlet(font=font_name)
+            banner_lines = fig.renderText(text).splitlines()
 
-        if not lines:
+        if not isinstance(banner_lines, list):  # Suppressed exception
             return
 
         # Pick a base color and brighten it across the line width
         r_base, g_base, b_base = (random.randint(0, 100) for _ in range(3))
         r_delta, g_delta, b_delta = (random.randint(80, 155) for _ in range(3))
 
-        max_line_len = max(len(line) for line in lines)
+        max_line_len = max(len(line) for line in banner_lines)
 
         def get_rgb_gradient(pos, width):
             """ Computes an RGB ANSI color escape sequence based on horizontal gradient position. """
@@ -1215,12 +1220,11 @@ class CoreToolBox(CoreModuleInterface):
             b = int(b_base + b_delta * t)
             return f"\033[38;2;{r};{g};{b}m"
 
-        for line in lines:
+        for line in banner_lines:
             colored_line = "".join(f"{get_rgb_gradient(x, max_line_len)}{ch}"
                                    for x, ch in enumerate(line))
             sys.stdout.write(colored_line + "\033[0m\n")
 
-        sys.stdout.write('\n')
         sys.stdout.flush()
 
         if terminal_title is not None:

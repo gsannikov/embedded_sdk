@@ -46,7 +46,7 @@ from auto_forge import (
     CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo,
     ExecutionModeType, ModuleInfoType,
     PROJECT_NAME, PROJECT_VERSION,
-    TerminalEchoType
+    TerminalEchoType, VariableFieldType
 )
 
 # Basic types
@@ -380,9 +380,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # Post 'cmd2' instantiation setup
         #
 
-        # Greetings earthlings, we're here!
+        # Greetings, earthlings!
+        # Show the solution banner unless explicitly disabled with 'show_banner': false.
         if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
-            self._tool_box.print_logo(clear_screen=True, terminal_title=f"AutoForge: {self._loaded_solution_name}")
+            show_banner = self._solution.get_arbitrary_item(key="show_banner")
+            show_banner = show_banner if isinstance(show_banner, bool) else True
+            if show_banner:
+                self._tool_box.print_banner(text=f"{self._loaded_solution_name.title()}", clear_screen=True,
+                                            terminal_title=f"AutoForge: {self._loaded_solution_name}")
 
         self.default_to_shell = True
         self.last_result = 0
@@ -1192,11 +1197,12 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if dollar_start != -1:
             prefix = line[dollar_start + 1:end_idx]
             clue = f"{prefix.upper()}*"
-            matching_keys = self._variables.get_matching_keys(clue=clue)
-            for key in matching_keys:
+            matching_vars: list[VariableFieldType] = self._variables.get_matching_keys(clue=clue)
+            for var in matching_vars:
                 completions.append(Completion(
-                    text=f"${key}",
-                    start_position=dollar_start - end_idx
+                    text=f"${var.key}",
+                    start_position=dollar_start - end_idx,
+                    display_meta=var.description or ""  # Show description if available
                 ))
 
             # If user explicitly typed `$`, do not return paths

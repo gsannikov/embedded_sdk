@@ -382,9 +382,9 @@ class CoreVariables(CoreModuleInterface):
             if var.key and var.key.startswith(prefix):
                 yield var
 
-    def get_matching_keys(self, clue: str) -> list[str]:
+    def get_matching_keys(self, clue: str) -> list[VariableFieldType]:
         """ Gets a list of variables with a key matching the given clue (prefix-based)."""
-        return [var.key for var in self.iter_matching_keys(clue) if var.key is not None]
+        return [var for var in self.iter_matching_keys(clue) if var.key is not None]
 
     def add(self, key: str, value: str,
             is_path: Optional[bool] = None,

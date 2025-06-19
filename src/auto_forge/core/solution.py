@@ -94,7 +94,7 @@ class CoreSolution(CoreModuleInterface):
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
     def get_arbitrary_item(self, key: str, deep_search: bool = False, resolve_external_file: bool = False) -> Optional[
-        Union[list[Any], dict[str, Any], str]]:
+        Union[list[Any], dict[str, Any], str, bool]]:
         """
         Returns a list, dictionary, or string from the solution JSON by key.
         If deep_search is True, performs a recursive search through the entire structure.
@@ -103,19 +103,19 @@ class CoreSolution(CoreModuleInterface):
             deep_search (bool): Whether to search deeply through the structure.
             resolve_external_file (bool): If the retrieved item is a string that looks like a path to file, its content will be returned.
         Returns:
-            Optional[Union[list, dict, str]]: The value found, or None if not found or invalid type.
+            Optional[Union[list, dict, str,bool]]: The value found, or None if not found or invalid type.
         """
 
         if not self._solution_loaded:
             return None
 
-        def _resolve_external_file(_file_name: str) -> Optional[Union[list[Any], dict[str, Any], str]]:
+        def _resolve_external_file(_file_name: str) -> Optional[Union[list[Any], dict[str, Any], str, bool, int]]:
             """
             Attempt to load and validate a preprocessed external file.
             Args:
                 _file_name (str): Path to the file to be processed.
             Returns:
-                Optional[Union[list, dict, str]]: Parsed content if valid and supported, else None.
+                Optional[Union[list, dict, str, bool, int]]: Parsed content if valid and supported, else None.
             """
             if not isinstance(_file_name, str) or not os.path.isfile(_file_name):
                 self._logger.debug(f"Ignoring invalid or missing file: {_file_name!r}")
@@ -123,7 +123,7 @@ class CoreSolution(CoreModuleInterface):
 
             with suppress(Exception):
                 result = self._processor.render(file_name=_file_name)
-                if isinstance(result, (list, dict, str)):
+                if isinstance(result, (list, dict, str, bool, int)):
                     return result
                 self._logger.debug(f"Unexpected content type from {_file_name!r}: {type(result).__name__}")
 
@@ -133,7 +133,7 @@ class CoreSolution(CoreModuleInterface):
             """ Solution wide recursive search."""
             if isinstance(_obj, dict):
                 for k, v in _obj.items():
-                    if k == key and isinstance(v, (list, dict, str)):
+                    if k == key and isinstance(v, (list, dict, str, bool, int)):
                         return v
                     _result = _recursive_lookup(v)
                     if _result is not None:
@@ -150,7 +150,7 @@ class CoreSolution(CoreModuleInterface):
         else:
             returned_results = _recursive_lookup(self._solution_data)
 
-        if not isinstance(returned_results, (list, dict, str)):
+        if not isinstance(returned_results, (list, dict, str, bool, int)):
             return None
 
         # When we have to resolve potentially included file
