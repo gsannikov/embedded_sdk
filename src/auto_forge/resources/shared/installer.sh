@@ -5,7 +5,7 @@
 #
 # Script Name:    installer.sh
 # Description:    Helper script for launching AutoForge bootstrap.
-#                 This script could be sourced oe directly invoked.
+#                 This script could be sourced or directly invoked.
 # Version:        1.1
 #
 # ------------------------------------------------------------------------------
