@@ -69,8 +69,10 @@ class XRayCommand(CommandInterface):
 
         try:
             rows = xray_db.query_raw(f"""
-                SELECT checksum, GROUP_CONCAT(path, '|') FROM file_meta
+                SELECT checksum, GROUP_CONCAT(path, '|') 
+                FROM file_meta
                 WHERE checksum IS NOT NULL
+                  AND ext IN ('c', 'h')
                 GROUP BY checksum
                 HAVING COUNT(*) > 1
                 LIMIT {limit};
@@ -115,10 +117,13 @@ class XRayCommand(CommandInterface):
 
         try:
             rows = xray.query_raw(f"""
-                                                   SELECT path, content
-                                                   FROM files
-                                                   WHERE content MATCH 'main' LIMIT {limit}
-                                                   """)
+                SELECT files.path, files.content
+                FROM files
+                JOIN file_meta ON files.path = file_meta.path
+                WHERE file_meta.ext IN ('c')
+                  AND files.content MATCH 'main'
+                LIMIT {limit}
+            """)
 
             main_regex = re.compile(
                 r'\b(?:int|void)\s+main\s*\(\s*(?:void|int\s+\w+\s*,\s*char\s*\*+\s*\w+.*)?\s*\)',

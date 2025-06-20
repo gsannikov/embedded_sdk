@@ -260,8 +260,6 @@ class CoreXRayDB(CoreModuleInterface):
                 CREATE VIRTUAL TABLE IF NOT EXISTS files USING fts5(
                     path UNINDEXED,
                     content,
-                    modified UNINDEXED,
-                    checksum UNINDEXED,
                     tokenize = 'trigram'
                 );
             """)
@@ -276,6 +274,8 @@ class CoreXRayDB(CoreModuleInterface):
                                modified
                                REAL,
                                checksum
+                               TEXT,
+                               ext
                                TEXT
                            );
                            """)
@@ -532,7 +532,13 @@ class CoreXRayDB(CoreModuleInterface):
                         continue
 
                     _checksum = hashlib.blake2b(_content.encode('utf-8'), digest_size=8).hexdigest()
-                    result_queue.put((str(_file), _content, _stat.st_mtime, _checksum))
+
+                    # Get file extension
+                    _file_ext = _file.suffix
+                    _file_ext = _file_ext[1:].lower() if _file_ext.startswith(".") else ""
+
+                    # Add the queue
+                    result_queue.put((str(_file), _content, _stat.st_mtime, _checksum, _file_ext))
                     read_stats.processed += 1
 
                 except Exception as reader_error:
@@ -575,7 +581,7 @@ class CoreXRayDB(CoreModuleInterface):
                 _log_stats()
 
                 try:
-                    _path, _content, _mtime, _checksum = _item
+                    _path, _content, _mtime, _checksum, _file_ext = _item
 
                     # Skip unchanged files
                     if not self._fresh_db:
@@ -583,21 +589,22 @@ class CoreXRayDB(CoreModuleInterface):
                             write_stats.skipped += 1
                             continue
 
-                    _batch.append((_path, _content, _mtime, _checksum))
-                    _meta_batch.append((_path, _mtime, _checksum))
+                    _batch.append((_path, _content))
+                    _meta_batch.append((_path, _mtime, _checksum, _file_ext))
                     write_stats.processed += 1
 
                     if len(_batch) >= XRAY_BATCH_SIZE:
                         try:
                             _conn.executemany("""
-                                INSERT OR REPLACE INTO files (path, content, modified, checksum)
-                                VALUES (?, ?, ?, ?)
+                                INSERT OR REPLACE INTO files (path, content)
+                                VALUES (?, ?)
                             """, _batch)
 
                             _conn.executemany("""
-                                INSERT OR REPLACE INTO file_meta (path, modified, checksum)
-                                VALUES (?, ?, ?)
+                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext)
+                                VALUES (?, ?, ?, ?)
                             """, _meta_batch)
+
                             _conn.commit()
                             _batch.clear()
                             _meta_batch.clear()
@@ -616,12 +623,12 @@ class CoreXRayDB(CoreModuleInterface):
             if _batch:
                 try:
                     _conn.executemany("""
-                                INSERT OR REPLACE INTO files (path, content, modified, checksum)
-                                VALUES (?, ?, ?, ?)
+                                INSERT OR REPLACE INTO files (path, content)
+                                VALUES (?, ?)
                             """, _batch)
                     _conn.executemany("""
-                                INSERT OR REPLACE INTO file_meta (path, modified, checksum)
-                                VALUES (?, ?, ?)
+                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext)
+                                VALUES (?, ?, ?, ?)
                             """, _meta_batch)
                     _conn.commit()
                 except Exception as sql_error:

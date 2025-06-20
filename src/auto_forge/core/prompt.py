@@ -1450,13 +1450,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Args:
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
+
         try:
             # Export local variables to an environment mapping
             var_env = self._variables.export(as_env=True)
 
             results = self._environment.execute_shell_command(
                 command_and_args=statement.command_and_args, env=var_env, echo_type=TerminalEchoType.LINE)
-            self.last_result = results.return_code
+            self.last_result = results.return_code if results else 0
             return None
 
         except KeyboardInterrupt:
@@ -1464,6 +1465,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         except subprocess.CalledProcessError as exception:
             self._logger.warning(f"Command '{exception.cmd}' failed with {exception.returncode}")
+
+            # Inform the user when data was echoed back
+            if not exception.returncode:
+                self.perror(f"{exception.cmd}' failed with {exception.returncode}")
+
             self.last_result = exception.returncode
             return None
 

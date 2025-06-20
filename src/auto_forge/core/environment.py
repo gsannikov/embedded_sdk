@@ -615,7 +615,7 @@ class CoreEnvironment(CoreModuleInterface):
             or None if an exception was raised.
         """
 
-        polling_interval: float = 0.000001
+        polling_interval: float = 0.01
         kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
@@ -679,6 +679,20 @@ class CoreEnvironment(CoreModuleInterface):
                 kwargs = dict()
                 kwargs['executable'] = env_shell
 
+        def _clean_shell_error_prefix(_error_msg: str) -> str:
+            """
+            Remove common shell prefixes like 'zsh:1:', 'bash: line 1:', etc.
+            Preserves newlines and carriage returns.
+            """
+            _pattern = r'^\s*(?:[a-zA-Z0-9_\-]+:)?(?:\s*line\s*\d+|[0-9]+)?:?\s*'
+            match = re.match(_pattern, _error_msg)
+            if match:
+                remainder = _error_msg[match.end():]
+                # Only strip prefix if there's something meaningful left
+                if remainder.strip() != "":
+                    return remainder
+            return _error_msg
+
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
             """
             Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
@@ -712,7 +726,9 @@ class CoreEnvironment(CoreModuleInterface):
                 line (str): The text to print.
             """
 
+            line = _clean_shell_error_prefix(line) if line else line
             if line:
+
                 if leading_text is not None:
                     line = leading_text + line  # Prefix with optional leading text
 
@@ -761,7 +777,7 @@ class CoreEnvironment(CoreModuleInterface):
         if use_pty:
             self._logger.debug(f"Executing: {command_and_args} (PTY)")
             master_fd, slave_fd = pty.openpty()
-            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
+            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=1,
                                        shell=shell, cwd=cwd, env=proc_env, **kwargs)
             flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
             fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -769,18 +785,16 @@ class CoreEnvironment(CoreModuleInterface):
         else:  # Normal flow
             self._logger.debug(f"Executing: {command_and_args}")
             process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
+                                       stderr=subprocess.STDOUT, bufsize=1, shell=shell, cwd=cwd, env=proc_env,
                                        **kwargs)
 
         # Loop and read the spawned process output upto timeout or normal termination
         try:
-            start_time = time.time()  # Initialize start_time here for timeout management
+            start_time = time.time()
             while process.poll() is not None:
                 if timeout > 0 and (time.time() - start_time > timeout):
-                    process.kill()
                     raise TimeoutError(f"'{command}' process didn't start after {timeout} seconds")
 
-            start_time = time.time()  # Initialize start_time here for timeout management
             while True:
                 if use_pty:
                     readable, _, _ = select.select([master_fd], [], [], polling_interval)
@@ -830,14 +844,14 @@ class CoreEnvironment(CoreModuleInterface):
                 _bytes_to_message_queue(line_buffer, lines_queue)
 
             # Done executing
+            command_response: str = "\n".join(lines_queue)  # Convert to a full string with newlines
             return_code = process.returncode
 
             # Optionally raise exception non-zero return code
             if check and return_code != 0:
-                raise subprocess.CalledProcessError(returncode=process.returncode, cmd=command, output=process.stdout,
+                raise subprocess.CalledProcessError(returncode=process.returncode, cmd=command, output=command_response,
                                                     stderr=process.stderr)
 
-            command_response: str = "\n".join(lines_queue)  # Convert to a full string with newlines
             if searched_token and command_response and searched_token not in command_response:
                 raise ValueError(f"token '{searched_token}' not found in response")
 
