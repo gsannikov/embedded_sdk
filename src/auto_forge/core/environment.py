@@ -306,15 +306,16 @@ class CoreEnvironment(CoreModuleInterface):
             raise exception
 
     def create_alias(self, alias: str, command: str, commit_changes: bool = False) -> Optional[CommandResultType]:
+        # noinspection SpellCheckingInspection
         """
-        Create / update a shell alias using the ShellAliases Core module
-        Args:
-            alias (str): The shell alias name.
-            command (str): The shell alias command.
-            commit_changes (bool): If true, the shell alias will be committed to the shell startup script (e.g. '~/.bahsrc')
-        Returns:
-            CommandResultType: The result object containing the command output and return code,
-        """
+                Create / update a shell alias using the ShellAliases Core module
+                Args:
+                    alias (str): The shell alias name.
+                    command (str): The shell alias command.
+                    commit_changes (bool): If true, the shell alias will be committed to the shell startup script (e.g. '~/.bahsrc')
+                Returns:
+                    CommandResultType: The result object containing the command output and return code,
+                """
 
         return_code: int = 1
 
