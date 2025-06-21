@@ -1501,10 +1501,12 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Set up the HTTP request
             request = urllib.request.Request(url)
+            log_message = [f"HTTP request to {request.full_url}"]
 
             # Add authorization token to the request headers if provided
             if token:
                 request.add_header('Authorization', f'Bearer {token}')
+                log_message.append(f"using token: {token[:4]}****...")
 
             # Include any extra headers specified
             if extra_headers:
@@ -1516,6 +1518,9 @@ class CoreEnvironment(CoreModuleInterface):
                 proxy_handler = urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
                 opener = urllib.request.build_opener(proxy_handler)
                 urllib.request.install_opener(opener)
+                log_message.append(f"via proxy: {proxy}")
+
+            self._logger.debug(" | ".join(log_message))
 
             # Perform the download operation
             with urllib.request.urlopen(request, timeout=effective_timeout) as response:

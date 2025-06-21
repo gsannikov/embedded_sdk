@@ -1464,7 +1464,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             return None
 
         except subprocess.CalledProcessError as exception:
-            self._logger.warning(f"Command '{exception.cmd}' failed with {exception.returncode}")
+            self._logger.warning(f"Command '{exception.cmd}' returned {exception.returncode}")
 
             # Inform the user when data was echoed back
             if not exception.returncode:

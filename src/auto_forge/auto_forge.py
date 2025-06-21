@@ -248,7 +248,7 @@ class AutoForge(CoreModuleInterface):
         self._queue_logger._target_logger = self._logger
         self._queue_logger.flush()
 
-        self._logger.debug(f"AutoForge version: {PROJECT_VERSION} starting in workspace {self._workspace_path}")
+        self._logger.info(f"AutoForge version: {PROJECT_VERSION} starting")
         self._logger.info(str(self._sys_info))
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
@@ -327,11 +327,16 @@ class AutoForge(CoreModuleInterface):
                     raise RuntimeError(f"the specified URL '{solution_url}' does not point to a valid path")
                 else:
                     self._solution_url = solution_url
+                    self._queue_logger.debug(f"Using solution from URL '{solution_url}'")
+
                     self._git_token = kwargs.get("git_token")
                     if not self._git_token:
                         # If we have 'git_token_environment_var' use to try and get the token from the user environment
                         git_token_var_name = self._configuration.get("git_token_environment_var")
                         self._git_token = os.environ.get(git_token_var_name) if git_token_var_name else None
+
+                    if self._git_token:
+                        self._queue_logger.debug("GitHub token '{self._git_token[:4]'...")
 
         def _validate_network_options():
 
@@ -348,8 +353,8 @@ class AutoForge(CoreModuleInterface):
                 if self._proxy_server is None:
                     raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
                                      f"Expected format: <host>:<port> (e.g., www.proxy.com:8080)")
-                self._queue_logger.info(
-                    f"Proxy host name set to '{self._proxy_server.host} : {self._proxy_server.port}'")
+                self._queue_logger.debug(
+                    f"Proxy server '{self._proxy_server.host} : {self._proxy_server.port}'")
 
         # Retrieve all arguments from kwargs
         self._solution_name = kwargs.get("solution_name")  # Required argument
@@ -364,11 +369,12 @@ class AutoForge(CoreModuleInterface):
         self._run_sequence_ref_name = kwargs.get("run_sequence")
         if self._run_sequence_ref_name is not None:
             self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE
+            self._queue_logger.debug(f"Sequence ref name '{self._run_sequence_ref_name}'")
         else:
             self._run_command_name = kwargs.get("run_command")
             if self._run_command_name is not None:
-
                 self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND
+                self._queue_logger.debug(f"Run command name '{self._run_command_name}'")
 
                 # Handle 'single-command' arguments
                 self._run_command_args = kwargs.get("run_command_args", [])
@@ -385,6 +391,7 @@ class AutoForge(CoreModuleInterface):
         if not CoreToolBox.looks_like_unix_path(self._workspace_path):
             raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
 
+        self._queue_logger.debug(f"Workspace path '{self._workspace_path}'")
         self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
         # Move to the workspace path of we have it
         if self._workspace_exist:
