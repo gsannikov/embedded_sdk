@@ -276,6 +276,8 @@ class CoreXRayDB(CoreModuleInterface):
                                checksum
                                TEXT,
                                ext
+                               TEXT,
+                               base
                                TEXT
                            );
                            """)
@@ -473,7 +475,7 @@ class CoreXRayDB(CoreModuleInterface):
                         rate = int(processed_count / elapsed) if elapsed > 0 else 0
                         total_processed += processed_count
 
-                        details = [f"Index {total_processed:>7,d} files ({rate:>6,d} files/sec)"]
+                        details = [f"Indexed {total_processed:>7,d} files ({rate:>6,d} files/sec)"]
                         if write_stats.skipped:
                             details.append(f"{write_stats.skipped} skipped")
                         if error_count:
@@ -486,7 +488,8 @@ class CoreXRayDB(CoreModuleInterface):
                     # Print summary statics
                     elapsed = now - self._indexing_start_time
                     rate = int(total_processed / elapsed) if elapsed > 0 else 0
-                    details = f"Index {total_processed:>7,d} files ({rate:>6,d} files/sec)"
+                    total_processed += processed_count
+                    details = f"{total_processed:>7,d} files indexed ({rate:>6,d} files/sec)"
                     self._logger.info(f"Summary: {details}")
 
                 # Reset counters but not the start time
@@ -535,10 +538,13 @@ class CoreXRayDB(CoreModuleInterface):
 
                     # Get file extension
                     _file_ext = _file.suffix
-                    _file_ext = _file_ext[1:].lower() if _file_ext.startswith(".") else ""
+                    if _file_ext:
+                        _file_ext = _file_ext[1:].lower()  # remove dot and lowercase
+                    else:
+                        _file_ext = _file.name.lower()  # fallback to full name like "makefile"
 
                     # Add the queue
-                    result_queue.put((str(_file), _content, _stat.st_mtime, _checksum, _file_ext))
+                    result_queue.put((str(_file), _content, _stat.st_mtime, _checksum, _file_ext, _file.name))
                     read_stats.processed += 1
 
                 except Exception as reader_error:
@@ -581,7 +587,7 @@ class CoreXRayDB(CoreModuleInterface):
                 _log_stats()
 
                 try:
-                    _path, _content, _mtime, _checksum, _file_ext = _item
+                    _path, _content, _mtime, _checksum, _file_ext, _file_base = _item
 
                     # Skip unchanged files
                     if not self._fresh_db:
@@ -590,7 +596,7 @@ class CoreXRayDB(CoreModuleInterface):
                             continue
 
                     _batch.append((_path, _content))
-                    _meta_batch.append((_path, _mtime, _checksum, _file_ext))
+                    _meta_batch.append((_path, _mtime, _checksum, _file_ext, _file_base))
                     write_stats.processed += 1
 
                     if len(_batch) >= XRAY_BATCH_SIZE:
@@ -601,8 +607,8 @@ class CoreXRayDB(CoreModuleInterface):
                             """, _batch)
 
                             _conn.executemany("""
-                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext)
-                                VALUES (?, ?, ?, ?)
+                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext, base)
+                                VALUES (?, ?, ?, ?, ?)
                             """, _meta_batch)
 
                             _conn.commit()
@@ -627,19 +633,20 @@ class CoreXRayDB(CoreModuleInterface):
                                 VALUES (?, ?)
                             """, _batch)
                     _conn.executemany("""
-                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext)
-                                VALUES (?, ?, ?, ?)
+                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext, base)
+                                VALUES (?, ?, ?, ?, ?)
                             """, _meta_batch)
                     _conn.commit()
+                    write_stats.processed += len(_batch)
+
                 except Exception as sql_error:
                     self._logger.error(f"Final batch insert failed: {sql_error}")
                     _conn.rollback()
-                    write_stats.errors += 1
 
             _conn.close()
-            _log_stats()
             _batch = []
             _meta_batch = []
+            _log_stats(_summarize=True)
 
         """ Indexer entrypoint """
         readers = [Thread(target=_reader_worker, daemon=True, name="IndexerReader") for _ in range(XRAY_NUM_READERS)]
@@ -664,8 +671,6 @@ class CoreXRayDB(CoreModuleInterface):
         result_queue.join()
         result_queue.put(None)
         writer.join()
-
-        _log_stats(_summarize=True)
         return True
 
     def query(self, query: str) -> Optional[str]:
@@ -689,29 +694,35 @@ class CoreXRayDB(CoreModuleInterface):
 
         return "\n".join(" | ".join(str(cell) for cell in row) for row in rows)
 
-    def query_raw(self, query: str) -> Optional[list[tuple[str, str]]]:
+    def query_raw(self, query: str, params: Optional[tuple[Any, ...]] = None) -> Optional[list[tuple]]:
         """
         Execute a raw SQL query and return raw (path, content) tuples.
         This is primarily used for internal analysis or full-text scanning,
         where the full content of matching files is needed for further filtering.
         Args:
             query (str): SQL query to run.
+            params (Optional[tuple]): Optional SQL parameters for safe substitution.
         Returns:
-            Optional[list[tuple[str, str]]]: List of (path, content) tuples,
-            or None if query fails or returns no results.
+            Optional[list[tuple]]: List of result tuples, or None if query fails.
         """
-        if self._state != XRayStateType.RUNNING:
-            raise RuntimeError("XRayDB is not running")
+        with self._lock:
+            if self._state != XRayStateType.RUNNING:
+                raise RuntimeError("XRayDB is not running")
 
-        with suppress(Exception):
-            conn = self._get_sql_connection(read_only=True)
-            cursor = conn.cursor()
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            conn.close()
-            return rows
+            with suppress(Exception):
+                conn = self._get_sql_connection(read_only=True)
+                cursor = conn.cursor()
 
-        return None
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+
+                rows = cursor.fetchall()
+                conn.close()
+                return rows
+
+            return None
 
     def start(self, skip_index_refresh: bool = False, drop_current_index: bool = False) -> None:
         """
@@ -764,4 +775,5 @@ class CoreXRayDB(CoreModuleInterface):
 
     @property
     def state(self) -> XRayStateType:
-        return self._state
+        with self._lock:
+            return self._state

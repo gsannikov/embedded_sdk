@@ -3,7 +3,10 @@ Module: xray_command.py
 Author: AutoForge Team
 
 Description:
-    Provides samples for running queries on XRayDB - the integrate SQLite DB.
+    XRay CLI commands allows for source analysis and duplicate detection.
+    It leverages the CoreXRayDB backend to index files under solution 'Source' paths into a
+    SQLite database. Users can perform structured or wildcard-based file searches, detect
+    duplicate content, or execute arbitrary SQL-style queries on the indexed metadata.
 """
 
 import argparse
@@ -44,7 +47,7 @@ class XRayCommand(CommandInterface):
         self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
 
     def initialize(self, **_kwargs: Any) -> Optional[bool]:
         """
@@ -57,6 +60,109 @@ class XRayCommand(CommandInterface):
             raise RuntimeError("Package configuration was missing during initialization")
 
         return True
+
+    @staticmethod
+    def _shell_to_sql_like(pattern: str) -> str:
+        return (
+            pattern
+            .replace("\\", "\\\\")  # escape backslashes
+            .replace("_", "\\_")  # escape SQL _ wildcard
+            .replace("%", "\\%")  # escape SQL % wildcard
+            .replace("?", "_")  # shell ? → SQL _
+            .replace("*", "%")  # shell * → SQL %
+        )
+
+    def _resolve_search_pattern_and_extensions(
+            self, file_name_pattern: str, extensions: Optional[list[str]]) -> tuple[str, list[str]]:
+        """
+        Analyze the file name pattern and extensions.
+        - Auto-wildcard if no wildcards present.
+        - Infer extension from pattern like 'foo.c' if needed.
+        - Reconcile or validate against explicitly passed extensions.
+        Returns:
+            (sql_like_pattern, final_extensions)
+        """
+        pattern = file_name_pattern.strip()
+        has_wildcards = any(ch in pattern for ch in "*?")
+
+        if "." in pattern and not has_wildcards:
+            base_part, ext_part = pattern.rsplit(".", 1)
+            inferred_ext = ext_part.lower()
+
+            if extensions is not None:
+                lowered = [e.lower() for e in extensions]
+                if inferred_ext not in lowered:
+                    raise ValueError(
+                        f"Pattern '{file_name_pattern}' implies extension '.{inferred_ext}', "
+                        f"which is not in allowed extensions: {extensions}"
+                    )
+                extensions = [inferred_ext]
+            else:
+                extensions = [inferred_ext]
+
+            pattern = base_part + "*"
+
+        elif not has_wildcards:
+            pattern += "*"
+
+        sql_pattern = self._shell_to_sql_like(pattern)
+        return sql_pattern, extensions
+
+    def _locate_files(self, file_name_pattern: str, extensions: Optional[list[str]] = None, limit: int = 500) -> \
+            Optional[int]:
+        """
+        Locate files by name pattern with optional extension filter and result limit.
+        Args:
+            file_name_pattern (str): SQL LIKE-style pattern (use '%' or '_' wildcards).
+            extensions (Optional[list]): List of extensions to filter by (e.g., ['c', 'h']).
+            limit (int): Max number of results to return.
+
+        Returns:
+            Optional[int]: 0 if files were found, 1 otherwise.
+        """
+        xray_db = CoreXRayDB.get_instance()
+        if xray_db is None or xray_db.state != XRayStateType.RUNNING:
+            raise RuntimeError("XRay is not initialized or not running")
+
+        try:
+            query = """
+                    SELECT path, ext
+                    FROM file_meta
+                    WHERE base LIKE ? \
+                    """
+
+            # Normalize user input
+            sql_pattern, extensions = self._resolve_search_pattern_and_extensions(file_name_pattern, extensions)
+
+            params = [sql_pattern]
+            query += " ESCAPE '\\'"
+
+            if extensions:
+                ext_placeholders = ",".join("?" for _ in extensions)
+                query += f" AND ext IN ({ext_placeholders})"
+                params.extend(extensions)
+
+            query += f" ORDER BY path LIMIT {limit}"
+
+            rows = xray_db.query_raw(query, tuple(params))
+
+            if not rows:
+                print("No matching files found.")
+                return 1
+
+            table = Table(title=f"Search results for '{file_name_pattern}'", box=box.ROUNDED)
+            table.add_column("#", style="dim", justify="right", width=4)
+            table.add_column("Type", style="cyan", width=4)
+            table.add_column("Path", style="white")
+
+            for idx, (path, ext) in enumerate(rows, 1):
+                table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]")
+
+            self._console.print('\n', table)
+            return 0
+
+        except Exception as xray_error:
+            raise xray_error from xray_error
 
     def _find_all_duplicates(self, limit: int = 500) -> Optional[int]:
         """
@@ -82,21 +188,21 @@ class XRayCommand(CommandInterface):
                 print("No duplicate files found.")
                 return 1
 
-            table = Table(show_lines=True)
+            table = Table(show_lines=True, box=box.ROUNDED)
             table.add_column("#", style="dim", justify="right", width=4)
             table.add_column("Checksum", style="bold yellow", width=20)
-            table.add_column("Files (clickable)", style="green")
+            table.add_column("Files", style="green")
 
             for idx, (checksum, paths_concat) in enumerate(rows, 1):
                 paths = paths_concat.split('|')
                 file_links = "\n".join(f"[link=file://{p}]{p}[/link]" for p in paths)
                 table.add_row(str(idx), checksum, file_links)
 
-            self._console.print(table)
+            self._console.print('\n', table)
             return 0
 
         except Exception as xray_error:
-            raise xray_error
+            raise xray_error from xray_error
 
     def _find_all_mains(self, limit: int = 500) -> Optional[int]:
         """
@@ -145,17 +251,17 @@ class XRayCommand(CommandInterface):
             table = Table(title="Detected C-style main() Implementations", box=box.ROUNDED)
             table.add_column("Path", style="white", overflow="fold")
             table.add_column("Line", justify="right", style="cyan")
-            table.add_column("Code Snippet", style="bright_yellow", overflow="fold")
+            table.add_column("Snippet", style="bright_yellow", overflow="fold")
 
             for path, lineno, line in matches:
                 file_link = f"[link=file://{path}]{path}[/link]"
                 table.add_row(file_link, str(lineno), line)
 
-            self._console.print(table)
+            self._console.print('\n', table)
             return 0
 
         except Exception as xray_error:
-            raise xray_error
+            raise xray_error from xray_error
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
@@ -163,21 +269,23 @@ class XRayCommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
+
+        def _split_extensions(_ext_arg: str) -> list[str]:
+            return [e.strip().lower() for e in _ext_arg.split(",") if e.strip()]
+
         parser.add_argument(
-            "-m", "--find-mains",
-            nargs="?",
-            const=500,
-            type=int,
-            metavar="LIMIT",
-            help="Find files with main() implementations (optional LIMIT, default: 500)"
-        )
+            "-m", "--find-mains", action='store_true', help="Find files with main() implementations")
         parser.add_argument(
-            "-d", "--find-duplicates",
-            nargs="?",
-            const=500,
-            type=int,
-            metavar="LIMIT",
-            help="Find duplicated files (optional LIMIT, default: 500)"
+            "-d", "--find-duplicates", action='store_true', help="Find duplicated files")
+        parser.add_argument(
+            "-l", "--locate_files", type=str, help="Locate files (optionally limit number of results")
+
+        parser.add_argument(
+            "--limit", type=int, default=500, help="Maximum number of results to return (default: 500)")
+
+        parser.add_argument(
+            "--ext",
+            type=_split_extensions, default=["c", "h"], help="Comma-separated extensions (e.g. --ext c,h). Default: c,h"
         )
 
     def run(self, args: argparse.Namespace) -> int:
@@ -188,14 +296,17 @@ class XRayCommand(CommandInterface):
         Returns:
             int: 0 on success, non-zero on failure.
         """
+        limit: int = args.limit if args.limit else 500
+        extensions: list = args.ext if args.ext else ["c", "h"]
 
         if args.find_mains:
-            limit = args.find_mains or 500
-            return_code = self._find_all_mains(limit)
+            return_code = self._find_all_mains(limit=limit)
 
         elif args.find_duplicates:
-            limit = args.find_duplicates or 500
-            return_code = self._find_all_duplicates(limit)
+            return_code = self._find_all_duplicates(limit=limit)
+
+        elif args.locate_files:
+            return_code = self._locate_files(file_name_pattern=args.locate_files, limit=limit, extensions=extensions)
 
         else:
             # Error: no arguments
