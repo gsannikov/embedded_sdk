@@ -222,7 +222,7 @@ class AutoForge(CoreModuleInterface):
         """ Construct the logger file name, initialize and start logging"""
 
         allow_console_output = False
-        log_file = None
+        log_file = "auto_forge.log"  # Default name
 
         # Determine if we have a workspace which could she log file
         logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
@@ -233,7 +233,11 @@ class AutoForge(CoreModuleInterface):
 
         # Use different log file name when in one command mode
         if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
-            log_file = str(self._initial_path / f"{self._solution_name}.log")
+            log_file = str(self._initial_path / f"{self._solution_name}.{self._run_command_name}.log")
+
+        # Use different log file name when in one command mode
+        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
+            log_file = str(self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
 
         self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
                                                    configuration_data=self._configuration)
