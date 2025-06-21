@@ -13,7 +13,7 @@
     "status_new_line": true,
     // Enables multi-line status output instead of in-place updates
     "status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
-    "status_post_message": "\n\nSetup done.\nReopen terminal to apply changes.",
+    "status_post_message": "\n\nSetup done.\nReopen terminal to apply changes, next type 'us' to start.",
     "steps": [
         {
             "description": "Looking for 'dt'",
