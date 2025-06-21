@@ -11,8 +11,6 @@ import json
 import os
 import re
 import shutil
-from collections import Counter, defaultdict
-from contextlib import suppress
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -189,7 +187,6 @@ class CoreJSONCProcessor(CoreModuleInterface):
         """
 
         self._normalize_multilines: bool = normalize_multilines
-        self._normalize_anonymous_lists: bool = normalize_anonymous_lists
 
         # Persist this module instance in the global registry for centralized access
         registry = CoreRegistry.get_instance()
@@ -289,173 +286,6 @@ class CoreJSONCProcessor(CoreModuleInterface):
         _cleaned = re.sub(r'\n\s*\n', '\n', _cleaned)  # Collapse multiple new lines
         return _cleaned.strip()
 
-    @staticmethod
-    def _normalize_anon_lists(_text: str) -> str:
-        # noinspection GrazieInspection
-        """
-        Detects and normalizes top-level key: [ [...], [...], ... ] anonymous list-of-lists structures.
-        Pads missing values (e.g. from `,,`) with 'null' and validates consistency.
-        Args:
-            _text (str): Comment-free JSONC-like text.
-        Returns:
-            str: Cleaned-up JSON text with valid, normalized list segments.
-        """
-
-        def _sanitize_blanks(_raw: str) -> str:
-            # noinspection GrazieInspection
-            """
-            Replaces empty fields (",,") in a list-like structure with "null",
-            supporting repeated blanks and cases like [,,] and trailing commas.
-            """
-            # Handle opening: [, -> [null,
-            _raw = re.sub(r'\[\s*,', '[null,', _raw)
-
-            # Replace sequences of multiple commas (e.g., ",,,") with repeated nulls
-            # Do this repeatedly until no more replacement occurs (in case of 3+, 4+, etc.)
-            while True:
-                new_raw = re.sub(r',\s*,', ', null,', _raw)
-                if new_raw == _raw:
-                    break
-                _raw = new_raw
-
-            # Handle trailing comma before ] (", ]" -> ", null]")
-            _raw = re.sub(r',\s*]', ', null]', _raw)
-
-            return _raw
-
-
-        def _process_array_block(_key: str, _array_text: str) -> str:
-            """
-            Process a JSON-style list-of-lists assigned to a key.
-            Ensures all sublists have equal length by padding empty fields with null.
-            Raises an error if inconsistent row lengths are detected.
-            """
-            _array_text_sanitized = _sanitize_blanks(_array_text)
-
-            try:
-                subarray_list = json.loads(_array_text_sanitized)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Could not parse array for key '{_key}': {e}")
-
-            if not isinstance(subarray_list, list) or not all(isinstance(e, list) for e in subarray_list):
-                raise ValueError(f"Key '{_key}' does not contain a list-of-lists")
-
-            _parsed = []
-            _length_histogram = defaultdict(int)
-            _parsed = []
-            row_lengths = []
-
-            for idx, _entry in enumerate(subarray_list):
-                if not isinstance(_entry, list):
-                    raise ValueError(f"Row {idx + 1} in key '{_key}' is not a list.")
-                if len(_entry) == 0:
-                    raise ValueError(f"Empty row found in key '{_key}': row {idx + 1} is empty.")
-
-                _parts = [str(e) if e is not None else "" for e in _entry]
-                if '' in _parts:
-                    _has_blanks = True
-
-                row_lengths.append(len(_parts))
-                _parsed.append(_parts)
-
-            _parts_count = len(_parsed)
-
-            if _parts_count == 0:
-                raise ValueError(f"No valid array entries found in array '{_key}'.")
-
-            if _parts_count == 1:
-                expected_len = row_lengths[0]
-            else:
-                length_hist = Counter(row_lengths)
-                expected_len = max(length_hist.items(), key=lambda kv: kv[1])[0]
-
-            for idx, parts in enumerate(_parsed):
-                _parts_count = len(parts)
-                if _parts_count != expected_len:
-                    raise ValueError(
-                        f"Inconsistent row length in key '{_key}': row {idx + 1} has {_parts_count} fields, "
-                        f"but expected {expected_len} (based on most common row size)."
-                    )
-
-            # Normalize entries (convert blanks to null, preserve booleans/nulls)
-            _cleaned = []
-            for _parts in _parsed:
-                _padded = [(p if p else "null") for p in _parts]
-                _quoted = []
-                for p in _padded:
-                    if p == "null":
-                        _quoted.append(None)
-                    elif p == "true":
-                        _quoted.append(True)
-                    elif p == "false":
-                        _quoted.append(False)
-                    else:
-                        _quoted.append(p)
-                _cleaned.append(_quoted)
-
-            _normalized_json = json.dumps(_cleaned, indent=2)
-
-            try:
-                json.loads(json.dumps({_key: _cleaned}))
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON structure in key '{_key}': {e}")
-
-            return f'"{_key}": {_normalized_json}'
-
-        # Manual scan for key: [ ...balanced list... ]
-        output = []
-        pos = 0
-
-        while True:
-            match = re.search(r'"([^"]+)"\s*:\s*\[', _text[pos:])
-            if not match:
-                output.append(_text[pos:])
-                break
-
-            key = match.group(1)
-            key_start = pos + match.start()
-            array_start = pos + match.end() - 1  # points to the opening '['
-            output.append(_text[pos:key_start])
-
-            # Find the matching closing bracket
-            depth = 0
-            i = array_start
-            while i < len(_text):
-                c = _text[i]
-                if c == '[':
-                    depth += 1
-                elif c == ']':
-                    depth -= 1
-                    if depth == 0:
-                        break
-                i += 1
-
-            if depth != 0:
-                raise ValueError(f"Unbalanced brackets in array for key '{key}'")
-
-            array_text = _text[array_start:i+1]
-
-            # Rough parse: only process if this is a list of lists
-            array_text_sanitized = _sanitize_blanks(array_text)
-            parsed_array = None
-            with suppress(Exception):
-                parsed_array = json.loads(array_text_sanitized)
-
-            is_list_of_lists = (
-                    isinstance(parsed_array, list)
-                    and all(isinstance(row, list) for row in parsed_array)
-            )
-
-            if is_list_of_lists:
-                processed = _process_array_block(key, array_text)
-            else:
-                processed = f'"{key}": {array_text}'
-
-            output.append(processed)
-            pos = i + 1
-
-
-        return ''.join(output)
 
     @staticmethod
     def _normalize_multiline_strings(_text: str) -> str:
@@ -535,10 +365,6 @@ class CoreJSONCProcessor(CoreModuleInterface):
             # Handle multi-line strings
             if self._normalize_multilines:
                 dirty_json = self._normalize_multiline_strings(_text=dirty_json)
-
-            # Replaces blanks with 'null' in anonymous lists
-            if self._normalize_anonymous_lists:
-                dirty_json = self._normalize_anon_lists(_text=dirty_json)
 
             # Load and return as JSON dictionary
             json_data = json.loads(dirty_json)

@@ -1457,11 +1457,11 @@ class CoreEnvironment(CoreModuleInterface):
         effective_timeout: Optional[float] = None if timeout == 0 else timeout
 
         # Use globally configured proxy and token when not explicitly specified.
-        autoforge_proxy: Optional[str] = None
+        package_proxy_server: Optional[str] = None
         if isinstance(self.auto_forge.proxy_server, AddressInfoType):
-            autoforge_proxy = self.auto_forge.proxy_server.as_url()
+            package_proxy_server = self.auto_forge.proxy_server.endpoint
 
-        proxy_server: Optional[str] = proxy_server if proxy_server else autoforge_proxy
+        proxy_server: Optional[str] = proxy_server if proxy_server else package_proxy_server
         token: Optional[str] = token if token else self.auto_forge.git_token
 
         try:

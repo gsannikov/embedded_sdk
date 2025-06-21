@@ -311,15 +311,8 @@ class AddressInfoType(NamedTuple):
     host: str
     port: int
     endpoint: str
+    url:str
     is_host_name: bool
-
-    @classmethod
-    def as_url(cls, is_https: bool = False, upper_case: bool = True) -> str:
-        """ Return a URL representation of this address """
-        # noinspection HttpUrlsUsage
-        prefix_str = "http://" if is_https else "https://"
-        prefix_str = prefix_str.upper() if upper_case else prefix_str
-        return f"{prefix_str}{cls.host}:{cls.port}"
 
 
 @dataclass

@@ -66,6 +66,9 @@ def arguments_process() -> Optional[argparse.Namespace]:
         parser.add_argument("--git-token", type=str, required=False,
                             help="Optional GitHub token to use for authenticating HTTP requests.")
 
+        parser.add_argument("--log-file", type=str, required=False,
+                            help="Optional Specify log fie name.")
+
         # AutoForge supports two mutually exclusive non-interactive modes:
         # (1) Running step recipe data (typically used to set up a fresh workspace),
         # (2) Running a single command from an existing workspace.

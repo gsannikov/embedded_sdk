@@ -955,6 +955,7 @@ class CoreToolBox(CoreModuleInterface):
             parsed = urlparse(endpoint)
             host = parsed.hostname
             port = parsed.port
+            url = endpoint
             if not host or not port:
                 return None
         else:
@@ -967,6 +968,8 @@ class CoreToolBox(CoreModuleInterface):
             port = int(port_str)
             if not (1 <= port <= 65535):
                 return None
+            # noinspection HttpUrlsUsage
+            url = f"http://{host}:{port}"
 
         # Check if host is an IP
         is_ip = bool(re.fullmatch(r"(\d{1,3}\.){3}\d{1,3}", host))
@@ -978,7 +981,8 @@ class CoreToolBox(CoreModuleInterface):
             host=host,
             port=port,
             endpoint=f"{host}:{port}",
-            is_host_name=not is_ip
+            is_host_name=not is_ip,
+            url=url
         )
 
     @staticmethod

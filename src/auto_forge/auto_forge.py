@@ -71,7 +71,7 @@ class AutoForge(CoreModuleInterface):
         self._xray: Optional[CoreXRayDB] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
         self._auto_logger: Optional[AutoLogger] = None
-        self._sequence_log_file: Optional[Path] = None
+        self._log_file_name: Optional[str] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
         self._steps_file: Optional[str] = None
@@ -221,31 +221,34 @@ class AutoForge(CoreModuleInterface):
         """ Construct the logger file name, initialize and start logging"""
 
         allow_console_output = False
-        log_file = "auto_forge.log"  # Default name
 
         # Determine if we have a workspace which could she log file
         logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
-        if logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path, raise_exception=False):
-            log_file = os.path.join(logs_workspace_path, PROJECT_LOG_FILE)
-            # Patch it with timestamp so we will have dedicated log for each build system run.
-            log_file = self._tool_box.append_timestamp_to_path(log_file)
 
-        # Use different log file name when in one command mode
-        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
-            log_file = str(self._initial_path / f"{self._solution_name}.{self._run_command_name}.log")
+        # Determine the log file name to use (when not specified through arguments)
+        if self._log_file_name is None:
 
-        # Use different log file name when in one command mode
-        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
-            log_file = str(self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
+            # Use different log file name when in one command mode
+            if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+                self._log_file_name = str(self._initial_path / f"{self._solution_name}.{self._run_command_name}.log")
 
-        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG,
-                                                   configuration_data=self._configuration)
-        self._auto_logger.set_log_file_name(log_file)
+            # Use different log file name when in one command mode
+            elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
+                self._log_file_name = str(
+                    self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
+
+            # Normal flow
+            elif logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path,
+                                                                                  raise_exception=False):
+                self._log_file_name = os.path.join(logs_workspace_path, PROJECT_LOG_FILE)
+                # Patch it with timestamp so we will have dedicated log for each build system run.
+                self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
+
+        # Initialize logger
+        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG, configuration_data=self._configuration)
+        self._auto_logger.set_log_file_name(self._log_file_name)
         self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-
         self._logger: logging.Logger = self._auto_logger.get_logger(console_stdout=allow_console_output)
-        if log_file is None:
-            self._sequence_log_file = Path(self._auto_logger.get_log_filename())
 
         # System initialized, dump all memory stored records in the logger
         self._queue_logger._target_logger = self._logger
@@ -350,12 +353,13 @@ class AutoForge(CoreModuleInterface):
                     raise ValueError(f"the specified remote debugging address '{remote_debugging}' is invalid. "
                                      f"Expected format: <host>:<port> (e.g., localhost:5678)")
 
-            proxy_server: Optional[str] = kwargs.get("proxy_server", None)
-            self.set_proxy_server(proxy_server=proxy_server, silent=False)
+            # Process proxy server argument
+            self.set_proxy_server(proxy_server=kwargs.get("proxy_server", None), silent=False)
 
         # Retrieve all arguments from kwargs
         self._solution_name = kwargs.get("solution_name")  # Required argument
         self._workspace_path = kwargs.get("workspace_path")  # Required argument
+        self._log_file_name = kwargs.get("log_file")  # Optional set specific log file name
 
         # ==============================================================
         # Interactive vs. non-interactive mode selection.
@@ -394,7 +398,7 @@ class AutoForge(CoreModuleInterface):
         if self._workspace_exist:
             os.chdir(self._workspace_path)
 
-        # Orchestrate)
+        # Process other arguments
         _validate_solution_package()
         _validate_network_options()
 
@@ -533,17 +537,17 @@ class AutoForge(CoreModuleInterface):
 
             # Construct normalized proxy URL
             # noinspection HttpUrlsUsage
-            proxy_url = f"http://{self._proxy_server.host}:{self._proxy_server.port}"
 
             if self._variables is not None:
-                self._variables.add(key="HTTP_PROXY", value=proxy_url, is_path=False, description="Proxy Server")
+                self._variables.add(key="HTTP_PROXY", value=self._proxy_server.url, is_path=False,
+                                    description="Proxy Server")
 
             if update_environment:
-                os.environ["HTTP_PROXY"] = proxy_url
-                os.environ["HTTPS_PROXY"] = proxy_url
+                os.environ["HTTP_PROXY"] = self._proxy_server.url
+                os.environ["HTTPS_PROXY"] = self._proxy_server.url.replace("http", "https")
 
             if hasattr(self, "_queue_logger"):
-                self._queue_logger.debug(f"Proxy set to: {proxy_url}")
+                self._queue_logger.debug(f"Proxy set to: {self._proxy_server.url}")
 
             return True
 
@@ -629,7 +633,7 @@ class AutoForge(CoreModuleInterface):
                         # Finalize workspace creation
                         self._environment.finalize_workspace_creation(solution_name=self._solution_name,
                                                                       solution_package_path=self._solution_package_path,
-                                                                      sequence_log_file=self._sequence_log_file)
+                                                                      sequence_log_file=self._log_file_name)
                 else:
                     raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
