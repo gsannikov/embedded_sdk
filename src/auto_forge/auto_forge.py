@@ -93,7 +93,7 @@ class AutoForge(CoreModuleInterface):
         self._solution_package_path: Optional[str] = None
         self._solution_package_file: Optional[str] = None
         self._solution_url: Optional[str] = None
-        self._token: Optional[str] = None
+        self._git_token: Optional[str] = None
         self._remote_debugging: Optional[AddressInfoType] = None
         self._proxy_server: Optional[AddressInfoType] = None
 
@@ -332,13 +332,13 @@ class AutoForge(CoreModuleInterface):
                     self._solution_url = solution_url
                     self._queue_logger.debug(f"Using solution from URL '{solution_url}'")
 
-                    self._token = kwargs.get("git_token")
-                    if not self._token:
+                    self._git_token = kwargs.get("git_token")
+                    if not self._git_token:
                         # If we have 'git_token_environment_var' use to try and get the token from the user environment
                         git_token_var_name = self._configuration.get("git_token_environment_var")
-                        self._token = os.environ.get(git_token_var_name) if git_token_var_name else None
+                        self._git_token = os.environ.get(git_token_var_name) if git_token_var_name else None
 
-                    if self._token:
+                    if self._git_token:
                         self._queue_logger.debug("GitHub token '{self._git_token[:4]'...")
 
         def _validate_network_options():
@@ -351,23 +351,7 @@ class AutoForge(CoreModuleInterface):
                                      f"Expected format: <host>:<port> (e.g., localhost:5678)")
 
             proxy_server: Optional[str] = kwargs.get("proxy_server", None)
-            # If not passed explicitly, check environment variables
-            if proxy_server is None:
-                proxy_server = os.environ.get("https_proxy") or os.environ.get("http_proxy")
-
-            if isinstance(proxy_server, str):
-                self._proxy_server = self._tool_box.get_address_and_port(proxy_server)
-                if self._proxy_server is None:
-                    raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
-                                     f"Expected format: <host>:<port> (e.g., www.proxy.com:8080)")
-                # Log the parsed proxy server
-                self._queue_logger.debug(f"Proxy server '{self._proxy_server.host}:{self._proxy_server.port}'")
-
-                # Set env vars for downstream tools (e.g., pip, git, curl)
-                # noinspection HttpUrlsUsage
-                proxy_url = f"http://{self._proxy_server.host}:{self._proxy_server.port}"
-                os.environ["HTTP_PROXY"] = proxy_url
-                os.environ["HTTPS_PROXY"] = proxy_url
+            self.set_proxy_server(proxy_server=proxy_server, silent=False)
 
         # Retrieve all arguments from kwargs
         self._solution_name = kwargs.get("solution_name")  # Required argument
@@ -520,6 +504,50 @@ class AutoForge(CoreModuleInterface):
                         print(notification.name)
                         pass
 
+    def set_proxy_server(self, proxy_server: Optional[str], update_environment: bool = True,
+                         silent: bool = True) -> Optional[bool]:
+        # noinspection HttpUrlsUsage
+        """
+        Set the proxy server to use.
+        Args:
+            proxy_server (str, optional): Proxy server in either:
+                - host:port format (e.g., proxy.example.com:8080)
+                - full URL format (e.g., http://proxy.example.com:8080 or https://user:pass@proxy:8080)
+            update_environment (bool): If True, sets HTTP_PROXY and HTTPS_PROXY in os.environ.
+            silent (bool): If False, raises ValueError on failure. If True, returns False instead.
+        Returns:
+            Optional[bool]: True if successful, False if failed silently, None if input was invalid.
+        """
+        if not isinstance(proxy_server, str):
+            # Fall back to environment variables
+            if proxy_server is None:
+                proxy_server = os.environ.get("https_proxy") or os.environ.get("http_proxy")
+
+        if isinstance(proxy_server, str):
+            self._proxy_server = self._tool_box.get_address_and_port(proxy_server)
+            if self._proxy_server is None:
+                if not silent:
+                    raise ValueError(f"Invalid proxy server address or URL '{proxy_server}'. "
+                                     f"Expected format: 'host:port' or full proxy URL.")
+                return False
+
+            # Construct normalized proxy URL
+            # noinspection HttpUrlsUsage
+            proxy_url = f"http://{self._proxy_server.host}:{self._proxy_server.port}"
+
+            self._variables.add(key="HTTP_PROXY", value=proxy_url, is_path=False, description="Proxy Server")
+
+            if update_environment:
+                os.environ["HTTP_PROXY"] = proxy_url
+                os.environ["HTTPS_PROXY"] = proxy_url
+
+            if hasattr(self, "_queue_logger"):
+                self._queue_logger.debug(f"Proxy set to: {proxy_url}")
+
+            return True
+
+        return False
+
     def forge(self) -> Optional[int]:
 
         """
@@ -620,9 +648,13 @@ class AutoForge(CoreModuleInterface):
         return self._proxy_server
 
     @property
-    def token(self) -> Optional[str]:
-        """ Return configured web access token string """
-        return self._token
+    def git_token(self) -> Optional[str]:
+        """Get or set the configured web access token string."""
+        return self._git_token
+
+    @git_token.setter
+    def git_token(self, token: str) -> None:
+        self._git_token = token
 
     @property
     def configuration(self) -> Optional[dict[str, Any]]:

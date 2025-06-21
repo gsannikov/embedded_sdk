@@ -933,42 +933,53 @@ class CoreToolBox(CoreModuleInterface):
 
     @staticmethod
     def get_address_and_port(endpoint: Optional[str]) -> Optional[AddressInfoType]:
+        # noinspection HttpUrlsUsage
         """
-        Parses an endpoint string of the form 'host:port' and returns an AddressInfo tuple.
+        Parses an endpoint string of the form 'host:port' or a full URL like 'http://host:port',
+        and returns an AddressInfo tuple.
         Args:
-            endpoint (Optional[str]): The endpoint string to parse.
+            endpoint (Optional[str]): The endpoint string or URL to parse.
         Returns:
             Optional[AddressInfoType]: A named tuple containing:
                 - host (str): Hostname or IP address.
                 - port (int): TCP port number.
-                - is_host_name (bool): True if host is a name, False if host is an IP address.
-            None if the input is invalid.
+                - endpoint (str): Reconstructed 'host:port' string.
+                - is_host_name (bool): True if host is a name, False if it's an IP address.
+                None if the input is invalid.
         """
-        if endpoint is None or ':' not in endpoint:
+        if endpoint is None:
             return None
 
-        host_part, port_part = endpoint.rsplit(":", 1)
+        # If it's a full URL (e.g., http://user:pass@host:port)
+        if "://" in endpoint:
+            parsed = urlparse(endpoint)
+            host = parsed.hostname
+            port = parsed.port
+            if not host or not port:
+                return None
+        else:
+            # Assume raw host:port
+            if ':' not in endpoint:
+                return None
+            host, port_str = endpoint.rsplit(":", 1)
+            if not port_str.isdigit():
+                return None
+            port = int(port_str)
+            if not (1 <= port <= 65535):
+                return None
 
-        # Validate port
-        if not port_part.isdigit():
-            return None
-
-        port = int(port_part)
-        if not (1 <= port <= 65535):
-            return None
-
-        # Check if host looks like an IP address
-        is_ip = bool(re.fullmatch(r"(\d{1,3}\.){3}\d{1,3}", host_part))
+        # Check if host is an IP
+        is_ip = bool(re.fullmatch(r"(\d{1,3}\.){3}\d{1,3}", host))
         if is_ip:
-            octets = host_part.split(".")
-            if not all(0 <= int(octet) <= 255 for octet in octets):
-                return None  # Invalid IP address
+            if not all(0 <= int(octet) <= 255 for octet in host.split(".")):
+                return None  # Invalid IP
 
-        # Reconstruct endpoint as a host:port string
-        endpoint = f"{host_part}:{port!s}"
-
-        # Otherwise, assume it's a hostname
-        return AddressInfoType(host=host_part, port=port, endpoint=endpoint, is_host_name=not is_ip)
+        return AddressInfoType(
+            host=host,
+            port=port,
+            endpoint=f"{host}:{port}",
+            is_host_name=not is_ip
+        )
 
     @staticmethod
     def normalize_text(text: Optional[str], allow_empty: bool = False) -> str:
