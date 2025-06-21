@@ -38,7 +38,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, AutoLogger, CommandResultType,
+    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType,
     CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface,
     CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
     ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH,
@@ -1457,7 +1457,11 @@ class CoreEnvironment(CoreModuleInterface):
         effective_timeout: Optional[float] = None if timeout == 0 else timeout
 
         # Use globally configured proxy and token when not explicitly specified.
-        proxy_server: Optional[str] = proxy_server if proxy_server else self.auto_forge.proxy_server
+        autoforge_proxy: Optional[str] = None
+        if isinstance(self.auto_forge.proxy_server, AddressInfoType):
+            autoforge_proxy = self.auto_forge.proxy_server.as_url()
+
+        proxy_server: Optional[str] = proxy_server if proxy_server else autoforge_proxy
         token: Optional[str] = token if token else self.auto_forge.git_token
 
         try:

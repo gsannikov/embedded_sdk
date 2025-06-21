@@ -23,9 +23,7 @@ AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
 
 
 class AutoForgeWorkModeType(Enum):
-    """
-    Enumeration of known AutoForge run modes.
-    """
+    """ Enumeration of known AutoForge run modes. """
     UNKNOWN = 0
     INTERACTIVE = 1  # Normal interactive shell
     NON_INTERACTIVE_SEQUENCE = 3  # Executing sequence non interactively
@@ -52,7 +50,7 @@ class AutoForgeModuleType(Enum):
 
 # noinspection DuplicatedCode
 class AutoForgCommandType(Enum):
-    """Enumeration of known AutoForge command types."""
+    """ Enumeration of known AutoForge command types. """
     UNKNOWN = 0
     BUILD = 1
     NAVIGATE = 2
@@ -96,7 +94,7 @@ class AutoForgCommandType(Enum):
 
 # noinspection DuplicatedCode
 class AutoForgFolderType(Enum):
-    """Enumeration of known AutoForge folder types."""
+    """ Enumeration of known AutoForge folder types. """
     UNKNOWN = 0
     BUILD = 1
     SOURCES = 2
@@ -167,7 +165,7 @@ class XRayStateType(Enum):
 
 
 class SequenceErrorActionType(Enum):
-    """Enum for error actions, storing both int value and string label."""
+    """ Enum for error actions, storing both int value and string label. """
     DEFAULT = (0, "default")
     BREAK = (1, "break")
     RESUME = (2, "resume")
@@ -183,7 +181,7 @@ class SequenceErrorActionType(Enum):
 
     @classmethod
     def from_label(cls, label: Optional[str] = None) -> "SequenceErrorActionType":
-        """Convert string label to enum; return DEFAULT if label is None or invalid."""
+        """ Convert string label to enum; return DEFAULT if label is None or invalid. """
         if not label:
             return cls.DEFAULT
 
@@ -195,9 +193,7 @@ class SequenceErrorActionType(Enum):
 
 
 class ModuleInfoType(NamedTuple):
-    """
-    Define a named tuple type for AutoForge registered modules.
-    """
+    """ Define a named tuple type for AutoForge registered modules. """
     name: str
     description: Optional[str] = None
     class_name: Optional[str] = None
@@ -317,12 +313,18 @@ class AddressInfoType(NamedTuple):
     endpoint: str
     is_host_name: bool
 
+    @classmethod
+    def as_url(cls, is_https: bool = False, upper_case: bool = True) -> str:
+        """ Return a URL representation of this address """
+        # noinspection HttpUrlsUsage
+        prefix_str = "http://" if is_https else "https://"
+        prefix_str = prefix_str.upper() if upper_case else prefix_str
+        return f"{prefix_str}{cls.host}:{cls.port}"
+
 
 @dataclass
 class SignatureSchemaType:
-    """
-    A data class to facilitate handling signature schema data.
-    """
+    """ A data class to facilitate handling signature schema data. """
     name: Optional[str] = None
     description: Optional[str] = None
     dictionary: dict[str, Any] = field(default_factory=dict)
@@ -349,9 +351,7 @@ class SignatureFieldType:
 
 
 class MethodLocationType(NamedTuple):
-    """
-    A data type to describe a method location.
-    """
+    """ A data type to describe a method location. """
     class_name: Optional[str]
     method_name: Optional[str]
     module_path: Optional[str]
@@ -359,9 +359,7 @@ class MethodLocationType(NamedTuple):
 
 @dataclass
 class VariableFieldType:
-    """
-    A data class to manage a single managed variable.
-    """
+    """ A data class to manage a single managed variable. """
     key: Optional[str] = None
     value: Optional[str] = None
     description: Optional[str] = None
@@ -373,9 +371,7 @@ class VariableFieldType:
 
 
 class SysInfoPackageManagerType(str, Enum):
-    """
-    Enum representing common system package managers, based on their command names.
-    """
+    """ Enum representing common system package managers, based on their command names. """
     APT = "apt"
     DNF = "dnf"
     YUM = "yum"
@@ -388,9 +384,7 @@ class SysInfoPackageManagerType(str, Enum):
 
 # noinspection SpellCheckingInspection
 class SysInfoLinuxDistroType(str, Enum):
-    """
-    Enum representing major Linux distributions, normalized by ID values found in /etc/os-release.
-    """
+    """ Enum representing major Linux distributions, normalized by ID values found in /etc/os-release. """
     UBUNTU = "ubuntu"
     DEBIAN = "debian"
     FEDORA = "fedora"
@@ -418,7 +412,7 @@ class SysInfoLinuxDistroType(str, Enum):
 
 
 class LinuxShellType(Enum):
-    """Enumeration of Linux shells that this class can handle."""
+    """ Enumeration of Linux shells that this class can handle. """
     UNKNOWN = 0
     BASH = 1
     ZSH = 2
@@ -440,9 +434,7 @@ class TerminalEchoType(Enum):
 
 
 class TerminalTeeStream:
-    """
-    A simple output stream duplicator that writes data to multiple target streams.
-    """
+    """ A simple output stream duplicator that writes data to multiple target streams. """
 
     def __init__(self, *targets: TextIO):
         """

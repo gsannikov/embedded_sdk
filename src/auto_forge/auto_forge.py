@@ -535,7 +535,8 @@ class AutoForge(CoreModuleInterface):
             # noinspection HttpUrlsUsage
             proxy_url = f"http://{self._proxy_server.host}:{self._proxy_server.port}"
 
-            self._variables.add(key="HTTP_PROXY", value=proxy_url, is_path=False, description="Proxy Server")
+            if self._variables is not None:
+                self._variables.add(key="HTTP_PROXY", value=proxy_url, is_path=False, description="Proxy Server")
 
             if update_environment:
                 os.environ["HTTP_PROXY"] = proxy_url
@@ -643,7 +644,7 @@ class AutoForge(CoreModuleInterface):
         return PROJECT_VERSION
 
     @property
-    def proxy_server(self) -> Optional[str]:
+    def proxy_server(self) -> Optional[AddressInfoType]:
         """ Return configured proxy server string """
         return self._proxy_server
 
