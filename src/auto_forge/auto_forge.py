@@ -513,7 +513,7 @@ class AutoForge(CoreModuleInterface):
             proxy_server (str, optional): Proxy server in either:
                 - host:port format (e.g., proxy.example.com:8080)
                 - full URL format (e.g., http://proxy.example.com:8080 or https://user:pass@proxy:8080)
-            update_environment (bool): If True, sets HTTP_PROXY and HTTPS_PROXY in os.environ.
+            update_environment (bool): If True, sets HTTP_PROXY and HTTPS_PROXY in system environment.
             silent (bool): If False, raises ValueError on failure. If True, returns False instead.
         Returns:
             Optional[bool]: True if successful, False if failed silently, None if input was invalid.
