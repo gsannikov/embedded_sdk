@@ -93,7 +93,7 @@ class AutoForge(CoreModuleInterface):
         self._solution_package_path: Optional[str] = None
         self._solution_package_file: Optional[str] = None
         self._solution_url: Optional[str] = None
-        self._git_token: Optional[str] = None
+        self._token: Optional[str] = None
         self._remote_debugging: Optional[AddressInfoType] = None
         self._proxy_server: Optional[AddressInfoType] = None
 
@@ -194,8 +194,7 @@ class AutoForge(CoreModuleInterface):
         if self._solution_url:
             # Download all files in a given remote git path to a local zip file
             self._solution_package_file = (
-                self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True,
-                                                        proxy_host=self._proxy_server, token=self._git_token))
+                self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True))
 
         if self._solution_package_file is not None and self._solution_package_path is None:
             self._solution_package_path = self._tool_box.uncompress_file(archive_path=self._solution_package_file)
@@ -333,32 +332,42 @@ class AutoForge(CoreModuleInterface):
                     self._solution_url = solution_url
                     self._queue_logger.debug(f"Using solution from URL '{solution_url}'")
 
-                    self._git_token = kwargs.get("git_token")
-                    if not self._git_token:
+                    self._token = kwargs.get("git_token")
+                    if not self._token:
                         # If we have 'git_token_environment_var' use to try and get the token from the user environment
                         git_token_var_name = self._configuration.get("git_token_environment_var")
-                        self._git_token = os.environ.get(git_token_var_name) if git_token_var_name else None
+                        self._token = os.environ.get(git_token_var_name) if git_token_var_name else None
 
-                    if self._git_token:
+                    if self._token:
                         self._queue_logger.debug("GitHub token '{self._git_token[:4]'...")
 
         def _validate_network_options():
 
             remote_debugging: Optional[str] = kwargs.get("remote_debugging", None)
-            proxy_server: Optional[str] = kwargs.get("proxy_server", None)
-
             if isinstance(remote_debugging, str):
                 self._remote_debugging = self._tool_box.get_address_and_port(remote_debugging)
                 if self._remote_debugging is None:
                     raise ValueError(f"the specified remote debugging address '{remote_debugging}' is invalid. "
                                      f"Expected format: <host>:<port> (e.g., localhost:5678)")
+
+            proxy_server: Optional[str] = kwargs.get("proxy_server", None)
+            # If not passed explicitly, check environment variables
+            if proxy_server is None:
+                proxy_server = os.environ.get("https_proxy") or os.environ.get("http_proxy")
+
             if isinstance(proxy_server, str):
                 self._proxy_server = self._tool_box.get_address_and_port(proxy_server)
                 if self._proxy_server is None:
                     raise ValueError(f"the specified proxy server address '{proxy_server}' is invalid. "
                                      f"Expected format: <host>:<port> (e.g., www.proxy.com:8080)")
-                self._queue_logger.debug(
-                    f"Proxy server '{self._proxy_server.host} : {self._proxy_server.port}'")
+                # Log the parsed proxy server
+                self._queue_logger.debug(f"Proxy server '{self._proxy_server.host}:{self._proxy_server.port}'")
+
+                # Set env vars for downstream tools (e.g., pip, git, curl)
+                # noinspection HttpUrlsUsage
+                proxy_url = f"http://{self._proxy_server.host}:{self._proxy_server.port}"
+                os.environ["HTTP_PROXY"] = proxy_url
+                os.environ["HTTPS_PROXY"] = proxy_url
 
         # Retrieve all arguments from kwargs
         self._solution_name = kwargs.get("solution_name")  # Required argument
@@ -604,6 +613,16 @@ class AutoForge(CoreModuleInterface):
     def version(self) -> str:
         """ Return package version string """
         return PROJECT_VERSION
+
+    @property
+    def proxy_server(self) -> Optional[str]:
+        """ Return configured proxy server string """
+        return self._proxy_server
+
+    @property
+    def token(self) -> Optional[str]:
+        """ Return configured web access token string """
+        return self._token
 
     @property
     def configuration(self) -> Optional[dict[str, Any]]:

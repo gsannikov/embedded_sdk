@@ -38,7 +38,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType,
+    AutoForgeModuleType, AutoLogger, CommandResultType,
     CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface,
     CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
     ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH,
@@ -1340,9 +1340,8 @@ class CoreEnvironment(CoreModuleInterface):
             raise Exception(f"git operation failure {py_git_error!s}") from py_git_error
 
     def git_get_path_from_url(self, url: str, destination_file_name: Optional[str] = None,
-                              allowed_extensions: Optional[list[str]] = None, delete_if_exist: bool = False,
-                              proxy_host: Optional[AddressInfoType] = None, token: Optional[str] = None) -> Optional[
-        str]:
+                              allowed_extensions: Optional[list[str]] = None,
+                              delete_if_exist: bool = False) -> Optional[str]:
         """
         Downloads a GitHub folder (tree URL or API URL) as a .zip archive.
         Args:
@@ -1351,21 +1350,15 @@ class CoreEnvironment(CoreModuleInterface):
             destination_file_name (str): The local path/file where the downloaded file should be saved.
             allowed_extensions (Optional[List[str]]): Allowed file extensions. If None, all files are downloaded.
             delete_if_exist (bool): Delete local copy of the file if exists.
-            proxy_host (Optional[str]): The proxy server URL to use for the download.
-            token (Optional[str]): An authorization token for accessing the file.
 
         Returns:
             str: Full path to the created .zip archive.
         """
         url = self._tool_box.normalize_text(text=url)
         url = self._tool_box.normalize_to_github_api_url(url=url)
-        proxy: Optional[str] = proxy_host.endpoint if proxy_host else None
 
         if url is None:
             raise RuntimeError(f"URL '{url}' is not a valid URL")
-
-        if token:
-            self._logger.debug(f"Using GIT Token {token}")
 
         # We're getting a pth so the URL is expected to point to git path
         is_url_path = self._tool_box.is_url_path(url)
@@ -1392,7 +1385,7 @@ class CoreEnvironment(CoreModuleInterface):
                 os.remove(destination_file_name)
 
         # Gets the files list
-        results = self.url_get(url=url, destination=None, proxy=proxy, token=token)
+        results = self.url_get(url=url, destination=None)
         if results.return_code != 0 or results.extra_data is None:
             raise RuntimeError("could not get path listing for remote URL")
 
@@ -1419,7 +1412,7 @@ class CoreEnvironment(CoreModuleInterface):
 
                 # Use the provided download function
                 file_url = self._tool_box.normalize_to_github_api_url(url=file_url)
-                results = self.url_get(url=file_url, proxy=proxy, token=token, destination=local_filename)
+                results = self.url_get(url=file_url, destination=local_filename)
                 if results.return_code != 0:
                     raise RuntimeError(f"HTTP operation failed with exit code {results.return_code}")
 
@@ -1440,7 +1433,7 @@ class CoreEnvironment(CoreModuleInterface):
 
     def url_get(  # noqa: C901 # Acceptable complexity
             self, url: str, destination: Optional[str] = None, delete_if_exist: Optional[bool] = False,
-            proxy: Optional[str] = None, token: Optional[str] = None, timeout: Optional[float] = None,
+            proxy_server: Optional[str] = None, token: Optional[str] = None, timeout: Optional[float] = None,
             extra_headers: Optional[dict] = None) -> Optional[CommandResultType]:
         """
         Downloads a file / list of files from a specified URL to a specified local path, with optional authentication,
@@ -1449,8 +1442,10 @@ class CoreEnvironment(CoreModuleInterface):
             url (str): The URL from which to download the file.
             destination (Optional[str]): The local path / file where the downloaded file should be saved.
             delete_if_exist (bool): Delete local copy of the file if exists.
-            proxy (Optional[str]): The proxy server URL to use for the download.
-            token (Optional[str]): An authorization token for accessing the file.
+            proxy_server (Optional[str]): The proxy server URL to use for the download,
+                if None, default to globally configured proxy.
+            token (Optional[str]): An authorization token for accessing the file, if None, default to globally
+                configured token.
             timeout (Optional[float]): The timeout for the download operation, in seconds.
             extra_headers (Optional[dict]): Additional headers to include in the download request.
 
@@ -1460,6 +1455,10 @@ class CoreEnvironment(CoreModuleInterface):
         remote_file: Optional[str] = None
         destination_file: Optional[str] = None
         effective_timeout: Optional[float] = None if timeout == 0 else timeout
+
+        # Use globally configured proxy and token when not explicitly specified.
+        proxy_server: Optional[str] = proxy_server if proxy_server else self.auto_forge.proxy_server
+        token: Optional[str] = token if token else self.auto_forge.token
 
         try:
             # Normalize URL and output name
@@ -1516,11 +1515,11 @@ class CoreEnvironment(CoreModuleInterface):
                     request.add_header(header, value)
 
             # Configure proxy settings if a proxy URL is provided
-            if proxy:
-                proxy_handler = urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
+            if proxy_server:
+                proxy_handler = urllib.request.ProxyHandler({'http': proxy_server, 'https': proxy_server})
                 opener = urllib.request.build_opener(proxy_handler)
                 urllib.request.install_opener(opener)
-                log_message.append(f"via proxy: {proxy}")
+                log_message.append(f"via proxy: {proxy_server}")
             else:
                 log_message.append(f"Proxy not specified")
 
