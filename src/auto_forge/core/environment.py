@@ -1687,6 +1687,9 @@ class CoreEnvironment(CoreModuleInterface):
             if os.path.exists(self._workspace_path):
                 os.chdir(self._workspace_path)
 
+            # First line reserved for package version
+            self._tracker.set_complete_line(pre_text="AutoForge version", result_text=f"{self.auto_forge.version}")
+
             # Step-by-step execution loop
             for step in self._steps_data:
                 status_new_line: bool = step.get("status_new_line", self._status_new_line)
