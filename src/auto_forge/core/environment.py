@@ -1458,7 +1458,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Use globally configured proxy and token when not explicitly specified.
         proxy_server: Optional[str] = proxy_server if proxy_server else self.auto_forge.proxy_server
-        token: Optional[str] = token if token else self.auto_forge.token
+        token: Optional[str] = token if token else self.auto_forge.git_token
 
         try:
             # Normalize URL and output name
