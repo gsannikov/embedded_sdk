@@ -1507,6 +1507,8 @@ class CoreEnvironment(CoreModuleInterface):
             if token:
                 request.add_header('Authorization', f'Bearer {token}')
                 log_message.append(f"using token: {token[:4]}****...")
+            else:
+                log_message.append(f"Token not specified")
 
             # Include any extra headers specified
             if extra_headers:
@@ -1519,6 +1521,8 @@ class CoreEnvironment(CoreModuleInterface):
                 opener = urllib.request.build_opener(proxy_handler)
                 urllib.request.install_opener(opener)
                 log_message.append(f"via proxy: {proxy}")
+            else:
+                log_message.append(f"Proxy not specified")
 
             self._logger.debug(" | ".join(log_message))
 
@@ -1545,7 +1549,7 @@ class CoreEnvironment(CoreModuleInterface):
                     total_size = int(response.getheader('Content-Length').strip())
                     downloaded_size = 0
                     chunk_size = 1024 * 10  # 10KB chunk size
-                    self._logger.debug(f"Starting '{destination_file}' download, size: {total_size} bytes")
+                    self._logger.debug(f"Storing '{destination_file}' download, size: {total_size} bytes")
 
                     with open(destination_file, 'wb') as out_file:
                         while True:
