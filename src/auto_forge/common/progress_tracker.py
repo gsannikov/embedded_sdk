@@ -282,9 +282,6 @@ class ProgressTracker:
 
         if self.set_pre(text=pre_text, new_line=True):
             ret_val = self.set_result(text=result_text, status_code=status_code)
-            if ret_val:
-                sys.stdout.write('\n')
-
         return ret_val
 
     def set_end(self):
