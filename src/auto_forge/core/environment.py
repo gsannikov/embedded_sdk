@@ -753,30 +753,43 @@ class CoreEnvironment(CoreModuleInterface):
 
                 sys.stdout.flush()
 
-        def _bytes_to_message_queue(input_buffer: bytearray, message_queue: deque) -> str:
-            """
-            Decode a UTF-8 byte buffer, remove ANSI escape codes, and append the result
-            to a message queue. Clears the input buffer after processing.
-            Args:
-                input_buffer (bytearray): Incoming buffer of raw bytes.
-                message_queue (deque): Target queue to store cleaned lines.
-            Returns:
-                str: The cleaned string (or empty string if nothing was added).
-            """
+        def _decode_and_queue(input_buffer: bytearray, message_queue: deque) -> str:
             try:
                 text = input_buffer.decode('utf-8', errors='replace')
             except Exception as decode_error:
                 raise RuntimeError(f"Decode error: {decode_error}") from decode_error
 
-            clear_text = self._tool_box.strip_ansi(text=text, bare_text=True)
-            if clear_text:
-                message_queue.append(clear_text)
-                self._logger.debug(f"> {clear_text}")
+            input_buffer.clear()
 
-            if echo_type != TerminalEchoType.LINE:
-                return clear_text
-            else:
-                return text
+            # Always return decoded text for terminal output (including ANSI codes)
+            decoded_text_for_terminal = text
+
+            # Clean up for logging (strip ANSI)
+            clean_text = self._tool_box.strip_ansi(text, bare_text=True)
+            lines = re.split(r'(?<=[\r\n])', clean_text)  # Preserve line endings
+
+            for line in lines:
+                if not line:
+                    continue
+
+                if line.endswith('\r'):
+                    # Store CR-only line for now (not flushed)
+                    self._last_cr_line = line.rstrip('\r')
+                elif line.endswith('\n'):
+                    # Flush any pending CR-style line before logging this new one
+                    if self._last_cr_line:
+                        message_queue.append(self._last_cr_line)
+                        self._logger.debug(f"> {self._last_cr_line}")
+                        self._last_cr_line = None
+
+                    message_queue.append(line.rstrip('\n'))
+                    self._logger.debug(f"> {line.rstrip()}")
+                else:
+                    # Uncommon: line without \n or \r — treat as final and log
+                    message_queue.append(line)
+                    self._logger.debug(f"> {line.strip()}")
+
+            return decoded_text_for_terminal
 
         def _is_readable():
             """
@@ -797,12 +810,11 @@ class CoreEnvironment(CoreModuleInterface):
             flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
             fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-        else:  # Normal flow
+        else:  # Non PTY process open
             self._logger.debug(f"Executing: {command_and_args}")
             process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
                                        **kwargs)
-
         try:
             start_time = time.time()
             output_ready = False
@@ -851,9 +863,9 @@ class CoreEnvironment(CoreModuleInterface):
 
                             if b in (ord('\n'), ord('\r')):
                                 # Clear the line and aggravate into a queue
-                                text_line = _bytes_to_message_queue(line_buffer, lines_queue)
+                                text_line = _decode_and_queue(line_buffer, lines_queue)
                                 line_buffer.clear()
-                                
+
                                 if len(text_line) > 0:
                                     if echo_type in [TerminalEchoType.LINE, TerminalEchoType.CLEAR_LINE,
                                                      TerminalEchoType.SINGLE_LINE]:
@@ -875,7 +887,7 @@ class CoreEnvironment(CoreModuleInterface):
             process.wait(timeout=1.0)
             # Add any remaining bytes
             if line_buffer:
-                _bytes_to_message_queue(line_buffer, lines_queue)
+                _decode_and_queue(line_buffer, lines_queue)
 
             # Done executing
             command_response: str = "\n".join(lines_queue)  # Convert to a full string with newlines
