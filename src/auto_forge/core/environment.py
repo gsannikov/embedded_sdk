@@ -637,19 +637,19 @@ class CoreEnvironment(CoreModuleInterface):
 
         def _clean_shell_error_prefix(_error_msg: str) -> str:
             """
-            Remove common shell error prefixes like 'zsh:1:', 'bash: line 1:', etc.
+            Remove common shell error prefixes like 'zsh:1:', 'bash: line 1:', '/bin/zsh:1:', etc.
             Avoid stripping meaningful lines like Git output.
             """
             known_shell_prefixes = [
-                r'^\s*zsh:\d+:',  # zsh:1:
-                r'^\s*bash:\s*line\s*\d+:',  # bash: line 1:
-                r'^\s*sh:\s*line\s*\d+:', ]
+                r'^\s*(?:/usr/bin/|/bin/)?(?:zsh|bash|sh):\d+:',  # /bin/zsh:1: or zsh:1:
+                r'^\s*(?:/usr/bin/|/bin/)?(?:zsh|bash|sh):\s*line\s*\d+:',  # /bin/bash: line 1:
+            ]
 
             for pattern in known_shell_prefixes:
                 match = re.match(pattern, _error_msg)
                 if match:
-                    clear_text = str(_error_msg[match.end():])
-                    return clear_text.strip()
+                    return _error_msg[match.end():].strip()
+
             return _error_msg
 
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
