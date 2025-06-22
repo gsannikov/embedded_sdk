@@ -51,6 +51,7 @@ install_auto_forge() {
     local auto_start=false
     local allow_non_empty=false
     local verbose=false
+    local no_token=false
     local token=""
     local workspace_name=""
 
@@ -71,6 +72,7 @@ install_auto_forge() {
         echo "      --auto_start              Automatically start the package upon successful setup."
         echo "      --allow_non_empty         Allow using non-empty directories by clearing their contents first."
         echo "      --verbose                 Enable more detailed output."
+        echo "      --no_token                Prevent automatically getting and using GotHub token"
         echo "  -h, --help                    Display this help message and exit."
         echo
         printf "Examples:\n\n"
@@ -113,6 +115,10 @@ install_auto_forge() {
             ;;
         --allow_non_empty)
             allow_non_empty=true
+            shift
+            ;;
+        --no_token)
+            no_token=true
             shift
             ;;
         --verbose)
@@ -197,12 +203,15 @@ install_auto_forge() {
     fi
 
     # Attempt to get Git token using 'dt'
-    if output="$(dt github print-token 2>/dev/null)"; then
-        token="$output"
-        _verbose_print "Using GitHub token."
-    else
-        _verbose_print "No GitHub token available, continuing without it."
-        token=""
+    if [[ "$no_token" == false ]]; then
+
+        if output="$(dt github print-token 2>/dev/null)"; then
+            token="$output"
+            _verbose_print "Using GitHub token."
+        else
+            _verbose_print "No GitHub token available, continuing without it."
+            token=""
+        fi
     fi
 
     # Construct curl options
@@ -215,7 +224,7 @@ install_auto_forge() {
         curl_args+=(-H "Authorization: token ${token}")
     fi
 
-    # Attempt bootstrap
+    # Execute bootstrap
     if ! curl "${curl_args[@]}" "$bootstrap_url" | bash -s -- \
         -n "$solution_name" \
         -w "$workspace_name" \

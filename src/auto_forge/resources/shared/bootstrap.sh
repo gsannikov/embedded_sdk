@@ -84,7 +84,7 @@ main() {
         echo "  -n, --name      	[name]      Solution name to use."
         echo "  -p, --package   	[path/url]  Solution package to use (local path or URL)."
         echo "  -s, --sequence  	[name]      Reference sequence name in specified solution"
-        echo "  -a, --auto_forge  [url]    	  Optional override AutoForge package URL."
+        echo "  -a, --auto_forge    [url]       Optional override AutoForge package URL."
         echo "  -h, --help                  	Display this help and exit."
         echo
     }
