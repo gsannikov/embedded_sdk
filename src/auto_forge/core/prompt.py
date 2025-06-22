@@ -552,6 +552,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 cmd_instance.perror(f"Could not retrieve command metadata for alias '{name}'")
                 cmd_instance.last_result = 1
 
+            cmd_instance.history.append(name + " " + " ".join(args))
+
             def _run_commands() -> bool:
                 try:
                     if isinstance(command, str):
