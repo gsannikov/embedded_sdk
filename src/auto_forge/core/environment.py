@@ -754,42 +754,35 @@ class CoreEnvironment(CoreModuleInterface):
                 sys.stdout.flush()
 
         def _decode_and_queue(input_buffer: bytearray, message_queue: deque) -> str:
+            """
+            Decode a UTF-8 byte buffer, remove ANSI escape codes, and append the result
+            to a message queue. Clears the input buffer after processing.
+            Args:
+                input_buffer (bytearray): Incoming buffer of raw bytes.
+                message_queue (deque): Target queue to store cleaned lines.
+            Returns:
+                str: The cleaned string (or empty string if nothing was added).
+            """
+
+            cr_line:bool = False
+
             try:
                 text = input_buffer.decode('utf-8', errors='replace')
             except Exception as decode_error:
                 raise RuntimeError(f"Decode error: {decode_error}") from decode_error
 
-            input_buffer.clear()
+            clear_text = self._tool_box.strip_ansi(text=text, bare_text=True).strip()
 
-            # Always return decoded text for terminal output (including ANSI codes)
-            decoded_text_for_terminal = text
+            # Log and queue only lines that do not end with \r.
+            if len(clear_text):
+                if not text.endswith('\r'):
+                    message_queue.append(clear_text)
+                    self._logger.debug(f"> {clear_text}")
 
-            # Clean up for logging (strip ANSI)
-            clean_text = self._tool_box.strip_ansi(text, bare_text=True)
-            lines = re.split(r'(?<=[\r\n])', clean_text)  # Preserve line endings
-
-            for line in lines:
-                if not line:
-                    continue
-
-                if line.endswith('\r'):
-                    # Store CR-only line for now (not flushed)
-                    self._last_cr_line = line.rstrip('\r')
-                elif line.endswith('\n'):
-                    # Flush any pending CR-style line before logging this new one
-                    if self._last_cr_line:
-                        message_queue.append(self._last_cr_line)
-                        self._logger.debug(f"> {self._last_cr_line}")
-                        self._last_cr_line = None
-
-                    message_queue.append(line.rstrip('\n'))
-                    self._logger.debug(f"> {line.rstrip()}")
-                else:
-                    # Uncommon: line without \n or \r — treat as final and log
-                    message_queue.append(line)
-                    self._logger.debug(f"> {line.strip()}")
-
-            return decoded_text_for_terminal
+            if echo_type != TerminalEchoType.LINE:
+                return clear_text
+            else:
+                return text
 
         def _is_readable():
             """
