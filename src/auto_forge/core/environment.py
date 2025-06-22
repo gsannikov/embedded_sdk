@@ -697,7 +697,8 @@ class CoreEnvironment(CoreModuleInterface):
             for pattern in known_shell_prefixes:
                 match = re.match(pattern, _error_msg)
                 if match:
-                    return _error_msg[match.end():]
+                    clear_text = str(_error_msg[match.end():])
+                    return clear_text.strip()
 
             return _error_msg
 
