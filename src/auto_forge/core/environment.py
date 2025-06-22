@@ -770,7 +770,6 @@ class CoreEnvironment(CoreModuleInterface):
                 message_queue.append(clear_text)
                 self._logger.debug(f"> {clear_text}")
 
-            input_buffer.clear()
             if echo_type != TerminalEchoType.LINE:
                 return clear_text
             else:
@@ -805,6 +804,8 @@ class CoreEnvironment(CoreModuleInterface):
             start_time = time.time()
             output_ready = False
             early_exit_no_output = False
+            text_line: str = ""
+            saw_cr: bool = False
 
             # Wait for process to start emitting output or terminate
             while not output_ready:
@@ -844,24 +845,33 @@ class CoreEnvironment(CoreModuleInterface):
                             if echo_type == TerminalEchoType.BYTE:
                                 _print_bytes_safely(byte)
 
-                            # Aggregate bytes into complete single lines for logging
-                            line_buffer.append(b)
-
                             if b == ord('\r'):
-                                # Carriage return means we should replace the current line content
-                                line_buffer.clear()
+                                # Soft overwrite (e.g., Git progress). Don't emit yet — allow next chars to overwrite.
+                                saw_cr = True  # use a flag to remember this
                             elif b == ord('\n'):
-                                # End of line — decode and push to queue
-                                # Clear the line and aggravate into a queue
+                                line_buffer.append(b)
                                 text_line = _bytes_to_message_queue(line_buffer, lines_queue)
+                                line_buffer.clear()
+                                saw_cr = False
+                            elif saw_cr:
+                                # \r was not followed by \n, so it's an overwrite line — treat this as new line
+                                text_line = _bytes_to_message_queue(line_buffer, lines_queue)
+                                line_buffer.clear()
+                                line_buffer.append(b)
+                                saw_cr = False
+                            else:
+                                line_buffer.append(b)
 
+                            if len(text_line) > 0:
                                 if echo_type in [TerminalEchoType.LINE, TerminalEchoType.CLEAR_LINE,
                                                  TerminalEchoType.SINGLE_LINE]:
                                     _print_line(text_line)
 
                                 # Track it if we have a tracker instate
-                                if text_line and self._tracker is not None:
+                                if self._tracker is not None:
                                     self._tracker.set_body_in_place(text=text_line.strip())
+                                text_line = ""
+
                 else:
                     # No data ready to read — check if process exited
                     if process.poll() is not None:
