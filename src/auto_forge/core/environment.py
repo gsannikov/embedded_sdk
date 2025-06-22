@@ -644,7 +644,6 @@ class CoreEnvironment(CoreModuleInterface):
                 r'^\s*(?:/usr/bin/|/bin/)?(?:zsh|bash|sh):\d+:',  # /bin/zsh:1: or zsh:1:
                 r'^\s*(?:/usr/bin/|/bin/)?(?:zsh|bash|sh):\s*line\s*\d+:',  # /bin/bash: line 1:
             ]
-
             for pattern in known_shell_prefixes:
                 match = re.match(pattern, _error_msg)
                 if match:
