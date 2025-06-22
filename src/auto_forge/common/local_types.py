@@ -164,6 +164,13 @@ class XRayStateType(Enum):
     ERROR = auto()
 
 
+class PromptStatusType(Enum):
+    """ Type of prompt status stripes """
+    INFO = "info"
+    DEBUG = "debug"
+    ERROR = "error"
+
+
 class SequenceErrorActionType(Enum):
     """ Enum for error actions, storing both int value and string label. """
     DEFAULT = (0, "default")

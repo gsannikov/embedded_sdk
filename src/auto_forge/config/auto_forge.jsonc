@@ -338,7 +338,7 @@
         "zip"             : { "path_completion": true , "only_dirs": false    }
     },
 
-    "dynamic_path_styles": {
+    "dynamic_prompt_styles": {
 
         // Default background for all completions (light gray tone)
         "background": "d1d1d1",

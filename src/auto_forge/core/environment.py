@@ -48,6 +48,7 @@ from auto_forge import (
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
+MAX_READ_CHUNK = 1024  # Read up to 1 KB at once
 
 
 class CoreEnvironment(CoreModuleInterface):
@@ -616,7 +617,7 @@ class CoreEnvironment(CoreModuleInterface):
             or None if an exception was raised.
         """
 
-        polling_interval: float = 0.01
+        polling_interval: float = 0.1
         kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
@@ -697,7 +698,6 @@ class CoreEnvironment(CoreModuleInterface):
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
             """
             Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
-
             This function uses a persistent UTF-8 decoder to correctly handle multibyte characters
             (e.g., box-drawing or Unicode symbols) that may span multiple byte reads. Output is
             flushed immediately to ensure real-time terminal updates.
@@ -746,7 +746,7 @@ class CoreEnvironment(CoreModuleInterface):
                 else:
                     sys.stdout.write(line)
 
-            sys.stdout.flush()
+                sys.stdout.flush()
 
         def _bytes_to_message_queue(input_buffer: bytearray, message_queue: deque) -> str:
             """
@@ -774,11 +774,21 @@ class CoreEnvironment(CoreModuleInterface):
             else:
                 return text
 
+        def _is_readable():
+            """
+            Wait for readable file descriptors from the process.
+            Returns a list of readable streams or file descriptors.
+            """
+            if use_pty:
+                return select.select([master_fd], [], [], polling_interval)[0]
+            else:
+                return select.select([process.stdout, process.stderr], [], [], polling_interval)[0]
+
         # Execute the external command
         if use_pty:
             self._logger.debug(f"Executing: {command_and_args} (PTY)")
             master_fd, slave_fd = pty.openpty()
-            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=1,
+            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
                                        shell=shell, cwd=cwd, env=proc_env, **kwargs)
             flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
             fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -786,60 +796,69 @@ class CoreEnvironment(CoreModuleInterface):
         else:  # Normal flow
             self._logger.debug(f"Executing: {command_and_args}")
             process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, bufsize=1, shell=shell, cwd=cwd, env=proc_env,
+                                       stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
                                        **kwargs)
 
         # Loop and read the spawned process output upto timeout or normal termination
         try:
+
             start_time = time.time()
-            while process.poll() is not None:
+            output_ready = False
+
+            # Pre loop waiting for output to be ready
+            while not output_ready:
                 if timeout > 0 and (time.time() - start_time > timeout):
-                    raise TimeoutError(f"'{command}' process didn't start after {timeout} seconds")
+                    raise TimeoutError(f"'{command}' did not produce output after {timeout} seconds")
+
+                if _is_readable():
+                    output_ready = True
 
             while True:
-                if use_pty:
-                    readable, _, _ = select.select([master_fd], [], [], polling_interval)
-                else:
-                    readable, _, _ = select.select([process.stdout, process.stderr], [], [], polling_interval)
 
-                if readable:
-                    received_byte = os.read(master_fd, 1) if use_pty else process.stdout.read(1)
-
-                    if not received_byte:
-                        break  # EOF: nothing more to read
-
-                    if received_byte == b'':
-                        break
+                if _is_readable():
+                    if use_pty:
+                        received_bytes = os.read(master_fd, MAX_READ_CHUNK)
                     else:
-                        # Immediately echo to the byte to the terminal if set
-                        if echo_type == TerminalEchoType.BYTE:
-                            _print_bytes_safely(received_byte)
+                        received_bytes = process.stdout.read(MAX_READ_CHUNK)
 
-                        # Aggregate bytes into complete single lines for logging
-                        line_buffer.append(received_byte[0])
+                    if received_bytes:
+                        for b in received_bytes:
 
-                        if received_byte in (b'\n', b'\r'):
-                            # Clear the line and aggravate into a queue
-                            text_line = _bytes_to_message_queue(line_buffer, lines_queue)
+                            if b == 0:
+                                break  # EOF or invalid byte
 
-                            if echo_type in [TerminalEchoType.LINE, TerminalEchoType.CLEAR_LINE,
-                                             TerminalEchoType.SINGLE_LINE]:
-                                _print_line(text_line)
+                            # Convert int back to single-byte bytes object
+                            byte = bytes([b])
 
-                            # Track it if we have a tracker instate
-                            if text_line and self._tracker is not None:
-                                self._tracker.set_body_in_place(text=text_line.strip())
+                            # Immediately echo to the byte to the terminal if set
+                            if echo_type == TerminalEchoType.BYTE:
+                                _print_bytes_safely(byte)
+
+                            # Aggregate bytes into complete single lines for logging
+                            line_buffer.append(b)
+
+                            if b in (ord('\n'), ord('\r')):
+                                # Clear the line and aggravate into a queue
+                                text_line = _bytes_to_message_queue(line_buffer, lines_queue)
+
+                                if echo_type in [TerminalEchoType.LINE, TerminalEchoType.CLEAR_LINE,
+                                                 TerminalEchoType.SINGLE_LINE]:
+                                    _print_line(text_line)
+
+                                # Track it if we have a tracker instate
+                                if text_line and self._tracker is not None:
+                                    self._tracker.set_body_in_place(text=text_line.strip())
                 else:
                     # No data ready to read — check if process exited
                     if process.poll() is not None:
                         break
 
-                # Handle execution timeout
-                if timeout > 0 and (time.time() - start_time > timeout):
-                    process.kill()
-                    raise TimeoutError(f"'{command}' timed out after {timeout} seconds")
+                    # Handle execution timeout
+                    elif timeout > 0 and (time.time() - start_time > timeout):
+                        process.kill()
+                        raise TimeoutError(f"'{command}' timed out after {timeout} seconds")
 
-            process.wait(timeout=10.0)
+            process.wait(timeout=1.0)
             # Add any remaining bytes
             if line_buffer:
                 _bytes_to_message_queue(line_buffer, lines_queue)

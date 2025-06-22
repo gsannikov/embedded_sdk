@@ -37,7 +37,7 @@ try:
         BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
-        LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType,
+        LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
         TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, XRayStateType
@@ -99,7 +99,7 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
-    "ProgressTracker", "QueueLogger",
+    "ProgressTracker", "PromptStatusType", "QueueLogger",
     "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream",

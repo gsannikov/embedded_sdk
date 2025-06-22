@@ -29,6 +29,7 @@ import tempfile
 import termios
 import textwrap
 import threading
+import time
 import zipfile
 from contextlib import suppress
 from datetime import datetime
@@ -40,12 +41,14 @@ from urllib.parse import ParseResult, unquote, urlparse
 import psutil
 # Third-party
 from pyfiglet import Figlet
+from rich.console import Console
+from rich.text import Text
 from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor,
-    CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType,
+    CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
 )
 
@@ -75,6 +78,7 @@ class CoreToolBox(CoreModuleInterface):
         # Persist this module instance in the global registry for centralized access
         self._registry = CoreRegistry.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
+        self._show_status_lock = threading.RLock()
 
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
@@ -1698,6 +1702,52 @@ class CoreToolBox(CoreModuleInterface):
             return return_code
 
         return 1  # If anything failed silently
+
+    def show_status(self, message: Optional[str] = None,
+                    status_type: PromptStatusType = PromptStatusType.INFO,
+                    expire_after: float = 0.0,
+                    erase_after: bool = False) -> None:
+        """
+        Briefly display or clear a styled status message at the top of the terminal.
+        Args:
+            message (Optional[str]): The message to display. If None, line 0 is cleared.
+            status_type (PromptStatusType): Type of message (affects color).
+            expire_after (float): Seconds to keep message visible. Ignored when message is None.
+            erase_after (bool): Whether to erase message after it wqs shown.
+        """
+
+        with self._show_status_lock:
+            console = Console()
+            term_width = shutil.get_terminal_size().columns
+
+            # Save cursor position
+            sys.stdout.write("\0337")
+            sys.stdout.write("\033[0;0H")  # Move to top-left corner (line 0)
+
+            if message is None:
+                sys.stdout.write("\033[2K")  # Erase entire line
+                sys.stdout.write("\0338")  # Restore cursor
+                sys.stdout.flush()
+                return
+
+            # Style map per status type
+            style_map = {
+                PromptStatusType.INFO: "bold white on blue",
+                PromptStatusType.DEBUG: "black on yellow",
+                PromptStatusType.ERROR: "bold white on red",
+            }
+
+            style = style_map.get(status_type, "bold white on blue")
+            status_line = Text(message.ljust(term_width), style=style)
+
+            console.print(status_line, end="")  # Write styled line
+            sys.stdout.write("\0338")  # Restore cursor
+            sys.stdout.flush()
+
+            if expire_after > 0:
+                time.sleep(expire_after)
+            if erase_after:
+                self.show_status(None)
 
     @staticmethod
     def is_shell_builtin(tested_command: str) -> bool:

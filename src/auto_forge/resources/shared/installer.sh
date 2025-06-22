@@ -1,12 +1,12 @@
 #!/bin/bash
-# shellcheck disable=SC2059 ## Do not use variables in the printf format string.
+# shellcheck disable=SC2059 # Do not use variables in the printf format string.
 
 # ------------------------------------------------------------------------------
 #
 # Script Name:    installer.sh
-# Description:    Helper script for launching AutoForge bootstrap.
-#                 This script could be sourced or directly invoked.
-# Version:        1.1
+# Description:    Auxiliary script for installing AutoForge using bootstrap.
+#                 Note: This script could be sourced or directly invoked.
+# Version:        1.2
 #
 # ------------------------------------------------------------------------------
 
@@ -72,7 +72,7 @@ install_auto_forge() {
         echo "      --auto_start              Automatically start the package upon successful setup."
         echo "      --allow_non_empty         Allow using non-empty directories by clearing their contents first."
         echo "      --verbose                 Enable more detailed output."
-        echo "      --no_token                Prevent automatically getting and using GotHub token"
+        echo "      --no_token                Do not attempt to acquire GitHub token using 'dt'."
         echo "  -h, --help                    Display this help message and exit."
         echo
         printf "Examples:\n\n"
@@ -81,7 +81,6 @@ install_auto_forge() {
         printf "To install the AutoForge 'iphone' solution from a specific package URL on GitHub:\n"
         printf "  ${BOLD_GREEN}  af_install${RESET} -w ${DIM}/home/tim_c/projects/iphone${RESET} -n ${DIM}iphone${RESET} -p ${DIM}https://raw.githubusercontent.com/tim_c/iphone/solution${RESET} --verbose\n" printf "\n"
         printf "\n"
-
     }
 
     # Show help if no arguments were passed
@@ -202,9 +201,8 @@ install_auto_forge() {
         solution_package="<samples>/$solution_name"
     fi
 
-    # Attempt to get Git token using 'dt'
+    # Attempt to acquire Git token using 'dt'
     if [[ "$no_token" == false ]]; then
-
         if output="$(dt github print-token 2>/dev/null)"; then
             token="$output"
             _verbose_print "Using GitHub token."
@@ -270,7 +268,7 @@ main() {
 }
 
 #
-# @brief Invoke the main function with command-line arguments.
+# @brief Invoke the main function and pass command-line arguments.
 # @return The exit status of the main function.
 #
 
