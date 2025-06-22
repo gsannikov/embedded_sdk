@@ -597,7 +597,7 @@ class CoreEnvironment(CoreModuleInterface):
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
             use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True, shell: bool = True,
             cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None, max_reda_chunk: Optional[int] = 124) -> \
-    Optional[CommandResultType]:
+            Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -804,6 +804,7 @@ class CoreEnvironment(CoreModuleInterface):
         try:
             start_time = time.time()
             output_ready = False
+            early_exit_no_output = False
 
             # Wait for process to start emitting output or terminate
             while not output_ready:
@@ -814,7 +815,12 @@ class CoreEnvironment(CoreModuleInterface):
                     output_ready = True
                 elif process.poll() is not None:
                     # Process exited without producing output
+                    early_exit_no_output = True
                     break
+
+            if early_exit_no_output:
+                self._logger.debug(f"'{command}' exited before producing output.")
+                return CommandResultType(response=None, return_code=process.returncode)
 
             # Loop and read the spawned process output upto timeout or normal termination
             while True:
