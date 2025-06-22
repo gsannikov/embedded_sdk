@@ -324,14 +324,15 @@ class CoreXRayDB(CoreModuleInterface):
                 with self._lock:
                     self._logger.info("XRayDB is running")
                     self._state = XRayStateType.RUNNING
-                    self._tool_box.show_status(message="XRayDB is running", status_type=PromptStatusType.DEBUG,
+                    self._tool_box.show_status(message="XRayDB is up and running.", status_type=PromptStatusType.DEBUG,
                                                expire_after=2, erase_after=True)
 
         except Exception as indexing_error:
             self._logger.error(f"Indexer error: {indexing_error}")
             with self._lock:
                 self._state = XRayStateType.ERROR
-                self._tool_box.show_status("XRayDB Error", status_type=PromptStatusType.ERROR, expire_after=2,
+                self._tool_box.show_status("XRayDB error, check logs.", status_type=PromptStatusType.ERROR,
+                                           expire_after=2,
                                            erase_after=True)
 
     # noinspection SpellCheckingInspection
