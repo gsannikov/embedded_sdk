@@ -10,6 +10,7 @@ Description:
     - Probing the user environment to ensure prerequisites are met.
 """
 import codecs
+import difflib
 import fcntl
 import fnmatch
 import inspect
@@ -626,62 +627,13 @@ class CoreEnvironment(CoreModuleInterface):
         timeout = self._subprocess_execution_timout if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
         max_reda_chunk = 1024 if max_reda_chunk < 1 else max_reda_chunk  # Normalize bad user input
+        prev_queued_message: Optional[str] = None
 
-        # Determine the terminal width
-        try:
-            term_width = shutil.get_terminal_size().columns
-        except OSError:
-            term_width = 100  # fallback default if terminal size can't be determined
-
-        # Create merged environment where AutoForge variables override exising
-        proc_env: dict[str, str] = os.environ.copy()
-        if env:
-            proc_env.update(env)  # apply overrides and updates
-
-        # Cleanup
-        if isinstance(command_and_args, str):
-            command_and_args = CoreToolBox.normalize_text(text=command_and_args)
-            command_list = command_and_args.strip().split()
-        elif isinstance(command_and_args, list):
-            command_list = []
-            for item in command_and_args:
-                cleaned = CoreToolBox.normalize_text(text=item)
-                command_list.append(cleaned)
-        else:
-            raise TypeError("command_and_args must be a string or a list of strings")
-
-        full_command = command_list[0]  # The command
-        command = os.path.basename(full_command)
-
-        # Full TTY handoff for interactive apps
-        if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
-            self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
-            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env,
-                                                            timeout=timeout)
-            if check and results.return_code != 0:
-                raise subprocess.CalledProcessError(returncode=results.return_code, cmd=command)
-            return results
-
-        # Expand current work directory if specified
-        cwd = self._variables.expand(key=cwd) if cwd else cwd
-
-        def _safe_quote(arg: str) -> str:
+        def _safe_quote(_arg: str) -> str:
             """ Allow simple expansions or globs, quote all else """
-            if re.match(r'^[$~][\w{}@]*$', arg) or '*' in arg or '?' in arg:
-                return arg  # allow shell expansion
-            return shlex.quote(arg)
-
-        # When not using shell we have to use list for the arguments rather than string
-        if not shell:
-            if " " in command or any(c in command for c in "|&;<>()"):
-                raise ValueError(f"unsupported compound shell expression: {command}")
-            _command = command_list
-        else:
-            _command = " ".join(_safe_quote(arg) for arg in command_list)
-            env_shell = os.environ.get("SHELL")
-            if env_shell:
-                kwargs = dict()
-                kwargs['executable'] = env_shell
+            if re.match(r'^[$~][\w{}@]*$', _arg) or '*' in _arg or '?' in _arg:
+                return _arg  # allow shell expansion
+            return shlex.quote(_arg)
 
         def _clean_shell_error_prefix(_error_msg: str) -> str:
             """
@@ -691,15 +643,13 @@ class CoreEnvironment(CoreModuleInterface):
             known_shell_prefixes = [
                 r'^\s*zsh:\d+:',  # zsh:1:
                 r'^\s*bash:\s*line\s*\d+:',  # bash: line 1:
-                r'^\s*sh:\s*line\s*\d+:',
-            ]
+                r'^\s*sh:\s*line\s*\d+:', ]
 
             for pattern in known_shell_prefixes:
                 match = re.match(pattern, _error_msg)
                 if match:
                     clear_text = str(_error_msg[match.end():])
                     return clear_text.strip()
-
             return _error_msg
 
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
@@ -707,8 +657,7 @@ class CoreEnvironment(CoreModuleInterface):
             Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
             Args:
                 byte_data (bytes): A single byte read from a terminal or subprocess stream.
-                suppress_errors (bool): If True, suppresses decoding or write errors silently.
-                                        If False, exceptions will propagate.
+                suppress_errors (bool): If True, suppresses decoding or write errors silently
             """
             try:
                 if not isinstance(byte_data, bytes):
@@ -729,12 +678,10 @@ class CoreEnvironment(CoreModuleInterface):
             Args:
                 line (str): The text to print.
             """
-
-            line = _clean_shell_error_prefix(line) if line else line
-            if line:
+            if len(line):
+                line = _clean_shell_error_prefix(line) if line else line
 
                 if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
-
                     if leading_text is not None:
                         line = leading_text + line  # Prefix with optional leading text
 
@@ -763,6 +710,7 @@ class CoreEnvironment(CoreModuleInterface):
             Returns:
                 str: The cleaned string (or empty string if nothing was added).
             """
+            nonlocal prev_queued_message
 
             try:
                 text = input_buffer.decode('utf-8', errors='replace')
@@ -773,8 +721,17 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Log and queue only lines that do not end with \r.
             if len(clear_text):
-                message_queue.append(clear_text)
-                self._logger.debug(f"> {clear_text}")
+
+                is_similar: bool = False
+                if isinstance(prev_queued_message, str):
+                    similarity: float = difflib.SequenceMatcher(None, clear_text, prev_queued_message).ratio()
+                    if similarity >= 0.90:
+                        is_similar = True
+
+                if not is_similar:
+                    message_queue.append(clear_text)
+                    self._logger.debug(f"> {clear_text}")
+                    prev_queued_message = clear_text
 
             if echo_type != TerminalEchoType.LINE:
                 return clear_text
@@ -791,7 +748,67 @@ class CoreEnvironment(CoreModuleInterface):
             else:
                 return select.select([process.stdout, process.stderr], [], [], polling_interval)[0]
 
-        # Execute the external command
+        # Determine the terminal width
+        try:
+            term_width = shutil.get_terminal_size().columns
+        except OSError:
+            term_width = 100  # fallback default if terminal size can't be determined
+
+        # Create merged environment where AutoForge variables override exising
+        proc_env: dict[str, str] = os.environ.copy()
+        if env:
+            proc_env.update(env)  # apply overrides and updates
+
+        # Cleanup
+        if isinstance(command_and_args, str):
+            command_and_args = CoreToolBox.normalize_text(text=command_and_args)
+            command_list = command_and_args.strip().split()
+        elif isinstance(command_and_args, list):
+            command_list = []
+            for item in command_and_args:
+                cleaned = CoreToolBox.normalize_text(text=item)
+                command_list.append(cleaned)
+        else:
+            raise TypeError("command_and_args must be a string or a list of strings")
+
+        full_command = command_list[0]  # The command
+        command = os.path.basename(full_command)
+
+        # -----------------------------------------------------------------------
+        #
+        # Full TTY handoff for interactive apps
+        #
+        # -----------------------------------------------------------------------
+
+        if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
+            self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
+            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env,
+                                                            timeout=timeout)
+            if check and results.return_code != 0:
+                raise subprocess.CalledProcessError(returncode=results.return_code, cmd=command)
+            return results
+
+        # Expand current work directory if specified
+        cwd = self._variables.expand(key=cwd) if cwd else cwd
+
+        # When not using shell we have to use list for the arguments rather than string
+        if not shell:
+            if " " in command or any(c in command for c in "|&;<>()"):
+                raise ValueError(f"unsupported compound shell expression: {command}")
+            _command = command_list
+        else:
+            _command = " ".join(_safe_quote(arg) for arg in command_list)
+            env_shell = os.environ.get("SHELL")
+            if env_shell:
+                kwargs = dict()
+                kwargs['executable'] = env_shell
+
+        # -----------------------------------------------------------------------
+        #
+        # Execute PTY / Normal.
+        #
+        # -----------------------------------------------------------------------
+
         if use_pty:
             self._logger.debug(f"Executing: {command_and_args} (PTY)")
             master_fd, slave_fd = pty.openpty()
@@ -810,7 +827,12 @@ class CoreEnvironment(CoreModuleInterface):
             output_ready = False
             early_exit_no_output = False
 
+            # -----------------------------------------------------------------------
+            #
             # Wait for process to start emitting output or terminate
+            #
+            # -----------------------------------------------------------------------
+
             while not output_ready:
                 if timeout > 0 and (time.time() - start_time > timeout):
                     raise TimeoutError(f"'{command}' did not produce output after {timeout} seconds")
@@ -826,7 +848,12 @@ class CoreEnvironment(CoreModuleInterface):
                 self._logger.debug(f"'{command}' exited before producing output.")
                 return CommandResultType(response=None, return_code=process.returncode)
 
-            # Loop and read the spawned process output upto timeout or normal termination
+            # -----------------------------------------------------------------------
+            #
+            # Loop and read the spawned process output upto timeout or normal
+            # termination.
+            #
+            # -----------------------------------------------------------------------
             while True:
 
                 if _is_readable():
@@ -873,6 +900,12 @@ class CoreEnvironment(CoreModuleInterface):
                     elif timeout > 0 and (time.time() - start_time > timeout):
                         process.kill()
                         raise TimeoutError(f"'{command}' timed out after {timeout} seconds")
+
+            # -----------------------------------------------------------------------
+            #
+            # Post execution.
+            #
+            # -----------------------------------------------------------------------
 
             process.wait(timeout=1.0)
             # Add any remaining bytes
