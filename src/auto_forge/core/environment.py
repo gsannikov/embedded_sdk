@@ -764,8 +764,6 @@ class CoreEnvironment(CoreModuleInterface):
                 str: The cleaned string (or empty string if nothing was added).
             """
 
-            cr_line:bool = False
-
             try:
                 text = input_buffer.decode('utf-8', errors='replace')
             except Exception as decode_error:
@@ -775,9 +773,8 @@ class CoreEnvironment(CoreModuleInterface):
 
             # Log and queue only lines that do not end with \r.
             if len(clear_text):
-                if not text.endswith('\r'):
-                    message_queue.append(clear_text)
-                    self._logger.debug(f"> {clear_text}")
+                message_queue.append(clear_text)
+                self._logger.debug(f"> {clear_text}")
 
             if echo_type != TerminalEchoType.LINE:
                 return clear_text
