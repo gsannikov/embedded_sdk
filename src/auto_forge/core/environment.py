@@ -847,7 +847,11 @@ class CoreEnvironment(CoreModuleInterface):
                             # Aggregate bytes into complete single lines for logging
                             line_buffer.append(b)
 
-                            if b in (ord('\n'), ord('\r')):
+                            if b == ord('\r'):
+                                # Carriage return means we should replace the current line content
+                                line_buffer.clear()
+                            elif b == ord('\n'):
+                                # End of line — decode and push to queue
                                 # Clear the line and aggravate into a queue
                                 text_line = _bytes_to_message_queue(line_buffer, lines_queue)
 
