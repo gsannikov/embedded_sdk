@@ -705,10 +705,6 @@ class CoreEnvironment(CoreModuleInterface):
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
             """
             Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
-            This function uses a persistent UTF-8 decoder to correctly handle multibyte characters
-            (e.g., box-drawing or Unicode symbols) that may span multiple byte reads. Output is
-            flushed immediately to ensure real-time terminal updates.
-
             Args:
                 byte_data (bytes): A single byte read from a terminal or subprocess stream.
                 suppress_errors (bool): If True, suppresses decoding or write errors silently.
@@ -777,7 +773,6 @@ class CoreEnvironment(CoreModuleInterface):
                 message_queue.append(clear_text)
                 self._logger.debug(f"> {clear_text}")
 
-            input_buffer.clear()
             if echo_type != TerminalEchoType.LINE:
                 return clear_text
             else:
@@ -857,7 +852,8 @@ class CoreEnvironment(CoreModuleInterface):
                             if b in (ord('\n'), ord('\r')):
                                 # Clear the line and aggravate into a queue
                                 text_line = _bytes_to_message_queue(line_buffer, lines_queue)
-
+                                line_buffer.clear()
+                                
                                 if len(text_line) > 0:
                                     if echo_type in [TerminalEchoType.LINE, TerminalEchoType.CLEAR_LINE,
                                                      TerminalEchoType.SINGLE_LINE]:
