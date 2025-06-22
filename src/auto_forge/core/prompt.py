@@ -39,6 +39,13 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.styles import Style
 from rich.console import Console
 
+from prompt_toolkit.application import get_app
+from prompt_toolkit.output import ColorDepth
+from prompt_toolkit.styles import Style
+import shutil
+import threading
+import time
+
 # AutoForge imports
 from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, AutoLogger, BuildProfileType,
@@ -1267,6 +1274,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         print(f"\n{PROJECT_NAME} ver. {PROJECT_VERSION}")
         print(f"cmd2: {cmd2.__version__}\n")
+        self.popup("🔧 Building project...", color="blue", duration=3)
 
     def do_echo(self, arg: str):
         """
@@ -1379,7 +1387,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         This command extracts essential build information by querying the solution structure
         using the user-specified target. Since a builder instance requires both configuration
-        and toolchain data, the solution is queried to retrieve the relevant configuration.
+        and tool-chain data, the solution is queried to retrieve the relevant configuration.
         """
 
         self.last_result = 1
@@ -1476,6 +1484,57 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         except Exception as exception:
             self._logger.exception(f"Exception: {exception}")
             return True  # Stop the interrupter
+
+
+    @staticmethod
+    def popup(msg: str, color: str = "blue", duration: float = 3.0):
+        
+        print("popup...")
+        def _popup():
+            app = get_app()
+            if not app:
+                print("No app!")
+                return
+
+            width, height = shutil.get_terminal_size((80, 24))
+            stripe_width = width - 1
+            stripe_line = height
+
+            colors = {
+                "blue": "bg:#0000ff",
+                "red": "bg:#ff0000",
+                "yellow": "bg:#ffff00",
+                "green": "bg:#00ff00",
+            }
+
+            color_code = colors.get(color, "bg:#0000ff")
+            style = f"{color_code} #ffffff bold"
+
+            # Format the message
+            padded_msg = msg.center(stripe_width)[:stripe_width]
+            styled_line = f"\x1b7\x1b[{stripe_line};1H\x1b[{style}m{padded_msg}\x1b[0m\x1b8"
+
+            # Show popup
+            app.output.flush()
+            app.output.write_raw(styled_line)
+            app.output.flush()
+
+            # Block input
+            app.renderer.erase()
+            app.invalidate()
+
+            time.sleep(duration)
+
+            # Clear the popup
+            clear_line = f"\x1b7\x1b[{stripe_line};1H{' ' * stripe_width}\x1b8"
+            app.output.write_raw(clear_line)
+            app.output.flush()
+            app.invalidate()
+            print("done")
+
+        # Run in thread to avoid freezing prompt
+        t = threading.Thread(target=_popup, daemon=True)
+        t.start()
 
     def postloop(self) -> None:
         """
