@@ -685,16 +685,20 @@ class CoreEnvironment(CoreModuleInterface):
 
         def _clean_shell_error_prefix(_error_msg: str) -> str:
             """
-            Remove common shell prefixes like 'zsh:1:', 'bash: line 1:', etc.
-            Preserves newlines and carriage returns.
+            Remove common shell error prefixes like 'zsh:1:', 'bash: line 1:', etc.
+            Avoid stripping meaningful lines like Git output.
             """
-            _pattern = r'^\s*(?:[a-zA-Z0-9_\-]+:)?(?:\s*line\s*\d+|[0-9]+)?:?\s*'
-            match = re.match(_pattern, _error_msg)
-            if match:
-                remainder = _error_msg[match.end():]
-                # Only strip prefix if there's something meaningful left
-                if remainder.strip() != "":
-                    return remainder
+            known_shell_prefixes = [
+                r'^\s*zsh:\d+:',  # zsh:1:
+                r'^\s*bash:\s*line\s*\d+:',  # bash: line 1:
+                r'^\s*sh:\s*line\s*\d+:',
+            ]
+
+            for pattern in known_shell_prefixes:
+                match = re.match(pattern, _error_msg)
+                if match:
+                    return _error_msg[match.end():]
+
             return _error_msg
 
         def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
@@ -729,23 +733,25 @@ class CoreEnvironment(CoreModuleInterface):
                 line (str): The text to print.
             """
 
-            # line = _clean_shell_error_prefix(line) if line else line
+            line = _clean_shell_error_prefix(line) if line else line
             if line:
 
-                if leading_text is not None:
-                    line = leading_text + line  # Prefix with optional leading text
-
-                if "warning:" in line:
-                    line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
-                elif "error:" in line:
-                    line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
-                else:
-                    max_len = max(10, term_width - 10)
-                    line = line[:max_len]
-
                 if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
+
+                    if leading_text is not None:
+                        line = leading_text + line  # Prefix with optional leading text
+
+                    if "warning:" in line:
+                        line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
+                    elif "error:" in line:
+                        line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
+                    else:
+                        max_len = max(10, term_width - 10)
+                        line = line[:max_len]
+
                     sys.stdout.write(f'\033[K{line}\r')
                 else:
+                    # Bare line printer
                     sys.stdout.write(line)
 
                 sys.stdout.flush()
