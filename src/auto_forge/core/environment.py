@@ -729,7 +729,7 @@ class CoreEnvironment(CoreModuleInterface):
                 line (str): The text to print.
             """
 
-            line = _clean_shell_error_prefix(line) if line else line
+            # line = _clean_shell_error_prefix(line) if line else line
             if line:
 
                 if leading_text is not None:
