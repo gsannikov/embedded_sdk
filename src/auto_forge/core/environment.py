@@ -48,7 +48,6 @@ from auto_forge import (
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
-MAX_READ_CHUNK = 1024  # Read up to 1 KB at once
 
 
 class CoreEnvironment(CoreModuleInterface):
@@ -597,7 +596,8 @@ class CoreEnvironment(CoreModuleInterface):
             self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
             use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True, shell: bool = True,
-            cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None) -> Optional[CommandResultType]:
+            cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None, max_reda_chunk: Optional[int] = 124) -> \
+    Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -611,6 +611,7 @@ class CoreEnvironment(CoreModuleInterface):
             shell (bool): If True, the command will be executed in a shell environment.
             cwd (Optional[str]): The directory from which the process should be executed.
             env (Optional[Mapping[str, str]]): Environment variables.
+            max_reda_chunk (Optional[int]): The maximum number of bytes we're allowed to acclimate.
 
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
@@ -624,6 +625,7 @@ class CoreEnvironment(CoreModuleInterface):
         master_fd: Optional[int] = None  # PTY master descriptor
         timeout = self._subprocess_execution_timout if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
+        max_reda_chunk = 1024 if max_reda_chunk < 1 else max_reda_chunk  # Normalize bad user input
 
         # Determine the terminal width
         try:
@@ -799,27 +801,29 @@ class CoreEnvironment(CoreModuleInterface):
                                        stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
                                        **kwargs)
 
-        # Loop and read the spawned process output upto timeout or normal termination
         try:
-
             start_time = time.time()
             output_ready = False
 
-            # Pre loop waiting for output to be ready
+            # Wait for process to start emitting output or terminate
             while not output_ready:
                 if timeout > 0 and (time.time() - start_time > timeout):
                     raise TimeoutError(f"'{command}' did not produce output after {timeout} seconds")
 
                 if _is_readable():
                     output_ready = True
+                elif process.poll() is not None:
+                    # Process exited without producing output
+                    break
 
+            # Loop and read the spawned process output upto timeout or normal termination
             while True:
 
                 if _is_readable():
                     if use_pty:
-                        received_bytes = os.read(master_fd, MAX_READ_CHUNK)
+                        received_bytes = os.read(master_fd, max_reda_chunk)
                     else:
-                        received_bytes = process.stdout.read(MAX_READ_CHUNK)
+                        received_bytes = process.stdout.read(max_reda_chunk)
 
                     if received_bytes:
                         for b in received_bytes:
