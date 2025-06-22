@@ -725,7 +725,7 @@ class CoreEnvironment(CoreModuleInterface):
                 is_similar: bool = False
                 if isinstance(prev_queued_message, str):
                     similarity: float = difflib.SequenceMatcher(None, clear_text, prev_queued_message).ratio()
-                    if similarity >= 0.80:
+                    if similarity >= 0.85:
                         is_similar = True
 
                 if not is_similar:
