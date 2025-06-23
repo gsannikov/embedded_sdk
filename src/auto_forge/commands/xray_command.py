@@ -162,21 +162,21 @@ class XRayCommand(CommandInterface):
                 cmake_path_data = json.load(jf)
                 # Canonicalize and sort CMake paths by length (longest match first)
                 cmake_prefixes = sorted(
-                    [(var, str(Path(base_path).resolve())) for var, base_path in cmake_path_data.items() if base_path],
+                    [(var, str(Path(base_path).resolve())) for var, base_path in cmake_path_data.items()],
                     key=lambda kv: -len(kv[1])
                 )
                 cmake_json_loaded = True
 
         try:
-            query = """
+            query = (f"""
                     SELECT path, ext
                     FROM file_meta
                     WHERE base LIKE ? \
-                    """
+                    LIMIT {limit}
+                    """)
 
             # Normalize user input
             sql_pattern, extensions = self._resolve_search_pattern_and_extensions(file_name_pattern, extensions)
-
             params = [sql_pattern]
             query += " ESCAPE '\\'"
 
@@ -186,7 +186,6 @@ class XRayCommand(CommandInterface):
                 params.extend(extensions)
 
             query += f" ORDER BY path LIMIT {limit}"
-
             rows = xray_db.query_raw(query, tuple(params))
 
             if not rows:
@@ -198,36 +197,21 @@ class XRayCommand(CommandInterface):
             table.add_column("Type", style="cyan", width=4)
             table.add_column("Path", style="white")
 
-            if cmake_json_loaded:
-                table_rows = []
-                show_cmake_column = False
-
+            if not cmake_json_loaded:
+                for idx, (path, ext) in enumerate(rows, 1):
+                    table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]")
+            else:
+                table.add_column("CMake Include", style="magenta")
+                # Canonicalize each found path before comparison
                 for idx, (path, ext) in enumerate(rows, 1):
                     resolved_path = str(Path(path).resolve())
                     cmake_hint = ""
-
                     for var, base_path in cmake_prefixes:
-                        if resolved_path.startswith(base_path + "/") or resolved_path == base_path:
+                        if resolved_path.startswith(base_path):
                             relative = os.path.relpath(resolved_path, base_path)
-                            first_dir = relative.split(os.sep, 1)[0]  # first component of relative path
-                            cmake_hint = f"${{{var}}}/{first_dir}" if first_dir else f"${{{var}}}"
-                            show_cmake_column = True
+                            cmake_hint = f"${{{var}}}/{relative}"
                             break
-
-                    table_rows.append((idx, ext or "", path, cmake_hint))
-
-                if show_cmake_column:
-                    table.add_column("CMake Include", style="magenta")
-                    # Add rows
-                    for idx, ext, path, cmake_hint in table_rows:
-                        row = [str(idx), ext, f"[link=file://{path}]{path}[/link]"]
-                        if show_cmake_column:
-                            row.append(cmake_hint)
-                        table.add_row(*row)
-
-            else:
-                for idx, (path, ext) in enumerate(rows, 1):
-                    table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]")
+                    table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]", cmake_hint)
 
             self._console.print('\n', table)
             return 0

@@ -32,7 +32,7 @@ import threading
 import time
 import zipfile
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Optional, SupportsInt, Union, Callable
@@ -406,7 +406,6 @@ class CoreToolBox(CoreModuleInterface):
             method_name (str): Name of the method to search for.
             directory (Optional[Union[str, os.PathLike[str]]]): Root directory to search in.
                 Defaults to PROJECT_BASE_PATH if not provided.
-
         Returns:
             Optional[MethodLocationType]: A tuple (class_name, method_name, module_path),
                 or None if not found or on error.
@@ -1992,3 +1991,22 @@ class CoreToolBox(CoreModuleInterface):
                     if isinstance(sole_value, list):
                         return sole_value
         return data
+
+    @staticmethod
+    def is_recent_event(event_date: Optional[datetime] = None, days_back: int = 1) -> bool:
+        """
+        Returns True if 'event_data' is within the past 'days_back' days (inclusive), and not in the future.
+        Args:
+            event_date (datetime, optional): The event datetime (must be timezone-aware).
+            days_back (int): Number of days back to consider valid.
+        Returns:
+            bool: True if event_data is within [now - days_back, now], else False.
+        """
+        if not isinstance(event_date, datetime) or event_date.tzinfo is None:
+            return False
+        if days_back < 0:
+            return False
+
+        now = datetime.now(UTC)
+        window_start = now - timedelta(days=days_back)
+        return window_start <= event_date <= now

@@ -9,6 +9,31 @@
 {
     "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // General
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
+    "git_token_environment_var": "NONE",                    // Optional name of the environment variable that may hold the user's Git token
+    "subprocess_execution_timout": 120.0,                   // Default timeout (in seconds) for sub-process execution.
+    "watchdog_timeout": 10.0,                               // Default timeout (in seconds) for sub-process execution.
+    "telemetry_file": "$AF_SOLUTION_BASE/telemetry.log",    // Where to store telemetry logs
+    "keywords_mapping": [
+
+        // Defines placeholder-to-value mappings used for runtime substitution.
+        // Placeholders in the form <keyword> will be replaced by their mapped values, if defined.
+        // Each entry is a pair: [keyword (without angle brackets), replacement string].
+
+        ["samples", "$AUTO_FORGE_PROJECT_SAMPLES_PATH"]
+    ],
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // Mandatory environment variables.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
     // List of variable names that must be defined in the "variables" section.
     // These variables are critical for proper project configuration.
     // Each entry in the "variables" array must be an object with a matching "name" field.
@@ -50,16 +75,83 @@
         ["SOURCE_BASE",         "$PROJ_BASE/src",                   "Sources base path",                           null,    null,   "SOURCES"           ]
     ],
 
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // SQLIte data-base configuration attributes.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
+    "db_version": "1.0",                        // Should match the 'db_version' value stored in the 'meta' table.
+    "db_max_indexed_file_size_kb": 1024,        // Max file size (KB)
+    "db_min_indexed_file_size_bytes": 10,       // Min file size (bytes)
+    "db_extra_log_verbosity": false,            // Log skipped/warnings
+    "db_filter_files_content": true,            // Slightly optimize files content before indexing
+    "db_indexing_log_frequency":10000,          // How often we should log indexing progress
+    "db_max_index_age_days":30,                 // Skip reindexing if the data was indexed within the last N days
+
+    "db_meta_schema": {
+
+        // Schema definition for persistent metadata stored in the 'meta' table.
+        // Each key represents a metadata field to be stored.
+        // - "required": whether this key must be present during metadata creation.
+        // - "type": the expected value type, currently supports: "str" and "datetime".
+
+        "db_version":           {   "required": true,  "type": "str" },
+        "db_creation_date":     {   "required": true,  "type": "datetime" },
+        "db_last_indexed_date": {   "required": false, "type": "datetime" },
+        "solution_name":        {   "required": true,  "type": "str" },
+        "user_name":            {   "required": false, "type": "str" },
+        "host_name":            {   "required": false, "type": "str" },
+        "platform":             {   "required": false, "type": "str" },
+        "xray_version":         {   "required": true,  "type": "str" },
+        "auto_forge_version":   {   "required": true,  "type": "str" }
+    },
+
+    "db_indexed_file_types": [
+        // List of file extensions and special filenames to index for fast content search
+        "c", "h",                                   // C/C++ source and headers
+        "py",                                       // Python
+        "CMakeLists.txt", "cmake",                  // CMake main file + *.cmake scripts
+        "make", "Makefile",                         // Makefiles
+        "sh",                                       // Shell and Windows scripts
+        "json", "jsonc", "yaml", "yml", "toml" ,    // Config/data
+        "txt", "md", "rst", "cfg", "conf", "ini"    // Misc text formats
+    ],
+
+    "db_non_indexed_path_patterns": [
+        ".git", ".svn", ".hg",          // version control
+        ".venv", "__pycache__",         // Python junk
+        ".mypy_cache", ".pytest_cache",
+        ".idea", ".vscode", ".DS_Store",
+        "tmp", "temp", "build", "out"   // build and temp dirs
+    ],
+
+    "db_non_indexed_file_patterns": [
+        ".*csr_.*\\.h$",                // CSR headers
+        ".*_regs\\.h$",                 // Auto-generated register headers
+        ".*_regs_regs\\.h$",            // Double-regs headers
+        ".*buildhistory.*\\.txt$"
+    ],
+
+    // Expected location of solution files in an installed environment.
+    // This variable is read during an early initialization stage, please avoid using any local variables
+    // other than the workspace path and the solution name.
+
+    "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // Prompt engine properties.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
     "complete_while_typing": true,                              // Controls how aggressively prompt-toolkit attempts tab-completion while typing
     "prompt_history_file": "$AF_BASE/.auto_forge.history",      // Path to store persistent prompt-toolkit history
     "prompt_max_completion_results": 100,                       // Maximum number of tab-completion results; higher values may slow down completion in large directories
-    "git_token_environment_var": "NONE",                        // Optional name of the environment variable that may hold the user's Git token
-    "subprocess_execution_timout": 120.0,                       // Default timeout (in seconds) for sub-process execution; can be overridden via the shell_execute method
-    "watchdog_timeout": 10.0,                                   // Default timeout (in seconds) for sub-process execution; can be overridden via the shell_execute method
-    "telemetry_file": "$AF_SOLUTION_BASE/telemetry.log",        // Where to store telemetry logs
 
+    // Commands hidden from the user menu, typically useful for clearing up the cmd2 builtin commands.
     "hidden_commands": [
-        // Commands hidden from the user menu, typically useful for clearing up the cmd2 builtin commands.
         "macro",
         "edit",
         "run_pyscript",
@@ -73,44 +165,6 @@
         "quit",
         "help"
     ],
-
-    "max_index_size_kb": 1024,          // Max file size (KB)
-    "min_index_size_bytes": 10,         // Min file size (bytes)
-    "extra_indexing_verbosity": false,  // Log skipped/warnings
-    "purify_content": true,             // Slightly optimize files content before indexing
-    "indexing_report_frequency":10000,  // How often we should log indexing progress
-
-    "indexed_items": [
-        // List of file extensions and special filenames to index for fast content search
-        "c", "h",                                   // C/C++ source and headers
-        "py",                                       // Python
-        "CMakeLists.txt", "cmake",                  // CMake main file + *.cmake scripts
-        "make", "Makefile",                         // Makefiles
-        "sh",                                       // Shell and Windows scripts
-        "json", "jsonc", "yaml", "yml", "toml" ,    // Config/data
-        "txt", "md", "rst", "cfg", "conf", "ini"    // Misc text formats
-    ],
-
-    "non_indexed_path_patterns": [
-        ".git", ".svn", ".hg",          // version control
-        ".venv", "__pycache__",         // Python junk
-        ".mypy_cache", ".pytest_cache",
-        ".idea", ".vscode", ".DS_Store",
-        "tmp", "temp", "build", "out"   // build and temp dirs
-    ],
-
-    "quiet_skipped_file_patterns": [
-        ".*csr_.*\\.h$",                // CSR headers
-        ".*_regs\\.h$",                 // Auto-generated register headers
-        ".*_regs_regs\\.h$",            // Double-regs headers
-        ".*buildhistory.*\\.txt$"
-    ],
-
-    // Expected location of solution files in an installed environment.
-    // This variable is read during an early initialization stage, please avoid using any local variables
-    // other than the workspace path and the solution name.
-
-    "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
 
     // Search paths used when the prompt attempts to autocomplete a typed command.
     // This list typically mirrors the system's PATH variable and defines where
@@ -128,15 +182,6 @@
         "$AF_SOLUTION_BIN", // AutoForge persistent solution specific binaries
         "$HOME/bin"
       ],
-
-    "keywords_mapping": [
-
-        // Defines placeholder-to-value mappings used for runtime substitution.
-        // Placeholders in the form <keyword> will be replaced by their mapped values, if defined.
-        // Each entry is a pair: [keyword (without angle brackets), replacement string].
-
-        ["samples", "$AUTO_FORGE_PROJECT_SAMPLES_PATH"]
-    ],
 
     "log_cleanup_patterns": [
 
@@ -196,7 +241,6 @@
         // List of commands that require interactive terminal behavior.
         // These commands typically control the terminal screen, use input prompts,
         // or produce continuous output unsuitable for standard command capture.
-
         "apt*",
         "bash",
         "zsh",
@@ -214,6 +258,101 @@
         "vi",
         "vim"
     ],
+
+    "path_completion_rules": {
+
+        // Mapping of shell-like commands to their completion behavior.
+        // Commands supporting path completion specify whether only directories
+        // should be suggested when completing arguments.
+
+        "alias"           : { "path_completion": false                        },
+        "apt"             : { "path_completion": false                        },
+        "cat"             : { "path_completion": true , "only_dirs": false    },
+        "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias
+        "j"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.jsonc", "*.json"]  },
+        "cd"              : { "path_completion": true , "only_dirs": true     },
+        "clear"           : { "path_completion": false                        },
+        "cmake"           : { "path_completion": true , "only_dirs": true     },
+        "cp"              : { "path_completion": true , "only_dirs": false    },
+        "curl"            : { "path_completion": false                        },
+        "dnf"             : { "path_completion": false                        },
+        "echo"            : { "path_completion": false                        },
+        "export"          : { "path_completion": false                        },
+        "git"             : { "path_completion": false                        },
+        "gunzip"          : { "path_completion": true , "only_dirs": false    },
+        "gzip"            : { "path_completion": true , "only_dirs": false    },
+        "head"            : { "path_completion": true , "only_dirs": false    },
+        "help"            : { "path_completion": false                        },
+        "history"         : { "path_completion": false                        },
+        "less"            : { "path_completion": true , "only_dirs": false    },
+        "ls"              : { "path_completion": true , "only_dirs": false    },
+        "make"            : { "path_completion": true , "only_dirs": false,   "allowed_names": ["Makefile", "GNUmakefile", "makefile"] },
+        "mkdir"           : { "path_completion": true , "only_dirs": true     },
+        "more"            : { "path_completion": true , "only_dirs": false    },
+        "mv"              : { "path_completion": true , "only_dirs": false    },
+        "nano"            : { "path_completion": true , "only_dirs": false    },
+        "ninja"           : { "path_completion": true , "only_dirs": false    },
+        "pip"             : { "path_completion": false                        },
+        "pip3"            : { "path_completion": false                        },
+        "ping"            : { "path_completion": false                        },
+        "popd"            : { "path_completion": false                        },
+        "prettier"        : { "path_completion": false                        },
+        "pushd"           : { "path_completion": true , "only_dirs": true     },
+        "python"          : { "path_completion": true , "only_dirs": false,   "filter_glob": "*.py" },
+        "python3"         : { "path_completion": true , "only_dirs": false,   "filter_glob": "*.py" },
+        "pytest"          : { "path_completion": true , "only_dirs": false    },
+        "rm"              : { "path_completion": true , "only_dirs": false    },
+        "rmdir"           : { "path_completion": true , "only_dirs": true     },
+        "set"             : { "path_completion": false                        },
+        "stat"            : { "path_completion": true , "only_dirs": false    },
+        "tail"            : { "path_completion": true , "only_dirs": false    },
+        "tar"             : { "path_completion": true , "only_dirs": false    },
+        "touch"           : { "path_completion": true , "only_dirs": false    },
+        "traceroute"      : { "path_completion": false                        },
+        "unzip"           : { "path_completion": true , "only_dirs": false    },
+        "unalias"         : { "path_completion": false                        },
+        "vi"              : { "path_completion": true , "only_dirs": false    },
+        "vim"             : { "path_completion": true , "only_dirs": false    },
+        "wc"              : { "path_completion": true , "only_dirs": false    },
+        "wget"            : { "path_completion": false                        },
+        "yum"             : { "path_completion": false                        },
+        "zip"             : { "path_completion": true , "only_dirs": false    }
+    },
+
+    // Defines visual styles for auto completed paths.
+    "dynamic_prompt_styles": {
+
+        // Default background for all completions (light gray tone)
+        "background": "d1d1d1",
+
+        // Styles for each token category used in completion rendering
+        "tokens": {
+            // Executables (e.g. system commands)
+            "executable": "fg:#228b22 bold",         // Forest green text
+            // Built-in (do_) commands
+            "builtins": "fg:#1e90ff bold",           // Dodger blue
+            // Dynamic commands
+            "commands": "fg:#cc7a00 italic",         // Amber/orange italic
+            // Aliases (shortcut commands)
+            "aliases": "fg:#6666cc italic",          // Soft lavender
+            // Regular files
+            "file": "fg:#666666",                    // Medium gray
+            // Directories
+            "directory": "fg:#0088cc bold",          // Cool cyan-blue
+            // Passive system messages
+            "completion-meta": "fg:#888888 italic",  // Subtle gray
+            // Alerts or user warnings
+            "alert": "fg:#aa0000 bold",              // Soft red
+            // Hodden (starts with '.')
+            "hidden-file-path": "fg:#666666 italic"  // softer gray, clearly visible on light background
+        }
+    },
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // Terminal related.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
 
     "ansi_codes": {
 
@@ -276,94 +415,6 @@
         "BACK_LIGHTMAGENTA_EX"    : "\u001b[105m",
         "BACK_LIGHTCYAN_EX"       : "\u001b[106m",
         "BACK_LIGHTWHITE_EX"      : "\u001b[107m"
-    },
-
-    "path_completion_rules": {
-
-        // Mapping of shell-like commands to their completion behavior.
-        // Commands supporting path completion specify whether only directories
-        // should be suggested when completing arguments.
-
-        "alias"           : { "path_completion": false                        },
-        "apt"             : { "path_completion": false                        },
-        "cat"             : { "path_completion": true , "only_dirs": false    },
-        "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias
-        "j"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.jsonc", "*.json"]  },
-        "cd"              : { "path_completion": true , "only_dirs": true     },
-        "clear"           : { "path_completion": false                        },
-        "cmake"           : { "path_completion": true , "only_dirs": true     },
-        "cp"              : { "path_completion": true , "only_dirs": false    },
-        "curl"            : { "path_completion": false                        },
-        "dnf"             : { "path_completion": false                        },
-        "echo"            : { "path_completion": false                        },
-        "export"          : { "path_completion": false                        },
-        "git"             : { "path_completion": false                        },
-        "gunzip"          : { "path_completion": true , "only_dirs": false    },
-        "gzip"            : { "path_completion": true , "only_dirs": false    },
-        "head"            : { "path_completion": true , "only_dirs": false    },
-        "help"            : { "path_completion": false                        },
-        "history"         : { "path_completion": false                        },
-        "less"            : { "path_completion": true , "only_dirs": false    },
-        "ls"              : { "path_completion": true , "only_dirs": false    },
-        "make"            : { "path_completion": true , "only_dirs": false,   "allowed_names": ["Makefile", "GNUmakefile", "makefile"] },
-        "mkdir"           : { "path_completion": true , "only_dirs": true     },
-        "more"            : { "path_completion": true , "only_dirs": false    },
-        "mv"              : { "path_completion": true , "only_dirs": false    },
-        "nano"            : { "path_completion": true , "only_dirs": false    },
-        "ninja"           : { "path_completion": true , "only_dirs": false    },
-        "pip"             : { "path_completion": false                        },
-        "pip3"            : { "path_completion": false                        },
-        "ping"            : { "path_completion": false                        },
-        "popd"            : { "path_completion": false                        },
-        "prettier"        : { "path_completion": false                        },
-        "pushd"           : { "path_completion": true , "only_dirs": true     },
-        "python"          : { "path_completion": true , "only_dirs": false,   "filter_glob": "*.py" },
-        "python3"         : { "path_completion": true , "only_dirs": false,   "filter_glob": "*.py" },
-        "pytest"          : { "path_completion": true , "only_dirs": false    },
-        "rm"              : { "path_completion": true , "only_dirs": false    },
-        "rmdir"           : { "path_completion": true , "only_dirs": true     },
-        "set"             : { "path_completion": false                        },
-        "stat"            : { "path_completion": true , "only_dirs": false    },
-        "tail"            : { "path_completion": true , "only_dirs": false    },
-        "tar"             : { "path_completion": true , "only_dirs": false    },
-        "touch"           : { "path_completion": true , "only_dirs": false    },
-        "traceroute"      : { "path_completion": false                        },
-        "unzip"           : { "path_completion": true , "only_dirs": false    },
-        "unalias"         : { "path_completion": false                        },
-        "vi"              : { "path_completion": true , "only_dirs": false    },
-        "vim"             : { "path_completion": true , "only_dirs": false    },
-        "wc"              : { "path_completion": true , "only_dirs": false    },
-        "wget"            : { "path_completion": false                        },
-        "yum"             : { "path_completion": false                        },
-        "zip"             : { "path_completion": true , "only_dirs": false    }
-    },
-
-    "dynamic_prompt_styles": {
-
-        // Default background for all completions (light gray tone)
-        "background": "d1d1d1",
-
-        // Styles for each token category used in completion rendering
-        "tokens": {
-            // Executables (e.g. system commands)
-            "executable": "fg:#228b22 bold",         // Forest green text
-            // Built-in (do_) commands
-            "builtins": "fg:#1e90ff bold",           // Dodger blue
-            // Dynamic commands
-            "commands": "fg:#cc7a00 italic",         // Amber/orange italic
-            // Aliases (shortcut commands)
-            "aliases": "fg:#6666cc italic",          // Soft lavender
-            // Regular files
-            "file": "fg:#666666",                    // Medium gray
-            // Directories
-            "directory": "fg:#0088cc bold",          // Cool cyan-blue
-            // Passive system messages
-            "completion-meta": "fg:#888888 italic",  // Subtle gray
-            // Alerts or user warnings
-            "alert": "fg:#aa0000 bold",              // Soft red
-            // Hodden (starts with '.')
-            "hidden-file-path": "fg:#666666 italic"  // softer gray, clearly visible on light background
-        }
     },
 
     "terminal_icons": {
@@ -462,6 +513,12 @@
         { "path": "$WSL_C_MOUNT/Program Files/Notepad++",                    "wsl_path": true   },
         { "path": "$WSL_C_MOUNT/Windows",                                    "wsl_path": true   }
     ],
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // Metadata to allow for dynamically location installed editors.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
 
     "searched_editors": [
 

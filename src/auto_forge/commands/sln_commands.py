@@ -23,7 +23,7 @@ from rich.text import Text
 # AutoForge imports
 from auto_forge import (AutoForgFolderType, CommandInterface, CoreEnvironment, CoreSolution, CoreVariables,
                         CoreJSONCProcessor, CoreToolBox, FieldColorType
-)
+                        )
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -116,7 +116,7 @@ class SolutionCommand(CommandInterface):
                     value_text = Text(str(value))
 
                 table.add_row(key, value_text, description, _bool_emoji(is_path),
-                              _bool_emoji(var.get("create_path_if_not_exist")),folder_type_str)
+                              _bool_emoji(var.get("create_path_if_not_exist")), folder_type_str)
 
             console.print('\n', table, '\n')
             return 0
@@ -134,10 +134,11 @@ class SolutionCommand(CommandInterface):
         field_colors = [FieldColorType(field_name="AutoForge", color=Fore.GREEN),
                         FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
                         FieldColorType(field_name="Loader", color=Fore.MAGENTA),
+                        FieldColorType(field_name="XRayDB", color=Fore.CYAN),
+                        FieldColorType(field_name="Environment", color=Fore.BLUE),
                         FieldColorType(field_name="Prompt", color=Fore.LIGHTCYAN_EX),
                         FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
                         FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
-
         try:
             self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
             return 0

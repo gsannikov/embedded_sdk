@@ -51,7 +51,7 @@ from auto_forge import (
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Prompt"
-AUTO_FORGE_MODULE_DESCRIPTION = "Prompt manager"
+AUTO_FORGE_MODULE_DESCRIPTION = "Build Shell for AutoForge"
 
 
 class _CorePathCompleter(Completer):
@@ -299,7 +299,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
         self._prompt_session: Optional[PromptSession] = None
-        self._prompt_path_style: Optional[Style] = None
+        self._prompt_styles: Optional[Style] = None
         self._loop_stop_flag = False
         super().__init__(*args, **kwargs)
 
@@ -326,7 +326,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._max_completion_results = 100
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
-        self._dynamic_path_styles: Optional[dict] = None
         self._work_mode: Optional[AutoForgeWorkModeType] = self.auto_forge.work_mode
 
         # Disable user input until the prompt is active
@@ -407,9 +406,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         # solution proprietary aliases.
         self._add_dynamic_aliases(self._configuration.get('builtin_aliases'))
         self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases", resolve_external_file=True))
-
-        # Load optional Toolkit-path styles from configuration
-        self._dynamic_path_styles: Optional[dict] = self._configuration.get('dynamic_path_styles', {})
 
         # Persist this module instance in the global registry for centralized access
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -797,14 +793,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.stdout.write("'\n👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n\n")
         sys.stdout.flush()
 
-    def _get_path_styles(self) -> Style:
+    def _get_dynamic_styles(self) -> Style:
         """
-        Load path-related style definitions from configuration.
+        Load various styles definitions from configuration.
         Falls back to default background and empty styles if not defined.
+        Returns:
+            Style: The style definitions.
         """
-        json_styles: dict = self._dynamic_path_styles if self._dynamic_path_styles else {}
+
+        # Attempt configuration first
+        json_styles: Optional[dict] = self._configuration.get('dynamic_prompt_styles', None)
+        if not isinstance(json_styles, dict):
+            self._logger.warning("Dynamic prompt styles ('dynamic_prompt_styles') was not specified in configuration")
+            json_styles = {}  # Initialize as empty dictionary if missing from configuration
+
         bg_color = json_styles.get("background", "ffffff")  # Default to white background
-        token_styles = json_styles.get("tokens", {})
+        token_styles:dict = json_styles.get("tokens", {})
+        configured_styles: int= 0
 
         style_dict = {}
         for token_name, style_value in token_styles.items():
@@ -814,7 +819,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             else:
                 combined_style = style_value
             style_dict[token_name] = combined_style
+            configured_styles += 1
 
+        self._logger.debug(f"Total configured styles: {configured_styles}")
         return Style.from_dict(style_dict)
 
     # noinspection SpellCheckingInspection
@@ -1076,9 +1083,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
     `   Return 'class:<name>' if it's defined in the current style.
         If not, return an empty string so fallback/default style is used.
         """
+
         style_key = f"class:{name}"
+
+        # Styles should have been configured by now.
+        if not isinstance(self._prompt_styles, Style):
+            return ""
         try:
-            self._prompt_path_style.get_attrs_for_style_str(style_key)
+            self._prompt_styles.get_attrs_for_style_str(style_key)
             return style_key
         except KeyError:
             return ""
@@ -1584,8 +1596,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.insert_text('.')
             buffer.start_completion(select_first=True)
 
-        # Define style for different token categories (e.g., executable names, files)
-        self._prompt_path_style = self._get_path_styles()
+        # Retrieve styles either from pre-defined defaults or from configuration
+        self._prompt_styles = self._get_dynamic_styles()
 
         # Set up the custom completer
         completer = _CoreCompleter(core_prompt=self, logger=self._logger)
@@ -1605,7 +1617,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Create the session
         self._prompt_session = PromptSession(completer=completer, history=pt_history, key_bindings=kb,
-                                             style=self._prompt_path_style,
+                                             style=self._prompt_styles,
                                              complete_while_typing=complete_while_typing,
                                              auto_suggest=AutoSuggestFromHistory())
 
