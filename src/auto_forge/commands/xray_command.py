@@ -10,8 +10,11 @@ Description:
 """
 
 import argparse
+import json
+import os
 import re
 from logging import Logger
+from pathlib import Path
 from typing import Any, Optional
 
 from rich import box
@@ -19,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, AutoLogger, CoreXRayDB, XRayStateType)
+from auto_forge import (CoreVariables, CommandInterface, AutoLogger, CoreXRayDB, CoreSolution, XRayStateType)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -108,6 +111,28 @@ class XRayCommand(CommandInterface):
         sql_pattern = self._shell_to_sql_like(pattern)
         return sql_pattern, extensions
 
+    @staticmethod
+    def _get_build_path(project_name: str, configuration_name: str,
+                        appended_path: Optional[str] = None) -> Optional[Path]:
+
+        """ Helper method to get the build path of specific  project and configuration """
+        _solution = CoreSolution.get_instance()
+        if _solution is None:
+            return None
+
+        config_data = _solution.query_configurations(project_name=project_name,
+                                                     configuration_name=configuration_name)
+        if isinstance(config_data, dict):
+            build_path = config_data.get("build_path")
+            if isinstance(build_path, str):
+                build_path = Path(build_path)
+                if appended_path is not None:
+                    return build_path / appended_path
+                else:
+                    return build_path
+
+        return None
+
     def _locate_files(self, file_name_pattern: str, extensions: Optional[list[str]] = None, limit: int = 500) -> \
             Optional[int]:
         """
@@ -123,6 +148,24 @@ class XRayCommand(CommandInterface):
         xray_db = CoreXRayDB.get_instance()
         if xray_db is None or xray_db.state != XRayStateType.RUNNING:
             raise RuntimeError("XRay is not initialized or not running")
+
+        # Try to locate and CMake registered paths which is auto generated during the userspace CMake build
+        cmake_json_loaded: bool = False
+        cmake_json_path: Optional[Path] = self._get_build_path(project_name="zephyr_build", configuration_name="debug",
+                                                               appended_path="registered_paths.json")
+        if not isinstance(cmake_json_path, Path):
+            cmake_json_path = self._get_build_path(project_name="zephyr_build", configuration_name="release",
+                                                   appended_path="registered_paths.json")
+
+        if cmake_json_path and cmake_json_path.is_file():
+            with cmake_json_path.open("r") as jf:
+                cmake_path_data = json.load(jf)
+                # Canonicalize and sort CMake paths by length (longest match first)
+                cmake_prefixes = sorted(
+                    [(var, str(Path(base_path).resolve())) for var, base_path in cmake_path_data.items() if base_path],
+                    key=lambda kv: -len(kv[1])
+                )
+                cmake_json_loaded = True
 
         try:
             query = """
@@ -155,8 +198,36 @@ class XRayCommand(CommandInterface):
             table.add_column("Type", style="cyan", width=4)
             table.add_column("Path", style="white")
 
-            for idx, (path, ext) in enumerate(rows, 1):
-                table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]")
+            if cmake_json_loaded:
+                table_rows = []
+                show_cmake_column = False
+
+                for idx, (path, ext) in enumerate(rows, 1):
+                    resolved_path = str(Path(path).resolve())
+                    cmake_hint = ""
+
+                    for var, base_path in cmake_prefixes:
+                        if resolved_path.startswith(base_path + "/") or resolved_path == base_path:
+                            relative = os.path.relpath(resolved_path, base_path)
+                            first_dir = relative.split(os.sep, 1)[0]  # first component of relative path
+                            cmake_hint = f"${{{var}}}/{first_dir}" if first_dir else f"${{{var}}}"
+                            show_cmake_column = True
+                            break
+
+                    table_rows.append((idx, ext or "", path, cmake_hint))
+
+                if show_cmake_column:
+                    table.add_column("CMake Include", style="magenta")
+                    # Add rows
+                    for idx, ext, path, cmake_hint in table_rows:
+                        row = [str(idx), ext, f"[link=file://{path}]{path}[/link]"]
+                        if show_cmake_column:
+                            row.append(cmake_hint)
+                        table.add_row(*row)
+
+            else:
+                for idx, (path, ext) in enumerate(rows, 1):
+                    table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]")
 
             self._console.print('\n', table)
             return 0
