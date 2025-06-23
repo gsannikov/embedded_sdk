@@ -26,7 +26,7 @@ from auto_forge import (CoreVariables, CommandInterface, AutoLogger, CoreXRayDB,
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
-AUTO_FORGE_MODULE_VERSION = "1.0"
+AUTO_FORGE_MODULE_VERSION = "1.1"
 
 
 # noinspection SqlNoDataSourceInspection
@@ -46,9 +46,6 @@ class XRayCommand(CommandInterface):
         self._xray_db: Optional[CoreXRayDB] = None
         self._console = Console(force_terminal=True)
 
-        # Get a logger instance
-        self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
-
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
 
@@ -57,6 +54,8 @@ class XRayCommand(CommandInterface):
         Command specific initialization, will be executed lastly by the interface class
         after all other initializers.
         """
+        # Get a logger instance
+        self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
 
         # Detect installed editors
         if self._configuration is None:
@@ -112,10 +111,16 @@ class XRayCommand(CommandInterface):
         return sql_pattern, extensions
 
     @staticmethod
-    def _get_build_path(project_name: str, configuration_name: str,
-                        appended_path: Optional[str] = None) -> Optional[Path]:
-
-        """ Helper method to get the build path of specific  project and configuration """
+    def _get_build_path(project_name: str, configuration_name: str) -> Optional[Path]:
+        """
+        Uses the solution class to retrieve the build path of a specific project and configuration
+        from the currently loaded solution.
+        Args:
+            project_name (str): Name of the project (e.g., "zephyr_build").
+            configuration_name (str): Build configuration name (e.g., "debug", "release").
+        Returns:
+            Optional[Path]: Path to the build directory, or None if not found.
+        """
         _solution = CoreSolution.get_instance()
         if _solution is None:
             return None
@@ -126,92 +131,168 @@ class XRayCommand(CommandInterface):
             build_path = config_data.get("build_path")
             if isinstance(build_path, str):
                 build_path = Path(build_path)
-                if appended_path is not None:
-                    return build_path / appended_path
-                else:
-                    return build_path
+                return build_path
 
         return None
 
-    def _locate_files(self, file_name_pattern: str, extensions: Optional[list[str]] = None, limit: int = 500) -> \
-            Optional[int]:
+    def _get_auto_vars(self, path: Path, prefix_str: str) -> Optional[dict[str, str]]:
+        """
+        Aggregates all anonymous dictionaries from JSON files in the given directory that start with the specified prefix.
+        These JSON files are automatically generated during the project's CMake build process. Each file is expected
+        to contain a single anonymous dictionary of path variable declarations used during compilation.
+        Args:
+            path (Path): Path to the build output directory where the JSON files are located.
+            prefix_str (str): Prefix string used to identify relevant JSON files (e.g., "_auto_forge_").
+        Returns:
+            Optional[dict[str, str]]: A unified dictionary of all key-value pairs from matched files.
+        """
+        json_files = list(path.glob(f"{prefix_str}*.json"))
+        if not json_files:
+            raise FileNotFoundError(f"No JSON files found with prefix '{prefix_str}' in {path}")
+
+        combined = {}
+        for file in json_files:
+            self._logger.debug(f"Reading build output file '{file}'")
+            try:
+                with file.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception as e:
+                raise ValueError(f"Failed to parse JSON in '{file.name}': {e}")
+            if not isinstance(data, dict):
+                raise ValueError(f"File '{file.name}' must contain a single anonymous dictionary")
+            if not data:
+                raise ValueError(f"File '{file.name}' contains an empty dictionary")
+            for key, val in data.items():
+                if key in combined:
+                    if combined[key] != val:
+                        raise ValueError(
+                            f"Conflicting value for key '{key}' in file '{file.name}': "
+                            f"'{combined[key]}' vs '{val}'"
+                        )
+                else:
+                    combined[key] = val
+
+        return combined
+
+    @staticmethod
+    def _strip_if_filename(path_str: Optional[str]) -> Optional[str]:
+        """
+        If 'path_str' ends in what looks like a file name (has an extension), return the parent path.
+        Otherwise, return the string unchanged. If input is None, return None.
+        Examples:
+            "abcdefg"                           -> "abcdefg"
+            None                               -> None
+            "${MEV_IMC_MNG_LIB_PATH}/foo.h"    -> "${MEV_IMC_MNG_LIB_PATH}"
+            "/test/abcd"                       -> "/test/abcd"
+        """
+        if path_str is None:
+            return None
+
+        tail = os.path.basename(path_str)
+        name, ext = os.path.splitext(tail)
+
+        if ext and name:  # likely a file
+            return os.path.dirname(path_str)
+        else:
+            return path_str
+
+    def _locate_files(self, file_name_pattern: str,
+                      extensions: Optional[list[str]] = None, limit: int = 500,
+                      show_cmake_paths: bool = False) -> Optional[int]:
         """
         Locate files by name pattern with optional extension filter and result limit.
+        Also attempts to show how each file could be included in CMake, based on
+        automatically generated path mappings collected during the userspace CMake build.
+
         Args:
             file_name_pattern (str): SQL LIKE-style pattern (use '%' or '_' wildcards).
-            extensions (Optional[list]): List of extensions to filter by (e.g., ['c', 'h']).
-            limit (int): Max number of results to return.
+            extensions (Optional[list[str]]): List of extensions to filter by (e.g., ['c', 'h']).
+            limit (int): Maximum number of results to return.
+            show_cmake_paths (bool): Show CMake include paths analysis.
 
         Returns:
             Optional[int]: 0 if files were found, 1 otherwise.
+
+        CMake Path Mapping:
+            If the current build directory contains files like '_auto_forge_*.json',
+            each of which holds an anonymous dictionary of CMake variable names to paths,
+            these will be loaded and matched against each located file.
+            For any match, a simplified CMake-style include path like:
+                ${MEV_IMC_MNG_LIB_PATH}/include
+            will be shown if it resolves to a registered base path.
         """
         xray_db = CoreXRayDB.get_instance()
         if xray_db is None or xray_db.state != XRayStateType.RUNNING:
             raise RuntimeError("XRay is not initialized or not running")
 
-        # Try to locate and CMake registered paths which is auto generated during the userspace CMake build
-        cmake_json_loaded: bool = False
-        cmake_json_path: Optional[Path] = self._get_build_path(project_name="zephyr_build", configuration_name="debug",
-                                                               appended_path="registered_paths.json")
-        if not isinstance(cmake_json_path, Path):
-            cmake_json_path = self._get_build_path(project_name="zephyr_build", configuration_name="release",
-                                                   appended_path="registered_paths.json")
+        # Try to locate CMake-registered paths auto-generated during userspace build
+        cmake_prefixes: list[tuple[str, str]] = []
 
-        if cmake_json_path and cmake_json_path.is_file():
-            with cmake_json_path.open("r") as jf:
-                cmake_path_data = json.load(jf)
-                # Canonicalize and sort CMake paths by length (longest match first)
-                cmake_prefixes = sorted(
-                    [(var, str(Path(base_path).resolve())) for var, base_path in cmake_path_data.items()],
-                    key=lambda kv: -len(kv[1])
-                )
-                cmake_json_loaded = True
+        if show_cmake_paths:
+            cmake_json_path: Optional[Path] = self._get_build_path(project_name="zephyr_build",
+                                                                   configuration_name="debug")
+            if not isinstance(cmake_json_path, Path):
+                cmake_json_path = self._get_build_path(project_name="zephyr_build", configuration_name="release")
+
+            if cmake_json_path:
+                cmake_paths_data: Optional[dict] = self._get_auto_vars(path=cmake_json_path, prefix_str="_auto_forge_")
+                if isinstance(cmake_paths_data, dict):
+                    cmake_prefixes = sorted(
+                        [(var, str(Path(base_path).resolve())) for var, base_path in cmake_paths_data.items()],
+                        key=lambda kv: -len(kv[1])
+                    )
 
         try:
-            query = (f"""
+            sql_pattern, extensions = self._resolve_search_pattern_and_extensions(file_name_pattern, extensions)
+            query = """
                     SELECT path, ext
                     FROM file_meta
-                    WHERE base LIKE ? \
-                    LIMIT {limit}
-                    """)
-
-            # Normalize user input
-            sql_pattern, extensions = self._resolve_search_pattern_and_extensions(file_name_pattern, extensions)
+                    WHERE base LIKE ? ESCAPE '\\' \
+                    """
             params = [sql_pattern]
-            query += " ESCAPE '\\'"
 
             if extensions:
                 ext_placeholders = ",".join("?" for _ in extensions)
                 query += f" AND ext IN ({ext_placeholders})"
                 params.extend(extensions)
 
-            query += f" ORDER BY path LIMIT {limit}"
-            rows = xray_db.query_raw(query, tuple(params))
+            query += " ORDER BY path LIMIT ?"
+            params.append(str(limit or 500))
 
+            rows = xray_db.query_raw(query, tuple(params))
             if not rows:
                 print("No matching files found.")
                 return 1
 
+            # Determine if at least one file can be matched to a CMake path
+            table_rows = []
+            show_cmake_column = False
+
+            for idx, (path, ext) in enumerate(rows, 1):
+                resolved_path = str(Path(path).resolve())
+                cmake_hint = ""
+                for var, base_path in cmake_prefixes:
+                    if resolved_path.startswith(base_path):
+                        relative = os.path.relpath(resolved_path, base_path)
+                        cmake_hint = f"${{{var}}}/{relative}"
+                        cmake_hint = self._strip_if_filename(path_str=cmake_hint)
+                        show_cmake_column = True
+                        break
+                table_rows.append((idx, ext or "", path, cmake_hint))
+
+            # Build the display table
             table = Table(title=f"Search results for '{file_name_pattern}'", box=box.ROUNDED)
             table.add_column("#", style="dim", justify="right", width=4)
             table.add_column("Type", style="cyan", width=4)
             table.add_column("Path", style="white")
-
-            if not cmake_json_loaded:
-                for idx, (path, ext) in enumerate(rows, 1):
-                    table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]")
-            else:
+            if show_cmake_column:
                 table.add_column("CMake Include", style="magenta")
-                # Canonicalize each found path before comparison
-                for idx, (path, ext) in enumerate(rows, 1):
-                    resolved_path = str(Path(path).resolve())
-                    cmake_hint = ""
-                    for var, base_path in cmake_prefixes:
-                        if resolved_path.startswith(base_path):
-                            relative = os.path.relpath(resolved_path, base_path)
-                            cmake_hint = f"${{{var}}}/{relative}"
-                            break
-                    table.add_row(str(idx), ext or "", f"[link=file://{path}]{path}[/link]", cmake_hint)
+
+            for idx, ext, path, cmake_hint in table_rows:
+                row = [str(idx), ext, f"[link=file://{path}]{path}[/link]"]
+                if show_cmake_column:
+                    row.append(cmake_hint)
+                table.add_row(*row)
 
             self._console.print('\n', table)
             return 0
@@ -333,7 +414,7 @@ class XRayCommand(CommandInterface):
         parser.add_argument(
             "-d", "--find-duplicates", action='store_true', help="Find duplicated files")
         parser.add_argument(
-            "-l", "--locate_files", type=str, help="Locate files (optionally limit number of results")
+            "-l", "--locate-files", type=str, help="Locate files (optionally limit number of results")
 
         parser.add_argument(
             "--limit", type=int, default=500, help="Maximum number of results to return (default: 500)")
@@ -342,6 +423,9 @@ class XRayCommand(CommandInterface):
             "--ext",
             type=_split_extensions, default=["c", "h"], help="Comma-separated extensions (e.g. --ext c,h). Default: c,h"
         )
+
+        parser.add_argument(
+            "-c", "--cmake-include", action='store_true', help="Show CMake include paths based on build outputs")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -361,7 +445,8 @@ class XRayCommand(CommandInterface):
             return_code = self._find_all_duplicates(limit=limit)
 
         elif args.locate_files:
-            return_code = self._locate_files(file_name_pattern=args.locate_files, limit=limit, extensions=extensions)
+            return_code = self._locate_files(file_name_pattern=args.locate_files, limit=limit, extensions=extensions,
+                                             show_cmake_paths=args.cmake_include)
 
         else:
             # Error: no arguments
