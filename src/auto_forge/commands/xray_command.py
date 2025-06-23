@@ -221,6 +221,13 @@ class XRayCommand(CommandInterface):
                 ${MEV_IMC_MNG_LIB_PATH}/include
             will be shown if it resolves to a registered base path.
         """
+
+        def _highlight_var_substitution(text: str) -> str:
+            """
+            Highlight ${...} variables in a CMake path using rich markup.
+            """
+            return re.sub(r"(\$\{[^}]+})", r"[green]\1[/green]", text)
+
         xray_db = CoreXRayDB.get_instance()
         if xray_db is None or xray_db.state != XRayStateType.RUNNING:
             raise RuntimeError("XRay is not initialized or not running")
@@ -278,6 +285,7 @@ class XRayCommand(CommandInterface):
                         cmake_hint = self._strip_if_filename(path_str=cmake_hint)
                         show_cmake_column = True
                         break
+                cmake_hint = _highlight_var_substitution(text=cmake_hint)
                 table_rows.append((idx, ext or "", path, cmake_hint))
 
             # Build the display table

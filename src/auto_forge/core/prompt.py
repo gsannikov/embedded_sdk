@@ -808,8 +808,8 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             json_styles = {}  # Initialize as empty dictionary if missing from configuration
 
         bg_color = json_styles.get("background", "ffffff")  # Default to white background
-        token_styles:dict = json_styles.get("tokens", {})
-        configured_styles: int= 0
+        token_styles: dict = json_styles.get("tokens", {})
+        configured_styles: int = 0
 
         style_dict = {}
         for token_name, style_value in token_styles.items():
@@ -1301,12 +1301,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def do_cd(self, path: str):
         """
-        This method mimics the behavior of the shell 'cd' command and changing the current working directory and
+        Mimics the behavior of the shell 'cd' command and changing the current working directory and
         update the prompt accordingly.
         Args:
             path (str): The target directory path, relative or absolute. Shell-like expansions are supported.
         """
-
         if not path:
             return
 
@@ -1389,12 +1388,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
     def do_build(self, arg: str):
         """
-        Executes a build based on the dot-separated target notation:
-            build <solution>.<project>.<configuration>
-
+        Executes a build based on the dot-separated target notation.
         This command extracts essential build information by querying the solution structure
-        using the user-specified target. Since a builder instance requires both configuration
-        and toolchain data, the solution is queried to retrieve the relevant configuration.
+        and execute the build using its specific toolchain handler.
         """
 
         self.last_result = 1
