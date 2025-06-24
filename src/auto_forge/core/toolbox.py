@@ -1732,7 +1732,7 @@ class CoreToolBox(CoreModuleInterface):
 
             # Style map per status type
             style_map = {
-                PromptStatusType.INFO: "bold white on blue",
+                PromptStatusType.INFO: "bold yellow on blue",
                 PromptStatusType.DEBUG: "black on yellow",
                 PromptStatusType.ERROR: "bold white on red",
             }
