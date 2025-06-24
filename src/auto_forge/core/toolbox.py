@@ -2015,6 +2015,7 @@ class CoreToolBox(CoreModuleInterface):
     def truncate_for_terminal(text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
         """
         Truncates a string to fit within the terminal width, adding "..." if truncated.
+        Handles truncation on a line-by-line basis, preserving original newlines.
         Args:
             text: The string to truncate.
             reduce_by_chars: An optional number of characters to reduce the effective
@@ -2035,18 +2036,27 @@ class CoreToolBox(CoreModuleInterface):
         # Calculate the effective width available for the text
         effective_width = terminal_width - reduce_by_chars
 
-        # Account for the "..." that will be added if truncation occurs
+        # Account for the "... n" that will be added if truncation occurs
         dots_length = 3
+        dots = "." * dots_length
 
-        # noinspection GrazieInspection
-        if len(text) > effective_width:
-            # If the effective_width is less than dots_length, we can't even show "..."
-            # For example, if effective_width is 2, we return ".."
-            if effective_width < dots_length:
-                return "." * effective_width
+        lines = text.splitlines(keepends=True)  # Keep the original line endings
 
-            # Ensure truncate_length is not negative, though the above check should prevent it
-            truncate_length = max(0, effective_width - dots_length)
-            return text[:truncate_length] + "..."
-        else:
-            return text
+        truncated_lines = []
+        for line in lines:
+            # We need to consider the length of the line WITHOUT its newline character
+            # for truncation logic, then add it back.
+            line_content = line.rstrip('\r\n')
+            line_ending = line[len(line_content):]  # Capture the original line ending
+
+            if len(line_content) > effective_width:
+                if effective_width < dots_length:
+                    # If effective_width is less than dots_length, we fill with as many dots as possible
+                    truncated_lines.append("." * effective_width + line_ending)
+                else:
+                    truncate_length = max(0, effective_width - dots_length)
+                    truncated_lines.append(line_content[:truncate_length] + dots + line_ending)
+            else:
+                truncated_lines.append(line)  # No truncation needed, keep original line
+
+        return "".join(truncated_lines)
