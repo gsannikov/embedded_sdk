@@ -23,12 +23,13 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CoreEnvironment, CorePrompt, CoreToolBox,
+                        TerminalEchoType, CoreEnvironment, CorePrompt, CoreToolBox, CommandResultType,
                         GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
+AUTO_FORGE_MODULE_CONTEXT_FILE_NAME = "gcc_build_log.json"
 
 
 class _CMakeBuildStep(Enum):
@@ -182,25 +183,24 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Execute CMake, note that pending on the compilation options this could a single
         # run or the first run out of 2 when building with Ninja.
-
+        results: Optional[CommandResultType] = None
         try:
-
             # Update step and optionally handle extra arguments based on the current state
             self._set_state(build_state=_CMakeBuildStep.PRE_CONFIGURE, extra_args=build_profile.extra_args,
                             config=config)
-
             self.print_message(message=f"Configuring in '{execute_from}'")
             results = self._environment.execute_shell_command(command_and_args=command_line,
                                                               echo_type=TerminalEchoType.LINE,
                                                               cwd=str(execute_from),
                                                               leading_text=build_profile.terminal_leading_text)
-
         except CommandFailedException as execution_error:
             results = execution_error.results
-            if results:
-                self._gcc_analyzer.analyze(log_source=results.response, json_name="test.json")
             raise RuntimeError(
                 f"build process failed to start {results.message if results else 'unknown'}") from execution_error
+        finally:
+            if results is not None:
+                self._gcc_analyzer.analyze(log_source=results.response,
+                                           export_file_name=AUTO_FORGE_MODULE_CONTEXT_FILE_NAME)
 
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
@@ -210,10 +210,10 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Check if the previous step was configuration and if so verify that we have Ninja
         if is_config_step and ninja_build_command is not None:
+            results: Optional[CommandResultType] = None
             try:
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
-
                 ninja_command_line = f"{ninja_build_command} -C {str(build_path)}"
                 results = self._environment.execute_shell_command(command_and_args=ninja_command_line,
                                                                   echo_type=TerminalEchoType.LINE,
@@ -221,13 +221,12 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                                   leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
-                if results:
-                    self._gcc_analyzer.analyze(log_source=results.response, json_name="test.json")
                 raise RuntimeError(
                     f"build process failed to start {results.message if results else 'unknown'}") from execution_error
             finally:
                 if results is not None:
-                    self._gcc_analyzer.analyze(log_source=results.response, json_name="test.json")
+                    self._gcc_analyzer.analyze(log_source=results.response,
+                                               export_file_name=AUTO_FORGE_MODULE_CONTEXT_FILE_NAME)
 
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)
