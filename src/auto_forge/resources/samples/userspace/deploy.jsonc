@@ -78,7 +78,10 @@
 
         // n_datapath
         { "archive": "n_datapath/CMakeLists.txt",                          "host": "n_datapath/CMakeLists.txt"                                  },
-        { "archive": "n_datapath/lib_elastic_handler/CMakeLists.txt",      "host": "n_datapath/lib_elastic_handler/CMakeLists.txt"              }
+        { "archive": "n_datapath/lib_elastic_handler/CMakeLists.txt",      "host": "n_datapath/lib_elastic_handler/CMakeLists.txt"              },
+
+        // Minor code adjustments
+        { "archive": "n_platform/dfx_unlock/src/dfx_unlock_smc.c",         "host": "n_platform/dfx_unlock/src/dfx_unlock_smc.c"                 }
 
     ]
 }
