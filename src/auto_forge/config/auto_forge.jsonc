@@ -334,7 +334,7 @@
             // Built-in (do_) commands
             "builtins": "fg:#1e90ff bold",           // Dodger blue
             // Dynamic commands
-            "commands": "fg:#cc7a00 italic",         // Amber/orange italic
+            "commands": "fg:#cc8c00 bold italic",    // Amber/orange italic
             // Aliases (shortcut commands)
             "aliases": "fg:#6666cc italic",          // Soft lavender
             // Regular files

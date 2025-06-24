@@ -1732,12 +1732,12 @@ class CoreToolBox(CoreModuleInterface):
 
             # Style map per status type
             style_map = {
-                PromptStatusType.INFO: "bold yellow on blue",
+                PromptStatusType.INFO: "bold blue on white",
                 PromptStatusType.DEBUG: "black on yellow",
                 PromptStatusType.ERROR: "bold white on red",
             }
 
-            style = style_map.get(status_type, "bold white on blue")
+            style = style_map.get(status_type, "bold blue on white")
             status_line = Text(message.ljust(term_width), style=style)
 
             console.print(status_line, end="")  # Write styled line
