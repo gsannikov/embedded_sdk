@@ -58,8 +58,6 @@ AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
 
 class CoreToolBox(CoreModuleInterface):
 
-    ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
-
     def __init__(self, *args, **kwargs):
         """
         Extra initialization required for assigning runtime values to attributes declared
@@ -81,6 +79,7 @@ class CoreToolBox(CoreModuleInterface):
         self._registry = CoreRegistry.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
         self._show_status_lock = threading.RLock()
+        self._pre_compiled_escape_patterns = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
 
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
@@ -2013,22 +2012,12 @@ class CoreToolBox(CoreModuleInterface):
         window_start = now - timedelta(days=days_back)
         return window_start <= event_date <= now
 
-    @staticmethod
-    def get_visible_width(text: str) -> int:
-        """
-        Calculates the visible width of a string by removing ANSI escape codes.
-        This assumes escape codes don't affect character width (e.g., no double-width chars).
-        """
-        return len(CoreToolBox.ANSI_ESCAPE_PATTERN.sub('', text))
-
-    @staticmethod
-    def truncate_for_terminal(text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
+    # noinspection SpellCheckingInspection
+    def truncate_for_terminal(self, text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
         """
         Truncates a string to fit within the terminal width, adding "..." if truncated.
-        Handles truncation on a line-by-line basis, preserving original newlines
-        or lack thereof, and attempts to correctly handle ANSI escape codes
-        by calculating visible width and preserving codes at the end of lines.
-
+        Handles truncation on a line-by-line basis, preserving original newlines or lack thereof, and attempts to
+        correctly handle ANSI escape codes by calculating visible width and preserving codes at the end of lines.
         Args:
             text: The string to truncate.
             reduce_by_chars: An optional number of characters to reduce the effective
@@ -2038,6 +2027,13 @@ class CoreToolBox(CoreModuleInterface):
         Returns:
             The truncated string.
         """
+
+        def _get_visible_width(_text: str) -> int:
+            """
+            Calculates the visible width of a string by removing ANSI escape codes.
+            This assumes escape codes don't affect character width (e.g., no double-width chars).
+            """
+            return len(self._pre_compiled_escape_patterns.sub('', text))
 
         if not isinstance(text, str):
             return text
@@ -2060,8 +2056,9 @@ class CoreToolBox(CoreModuleInterface):
         # splitlines(keepends=True) correctly separates lines and keeps their specific endings
         segments = text.splitlines(keepends=True)
 
+        # noinspection GrazieInspection
         for segment in segments:
-            # 1. Separate actual content from its potential trailing newline
+            # Separate actual content from its potential trailing newline
             line_content_with_codes = segment
             line_ending = ""
             match = newline_pattern.search(segment)
@@ -2069,14 +2066,14 @@ class CoreToolBox(CoreModuleInterface):
                 line_ending = match.group(0)
                 line_content_with_codes = segment[:-len(line_ending)]
 
-            # 2. Extract trailing escape codes (like \x1b[K) that should be preserved
+            # Extract trailing escape codes (like \x1b[K) that should be preserved
             # This is tricky: we want to preserve codes that clear the line AFTER the content.
             # We assume these codes are at the very end of the *content* part.
             trailing_codes = ""
             content_without_trailing_codes = line_content_with_codes
 
             # Find all escape sequences in the content part
-            all_codes_in_content = list(CoreToolBox.ANSI_ESCAPE_PATTERN.finditer(line_content_with_codes))
+            all_codes_in_content = list(self._pre_compiled_escape_patterns.finditer(line_content_with_codes))
 
             if all_codes_in_content:
                 # Check if the last found code is at the very end of the content
@@ -2088,10 +2085,10 @@ class CoreToolBox(CoreModuleInterface):
                 # that might be truncated. This is a simplification; a full solution might
                 # need to render and measure, or parse more deeply.
 
-            # 3. Calculate visible width of the content *without* trailing codes
-            visible_width = CoreToolBox.get_visible_width(content_without_trailing_codes)
+            # Calculate visible width of the content *without* trailing codes
+            visible_width = _get_visible_width(content_without_trailing_codes)
 
-            # 4. Perform truncation based on visible width
+            # Perform truncation based on visible width
             if visible_width > effective_width:
                 # Determine target visible length for the actual text part
                 target_visible_length = effective_width - dots_length
@@ -2107,10 +2104,10 @@ class CoreToolBox(CoreModuleInterface):
                     idx = 0
                     while idx < len(content_without_trailing_codes) and current_visible_length < target_visible_length:
                         char = content_without_trailing_codes[idx]
-                        if char == '\x1b' and CoreToolBox.ANSI_ESCAPE_PATTERN.match(content_without_trailing_codes,
-                                                                                      idx):
+                        if char == '\x1b' and self._pre_compiled_escape_patterns.match(content_without_trailing_codes,
+                                                                                       idx):
                             # It's the start of an escape sequence, find its end
-                            match = CoreToolBox.ANSI_ESCAPE_PATTERN.match(content_without_trailing_codes, idx)
+                            match = self._pre_compiled_escape_patterns.match(content_without_trailing_codes, idx)
                             if match:
                                 # Add the full escape sequence without counting it towards visible width
                                 truncated_text_chars.append(match.group(0))
