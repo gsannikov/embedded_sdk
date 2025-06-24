@@ -58,6 +58,8 @@ AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
 
 class CoreToolBox(CoreModuleInterface):
 
+    ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+
     def __init__(self, *args, **kwargs):
         """
         Extra initialization required for assigning runtime values to attributes declared
@@ -2012,11 +2014,20 @@ class CoreToolBox(CoreModuleInterface):
         return window_start <= event_date <= now
 
     @staticmethod
+    def get_visible_width(text: str) -> int:
+        """
+        Calculates the visible width of a string by removing ANSI escape codes.
+        This assumes escape codes don't affect character width (e.g., no double-width chars).
+        """
+        return len(CoreToolBox.ANSI_ESCAPE_PATTERN.sub('', text))
+
+    @staticmethod
     def truncate_for_terminal(text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
         """
         Truncates a string to fit within the terminal width, adding "..." if truncated.
         Handles truncation on a line-by-line basis, preserving original newlines
-        or lack thereof, to support in-place line overwriting (e.g., progress bars).
+        or lack thereof, and attempts to correctly handle ANSI escape codes
+        by calculating visible width and preserving codes at the end of lines.
 
         Args:
             text: The string to truncate.
@@ -2042,76 +2053,82 @@ class CoreToolBox(CoreModuleInterface):
         dots_length = 3
         dots = "." * dots_length
 
-        # Splitting by common line endings, but keeping the delimiters
-        # This regex ensures we split by \r\n, \n, or \r and keep them as separate elements
-        # It handles cases like "line1\nline2\r\nline3\rline4"
-        # and also cases where a line might not end with any of these.
-        # We need to explicitly match the newline characters and include them in the result.
-        # The (?:...) is a non-capturing group. The ([\r\n]+) captures the actual newline sequence.
-        # We also need to handle the case where text might end without a newline.
-        # re.split will give us parts like [line_content, newline, line_content, newline, ...]
-        # For example, "abc\nxyz" -> ['abc', '\n', 'xyz']
-        # "abc" -> ['abc']
-        # "abc\n" -> ['abc', '\n', ''] -- we need to handle this empty string at the end correctly
-
-        # A more robust way to iterate line by line while preserving *original* endings
-        # without introducing new ones is to manually find them.
-
-        # This pattern matches any sequence of carriage returns and/or newlines at the end of a string.
-        # We use it to separate the actual line content from its ending.
+        # Pattern to extract the trailing newline sequence (including \r\n, \n, \r)
         newline_pattern = re.compile(r'(\r?\n|\r)$')
 
-        # Split the text into actual lines using a more reliable method that keeps track of ends
-        # This will give us lines as a list of strings. We then process each.
-        # For multiline strings, we need to iterate over true lines.
-        # The previous splitlines(keepends=True) was fine for *that* part,
-        # but the problem was assuming ALL lines have endings and re-applying them.
-
-        # Let's consider the input `text` as a series of "displayable units" that
-        # might or might not terminate with a newline.
-        # We will split on *known* newline sequences but then analyze each "segment"
-        # to see if it *actually* ended with a newline or if it's the last segment
-        # which might not have one (e.g., a progress bar line).
-
-        # Instead of splitlines, which might complicate handling the very last line's ending,
-        # let's process the string by finding newline characters.
-
-        # A simpler way is to split on actual newlines, but iterate over chunks.
-        # If the text ends with a newline, splitlines(keepends=True) works well.
-        # If it DOES NOT end with a newline, splitlines(keepends=True) will *not* add one.
-        # The issue was my previous `line_ending` capture and re-application logic.
-
-        # Let's stick with splitlines(keepends=True) but refine the `line_ending` capture logic.
-
         truncated_segments = []
-        # splitlines(keepends=True) correctly handles \n, \r, \r\n and keeps them.
-        # It also handles the case where the last line does NOT end with a newline.
-        # Example: "abc\nxyz" -> ['abc\n', 'xyz']
-        # Example: "abc\nxyz\n" -> ['abc\n', 'xyz\n']
+        # splitlines(keepends=True) correctly separates lines and keeps their specific endings
         segments = text.splitlines(keepends=True)
 
         for segment in segments:
-            # Check if the segment ends with any common newline character/sequence
+            # 1. Separate actual content from its potential trailing newline
+            line_content_with_codes = segment
+            line_ending = ""
             match = newline_pattern.search(segment)
-
-            line_content = segment  # Assume the whole segment is content initially
-            line_ending = ""  # Assume no ending initially
-
             if match:
-                # If a newline pattern is found, separate the content from the ending
-                line_ending = match.group(0)  # The matched newline sequence itself
-                line_content = segment[:-len(line_ending)]  # Content is everything before the ending
+                line_ending = match.group(0)
+                line_content_with_codes = segment[:-len(line_ending)]
 
-            # Apply truncation logic to the content part
-            if len(line_content) > effective_width:
-                if effective_width < dots_length:
-                    # If effective_width is less than dots_length, fill with as many dots as possible
-                    truncated_segments.append("." * effective_width + line_ending)
+            # 2. Extract trailing escape codes (like \x1b[K) that should be preserved
+            # This is tricky: we want to preserve codes that clear the line AFTER the content.
+            # We assume these codes are at the very end of the *content* part.
+            trailing_codes = ""
+            content_without_trailing_codes = line_content_with_codes
+
+            # Find all escape sequences in the content part
+            all_codes_in_content = list(CoreToolBox.ANSI_ESCAPE_PATTERN.finditer(line_content_with_codes))
+
+            if all_codes_in_content:
+                # Check if the last found code is at the very end of the content
+                last_match = all_codes_in_content[-1]
+                if last_match.end() == len(line_content_with_codes):
+                    trailing_codes = last_match.group(0)
+                    content_without_trailing_codes = line_content_with_codes[:last_match.start()]
+                # else: The last code is not at the very end, so we treat it as part of the content
+                # that might be truncated. This is a simplification; a full solution might
+                # need to render and measure, or parse more deeply.
+
+            # 3. Calculate visible width of the content *without* trailing codes
+            visible_width = CoreToolBox.get_visible_width(content_without_trailing_codes)
+
+            # 4. Perform truncation based on visible width
+            if visible_width > effective_width:
+                # Determine target visible length for the actual text part
+                target_visible_length = effective_width - dots_length
+
+                if target_visible_length < 0:  # Not even enough space for dots
+                    # Fill with as many dots as possible, preserving trailing codes and ending
+                    truncated_segment_text = "." * effective_width
                 else:
-                    truncate_length = max(0, effective_width - dots_length)
-                    truncated_segments.append(line_content[:truncate_length] + dots + line_ending)
+                    current_visible_length = 0
+                    truncated_text_chars = []
+                    # Iterate through the characters of the string (excluding trailing codes)
+                    # and build up the truncated string while tracking visible width.
+                    idx = 0
+                    while idx < len(content_without_trailing_codes) and current_visible_length < target_visible_length:
+                        char = content_without_trailing_codes[idx]
+                        if char == '\x1b' and CoreToolBox.ANSI_ESCAPE_PATTERN.match(content_without_trailing_codes,
+                                                                                      idx):
+                            # It's the start of an escape sequence, find its end
+                            match = CoreToolBox.ANSI_ESCAPE_PATTERN.match(content_without_trailing_codes, idx)
+                            if match:
+                                # Add the full escape sequence without counting it towards visible width
+                                truncated_text_chars.append(match.group(0))
+                                idx = match.end()
+                                continue
+
+                        # Regular character, count it
+                        truncated_text_chars.append(char)
+                        current_visible_length += 1
+                        idx += 1
+
+                    truncated_segment_text = "".join(truncated_text_chars) + dots
+
+                # Combine truncated text with preserved trailing codes and line ending
+                truncated_segments.append(truncated_segment_text + trailing_codes + line_ending)
             else:
-                # No truncation needed, keep the original segment as is (content + its original ending/lack thereof)
+                # No truncation needed for this segment's visible content.
+                # Keep the segment as is (including its original codes and ending).
                 truncated_segments.append(segment)
 
         return "".join(truncated_segments)
