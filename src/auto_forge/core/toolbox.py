@@ -2015,7 +2015,9 @@ class CoreToolBox(CoreModuleInterface):
     def truncate_for_terminal(text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
         """
         Truncates a string to fit within the terminal width, adding "..." if truncated.
-        Handles truncation on a line-by-line basis, preserving original newlines.
+        Handles truncation on a line-by-line basis, preserving original newlines
+        or lack thereof, to support in-place line overwriting (e.g., progress bars).
+
         Args:
             text: The string to truncate.
             reduce_by_chars: An optional number of characters to reduce the effective
@@ -2036,27 +2038,80 @@ class CoreToolBox(CoreModuleInterface):
         # Calculate the effective width available for the text
         effective_width = terminal_width - reduce_by_chars
 
-        # Account for the "... n" that will be added if truncation occurs
+        # Account for the "..." that will be added if truncation occurs
         dots_length = 3
         dots = "." * dots_length
 
-        lines = text.splitlines(keepends=True)  # Keep the original line endings
+        # Splitting by common line endings, but keeping the delimiters
+        # This regex ensures we split by \r\n, \n, or \r and keep them as separate elements
+        # It handles cases like "line1\nline2\r\nline3\rline4"
+        # and also cases where a line might not end with any of these.
+        # We need to explicitly match the newline characters and include them in the result.
+        # The (?:...) is a non-capturing group. The ([\r\n]+) captures the actual newline sequence.
+        # We also need to handle the case where text might end without a newline.
+        # re.split will give us parts like [line_content, newline, line_content, newline, ...]
+        # For example, "abc\nxyz" -> ['abc', '\n', 'xyz']
+        # "abc" -> ['abc']
+        # "abc\n" -> ['abc', '\n', ''] -- we need to handle this empty string at the end correctly
 
-        truncated_lines = []
-        for line in lines:
-            # We need to consider the length of the line WITHOUT its newline character
-            # for truncation logic, then add it back.
-            line_content = line.rstrip('\r\n')
-            line_ending = line[len(line_content):]  # Capture the original line ending
+        # A more robust way to iterate line by line while preserving *original* endings
+        # without introducing new ones is to manually find them.
 
+        # This pattern matches any sequence of carriage returns and/or newlines at the end of a string.
+        # We use it to separate the actual line content from its ending.
+        newline_pattern = re.compile(r'(\r?\n|\r)$')
+
+        # Split the text into actual lines using a more reliable method that keeps track of ends
+        # This will give us lines as a list of strings. We then process each.
+        # For multiline strings, we need to iterate over true lines.
+        # The previous splitlines(keepends=True) was fine for *that* part,
+        # but the problem was assuming ALL lines have endings and re-applying them.
+
+        # Let's consider the input `text` as a series of "displayable units" that
+        # might or might not terminate with a newline.
+        # We will split on *known* newline sequences but then analyze each "segment"
+        # to see if it *actually* ended with a newline or if it's the last segment
+        # which might not have one (e.g., a progress bar line).
+
+        # Instead of splitlines, which might complicate handling the very last line's ending,
+        # let's process the string by finding newline characters.
+
+        # A simpler way is to split on actual newlines, but iterate over chunks.
+        # If the text ends with a newline, splitlines(keepends=True) works well.
+        # If it DOES NOT end with a newline, splitlines(keepends=True) will *not* add one.
+        # The issue was my previous `line_ending` capture and re-application logic.
+
+        # Let's stick with splitlines(keepends=True) but refine the `line_ending` capture logic.
+
+        truncated_segments = []
+        # splitlines(keepends=True) correctly handles \n, \r, \r\n and keeps them.
+        # It also handles the case where the last line does NOT end with a newline.
+        # Example: "abc\nxyz" -> ['abc\n', 'xyz']
+        # Example: "abc\nxyz\n" -> ['abc\n', 'xyz\n']
+        segments = text.splitlines(keepends=True)
+
+        for segment in segments:
+            # Check if the segment ends with any common newline character/sequence
+            match = newline_pattern.search(segment)
+
+            line_content = segment  # Assume the whole segment is content initially
+            line_ending = ""  # Assume no ending initially
+
+            if match:
+                # If a newline pattern is found, separate the content from the ending
+                line_ending = match.group(0)  # The matched newline sequence itself
+                line_content = segment[:-len(line_ending)]  # Content is everything before the ending
+
+            # Apply truncation logic to the content part
             if len(line_content) > effective_width:
                 if effective_width < dots_length:
-                    # If effective_width is less than dots_length, we fill with as many dots as possible
-                    truncated_lines.append("." * effective_width + line_ending)
+                    # If effective_width is less than dots_length, fill with as many dots as possible
+                    truncated_segments.append("." * effective_width + line_ending)
                 else:
                     truncate_length = max(0, effective_width - dots_length)
-                    truncated_lines.append(line_content[:truncate_length] + dots + line_ending)
+                    truncated_segments.append(line_content[:truncate_length] + dots + line_ending)
             else:
-                truncated_lines.append(line)  # No truncation needed, keep original line
+                # No truncation needed, keep the original segment as is (content + its original ending/lack thereof)
+                truncated_segments.append(segment)
 
-        return "".join(truncated_lines)
+        return "".join(truncated_segments)
