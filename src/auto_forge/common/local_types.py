@@ -33,19 +33,14 @@ class AutoForgeWorkModeType(Enum):
 class AutoForgeModuleType(Enum):
     """
     Enumeration of known AutoForge module types.
-    Members:
-        CORE (int): Built-in core module, part of the AutoForge runtime.
-        COMMON (int): General purpose reusable services.
-        COMMAND (int): Dynamically loaded commands provided either by AutoForge or externally
-        BUILDER (int): Dynamically loaded builder modules which allow for using a specific toolchain (make, CMake act)
-        PROMPT_DO (int): Prompt Toolkit / cmd2 commands coded through the do_command_name() style
     """
     UNKNOWN = 0
     CORE = 1
     COMMON = 2
     COMMAND = 3
     BUILDER = 4
-    PROMPT = 5  # Reserved for any command test was registered locally by prompt toolkit ("do_<command>")
+    ANALYZER = 5
+    PROMPT = 6  # Reserved for cmd2 implemented commands ("do_<command>")
 
 
 # noinspection DuplicatedCode
@@ -245,13 +240,27 @@ class ExpectedVersionInfoType(NamedTuple):
     version: str  # Version identifier, e.g. '4.6'
 
 
-class CommandResultType(NamedTuple):
+@dataclass
+class CommandResultType:
     """ Generic type for executed command results """
     response: Optional[str] = None  # Command output
     return_code: int = 1  # Command returned integer value, initialized to error.
+    message: Optional[str] = None
+    command: Optional[str] = "unknown"
     extra_value: Optional[
         int] = None  # Optional additional return value, for ex. HTTP status from a method that handles downloads.
     extra_data: Optional[Any] = None  # Optional additional return data, could be anything.
+
+
+class CommandFailedException(Exception):
+    """
+    Custom exception that carries a 'CommandResultType' instance,
+    which can be raised when a command fails.
+    """
+
+    def __init__(self, results: Optional[CommandResultType] = None):
+        super().__init__()
+        self.results: Optional[CommandResultType] = results
 
 
 class MessageBoxType(Enum):
@@ -318,7 +327,7 @@ class AddressInfoType(NamedTuple):
     host: str
     port: int
     endpoint: str
-    url:str
+    url: str
     is_host_name: bool
 
 

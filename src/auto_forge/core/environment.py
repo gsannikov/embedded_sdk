@@ -24,7 +24,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import threading
 import time
 import urllib.request
 import zipfile
@@ -33,16 +32,16 @@ from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, Tuple
+from typing import Any, Optional, Union, Tuple
 
 from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType,
+    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType, CommandFailedException,
     CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface,
     CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
-    ExecutionModeType, ProgressTracker, PROJECT_SHARED_PATH,
+    ProgressTracker, PROJECT_SHARED_PATH,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType,
     VersionCompare, Watchdog
 )
@@ -513,86 +512,6 @@ class CoreEnvironment(CoreModuleInterface):
 
         return CommandResultType(response=command_response, return_code=return_code)
 
-    def execute_with_spinner(self, message: str, command: Union[str, Callable], arguments: Optional[Any] = None,
-                             command_type: ExecutionModeType = ExecutionModeType.SHELL, timeout: Optional[float] = None,
-                             color: Optional[str] = Fore.CYAN, new_lines: int = 0) -> Optional[int]:
-        """
-        Run a command with a spinning indicator and optional timeout.
-
-        Args:
-            message (str): Message to show before the spinner.
-            command (str | Callable): Command to execute (shell or Python method).
-            arguments (Optional[Any]): Command-line-style arguments or dict for Python calls.
-            command_type (ExecutionModeType): Execution mode type.
-            timeout (Optional[float]): Timeout in seconds (for shell commands only).
-            color (Optional[str]): Colorama color for the spinner text.
-            new_lines (int): The number of new lines print before the spinner text.
-
-        Returns:
-            Optional[int]: Command result code (0 = success, None = failed).
-        """
-        spinner_running = True
-        result_container = {}
-        message = self._tool_box.normalize_text(text=message)
-
-        if new_lines:
-            print('\n' * new_lines, end='')
-
-        def _show_spinner():
-            symbols = ['|', '/', '-', '\\']
-            idx = 0
-            while spinner_running:
-                spinner = f"{color}{symbols[idx % len(symbols)]}{Style.RESET_ALL}"
-                print(f"\r{message} {spinner}", end='', flush=True)
-                time.sleep(0.1)
-                idx += 1
-            # Clean up line when done
-            print('\r' + ' ' * (len(message) + 4), end='\r', flush=True)
-
-        def _execute_foreign_code():
-            try:
-                if command_type == ExecutionModeType.SHELL:
-                    self.execute_shell_command(
-                        command_and_args=self._flatten_command(command=command, arguments=arguments), timeout=timeout)
-                    result_container['code'] = 0
-
-                elif command_type == ExecutionModeType.PYTHON:
-                    if not callable(command):
-                        raise RuntimeError("Cannot execute non-callable command")
-
-                    if isinstance(arguments, str):
-                        kwargs = json.loads(arguments)
-                        command(**kwargs)
-                    elif isinstance(arguments, dict):
-                        command(**arguments)
-                    elif arguments is not None:
-                        command(arguments)
-                    else:
-                        command()
-                    result_container['code'] = 0
-
-                else:
-                    raise RuntimeError("Unrecognized command type")
-
-            except Exception as exception:
-                result_container['code'] = -1
-                raise exception
-
-        self._tool_box.set_cursor(visible=False)
-        spin_thread = threading.Thread(target=_show_spinner, name="Spinner")
-        exec_thread = threading.Thread(target=_execute_foreign_code, name="SpinnerExecute")
-
-        spin_thread.start()
-        exec_thread.start()
-
-        exec_thread.join()
-        spinner_running = False
-        self._tool_box.set_cursor(visible=True)
-        spin_thread.join()
-
-        print(Style.RESET_ALL, end='')  # Ensure styling is reset
-        return result_container.get('code', 1)
-
     def execute_shell_command(  # noqa: C901
             self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
@@ -624,11 +543,12 @@ class CoreEnvironment(CoreModuleInterface):
         polling_interval: float = 0.1
         kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
-        lines_queue = deque(maxlen=100)  # Storing upto the last 100 output lines
+        lines_queue = deque(maxlen=1024)  # Storing upto the last 100 output lines
         master_fd: Optional[int] = None  # PTY master descriptor
         timeout = self._subprocess_execution_timout if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
         max_reda_chunk = 1024 if max_reda_chunk < 1 else max_reda_chunk  # Normalize bad user input
+        results: Optional[CommandResultType] = None
         prev_queued_message: Optional[str] = None
 
         def _safe_quote(_arg: str) -> str:
@@ -675,7 +595,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         def _print_line(line: str) -> None:
             """
-            Prints a line to stdout, either overwriting the current line or printing a new line.
+            Prints a line to stdout apply some forming based on how TerminalEchoType was set.
             Args:
                 line (str): The text to print.
             """
@@ -694,13 +614,9 @@ class CoreEnvironment(CoreModuleInterface):
                         line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
                     elif "error:" in line:
                         line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
-                    else:
-                        max_len = max(10, term_width - 10)
-                        line = line[:max_len]
-
                     sys.stdout.write(f'\033[K{line}\r')
                 else:
-                    # Bare line printer
+                    # Bare text, no formatting
                     sys.stdout.write(line)
 
                 sys.stdout.flush()
@@ -721,12 +637,11 @@ class CoreEnvironment(CoreModuleInterface):
                 text = input_buffer.decode('utf-8', errors='replace')
             except Exception as decode_error:
                 raise RuntimeError(f"Decode error: {decode_error}") from decode_error
-
             clear_text = self._tool_box.strip_ansi(text=text, bare_text=True).strip()
 
             # Log and queue only lines that do not end with \r.
             if len(clear_text):
-
+                message_queue.append(clear_text)
                 is_similar: bool = False
                 if isinstance(prev_queued_message, str):
                     similarity: float = difflib.SequenceMatcher(None, clear_text, prev_queued_message).ratio()
@@ -734,7 +649,6 @@ class CoreEnvironment(CoreModuleInterface):
                         is_similar = True
 
                 if not is_similar:
-                    message_queue.append(clear_text)
                     self._logger.debug(f"> {clear_text}")
                     prev_queued_message = clear_text
 
@@ -752,12 +666,6 @@ class CoreEnvironment(CoreModuleInterface):
                 return select.select([master_fd], [], [], polling_interval)[0]
             else:
                 return select.select([process.stdout, process.stderr], [], [], polling_interval)[0]
-
-        # Determine the terminal width
-        try:
-            term_width = shutil.get_terminal_size().columns
-        except OSError:
-            term_width = 100  # fallback default if terminal size can't be determined
 
         # Create merged environment where AutoForge variables override exising
         proc_env: dict[str, str] = os.environ.copy()
@@ -920,22 +828,27 @@ class CoreEnvironment(CoreModuleInterface):
             # Done executing
             command_response: str = "\n".join(lines_queue)  # Convert to a full string with newlines
             return_code = process.returncode
+            results = CommandResultType(response=command_response, return_code=return_code, command=command)
 
-            # Optionally raise exception non-zero return code
+            # Non-zero return code
             if check and return_code != 0:
-                raise subprocess.CalledProcessError(returncode=process.returncode, cmd=command, output=command_response,
-                                                    stderr=process.stderr)
-
+                results.message = f"Child process exited with non zero return code {return_code}"
+                raise CommandFailedException(results=results)
+            # Token not found
             if searched_token and command_response and searched_token not in command_response:
-                raise ValueError(f"token '{searched_token}' not found in response")
+                results.message = f"Token '{searched_token}' not found in response"
+                raise CommandFailedException(results=results)
 
-            return CommandResultType(response=command_response, return_code=return_code)
+            return results
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as timout_exception:
             process.kill()
-            raise
-        except Exception:
-            raise
+            if not isinstance(results, CommandResultType):
+                results = CommandResultType(return_code=-9, command=command)
+
+            results.message = str(timout_exception)
+            raise CommandFailedException(results=results) from timout_exception
+
         finally:
             if master_fd is not None:  # Close PTY descriptor
                 os.close(master_fd)

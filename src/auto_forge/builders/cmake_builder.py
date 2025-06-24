@@ -22,8 +22,9 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType,
-                        CoreEnvironment, CorePrompt, CoreToolBox)
+from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
+                        TerminalEchoType, CoreEnvironment, CorePrompt, CoreToolBox,
+                        GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -66,6 +67,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         self._toolchain: Optional[BuilderToolChain] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
+        self._gcc_analyzer = GCCLogAnalyzer()
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
@@ -107,8 +109,8 @@ class CMakeBuilder(BuilderRunnerInterface):
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
 
-        config = build_profile.config_data
         self._environment = CoreEnvironment.get_instance()
+        config = build_profile.config_data
 
         if not isinstance(config, dict):
             raise ValueError("build profile contain invalid configuration")
@@ -177,8 +179,10 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Prepare the 'cmake' command line
         command_line = [build_command, *merged_options]
         is_config_step = self._is_cmake_configuration_command(cmd=command_line)
-        # Execute CMake, note that pending on the compilation options this could a single run or the first run
-        # out of 2 when building with Ninja.
+
+        # Execute CMake, note that pending on the compilation options this could a single
+        # run or the first run out of 2 when building with Ninja.
+
         try:
 
             # Update step and optionally handle extra arguments based on the current state
@@ -191,8 +195,12 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                               cwd=str(execute_from),
                                                               leading_text=build_profile.terminal_leading_text)
 
-        except Exception as execution_error:
-            raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
+        except CommandFailedException as execution_error:
+            results = execution_error.results
+            if results:
+                self._gcc_analyzer.analyze(log_source=results.response, json_name="test.json")
+            raise RuntimeError(
+                f"build process failed to start {results.message if results else 'unknown'}") from execution_error
 
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
@@ -203,7 +211,6 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Check if the previous step was configuration and if so verify that we have Ninja
         if is_config_step and ninja_build_command is not None:
             try:
-
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
 
@@ -212,8 +219,15 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                                   echo_type=TerminalEchoType.LINE,
                                                                   cwd=str(execute_from),
                                                                   leading_text=build_profile.terminal_leading_text)
-            except Exception as execution_error:
-                raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
+            except CommandFailedException as execution_error:
+                results = execution_error.results
+                if results:
+                    self._gcc_analyzer.analyze(log_source=results.response, json_name="test.json")
+                raise RuntimeError(
+                    f"build process failed to start {results.message if results else 'unknown'}") from execution_error
+            finally:
+                if results is not None:
+                    self._gcc_analyzer.analyze(log_source=results.response, json_name="test.json")
 
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)

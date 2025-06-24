@@ -14,7 +14,8 @@ import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Optional, Tuple, Union, Any
 
 from colorama import Fore, Style
 
@@ -24,8 +25,9 @@ from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildPr
 # Direct internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
 
-AUTO_FORGE_MODULE_NAME = "MakeBuilder"
-AUTO_FORGE_MODULE_DESCRIPTION = "Make build tool"
+# Module identification
+AUTO_FORGE_MODULE_NAME = "BuilderInterface"
+AUTO_FORGE_MODULE_DESCRIPTION = "Dynamic loadable builder interface"
 
 
 class BuilderToolChain:
@@ -168,6 +170,33 @@ class BuilderToolChain:
             raise version_verify_error from version_verify_error
 
 
+class BuildLogAnalyzerInterface(ABC):
+    """
+    Abstract base class defining the interface for log analysis.
+    Any specific log analyzer (e.g., GCC, Clang, Java) should
+    inherit from this interface and implement the 'analyze' method.
+    """
+
+    def __init__(self):
+        # Keep track of last analysis
+        self._last_analysis: Optional[list[dict[str, Union[str, int, None, list[str]]]]] = None
+
+    @abstractmethod
+    def analyze(self, log_source: Union[Path, str], json_name: Optional[str] = None) -> Optional[list[dict[str, Any]]]:
+        """
+        Analyzes a log source, which can be a file path or a string,
+        and extracts structured information.
+        Args:
+            log_source: The source of the log data, either a Path object
+                        to a log file or a string containing the log content.
+            json_name: Optional JSON export file path.
+        Returns:
+            A list of dictionaries, where each dictionary represents a parsed entry,
+            or None if no relevant entries are found.
+        """
+        raise NotImplementedError("Subclasses must implement the 'analyze' method.")
+
+
 class BuilderRunnerInterface(ABC):
     """
     Abstract base class for builder instances that can be dynamically registered and executed by AutoForge.
@@ -199,7 +228,7 @@ class BuilderRunnerInterface(ABC):
         # Set optional build label
         self._build_label: str = build_label if build_label is not None else "AutoForge"
 
-        # Persist this builder instance in the global registry for centralized access
+        # Register this builder instance in the global registry for centralized access
         self._registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
             self._registry.register_module(name=self._build_system, description=caller_module_description,

@@ -1138,11 +1138,9 @@ class CoreToolBox(CoreModuleInterface):
         """
         Removes ANSI escape sequences and broken hyperlink wrappers,
         but retains useful text such as GCC warning flags.
-
         Args:
             text (str): The input string possibly containing ANSI and broken links.
             bare_text (bool): If True, reduce to printable ASCII only.
-
         Returns:
             str: Cleaned text, preserving meaningful info like [-W...]
         """
@@ -1164,28 +1162,18 @@ class CoreToolBox(CoreModuleInterface):
             )
         ''', re.VERBOSE)
         text = ansi_escape.sub('', text)
-
-        # GCC junk and do everything possible to get a clear human-readable string.
-        text = text.replace("8;;", "")
-        text = text.replace("->", "").strip()
-
-        # Remove GCC Source code references
-        text = re.sub(r'^\|\s*[~^]+\s*$', '', text, flags=re.MULTILINE)
-        text = re.sub(r'^\s*\d+\s*\|.*$', '', text, flags=re.MULTILINE)
-        text = re.sub(r'\s*\|', '', text)
-
         if not text:
             return text
 
-        def recover_warning_flag(match):
+        def _recover_warning_flag(match):
             """ # Extract and preserve [-W...warning...] from broken [https://...] blocks """
             url = match.group(1)
             warning_match = re.search(r'(-W[\w\-]+)', url)
             return f"[{warning_match.group(1)}]" if warning_match else ""
 
-        text = re.sub(r'\[(https?://[^]]+)]', recover_warning_flag, text).strip()
+        text = re.sub(r'\[(https?://[^]]+)]', _recover_warning_flag, text).strip()
 
-        # Step 4: Optionally reduce to printable ASCII
+        # Optionally reduce to printable ASCII
         if bare_text:
             allowed = set(string.ascii_letters + string.digits + string.punctuation + ' \t\n')
             text = ''.join(c for c in text if c in allowed)

@@ -6,7 +6,6 @@ Description:
     A builder implementation tailored for handling Make-based build systems.
     It provides the `_MakeToolChain` class, a concrete implementation of the `BuilderToolChainInterface`,
     which validates and resolves tools required for Make-driven workflows.
-
 Classes:
     - _MakeToolChain: Validates and resolves required tools for Make-based toolchains.
 """

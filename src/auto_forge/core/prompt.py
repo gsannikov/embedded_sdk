@@ -43,10 +43,8 @@ from rich.console import Console
 from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, AutoLogger, BuildProfileType,
     CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry,
-    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo,
-    ExecutionModeType, ModuleInfoType,
-    PROJECT_NAME, PROJECT_VERSION,
-    TerminalEchoType, VariableFieldType
+    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
+    ModuleInfoType, TerminalEchoType, VariableFieldType, PROJECT_NAME, PROJECT_VERSION,
 )
 
 # Basic types
@@ -348,10 +346,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._loaded_solution_name = self._solution.get_loaded_solution(name_only=True)
 
         # Build executables dictionary for implementation shell style fast auto completion
-        if self._environment.execute_with_spinner(message=f"Initializing {PROJECT_NAME}... ",
-                                                  command=self._build_executable_index,
-                                                  command_type=ExecutionModeType.PYTHON, new_lines=1) != 0:
-            raise RuntimeError("could not finish initializing")
+        self._build_executable_index()
 
         # Allow to override maximum completion results
         self._max_completion_results = self._configuration.get('prompt_max_completion_results',
@@ -763,7 +758,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             if not directory or directory in seen_dirs:
                 continue
             seen_dirs.add(directory)
-
             try:
                 with os.scandir(directory) as entries:
                     for entry in entries:
@@ -1471,25 +1465,29 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
             results = self._environment.execute_shell_command(
                 command_and_args=statement.command_and_args, env=var_env, echo_type=TerminalEchoType.LINE)
+
             self.last_result = results.return_code if results else 0
             return None
 
+        # Expected exception when using 'execute_shell_command'
+        except CommandFailedException as execution_error:
+            results = execution_error.results
+
+            if isinstance(results, CommandResultType):
+                self.last_result = results.return_code
+                self._logger.warning(f"Command '{results.command}' returned {results.return_code}")
+            else:
+                self._logger.error(f"caught execution exception with no data")
+            return None
+
+        # Break (Ctrl/C) signaled
         except KeyboardInterrupt:
             return None
 
-        except subprocess.CalledProcessError as exception:
-            self._logger.warning(f"Command '{exception.cmd}' returned {exception.returncode}")
-
-            # Inform the user when data was echoed back
-            if not exception.returncode:
-                self.perror(f"{exception.cmd}' failed with {exception.returncode}")
-
-            self.last_result = exception.returncode
-            return None
-
+        # Anything else, unexpected
         except Exception as exception:
-            self._logger.exception(f"Exception: {exception}")
-            return True  # Stop the interrupter
+            self._logger.exception(f"Caught unexpected exception: {exception}")
+            return None
 
     def postloop(self) -> None:
         """

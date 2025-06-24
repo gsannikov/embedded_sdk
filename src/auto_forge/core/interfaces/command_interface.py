@@ -3,16 +3,13 @@ Script:         command_interface.py
 Author:         AutoForge Team
 
 Description:
-    core abstract base class which provides a standardized interface for implementing modular,
+    Core abstract base class which provides a standardized interface for implementing modular,
     pluggable command-line commands within the AutoForge framework.
 
     Each command subclass is responsible for:
         - Declaring its name and description.
         - Registering its arguments using `argparse`.
         - Implementing execution logic based on parsed arguments.
-
-    The interface supports both programmatic and shell-style invocation, enabling dynamic discovery
-    and execution of commands across tools and environments.
 """
 
 import argparse
@@ -30,6 +27,10 @@ from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType,
                         AutoForgCommandType, CoreToolBoxProtocol)
 # Direct internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
+
+# Module identification
+AUTO_FORGE_MODULE_NAME = "CommandInterface"
+AUTO_FORGE_MODULE_DESCRIPTION = "Dynamic loadable command interface"
 
 
 class _CapturingArgumentParser(argparse.ArgumentParser):
@@ -173,7 +174,7 @@ class CommandInterface(ABC):
         # Create a command dedicated logger instance
         self._logger = AutoLogger().get_logger(name=command_name.capitalize())
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this command instance in the global registry for centralized access
         self._registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
             self._registry.register_module(name=command_name, description=caller_module_description,

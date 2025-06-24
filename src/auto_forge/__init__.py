@@ -34,7 +34,7 @@ try:
     # Common types
     from auto_forge.common.local_types import (
         AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
-        BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType,
+        BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType, CommandFailedException,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
@@ -55,7 +55,11 @@ try:
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
     from auto_forge.core.interfaces.command_interface import CommandInterface
-    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderToolChain)
+    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuildLogAnalyzerInterface,
+                                                              BuilderToolChain)
+
+    # Build output analyzers
+    from auto_forge.builders.analyzers.gcc_log_analyzer import GCCLogAnalyzer
 
     # Core / common modules
     from auto_forge.core.registry import CoreRegistry
@@ -87,13 +91,16 @@ except Exception as exception:
 # Exported symbols
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
-    "AutoLogger", "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuilderToolChain",
+    "AutoLogger", "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuildLogAnalyzerInterface",
+    "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
+    "CommandFailedException",
     "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
     "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",
     "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables",
     "CoreVariablesProtocol", "CoreXRayDB", "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType",
-    "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
+    "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "GCCLogAnalyzer",
+    "InputBoxTextType",
     "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
     "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",

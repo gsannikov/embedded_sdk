@@ -57,6 +57,10 @@ _CORE_AUTO_FORGE_ROOT: Optional["AutoForge"] = None
 # Helps to guard against nested exceptions
 _CORE_EXCEPTIONS_COUNT: Optional[int] = 0
 
+# Module identification
+AUTO_FORGE_MODULE_NAME = "CommandModuleInterface"
+AUTO_FORGE_MODULE_DESCRIPTION = "Core module interface"
+
 
 class _SingletonABCMeta(ABCMeta):
     """
