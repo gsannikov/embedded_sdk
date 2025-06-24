@@ -25,22 +25,60 @@
         { "archive": "cmake/linux_rules.cmake",                             "host": "cmake/linux_rules.cmake"                                   },
         { "archive": "cmake/module_paths.cmake",                            "host": "cmake/module_paths.cmake"                                  },
 
+        // n_libs
         { "archive": "n_libs/CMakeLists.txt",                               "host": "n_libs/CMakeLists.txt"                                     },
         { "archive": "n_libs/infra_gt/CMakeLists.txt",                      "host": "n_libs/infra_gt/CMakeLists.txt"                            },
         { "archive": "n_libs/infra_hi/CMakeLists.txt",                      "host": "n_libs/infra_hi/CMakeLists.txt"                            },
         { "archive": "n_libs/lib_bmd/CMakeLists.txt",                       "host": "n_libs/lib_bmd/CMakeLists.txt"                             },
+        { "archive": "n_libs/lib_rdma/CMakeLists.txt",                      "host": "n_libs/lib_rdma/CMakeLists.txt"                            },
         { "archive": "n_libs/linux_utils/CMakeLists.txt",                   "host": "n_libs/linux_utils/CMakeLists.txt"                         },
         { "archive": "n_libs/logger/CMakeLists.txt",                        "host": "n_libs/logger/CMakeLists.txt"                              },
 
-        { "archive": "n_libs/libs/CMakeLists.txt",                          "host": "n_libs/libs/CMakeLists.txt"                                },
-        { "archive": "n_libs/libs/lib_elastic_handler/CMakeLists.txt",      "host": "n_libs/libs/lib_elastic_handler/CMakeLists.txt"            },
-        { "archive": "n_libs/libs/lib_icqh/CMakeLists.txt",                 "host": "n_libs/libs/lib_icqh/CMakeLists.txt"                       },
-        { "archive": "n_libs/libs/lib_ipumgmtd/CMakeLists.txt",             "host": "n_libs/libs/lib_ipumgmtd/CMakeLists.txt"                   },
-        { "archive": "n_libs/libs/lib_ipumgmtd/cmake/mev1.cmake",           "host": "n_libs/libs/lib_ipumgmtd/cmake/mev1.cmake"                 },
-        { "archive": "n_libs/libs/lib_ipumgmtd/cmake/mev_ts.cmake",         "host": "n_libs/libs/lib_ipumgmtd/cmake/mev_ts.cmake"               },
-        { "archive": "n_libs/libs/lib_ipumgmtd/cmake/mmg.cmake",            "host": "n_libs/libs/lib_ipumgmtd/cmake/mmg.cmake"                  },
-        { "archive": "n_libs/libs/lib_logger/CMakeLists.txt",               "host": "n_libs/libs/lib_logger/CMakeLists.txt"                     },
-        { "archive": "n_libs/libs/lib_mac/CMakeLists.txt",                  "host": "n_libs/libs/lib_mac/CMakeLists.txt"                        },
-        { "archive": "n_libs/libs/lib_telemetry/CMakeLists.txt",            "host": "n_libs/libs/lib_telemetry/CMakeLists.txt"                  }
+        // n_link
+        { "archive": "n_link/CMakeLists.txt",                               "host": "n_link/CMakeLists.txt"                                     },
+        { "archive": "n_link/lib_mac/CMakeLists.txt",                       "host": "n_link/lib_mac/CMakeLists.txt"                             },
+        { "archive": "n_link/lm/CMakeLists.txt",                            "host": "n_link/lm/CMakeLists.txt"                                  },
+
+        // n_mng
+        { "archive": "n_mng/CMakeLists.txt",                                "host": "n_mng/CMakeLists.txt"                                      },
+        { "archive": "n_mng/i2c_app/CMakeLists.txt",                        "host": "n_mng/i2c_app/CMakeLists.txt"                              },
+        { "archive": "n_mng/lib_mctp/CMakeLists.txt",                       "host": "n_mng/lib_mctp/CMakeLists.txt"                             },
+        { "archive": "n_mng/lib_mng/CMakeLists.txt",                        "host": "n_mng/lib_mng/CMakeLists.txt"                              },
+        { "archive": "n_mng/lib_ncsi/CMakeLists.txt",                       "host": "n_mng/lib_ncsi/CMakeLists.txt"                             },
+        { "archive": "n_mng/mctp_hw_config/CMakeLists.txt",                 "host": "n_mng/mctp_hw_config/CMakeLists.txt"                       },
+        { "archive": "n_mng/mctp_init/CMakeLists.txt",                      "host": "n_mng/mctp_init/CMakeLists.txt"                            },
+        { "archive": "n_mng/mctp_stack/CMakeLists.txt",                     "host": "n_mng/mctp_stack/CMakeLists.txt"                           },
+        { "archive": "n_mng/mng/CMakeLists.txt",                            "host": "n_mng/mng/CMakeLists.txt"                                  },
+        { "archive": "n_mng/mng_drv/CMakeLists.txt",                        "host": "n_mng/mng_drv/CMakeLists.txt"                              },
+        { "archive": "n_mng/mng_ncsi/CMakeLists.txt",                       "host": "n_mng/mng_ncsi/CMakeLists.txt"                             },
+        { "archive": "n_mng/mng_pt_mgmt/CMakeLists.txt",                    "host": "n_mng/mng_pt_mgmt/CMakeLists.txt"                          },
+        { "archive": "n_mng/mng_rmii/CMakeLists.txt",                       "host": "n_mng/mng_rmii/CMakeLists.txt"                             },
+        { "archive": "n_mng/mng_sensors/CMakeLists.txt",                    "host": "n_mng/mng_sensors/CMakeLists.txt"                          },
+        { "archive": "n_mng/ncsi_handler/CMakeLists.txt",                   "host": "n_mng/ncsi_handler/CMakeLists.txt"                         },
+
+        // n_platform
+        { "archive": "n_platform/CMakeLists.txt",                           "host": "n_platform/CMakeLists.txt"                                 },
+        { "archive": "n_platform/al_dump/CMakeLists.txt",                   "host": "n_platform/al_dump/CMakeLists.txt"                         },
+        { "archive": "n_platform/ddr_dump/CMakeLists.txt",                  "host": "n_platform/ddr_dump/CMakeLists.txt"                        },
+        { "archive": "n_platform/dfx_unlock/CMakeLists.txt",                "host": "n_platform/dfx_unlock/CMakeLists.txt"                      },
+        { "archive": "n_platform/hw_timer/CMakeLists.txt",                  "host": "n_platform/hw_timer/CMakeLists.txt"                        },
+        { "archive": "n_platform/lib_physs_logger/CMakeLists.txt",          "host": "n_platform/lib_physs_logger/CMakeLists.txt"                },
+        { "archive": "n_platform/lib_syscon/CMakeLists.txt",                "host": "n_platform/lib_syscon/CMakeLists.txt"                      },
+        { "archive": "n_platform/lib_telemetry/CMakeLists.txt",             "host": "n_platform/lib_telemetry/CMakeLists.txt"                   },
+        { "archive": "n_platform/pmua/CMakeLists.txt",                      "host": "n_platform/pmua/CMakeLists.txt"                            },
+        { "archive": "n_platform/pmua/cmake/mmg.cmake",                     "host": "n_platform/pmua/cmake/mmg.cmake"                           },
+
+        // n_us_infra
+        { "archive": "n_us_infra/CMakeLists.txt",                          "host": "n_us_infra/CMakeLists.txt"                                  },
+        { "archive": "n_us_infra/lib_icqh/CMakeLists.txt",                 "host": "n_us_infra/lib_icqh/CMakeLists.txt"                         },
+        { "archive": "n_us_infra/lib_ipumgmtd/CMakeLists.txt",             "host": "n_us_infra/lib_ipumgmtd/CMakeLists.txt"                     },
+        { "archive": "n_us_infra/lib_ipumgmtd/cmake/mev1.cmake",           "host": "n_us_infra/lib_ipumgmtd/cmake/mev1.cmake"                   },
+        { "archive": "n_us_infra/lib_ipumgmtd/cmake/mev_ts.cmake",         "host": "n_us_infra/lib_ipumgmtd/cmake/mev_ts.cmake"                 },
+        { "archive": "n_us_infra/lib_ipumgmtd/cmake/mmg.cmake",            "host": "n_us_infra/lib_ipumgmtd/cmake/mmg.cmake"                    },
+
+        // n_datapath
+        { "archive": "n_datapath/CMakeLists.txt",                          "host": "n_datapath/CMakeLists.txt"                                  },
+        { "archive": "n_datapath/lib_elastic_handler/CMakeLists.txt",      "host": "n_datapath/lib_elastic_handler/CMakeLists.txt"              }
+
     ]
 }
