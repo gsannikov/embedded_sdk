@@ -596,8 +596,9 @@ class CoreEnvironment(CoreModuleInterface):
     def execute_shell_command(  # noqa: C901
             self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
+            truncate_text: bool = True,
             use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True, shell: bool = True,
-            cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None, max_reda_chunk: Optional[int] = 124) -> \
+            cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None, max_reda_chunk: Optional[int] = 1024) -> \
             Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
@@ -606,6 +607,7 @@ class CoreEnvironment(CoreModuleInterface):
             timeout (Optional[float]): The maximum time in seconds to allow the command to run, 0 for no timeout.
             echo_type (TerminalEchoType): Defines how data is being echoed to the terminal from a forked process.
             leading_text (Optional[str]): Leading text to be printed before each logged line.
+            truncate_text (bool): Auto truncate  printed text to adjust to the terminal width.
             use_pty (bool): If True, the command will be executed in a PTY environment. Defaults to False.
             searched_token (Optional[str]): A token to search for in the command output.
             check (bool): If True, the command will raise CalledProcessError if the return code is non-zero
@@ -679,6 +681,10 @@ class CoreEnvironment(CoreModuleInterface):
             """
             if len(line):
                 line = _clean_shell_error_prefix(line) if line else line
+
+                # Auto adjust to current terminal width
+                if truncate_text:
+                    line = self._tool_box.truncate_for_terminal(text=line)
 
                 if echo_type in [TerminalEchoType.CLEAR_LINE, TerminalEchoType.SINGLE_LINE]:
                     if leading_text is not None:

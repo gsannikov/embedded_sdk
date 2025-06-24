@@ -2010,3 +2010,43 @@ class CoreToolBox(CoreModuleInterface):
         now = datetime.now(UTC)
         window_start = now - timedelta(days=days_back)
         return window_start <= event_date <= now
+
+    @staticmethod
+    def truncate_for_terminal(text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
+        """
+        Truncates a string to fit within the terminal width, adding "..." if truncated.
+        Args:
+            text: The string to truncate.
+            reduce_by_chars: An optional number of characters to reduce the effective
+                             terminal width by (e.g., for padding or other elements).
+            fallback_width: The width to use if the terminal size cannot be determined.
+                            Defaults to 120.
+        Returns:
+            The truncated string.
+        """
+
+        if not isinstance(text, str):
+            return text
+
+        # Calculate width
+        terminal_size = shutil.get_terminal_size(fallback=(fallback_width, 24))
+        terminal_width = terminal_size.columns
+
+        # Calculate the effective width available for the text
+        effective_width = terminal_width - reduce_by_chars
+
+        # Account for the "..." that will be added if truncation occurs
+        dots_length = 3
+
+        # noinspection GrazieInspection
+        if len(text) > effective_width:
+            # If the effective_width is less than dots_length, we can't even show "..."
+            # For example, if effective_width is 2, we return ".."
+            if effective_width < dots_length:
+                return "." * effective_width
+
+            # Ensure truncate_length is not negative, though the above check should prevent it
+            truncate_length = max(0, effective_width - dots_length)
+            return text[:truncate_length] + "..."
+        else:
+            return text
