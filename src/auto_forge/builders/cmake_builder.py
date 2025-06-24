@@ -34,9 +34,9 @@ AUTO_FORGE_MODULE_CONTEXT_FILE_NAME = "gcc_build_log.json"
 
 class _CMakeBuildStep(Enum):
     PRE_CONFIGURE = auto()
-    CONFIGURE = auto()  # cmake -S . -B build/ ...
+    CONFIGURE = auto()
     PRE_BUILD = auto()
-    BUILD = auto()  # ninja (or cmake --build)
+    BUILD = auto()
     POST_BUILD = auto()
     DONE_BUILD = auto()
 
