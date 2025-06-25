@@ -103,7 +103,6 @@ class CoreToolBox(CoreModuleInterface):
         """
         if byte_array is None or not isinstance(byte_array, bytes):
             return
-
         output = []
         hex_values = [f'{byte:02x}' for byte in byte_array]
         for i in range(0, len(hex_values), bytes_per_line):
@@ -114,7 +113,6 @@ class CoreToolBox(CoreModuleInterface):
     def print_lolcat(text: str, freq: float = None, spread: float = 1, seed: float = 64738):
         """
         Print text to terminal with rainbow 24-bit color effect (like lolcat).
-
         Parameters:
             text (str): The text to print.
             freq (float, optional): Frequency of the rainbow hue changes.
@@ -267,6 +265,36 @@ class CoreToolBox(CoreModuleInterface):
         if value is None:
             value = key  # Probably JSON value was passed, return it
         return value
+
+    @staticmethod
+    def format_productivity(events_per_minute: float) -> Optional[str]:
+        """
+        Translates raw events-per-minute into a mysterious productivity descriptor,
+        using a pseudo-scientific algorithm known only to ancient CI monks.
+        Args:
+            events_per_minute (float): The measured events per minute.
+        Returns:
+            str: A productivity label, or None if input is invalid.
+        """
+        if not isinstance(events_per_minute, (float, int)):
+            return None
+
+        if events_per_minute < 0.5:
+            label = "🧘 Zen Mode (possibly sleeping with eyes open)"
+        elif events_per_minute < 2:
+            label = "🐢 Sub-threshold throughput (try more coffee)"
+        elif events_per_minute < 5:
+            label = "🚶‍♂️ Nominal motion detected (typing with one finger?)"
+        elif events_per_minute < 10:
+            label = "🚴 Productive (clearly multitasking and winning)"
+        elif events_per_minute < 20:
+            label = "🏃‍♂️ High throughput (keyboard may be smoking)"
+        elif events_per_minute < 40:
+            label = "🚀 Hyperproductive (caffeine at dangerous levels)"
+        else:
+            label = "🧠 Quantum typing event detected — seek medical attention"
+
+        return f"Status: {label} (~{events_per_minute:.1f} events/min)"
 
     @staticmethod
     def format_duration(seconds: Union[int, float], include_milliseconds: bool = True) -> str:

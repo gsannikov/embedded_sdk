@@ -185,6 +185,19 @@ class CoreTelemetry(CoreModuleInterface):
         self._register_counter(tracked)
         return tracked
 
+    def get_counter_value(self, name: str) -> Optional[int]:
+        """
+        Returns the current value of a registered counter by name.
+        Args:
+            name (str): The name of the counter to query.
+        Returns:
+            int or None: The counter's current value, or None if not found.
+        """
+        for counter in self._registered_counters:
+            if getattr(counter, "name", None) == name:
+                return getattr(counter, "value", None)
+        return None
+
     def elapsed_since_start(self) -> float:
         """Returns elapsed time in seconds since CoreTelemetry was created (high-resolution)."""
         return time.perf_counter() - self._start_perf

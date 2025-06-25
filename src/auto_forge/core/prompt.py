@@ -11,6 +11,7 @@ import fcntl
 import fnmatch
 import logging
 import os
+import random
 import shlex
 import stat
 import subprocess
@@ -840,6 +841,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         sys.stdout.write("'\n👉 Type \033[1mhelp\033[0m or \033[1m?\033[0m to list available commands.\n\n")
         sys.stdout.flush()
 
+    def _get_dynamic_goodbye(self) -> str:
+        """
+        Returns a randomly selected goodbye message from the configuration list.
+        Falls back to "Goodbye" if the list is missing, malformed, or a selection fails.
+        This method is fail-safe and guaranteed to return a valid string.
+        """
+        with suppress(Exception):
+            terminal_sign_out_message: Optional[list[dict[str, Any]]] = self._configuration.get(
+                "terminal_sign_out_message", []
+            )
+            entry = random.choice(terminal_sign_out_message) if terminal_sign_out_message else None
+            if isinstance(entry, dict):
+                return entry.get("phrase", "Goodbye")
+
+        return "Goodbye"
+
     def _get_dynamic_styles(self) -> Style:
         """
         Load various styles definitions from configuration.
@@ -1554,7 +1571,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         Called once when exiting the command loop.
         """
 
-        self.poutput("\nClosing session..")
         self._tool_box.set_terminal_title("Terminal")
         super().postloop()  # Always call the parent
 
@@ -1563,10 +1579,22 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             with suppress(Exception):
                 os.remove(self._help_md_file)
 
+        # Print average productivity events for the duration of the session
+        total_events: Optional[int] = self._telemetry.get_counter_value(name="productivity.total_events")
+        productivity_message: Optional[str] = None
+        if isinstance(total_events, int):
+            elapsed_seconds = self._telemetry.elapsed_since_start()
+            if elapsed_seconds > 0:
+                events_per_minute = total_events / (elapsed_seconds / 60)
+                productivity_message = self._tool_box.format_productivity(events_per_minute=events_per_minute)
+
         # Use telemetry to tell how long we've been running
-        formated_work_time = self._tool_box.format_duration(seconds=self._telemetry.elapsed_since_start(),
-                                                            include_milliseconds=False)
-        print(f"Total time: {formated_work_time}\n")
+        formatted_work_time = self._tool_box.format_duration(seconds=self._telemetry.elapsed_since_start(),
+                                                             include_milliseconds=False)
+        # Goodbye
+        print(f"\nTotal time: {formatted_work_time}" + (f", {productivity_message}" if productivity_message else ""))
+        sys.stdout.write("Closing session, ")
+        self._tool_box.print_lolcat(f"{self._get_dynamic_goodbye()}!\n\n")
 
     @property
     def path_completion_rules_metadata(self) -> dict[str, Any]:

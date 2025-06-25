@@ -497,6 +497,32 @@
         "default_file"       : { "icon": "\uf016", "description": "Generic file",            "color": "white"                }
     },
 
+    "terminal_sign_out_message": [
+
+        // A variety of "goodbye" phrases in common and less common languages,
+        // randomly shown when signing out for a friendly multilingual touch..
+
+        { "language": "English",    "phrase": "Goodbye"             },
+        { "language": "Hebrew",     "phrase": "להתראות"             },
+        { "language": "Hindi",      "phrase": "अलविदा"              },
+        { "language": "Russian",    "phrase": "До свидания"         },
+        { "language": "Yiddish",    "phrase": "זיך געזען"           },
+        { "language": "French",     "phrase": "Au revoir"           },
+        { "language": "Spanish",    "phrase": "Adiós"               },
+        { "language": "German",     "phrase": "Auf Wiedersehen"     },
+        { "language": "Italian",    "phrase": "Arrivederci"         },
+        { "language": "Japanese",   "phrase": "さようなら"            },
+        { "language": "Chinese",    "phrase": "再见"                 },
+        { "language": "Portuguese", "phrase": "Adeus"               },
+        { "language": "Korean",     "phrase": "안녕히 가세요"         },
+        { "language": "Greek",      "phrase": "Αντίο"               },
+        { "language": "Turkish",    "phrase": "Hoşça kal"           },
+        { "language": "Dutch",      "phrase": "Vaarwel"             },
+        { "language": "Polish",     "phrase": "Do widzenia"         },
+        { "language": "Swedish",    "phrase": "Adjö"                },
+        { "language": "Swahili",    "phrase": "Kwaheri"             }
+    ],
+
     "editors_fallback_search_paths": [
 
         // Fallback search paths for locating editors not found in the system's executable PATH.
