@@ -9,21 +9,36 @@ Description:
 
     This module avoids package-wide imports to minimize the risk of circular dependencies.
 """
-
+import logging
 from pathlib import Path
-from typing import Protocol, Union, Optional, Any, runtime_checkable
+from typing import Protocol, Union, Optional, Any, runtime_checkable, Sequence
 
 # Avoid importing from the root package to prevent circular dependencies
-from auto_forge import (ModuleInfoType)
+from auto_forge import (ModuleInfoType, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME: str = "Protocols"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
 
 
 @runtime_checkable
+class CoreLoggerProtocol(Protocol):
+    """
+    Defines the required interface for the logger core module.
+    """
+
+    def get_logger(self, name: Optional[str] = None, log_level: Optional[int] = None,
+                   console_stdout: Optional[bool] = None) -> logging.Logger: ...
+
+    @staticmethod
+    def set_output_enabled(logger: Optional[logging.Logger] = None, state: bool = True) -> None: ...
+
+    def show(self, cheerful: bool = False, field_colors: Optional[Sequence[FieldColorType]] = None) -> None: ...
+
+
+@runtime_checkable
 class CoreJSONCProcessorProtocol(Protocol):
     """
-    Defines the required interface for the json processor mcore module.
+    Defines the required interface for the json processor core module.
     """
 
     def render(self, file_name: Union[str, Path]) -> Optional[dict[str, Any]]: ...

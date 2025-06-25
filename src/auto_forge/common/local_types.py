@@ -11,7 +11,7 @@ import re
 import sys
 import threading
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum, auto, IntFlag
 from types import ModuleType
 from typing import Any, NamedTuple, Optional, TextIO, Union
 
@@ -82,6 +82,17 @@ class AutoForgCommandType(Enum):
             return default_enum
 
         return cls.__members__.get(value.strip().upper(), default_enum)
+
+
+class LogHandlersType(IntFlag):
+    """
+    Bitwise-capable enumeration of supported log handler types.
+    Allows combining multiple handlers using bitwise OR.
+    """
+    NO_HANDLERS = 0
+    CONSOLE_HANDLER = auto()
+    FILE_HANDLER = auto()
+    MEMORY_HANDLER = auto()
 
 
 # noinspection DuplicatedCode

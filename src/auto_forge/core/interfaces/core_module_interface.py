@@ -19,21 +19,8 @@ Developer Guidelines:
       - Implement one-time setup logic that should only happen during the first instantiation
       - Accept and process constructor arguments (e.g., configuration paths, modes)
       - Assign runtime values to attributes declared earlier in `__init__()`
-
-    Summary:
-        - Use `__init__()` for *attribute declaration (optional)*
-        - Use `_initialize()` for *first-time setup logic*
-
-    Example:
-        class MyModule(CoreModuleInterface):
-            def __init__(self, *args, **kwargs):
-                self._solution: Optional[Solution] = None
-                super().__init__(*args, **kwargs)
-
-            def _initialize(self, config_path: str):
-                self._solution = load_solution(config_path)
-
 """
+
 import inspect
 import threading
 import time
@@ -41,10 +28,10 @@ from abc import ABCMeta
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, cast
 
 # Import AutoForge only during static type checking to avoid circular import issues at runtime
-from auto_forge import ExceptionGuru
+from auto_forge import (ExceptionGuru)
 
+# Lazy internal imports to avoid circular dependencies
 if TYPE_CHECKING:
-    # noinspection PyUnusedImports
     from auto_forge.auto_forge import AutoForge
 
 # Generic type variable used to represent subclasses of CoreModuleInterface
@@ -57,13 +44,12 @@ _CORE_EXCEPTIONS_COUNT: Optional[int] = 0
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "CommandModuleInterface"
-AUTO_FORGE_MODULE_DESCRIPTION = "Core module interface"
+AUTO_FORGE_MODULE_DESCRIPTION = "Core Module Interface"
 
 
 class _SingletonABCMeta(ABCMeta):
     """
     Internal metaclass that enforces singleton behavior for abstract base classes (ABCs).
-
     Usage Notes:
         This metaclass is intended only for internal use by `CoreModuleInterface` and its subclasses.
         It should not be reused or subclassed directly outside the framework core.

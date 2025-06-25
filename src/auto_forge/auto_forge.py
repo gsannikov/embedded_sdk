@@ -34,7 +34,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersTypes,
+    CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersType,
     PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
 )
@@ -255,11 +255,11 @@ class AutoForge(CoreModuleInterface):
 
         # Initialize logger
         self._core_logger.set_log_file_name(self._log_file_name)
-        self._core_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER | LogHandlersTypes.MEMORY_HANDLER)
+        self._core_logger.set_handlers(LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
         self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=allow_console_output)
 
         # Flush memory logs and disable memory logger
-        self._core_logger.flush_memory_logs(LogHandlersTypes.FILE_HANDLER)
+        self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
 
         self._logger.info(f"AutoForge version: {PROJECT_VERSION} starting")
         self._logger.info(str(self._sys_info))
@@ -647,6 +647,11 @@ class AutoForge(CoreModuleInterface):
 
         except Exception:  # Propagate
             raise
+
+    @property
+    def logger(self) -> Optional[CoreLogger]:
+        """ Return the core logger class instance """
+        return self._core_logger
 
     @property
     def version(self) -> str:

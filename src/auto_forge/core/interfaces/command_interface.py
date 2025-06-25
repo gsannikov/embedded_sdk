@@ -21,11 +21,15 @@ from abc import ABC, abstractmethod
 from contextlib import suppress
 from typing import IO, Any, Optional
 
-# Direct internal imports to avoid circular dependencies
-from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreToolBoxProtocol)
+# AutoForge imports
+from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreToolBoxProtocol,
+                        CoreLoggerProtocol)
 # Lazy internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
-from auto_forge.core.logger import CoreLogger
+
+# Lazy internal imports to avoid circular dependencies
+# from auto_forge.core.registry import CoreRegistry
+# from auto_forge.core.logger import CoreLogger
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "CommandInterface"
@@ -153,6 +157,7 @@ class CommandInterface(ABC):
 
         self._last_error_message: Optional[str] = None
         self._last_exception: Optional[Exception] = None
+        self._logger: Optional[Any] = None
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
         self._args_parser: Optional[_CapturingArgumentParser] = None
@@ -170,8 +175,6 @@ class CommandInterface(ABC):
         caller_module_version = caller_globals.get("AUTO_FORGE_MODULE_VERSION", "0.0.0")
 
         self._command_name: str = command_name if command_name is not None else caller_module_name
-        self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=command_name.capitalize())  # Get a logger instance
 
         # Register this command instance in the global registry for centralized access
         self._registry = CoreRegistry.get_instance()
@@ -181,12 +184,24 @@ class CommandInterface(ABC):
                                            auto_forge_module_type=AutoForgeModuleType.COMMAND, hidden=self._hidden,
                                            command_type=command_type))
 
-        # Retrieve a Toolbox instance and its protocol interface via the registry.
-        # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
+        # Lazily retrieve the core logger using the registry and a protocol interface.
+        # This pattern minimizes startup import overhead and avoids circular dependencies.
+        self._core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
+            "CoreLogger", return_protocol=True)
+
+        if self._core_logger is not None:
+            self._logger = self._core_logger.get_logger(name=command_name.capitalize())
+
+        if self._logger is None:
+            raise RuntimeError("Unable to instantiate required CoreLogger module.")
+
+        # Lazily retrieve the CoreToolBox instance via the registry using its protocol interface.
+        # This access pattern reduces startup import overhead and avoids circular dependencies.
         self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
             "CoreToolBox", return_protocol=True)
+
         if self._tool_box_proto is None:
-            raise RuntimeError("unable to instantiate dependent core module")
+            raise RuntimeError("Unable to instantiate required CoreToolBox module.")
 
         # Optional tool initialization logic
         if not self.initialize():

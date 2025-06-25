@@ -36,7 +36,7 @@ try:
         AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
         BuildProfileType, COMMAND_TYPE_COLOR_MAP, CommandResultType, CommandFailedException,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
-        FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
+        FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType, LogHandlersType,
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
@@ -50,12 +50,10 @@ try:
     # Protocols
     from auto_forge.core.protocols.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
                                                      CoreLinuxAliasesProtocol, CoreToolBoxProtocol,
-                                                     CommandInterfaceProtocol)
+                                                     CommandInterfaceProtocol, CoreLoggerProtocol)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-    from auto_forge.core.logger import (CoreLogger, LogHandlersTypes)
-
     from auto_forge.core.interfaces.command_interface import CommandInterface
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuildLogAnalyzerInterface,
                                                               BuilderToolChain)
@@ -65,6 +63,7 @@ try:
 
     # Core / common modules
     from auto_forge.core.registry import CoreRegistry
+    from auto_forge.core.logger import (CoreLogger)
     from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
     from auto_forge.core.watchdog import CoreWatchdog
 
@@ -98,13 +97,13 @@ __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
     "CoreLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
-    "CommandResultType", "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor",
+    "CommandResultType", "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreLoggerProtocol",
     "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface", "CorePrompt",
     "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox",
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "GCCLogAnalyzer", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
-    "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PROJECT_BASE_PATH",
+    "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PROJECT_BASE_PATH",
     "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",

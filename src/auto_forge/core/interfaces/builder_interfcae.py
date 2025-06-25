@@ -15,15 +15,19 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 
+# Third-party
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreLogger, ModuleInfoType, BuildProfileType,
+from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType,
                         CommandResultType, VersionCompare, CoreToolBoxProtocol, )
-# Direct internal imports to avoid circular dependencies
-from auto_forge.core.registry import CoreRegistry
+
+# Lazy internal imports to avoid circular dependencies
+if TYPE_CHECKING:
+    from auto_forge.core.registry import CoreRegistry
+    from auto_forge.core.logger import CoreLogger
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "BuilderInterface"
