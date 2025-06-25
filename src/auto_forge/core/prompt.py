@@ -43,8 +43,6 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.styles import Style
-# PyInput
-from pynput import keyboard
 # Rich
 from rich.console import Console
 
@@ -469,9 +467,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if not isinstance(meter, Meter):
             raise RuntimeError("Telemetry meter is not available or improperly initialized")
 
-        def _on_productivity_even(_key):
-            self._productivity_events_count.add(1)
-
         # Get productivity flag from configuration
         self._productivity_assist = bool(self._configuration.get('productivity_assist', False))
         try:
@@ -485,10 +480,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 self._logger.info("Productivity assist activated")
                 self._productivity_events_count = self._telemetry.create_counter(
                     name="productivity.total_events", unit="1", description="Cumulative number of user keystrokes")
-
-                listener = keyboard.Listener(on_press=_on_productivity_even)
-                listener.start()
-
             return True
 
         except Exception as telemetry_error:
