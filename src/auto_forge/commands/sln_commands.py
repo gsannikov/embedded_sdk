@@ -139,6 +139,9 @@ class SolutionCommand(CommandInterface):
         console = Console(force_terminal=True)
         print()
 
+        console.rule("[bold white]Telemetry Status", style="cyan")
+        print()
+
         # High-level summary
         elapsed = self._telemetry.elapsed_since_start()
         console.print(f"[bold]Service:[/bold]            {self._telemetry.service_name or 'N/A'}")
@@ -180,12 +183,13 @@ class SolutionCommand(CommandInterface):
             except Exception as telemetry_error:
                 console.print(f"[red]Warning:[/red] Could not enumerate counters: {telemetry_error}")
 
-            print()
-            console.print(table)
+            console.print(table,'\n')
         else:
             console.print("[dim]No 'meter' available — counters not tracked.[/dim]")
 
+        console.rule(style="cyan")
         print()
+
         return 0
 
     def _show_log(self, cheerful: bool) -> Optional[int]:

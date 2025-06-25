@@ -18,7 +18,7 @@
     "git_token_environment_var": "NONE",                    // Optional name of the environment variable that may hold the user's Git token
     "subprocess_execution_timout": 120.0,                   // Default timeout (in seconds) for sub-process execution.
     "watchdog_timeout": 10.0,                               // Default timeout (in seconds) for sub-process execution.
-    "telemetry_file": "$AF_SOLUTION_BASE/telemetry.log",    // Where to store telemetry logs
+    "productivity_assist": true,                            // Productivity assist flag
     "keywords_mapping": [
 
         // Defines placeholder-to-value mappings used for runtime substitution.

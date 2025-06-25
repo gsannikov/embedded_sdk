@@ -34,10 +34,12 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersType,
-    PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
+    CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
+    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
 )
+
+# Telemetry
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
@@ -255,7 +257,8 @@ class AutoForge(CoreModuleInterface):
 
         # Initialize logger
         self._core_logger.set_log_file_name(self._log_file_name)
-        self._core_logger.set_handlers(LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
+        self._core_logger.set_handlers(
+            LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
         self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=allow_console_output)
 
         # Flush memory logs and disable memory logger
@@ -418,7 +421,6 @@ class AutoForge(CoreModuleInterface):
             abort_execution (bool, optional): If True, raise the exception on failure. If False, log and continue.
         """
         try:
-
             # Start remote debugging if enabled.
             self._logger.debug(f"Remote debugging enabled using {host}:{port}")
 

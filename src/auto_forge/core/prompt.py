@@ -36,10 +36,15 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import Completer, Completion, CompleteEvent, PathCompleter
 from prompt_toolkit.document import Document
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.styles import Style
+# PyInput
+from pynput import keyboard
+# Rich
 from rich.console import Console
 
 # AutoForge imports
@@ -301,11 +306,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
         self._prompt_session: Optional[PromptSession] = None
         self._prompt_styles: Optional[Style] = None
-        self._loop_stop_flag = False
+        self._loop_stop_flag: bool = False
+        self._productivity_assist: bool = False
 
         # Telemetry counters
         self._build_success_counter: Optional[TelemetryTrackedCounter] = None
         self._build_failure_counter: Optional[TelemetryTrackedCounter] = None
+        self._productivity_events_count: Optional[TelemetryTrackedCounter] = None
 
         super().__init__(*args, **kwargs)
 
@@ -376,7 +383,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.warning("No history file loaded")
 
         # Initialize module specific counters
-        self._init_local_counters()
+        self._init_counters()
 
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self, persistent_history_file=self._history_file_name)
@@ -451,7 +458,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             return True
         return False  # Probably suppressed exception
 
-    def _init_local_counters(self) -> Optional[bool]:
+    def _init_counters(self) -> Optional[bool]:
         """
         Initializes module-specific telemetry counters for build success/failure tracking.
         Returns:
@@ -461,14 +468,26 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if not isinstance(meter, Meter):
             raise RuntimeError("Telemetry meter is not available or improperly initialized")
 
+        def _on_productivity_even(_key):
+            self._productivity_events_count.add(1)
+
+        # Get productivity flag from configuration
+        self._productivity_assist = bool(self._configuration.get('productivity_assist', False))
         try:
             self._build_success_counter = self._telemetry.create_counter(
-                name="build_success_total", unit="1", description="Number of successful builds"
-            )
+                name="build_success_total", unit="1", description="Number of successful builds")
 
             self._build_failure_counter = self._telemetry.create_counter(
-                name="build_failure_total", unit="1", description="Number of failed builds"
-            )
+                name="build_failure_total", unit="1", description="Number of failed builds")
+
+            if self._productivity_assist:
+                self._logger.info("Productivity assist activated")
+                self._productivity_events_count = self._telemetry.create_counter(
+                    name="productivity.total_events", unit="1", description="Cumulative number of user keystrokes")
+
+                listener = keyboard.Listener(on_press=_on_productivity_even)
+                listener.start()
+
             return True
 
         except Exception as telemetry_error:
@@ -1626,12 +1645,23 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         @kb.add('.')
         def _(event):
-            """
-            Trigger completion after '.' — helpful for build command hierarchy.
-            """
+            """ Trigger completion after '.' — helpful for build command hierarchy. """
             buffer = event.app.current_buffer
             buffer.insert_text('.')
             buffer.start_completion(select_first=True)
+
+        @kb.add("<any>", filter=Condition(lambda: self._productivity_assist))
+        def _keystroke_hook(event: KeyPressEvent):
+            """ User productivity assist helper """
+            self._productivity_events_count.add(1)
+            # Push back everything printable or otherwise back to the keyboard buffer
+            event.current_buffer.insert_text(event.key_sequence[0].key)
+
+        @kb.add("enter", filter=Condition(lambda: self._productivity_assist))
+        def _on_enter(event: KeyPressEvent):
+            """ User productivity assist helper """
+            self._productivity_events_count.add(1)
+            event.current_buffer.validate_and_handle()
 
         # Retrieve styles either from pre-defined defaults or from configuration
         self._prompt_styles = self._get_dynamic_styles()
