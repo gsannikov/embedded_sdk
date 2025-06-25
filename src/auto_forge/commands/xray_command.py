@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, CoreLogger, CoreXRayDB, CoreSolution, XRayStateType)
+from auto_forge import (CoreVariables, CommandInterface, CoreXRayDB, CoreSolution, XRayStateType)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -54,8 +54,6 @@ class XRayCommand(CommandInterface):
         Command specific initialization, will be executed lastly by the interface class
         after all other initializers.
         """
-        self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
 
         # Detect installed editors
         if self._configuration is None:

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Optional, cast
 
 # AutoForge imports
-from auto_forge import CommandInterface
+from auto_forge import (CommandInterface)
 
 AUTO_FORGE_MODULE_NAME = "zt"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr Tools"

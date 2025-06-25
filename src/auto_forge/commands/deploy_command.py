@@ -18,8 +18,7 @@ from typing import Any
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, CoreLogger,
-                        AutoForgCommandType)
+from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "deploy"
 AUTO_FORGE_MODULE_DESCRIPTION = "Recipe Deployer"
@@ -64,8 +63,6 @@ class DeployCommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
-        self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._json_processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()  # JSON preprocessor instance
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()

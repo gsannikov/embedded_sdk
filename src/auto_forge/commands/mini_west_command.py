@@ -28,7 +28,7 @@ import yaml
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import CommandInterface, CoreToolBox
+from auto_forge import (CommandInterface, CoreToolBox)
 
 AUTO_FORGE_MODULE_NAME = "mini_west"
 AUTO_FORGE_MODULE_DESCRIPTION = "Zephyr 'west' Complimentary Tool"

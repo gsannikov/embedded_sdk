@@ -54,12 +54,7 @@ try:
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
-
-    from auto_forge.core.registry import CoreRegistry
-    from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
-    from auto_forge.core.watchdog import CoreWatchdog
     from auto_forge.core.logger import (CoreLogger, LogHandlersTypes)
-    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
 
     from auto_forge.core.interfaces.command_interface import CommandInterface
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuildLogAnalyzerInterface,
@@ -69,6 +64,11 @@ try:
     from auto_forge.builders.analyzers.gcc_log_analyzer import GCCLogAnalyzer
 
     # Core / common modules
+    from auto_forge.core.registry import CoreRegistry
+    from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
+    from auto_forge.core.watchdog import CoreWatchdog
+
+    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI

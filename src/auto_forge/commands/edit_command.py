@@ -27,7 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, CoreSystemInfo, CoreLogger, CoreSolution)
+from auto_forge import (CoreVariables, CommandInterface, CoreSystemInfo, CoreSolution)
 
 AUTO_FORGE_MODULE_NAME = "edit"
 AUTO_FORGE_MODULE_DESCRIPTION = "Invokes the preferred editor to open files or directories"
@@ -53,9 +53,6 @@ class EditCommand(CommandInterface):
         self._variables: CoreVariables = CoreVariables.get_instance()
         self._solution: Optional[CoreSolution] = None
         self._max_fallback_search_paths: int = 10
-
-        self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
