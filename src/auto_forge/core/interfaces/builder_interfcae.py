@@ -15,19 +15,17 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
+from typing import Optional, Tuple, Union, Any
 
 # Third-party
 from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType,
-                        CommandResultType, VersionCompare, CoreToolBoxProtocol, )
+                        CommandResultType, VersionCompare, CoreToolBoxProtocol, CoreLoggerProtocol )
 
 # Lazy internal imports to avoid circular dependencies
-if TYPE_CHECKING:
-    from auto_forge.core.registry import CoreRegistry
-    from auto_forge.core.logger import CoreLogger
+from auto_forge.core.registry import CoreRegistry
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "BuilderInterface"
@@ -228,10 +226,6 @@ class BuilderRunnerInterface(ABC):
         if self._build_system is None:
             raise RuntimeError("build_system properties cannot be None")
 
-        # Create a builder dedicated logger instance
-        self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(self._build_system.capitalize())  # Get a logger instance
-
         # Set optional build label
         self._build_label: str = build_label if build_label is not None else "AutoForge"
 
@@ -242,10 +236,19 @@ class BuilderRunnerInterface(ABC):
                                            version=caller_module_version,
                                            auto_forge_module_type=AutoForgeModuleType.BUILDER))
 
-        # Retrieve a Toolbox instance and its protocol interface via the registry.
-        # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
+        # Lazily retrieve the core logger using the registry and a protocol interface.
+        # This pattern minimizes startup import overhead and avoids circular dependencies.
+        self._core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
+            "CoreLogger", return_protocol=True)
+
+        if self._core_logger is not None:
+            self._logger = self._core_logger.get_logger(name=self._build_system.capitalize())
+
+        # Lazily retrieve the CoreToolBox instance via the registry using its protocol interface.
+        # This access pattern reduces startup import overhead and avoids circular dependencies.
         self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
             "CoreToolBox", return_protocol=True)
+
         if self._tool_box_proto is None:
             raise RuntimeError("unable to instantiate dependent core module")
 

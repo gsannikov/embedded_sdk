@@ -56,7 +56,7 @@ class CoreDynamicLoader(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME) # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
@@ -297,7 +297,6 @@ class CoreDynamicLoader(CoreModuleInterface):
         Executes the 'build' method of a registered builder module.
         Args:
             build_profile (BuildProfileType): The build profile to use.
-
         Returns:
             Optional[int]: The result of the build process.
         """

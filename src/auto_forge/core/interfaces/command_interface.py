@@ -27,10 +27,6 @@ from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType
 # Lazy internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
 
-# Lazy internal imports to avoid circular dependencies
-# from auto_forge.core.registry import CoreRegistry
-# from auto_forge.core.logger import CoreLogger
-
 # Module identification
 AUTO_FORGE_MODULE_NAME = "CommandInterface"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamic loadable command interface"
