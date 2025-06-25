@@ -3,7 +3,7 @@ Script:         hello_command.py
 Author:         AutoForge Team
 
 Description:
-    😎 Sample 'hello world' command demonstrating how to construct and register a new command with AutoForge.
+    Sample 'hello world' command demonstrating how to construct and register a new command with AutoForge.
 
 """
 

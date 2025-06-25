@@ -29,9 +29,8 @@ from git import GitConfigParser
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, DataSizeFormatter,
-    SysInfoLinuxDistroType, SysInfoPackageManagerType
-)
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, DataSizeFormatter,
+    SysInfoLinuxDistroType, SysInfoPackageManagerType)
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
 AUTO_FORGE_MODULE_DESCRIPTION = "System information collector"
@@ -52,6 +51,7 @@ class CoreSystemInfo(CoreModuleInterface):
         virtualization/container status, user and host info, package manager, memory,
         and (on Linux) distribution details.
         """
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._system_type: str = platform.system().lower()
         self._is_wsl: bool = "wsl" in platform.release().lower()
         self._wsl_home: Optional[str] = self._get_windows_home_from_wsl() if self._is_wsl else None
@@ -114,10 +114,13 @@ class CoreSystemInfo(CoreModuleInterface):
                            "email_address": self._git_email if self._git_email else None,
                            "gfx": self._gfx, "uptime": self._uptime}
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     @staticmethod
     def _get_linux_distro() -> Tuple[SysInfoLinuxDistroType, str]:

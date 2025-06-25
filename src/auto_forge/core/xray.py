@@ -26,17 +26,20 @@ import threading
 import time
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timedelta, timezone
 from fnmatch import fnmatch
 from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
 from typing import Optional, Any
 
+# Note: Compatibility bypass - no native "UTC" import in Python 3.9.
+UTC = timezone.utc
+
 # AutoForge imports
 from auto_forge import (
     AutoLogger, AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSolution, CoreVariables, CoreToolBox,
-    PromptStatusType, XRayStateType
+    CoreTelemetry, PromptStatusType, XRayStateType
 )
 
 AUTO_FORGE_MODULE_NAME = "XRayDB"
@@ -81,6 +84,7 @@ class CoreXRayDB(CoreModuleInterface):
         self._lock = threading.Lock()
         self._stop_flag = threading.Event()
         self._db_indexing_log_frequency: int = 1000
+        self._db_row_count: int = 0
         self._clean_slate: bool = False
         self._db_meta_data: Optional[dict[str, Any]] = None  # 'meta' table loaded key values pairs
         self._db_filter_files_content: bool = True
@@ -97,6 +101,7 @@ class CoreXRayDB(CoreModuleInterface):
             self._variables = CoreVariables.get_instance()
             self._solution = CoreSolution.get_instance()
             self._tool_box = CoreToolBox.get_instance()
+            self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
             # Get a logger instance
             self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -155,10 +160,13 @@ class CoreXRayDB(CoreModuleInterface):
                 self._logger.warning(f"Existing SQLite file '{str(self._db_file)}' not found")
                 self._clean_slate = True
 
-            # Registry for centralized access
+            # Register this module with the package registry
             registry = CoreRegistry.get_instance()
             registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                      auto_forge_module_type=AutoForgeModuleType.CORE)
+
+            # Inform telemetry that the module is up & running
+            self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
         # Forward exceptions
         except Exception as exception:
@@ -290,7 +298,10 @@ class CoreXRayDB(CoreModuleInterface):
 
         # ----------------------------------------------------------------------
         #
-        # Create new SQLite database.
+        # Creating SQLite tables:
+        # Data table: 'files', fields { path , content }
+        # Files metadata table:  'file_meta', fields { path, modified, checksum ..}
+        # General metadata Key/Value table: 'meta', fields { db_version, db_creation_date .. }
         #
         # ----------------------------------------------------------------------
 
@@ -449,7 +460,16 @@ class CoreXRayDB(CoreModuleInterface):
             # Log few of the 'meta' table properties.
             self._logger.info(f"DB Metadata: engine v{existing_db_version}, "
                               f"created by AutoForge v{self._db_meta_data.get('auto_forge_version')} "
-                              f"for solution '{self._db_meta_data.get("solution_name")}'")
+                              f"for solution '{self._db_meta_data.get('solution_name')}'")
+
+            # Get current records (indexed files) count in the 'files' table
+            cursor.execute("SELECT COUNT(*) FROM files")
+            self._db_row_count = cursor.fetchone()[0]
+            self._logger.info(f"DB row count in 'files': {self._db_row_count}")
+            if not self._db_row_count:
+                self._logger.warning(f"Empty 'files', forcing clean slate")
+                self._clean_slate = True
+
             return True
 
         except Exception as validation_error:
@@ -825,6 +845,10 @@ class CoreXRayDB(CoreModuleInterface):
                 except Exception as sql_error:
                     self._logger.error(f"Final batch insert failed: {sql_error}")
                     _conn.rollback()
+
+            # Refresh current records (indexed files) count in the 'files' table post our indexing operation.
+            self._db_row_count = _conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+            self._logger.info(f"DB row count in 'files': {self._db_row_count}")
 
             _conn.close()
             _batch = []

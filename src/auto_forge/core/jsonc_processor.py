@@ -14,11 +14,12 @@ import shutil
 from pathlib import Path
 from typing import Any, Optional, Union
 
+# Third-party
 from rich.console import Console
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry)
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"
@@ -35,7 +36,6 @@ class _JOSNPrettyPrinter:
         """
         Pretty-prints a JSON-compatible object using native JSON formatting,
         Rich manual styling, and a configurable skin for colors and layout.
-
         Args:
             indent: Number of spaces for indentation (default: 4).
             sort_keys: If True, sort keys alphabetically (default: False).
@@ -44,12 +44,12 @@ class _JOSNPrettyPrinter:
             highlight_keys: Optional list of JSON key names to highlight using distinctive colors.
             auto_width (bool): Automatically adjust the output to the terminal width
         """
-        self.indent = indent
-        self.sort_keys = sort_keys
-        self.console = console or Console(force_terminal=True, color_system="truecolor")
-        self.numbering_width = numbering_width
-        self.auto_width = auto_width
-        self.highlight_keys = highlight_keys or []
+        self.indent: int = indent
+        self.sort_keys: bool = sort_keys
+        self.console: Console = console or Console(force_terminal=True, color_system="truecolor")
+        self.numbering_width: int = numbering_width
+        self.auto_width: bool = auto_width
+        self.highlight_keys: list = highlight_keys or []
 
         self._json_skin = {"line_number": "dim", "line_separator": "dim", "key_default": "bold cyan",
                            "value_string": "bold white", "value_number": "cyan", "value_bool": "magenta",
@@ -65,11 +65,6 @@ class _JOSNPrettyPrinter:
     def render(self, obj: Union[dict[str, Any], list[Any]]) -> None:
         """
         Pretty-prints a JSON-compatible object using styled Rich output.
-
-        This method displays a dictionary or list using syntax highlighting, line numbers,
-        and optional key highlighting. It supports standard JSON primitives and adds visual
-        formatting for easier reading in terminal environments.
-
         Args:
             obj (Union[Dict[str, Any], List[Any]]): A JSON-compatible object (dict or list)
                 to render. Must be serializable by `json.dumps()`.
@@ -175,7 +170,7 @@ class _JOSNPrettyPrinter:
 
 class CoreJSONCProcessor(CoreModuleInterface):
     """
-    JSON pre-processing dedicated class.
+    JSON Pre-processing class - system service that let us work with non standard JSON files, aka JSONC.
     """
 
     def _initialize(self, normalize_multilines: bool = True, normalize_anonymous_lists: bool = True):
@@ -186,12 +181,16 @@ class CoreJSONCProcessor(CoreModuleInterface):
             normalize_anonymous_lists (bool): Detect blanks in anonymous lists and replace them with 'null'
         """
 
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._normalize_multilines: bool = normalize_multilines
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running.
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     @staticmethod
     def _get_line_number_from_error(error_message: str) -> Optional[int]:

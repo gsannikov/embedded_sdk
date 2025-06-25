@@ -232,6 +232,7 @@
         { "name": "showeditors",  "command": "edit -l",                             "cmd_type": "UTILITY",      "description": "Show all detected editors"                  },
         { "name": "showenv",      "command": "sln --show-environment-variables",    "cmd_type": "UTILITY",      "description": "Show managed variables tables"              },
         { "name": "showsln",      "command": "sln --show-solution",                 "cmd_type": "UTILITY",      "description": "Show resolved solution JSON"                },
+        { "name": "showtelem",    "command": "sln --show-telemetry",                "cmd_type": "UTILITY",      "description": "Show stored telemetry"                      },
         { "name": "src",          "command": "cd $SOURCE_BASE",                     "cmd_type": "NAVIGATE",     "description": "Go to sources root directory"               },
         { "name": "x",            "command": "quit",                                "cmd_type": "SYSTEM",       "description": "Exit the shell",                            "hidden": true },
         { "name": "~",            "command": "cd $HOME",                            "cmd_type": "NAVIGATE",     "description": "🏠 Go to home directory"                    }

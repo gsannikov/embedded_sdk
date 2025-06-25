@@ -26,7 +26,7 @@ with suppress(ImportError):
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreRegistry,
-                        InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, )
+                        CoreTelemetry, InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, )
 
 AUTO_FORGE_MODULE_NAME = "GUI"
 AUTO_FORGE_MODULE_DESCRIPTION = "Set of several GUI notification routines"
@@ -61,16 +61,20 @@ class CoreGUI(CoreModuleInterface):
         self._msg_queue = queue.Queue()
         self._response_queue = queue.Queue()
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
         # Register finalizer just in case
         atexit.register(self._shutdown)
 
-        # Add to AutoForge modules registry
+        # Register this module with the package registry
         CoreRegistry.get_instance().register_module(name=AUTO_FORGE_MODULE_NAME,
                                                     description=AUTO_FORGE_MODULE_DESCRIPTION,
                                                     auto_forge_module_type=AutoForgeModuleType.CORE)
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
+
+        # Inform telemetry that the module is up & running.
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     @staticmethod
     def _validate_tkinter_libraries() -> None:

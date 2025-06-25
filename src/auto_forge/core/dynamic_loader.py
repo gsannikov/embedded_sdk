@@ -25,7 +25,7 @@ from typing import Any, Optional, Union, Type, cast, Callable
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, BuildProfileType, BuilderRunnerInterface,
-    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox,
+    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox, CoreTelemetry,
     ModuleInfoType, CoreRegistry, TerminalTeeStream
 )
 
@@ -59,6 +59,7 @@ class CoreDynamicLoader(CoreModuleInterface):
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._loaded_commands: int = 0
         self._configuration: dict[str, Any] = configuration
 
@@ -66,9 +67,12 @@ class CoreDynamicLoader(CoreModuleInterface):
         self._supported_interfaces = {CommandInterface: "CommandInterface",
                                       BuilderRunnerInterface: "BuilderRunnerInterface", }
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running.
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     def _resolve_registered_instance(self, name: str, expected_type: AutoForgeModuleType, required_method: str) -> Any:
         """

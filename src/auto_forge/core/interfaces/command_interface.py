@@ -5,7 +5,6 @@ Author:         AutoForge Team
 Description:
     Core abstract base class which provides a standardized interface for implementing modular,
     pluggable command-line commands within the AutoForge framework.
-
     Each command subclass is responsible for:
         - Declaring its name and description.
         - Registering its arguments using `argparse`.

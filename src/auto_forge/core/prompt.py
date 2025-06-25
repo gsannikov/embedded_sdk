@@ -29,6 +29,9 @@ from typing import Optional, Any, Union, Callable
 import cmd2
 from cmd2 import Statement, ansi
 from cmd2 import with_argument_list
+# Telemetry
+from opentelemetry.sdk.metrics import Meter
+# Prompt toolkit
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import Completer, Completion, CompleteEvent, PathCompleter
@@ -42,9 +45,9 @@ from rich.console import Console
 # AutoForge imports
 from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, AutoLogger, BuildProfileType,
-    CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry,
+    CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry, CoreTelemetry,
     CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
-    ModuleInfoType, TerminalEchoType, VariableFieldType, PROJECT_NAME, PROJECT_VERSION,
+    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PROJECT_NAME, PROJECT_VERSION,
 )
 
 # Basic types
@@ -299,6 +302,11 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_session: Optional[PromptSession] = None
         self._prompt_styles: Optional[Style] = None
         self._loop_stop_flag = False
+
+        # Telemetry counters
+        self._build_success_counter: Optional[TelemetryTrackedCounter] = None
+        self._build_failure_counter: Optional[TelemetryTrackedCounter] = None
+
         super().__init__(*args, **kwargs)
 
     def _initialize(self, prompt: Optional[str] = None) -> None:
@@ -311,6 +319,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._tool_box = CoreToolBox.get_instance()
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._sys_info = CoreSystemInfo()
         self._prompt_base: Optional[str] = prompt
@@ -367,6 +376,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if not self._init_history_file():
             self._logger.warning("No history file loaded")
 
+        # Initialize module specific counters
+        self._init_local_counters()
+
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self, persistent_history_file=self._history_file_name)
 
@@ -402,7 +414,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._add_dynamic_aliases(self._configuration.get('builtin_aliases'))
         self._add_dynamic_aliases(self._solution.get_arbitrary_item(key="aliases", resolve_external_file=True))
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 
@@ -439,6 +451,29 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             self._logger.info(f"Using history file from '{self._history_file_name}'")
             return True
         return False  # Probably suppressed exception
+
+    def _init_local_counters(self) -> Optional[bool]:
+        """
+        Initializes module-specific telemetry counters for build success/failure tracking.
+        Returns:
+            bool, optional: True if counters were initialized successfully, exception otherwise.
+        """
+        meter: Optional[Meter] = self._telemetry.meter if self._telemetry else None
+        if not isinstance(meter, Meter):
+            raise RuntimeError("Telemetry meter is not available or improperly initialized")
+
+        try:
+            self._build_success_counter = self._telemetry.create_counter(
+                name="build_success_total", unit="1", description="Number of successful builds"
+            )
+
+            self._build_failure_counter = self._telemetry.create_counter(
+                name="build_failure_total", unit="1", description="Number of failed builds"
+            )
+            return True
+
+        except Exception as telemetry_error:
+            raise RuntimeError(f"Failed to initialize module counters: {telemetry_error}")
 
     def _get_command_metadata(self, name: str) -> Optional[dict]:
         """
@@ -1446,9 +1481,16 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         except Exception as build_error:
             self.perror(f"Build Exception: {build_error}")
+            self.last_result = 1
             self._logger.exception(build_error)
         finally:
             self._tool_box.show_status()
+
+            # Update telemetry build  counters
+            if self.last_result:
+                self._build_failure_counter.add(1)
+            else:
+                self._build_success_counter.add(1)
             print()
 
     def default(self, statement: Statement) -> Optional[bool]:
@@ -1503,8 +1545,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             with suppress(Exception):
                 os.remove(self._help_md_file)
 
-        formated_delta = self.auto_forge.telemetry.format_timedelta(self.auto_forge.telemetry.get_session_time())
-        print(f"Total time: {formated_delta}\n")
+        # Use telemetry to tell how long we've been running
+        formated_work_time = self._tool_box.format_duration(seconds=self._telemetry.elapsed_since_start(),
+                                                            include_milliseconds=False)
+        print(f"Total time: {formated_work_time}\n")
 
     @property
     def path_completion_rules_metadata(self) -> dict[str, Any]:
@@ -1614,6 +1658,9 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                                              style=self._prompt_styles,
                                              complete_while_typing=complete_while_typing,
                                              auto_suggest=AutoSuggestFromHistory())
+
+        # Inform telemetry that the module is up & running.
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
         # Start Prompt toolkit custom loop
         while not self._loop_stop_flag:

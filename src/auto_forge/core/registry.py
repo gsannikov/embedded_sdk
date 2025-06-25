@@ -3,7 +3,7 @@ Script:         registry.py
 Author:         AutoForge Team
 
 Description:
-    Common module enabling dynamic registration of modules within AutoForge.
+    Core module enabling dynamic registration of modules within AutoForge.
     It also provides functionality to resolve class and method names into callable
     objects, allowing AutoForge to dynamically invoke functionality based on
     user-provided JSON files.
@@ -20,6 +20,16 @@ from auto_forge.core.protocols import protocols
 
 AUTO_FORGE_MODULE_NAME = "Registry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
+
+
+# ------------------------------------------------------------------------------
+#
+# Note:
+#   This module is used during early initialization and must remain self-contained.
+#   Avoid importing any project-specific code or third-party libraries to ensure
+#   portability and prevent circular import issues.
+#
+# ------------------------------------------------------------------------------
 
 
 class CoreRegistry(CoreModuleInterface):

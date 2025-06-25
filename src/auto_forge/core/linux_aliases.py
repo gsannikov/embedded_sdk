@@ -26,9 +26,8 @@ from typing import Optional, Union
 
 # AutoForge late imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSystemInfo,
-    LinuxShellType, VersionCompare
-)
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry,
+    LinuxShellType, VersionCompare)
 
 AUTO_FORGE_MODULE_NAME = "LinuxAliases"
 AUTO_FORGE_MODULE_DESCRIPTION = "Linux Shell Aliases Management Auxiliary Class"
@@ -72,6 +71,7 @@ class CoreLinuxAliases(CoreModuleInterface):
         self._home_dir: Path = Path.home()
         self._rc_files_backup_path: Optional[Path] = Path(rc_files_backup_path) if rc_files_backup_path else None
         self._sys_info: CoreSystemInfo = CoreSystemInfo().get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
         if prefix_comment is None:
             # Generate default comments with dynamic date in MM-DD-YY format
@@ -87,13 +87,16 @@ class CoreLinuxAliases(CoreModuleInterface):
         self._suffix_comment: str = self._format_shell_comment(suffix_comment.strip())
         self._env_valid: bool = False
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Auto Probe the environment
         self._probe_env(forced_shell=forced_shell)
+
+        # Inform telemetry that the module is up & running.
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
         return None
 
     def lookup(self, alias: str) -> Optional[str]:

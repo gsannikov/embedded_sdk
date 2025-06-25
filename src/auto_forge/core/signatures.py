@@ -22,9 +22,8 @@ from typing import Any, Optional, cast
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
-    CoreVariables, CoreRegistry, SignatureFieldType, SignatureSchemaType
-)
+    AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface, CoreTelemetry,
+    CoreVariables, CoreRegistry, SignatureFieldType, SignatureSchemaType)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
 AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
@@ -53,6 +52,7 @@ class CoreSignatures(CoreModuleInterface):
         self._schemas: list[SignatureSchemaType] = []
         self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
         self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
         # Get a logger instance
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -137,10 +137,13 @@ class CoreSignatures(CoreModuleInterface):
 
             self._schemas.append(schema)
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     def deserialize(  # noqa: C901 # Acceptable complexity
             self, file_name: str) -> Optional["SignatureFileHandler"]:

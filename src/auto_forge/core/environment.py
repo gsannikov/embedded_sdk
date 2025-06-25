@@ -38,13 +38,11 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandResultType, CommandFailedException,
-    CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface,
-    CoreRegistry, CoreSystemInfo, CoreToolBox, CoreVariables,
-    ProgressTracker, PROJECT_SHARED_PATH,
-    SequenceErrorActionType, TerminalEchoType, ValidationMethodType,
-    VersionCompare, Watchdog
-)
+    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandFailedException, CommandResultType,
+    CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface, CoreRegistry,
+    CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog,
+    PROJECT_SHARED_PATH, ProgressTracker,
+    SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
 
 AUTO_FORGE_MODULE_NAME = "Environment"
 AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
@@ -84,10 +82,13 @@ class CoreEnvironment(CoreModuleInterface):
         """
 
         self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path
         self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
-        self._processor = CoreJSONCProcessor.get_instance()  # Instantiate JSON processing library
+        self._watchdog: CoreWatchdog = CoreWatchdog.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._processor = CoreJSONCProcessor.get_instance()
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
         self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
@@ -104,10 +105,13 @@ class CoreEnvironment(CoreModuleInterface):
         self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
                                                                     self._subprocess_execution_timout)
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         self._registry = CoreRegistry.get_instance()
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     def _print(self, text: str):
         """
@@ -853,8 +857,7 @@ class CoreEnvironment(CoreModuleInterface):
             if master_fd is not None:  # Close PTY descriptor
                 os.close(master_fd)
 
-    @staticmethod
-    def execute_fullscreen_shell_command(command_and_args: str, env: Optional[Mapping[str, str]] = None,
+    def execute_fullscreen_shell_command(self, command_and_args: str, env: Optional[Mapping[str, str]] = None,
                                          timeout: Optional[float] = None) -> Optional[
         CommandResultType]:
         """
@@ -869,7 +872,7 @@ class CoreEnvironment(CoreModuleInterface):
         """
         return_code: int = 0  # Initialize to error code
         if timeout:
-            Watchdog().start(timeout=timeout)
+            self._watchdog.start(timeout=timeout)
 
         with suppress(KeyboardInterrupt):
             result = subprocess.run(command_and_args, shell=True, check=False, stdin=sys.stdin, stdout=sys.stdout,
@@ -878,7 +881,7 @@ class CoreEnvironment(CoreModuleInterface):
 
         # Stop the watchdog if we've ised it
         if timeout:
-            Watchdog().stop()
+            self._watchdog.stop()
 
         return CommandResultType(response='', return_code=return_code)
 

@@ -22,7 +22,7 @@ from jsonschema.validators import validate
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
+    AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreTelemetry,
     CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType
 )
 
@@ -60,6 +60,7 @@ class CoreVariables(CoreModuleInterface):
         """
         try:
             self._tool_box = CoreToolBox.get_instance()
+            self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
             self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
             self._ignore_path_errors: bool = False
             self._essential_variables_essential_variables: Optional[list[dict]] = None
@@ -93,10 +94,14 @@ class CoreVariables(CoreModuleInterface):
             # Reset and initialize the internal database.
             self._reset()
 
-            # Persist this module instance in the global registry for centralized access
+            # Register this module with the package registry
             registry = CoreRegistry.get_instance()
             registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                      auto_forge_module_type=AutoForgeModuleType.CORE)
+
+            # Inform telemetry that the module is up & running
+            self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
+
         except Exception as exception:
             self._variables = None
             raise RuntimeError(f"variables error {exception}") from exception

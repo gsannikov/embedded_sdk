@@ -37,7 +37,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface,
-    CoreSignatures, CoreVariables, CoreRegistry, CoreToolBox, PROJECT_SCHEMAS_PATH
+    CoreSignatures, CoreVariables, CoreRegistry, CoreToolBox, CoreTelemetry, PROJECT_SCHEMAS_PATH
 )
 
 AUTO_FORGE_MODULE_NAME = "Solution"
@@ -63,9 +63,7 @@ class CoreSolution(CoreModuleInterface):
         if not solution_config_file_name:
             raise RuntimeError("solution configuration file not specified")
 
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-
+        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._config_file_name: Optional[str] = None  # Loaded solution file name
         self._config_file_path: Optional[str] = None  # Loaded solution file path
         self._schema_files: Optional[dict[str, str]] = None  # Optional schema files path
@@ -82,16 +80,20 @@ class CoreSolution(CoreModuleInterface):
             CoreVariables] = CoreVariables.get_instance()  # Instantiate variable management library
         self._solution_loaded: bool = False  # Indicates if we have a validated solution to work with
         self._processor = CoreJSONCProcessor.get_instance()  # Get the JSON preprocessing class instance.
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()  # Telemetry instance
         self._tool_box = CoreToolBox.get_instance()  # Get the TooBox auxiliary class instance.
         self._workspace_path: str = workspace_path  # Creation arguments
 
         # Load the solution
         self._preprocess(solution_file_name=solution_config_file_name, solution_name=solution_name)
 
-        # Persist this module instance in the global registry for centralized access
+        # Register this module with the package registry
         registry = CoreRegistry.get_instance()
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     def get_arbitrary_item(self, key: str, deep_search: bool = False, resolve_external_file: bool = False) -> Optional[
         Union[list[Any], dict[str, Any], str, bool]]:

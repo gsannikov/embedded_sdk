@@ -3,8 +3,11 @@ Script:         sln_command.py
 Author:         AutoForge Team
 
 Description:
-    Solution general purpose management utilities.
-
+    General-purpose solution management utilities and viewers, including:
+    - Log viewer
+    - Environment variables viewer
+    - Expanded solution JSON viewer
+    - Real-time counters and other dynamically monitored data views
 """
 
 import argparse
@@ -22,8 +25,7 @@ from rich.text import Text
 
 # AutoForge imports
 from auto_forge import (AutoForgFolderType, CommandInterface, CoreEnvironment, CoreSolution, CoreVariables,
-                        CoreJSONCProcessor, CoreToolBox, FieldColorType
-                        )
+                        CoreJSONCProcessor, CoreToolBox, CoreTelemetry, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -45,26 +47,28 @@ class SolutionCommand(CommandInterface):
         self._solution: Optional[CoreSolution] = None
         self._variables: Optional[CoreVariables] = None
         self._environment: Optional[CoreEnvironment] = None
+        self._telemetry: Optional[CoreTelemetry] = None
         self._tool_box: Optional[CoreToolBox] = CoreToolBox.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
 
+    @staticmethod
+    def _bool_emoji(bool_value: Optional[bool]) -> str:
+        """ Helper to print true / false emoji with ease """
+        if bool_value:
+            return "[green]✔[/]"
+        elif bool_value is False:
+            return "[red]✘[/]"
+        return "[dim]-[/]"
+
     def _show_environment_variables(self) -> Optional[int]:
         """
         Display the list of managed variables in a styled table using Rich.
         This method is fully compatible with cmd2 and does not rely on self.console.
         """
-
         console = Console(force_terminal=True)
-
-        def _bool_emoji(bool_value: Optional[bool]) -> str:
-            if bool_value:
-                return "[green]✔[/]"
-            elif bool_value is False:
-                return "[red]✘[/]"
-            return "[dim]-[/]"
 
         var_list: list = self._variables.export()
         project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE')
@@ -76,7 +80,6 @@ class SolutionCommand(CommandInterface):
 
         if not isinstance(var_list, list) or not var_list:
             raise RuntimeError("no variables to display")
-
         try:
             table = Table(title=f"{solution_name.capitalize()}: Managed Variables", box=box.ROUNDED)
 
@@ -115,14 +118,75 @@ class SolutionCommand(CommandInterface):
                 except ValueError:
                     value_text = Text(str(value))
 
-                table.add_row(key, value_text, description, _bool_emoji(is_path),
-                              _bool_emoji(var.get("create_path_if_not_exist")), folder_type_str)
+                table.add_row(key, value_text, description, self._bool_emoji(is_path),
+                              self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str)
 
-            console.print('\n', table, '\n')
+            console.print('\n', table)
             return 0
 
         except Exception as variables_error:
             raise variables_error from variables_error
+
+    def _show_telemetry(self) -> Optional[int]:
+        """
+        Displays a summary of the current telemetry state, including initialized tracer/meter components,
+        counters, and uptime, using Rich formatting.
+        """
+        self._telemetry = CoreTelemetry.get_instance()
+        if not isinstance(self._telemetry, CoreTelemetry):
+            raise RuntimeError("could not get telemetry class instance")
+
+        console = Console(force_terminal=True)
+        print()
+
+        # High-level summary
+        elapsed = self._telemetry.elapsed_since_start()
+        console.print(f"[bold]Service:[/bold]            {self._telemetry.service_name or 'N/A'}")
+        console.print(f"[bold]Start Time (UNIX):[/bold]  {self._telemetry.start_unix:.3f}")
+        console.print(f"[bold]Uptime:[/bold]             {self._tool_box.format_duration(elapsed)}")
+
+        # Tracer state
+        console.print(f"[bold]Tracer initialized:[/bold] {self._bool_emoji(self._telemetry.tracer is not None)}")
+        console.print(f"[bold]Meter initialized:[/bold]  {self._bool_emoji(self._telemetry.meter is not None)}")
+
+        # Show boot events (module start time since epoch)
+        if self._telemetry.registered_boot_events:
+            boot_table = Table(title="Module Boot Times", box=box.ROUNDED, title_justify="left")
+            boot_table.add_column("Module", style="cyan")
+            boot_table.add_column("Boot Offset From Epoch", style="green")
+
+            for name, delay in sorted(self._telemetry.registered_boot_events.items(), key=lambda x: x[1]):
+                boot_table.add_row(name, f"{delay:.3f} sec")
+
+            print()
+            console.print(boot_table)
+
+        # If counters exist, list them
+        if self._telemetry.meter:
+            table = Table(title="Registered Counters", box=box.ROUNDED, title_justify="left")
+            table.add_column("Name", style="cyan", no_wrap=True)
+            table.add_column("Unit", style="magenta")
+            table.add_column("Description", style="white")
+            table.add_column("Value", style="green", justify="right")
+
+            try:
+                for counter in self._telemetry.registered_counters:
+                    name = getattr(counter, "name", "unknown")
+                    unit = getattr(counter, "unit", "-")
+                    desc = getattr(counter, "description", "-")
+                    value = getattr(counter, "value", "-")
+                    table.add_row(name, unit, desc, str(value))
+
+            except Exception as telemetry_error:
+                console.print(f"[red]Warning:[/red] Could not enumerate counters: {telemetry_error}")
+
+            print()
+            console.print(table)
+        else:
+            console.print("[dim]No 'meter' available — counters not tracked.[/dim]")
+
+        print()
+        return 0
 
     def _show_log(self, cheerful: bool) -> Optional[int]:
         """
@@ -204,6 +268,7 @@ class SolutionCommand(CommandInterface):
         group.add_argument('-e', '--show-environment-variables', action='store_true',
                            help='Show session environment variables.')
         group.add_argument("-l", "--show-log", action="store_true", help="Show the log output")
+        group.add_argument('-tl', '--show-telemetry', action='store_true', help='Show telemetry status.')
         group.add_argument('-g', '--show-guide', action='store_true', help='Show the solution creation guide.')
 
         # General purpose tools
@@ -232,6 +297,10 @@ class SolutionCommand(CommandInterface):
         elif args.show_log:
             # Show system log
             return self._show_log(cheerful=True)
+
+        elif args.show_telemetry:
+            # Show system log
+            return self._show_telemetry()
 
         elif args.show_guide:
             # Show tutorials for the solution JSON file structure

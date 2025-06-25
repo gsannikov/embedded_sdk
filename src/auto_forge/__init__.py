@@ -3,14 +3,17 @@ Script:         __init__.py
 Author:         AutoForge Team
 
 Description:
-    This module serves as the centralized import hub for the AutoForge application, managing the import of essential
-    modules and configurations. It is critical not to reorganize the import order
-    automatically (e.g., by IDE tools like PyCharm) as the sequence may impact application behavior due to
-    dependencies and initialization order required by certain components.
+    Centralized import hub for the AutoForge application, managing the import of essential modules and configurations.
+    It is critical not to reorganize the import order automatically (e.g., by IDE tools like PyCharm) as the
+    sequence may impact application behavior due to dependencies and initialization order
+    required by certain components.
 
+--------------------------------------------------------------------------------
 Note:
     This file must not be optimized and sorted by PyCharm,
     >> Order does matter here! <<
+--------------------------------------------------------------------------------
+
 """
 import traceback
 
@@ -28,13 +31,12 @@ try:
                            PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_VIEWERS_PATH, PROJECT_NAME,
                            PROJECT_REPO, PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE, )
 
-    from auto_forge.common.watchdog import Watchdog
     from auto_forge.logger import (AutoLogger, QueueLogger, LogHandlersTypes)
 
     # Common types
     from auto_forge.common.local_types import (
         AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
-        BuildProfileType, BuildTelemetry, COMMAND_TYPE_COLOR_MAP, CommandResultType, CommandFailedException,
+        BuildProfileType, COMMAND_TYPE_COLOR_MAP, CommandResultType, CommandFailedException,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType,
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
@@ -63,6 +65,8 @@ try:
 
     # Core / common modules
     from auto_forge.core.registry import CoreRegistry
+    from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
+    from auto_forge.core.watchdog import CoreWatchdog
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
@@ -91,24 +95,21 @@ except Exception as exception:
 # Exported symbols
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
-    "AutoLogger", "BuildProfileType", "BuildTelemetry", "BuilderRunnerInterface", "BuildLogAnalyzerInterface",
-    "BuilderToolChain",
-    "COMMAND_TYPE_COLOR_MAP", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
-    "CommandFailedException",
-    "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreJSONCProcessorProtocol",
-    "CoreModuleInterface", "CorePrompt", "CoreRegistry", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",
-    "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables",
-    "CoreVariablesProtocol", "CoreXRayDB", "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType",
-    "ExpectedVersionInfoType", "FieldColorType", "InputBoxButtonType", "InputBoxLineType", "GCCLogAnalyzer",
-    "InputBoxTextType",
-    "LinuxShellType", "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType",
-    "PROJECT_BASE_PATH", "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
+    "AutoLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
+    "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
+    "CommandResultType", "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor",
+    "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface", "CorePrompt",
+    "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox",
+    "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
+    "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
+    "FieldColorType", "GCCLogAnalyzer", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
+    "LogHandlersTypes", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PROJECT_BASE_PATH",
+    "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
-    "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH",
-    "ProgressTracker", "PromptStatusType", "QueueLogger",
-    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH", "ProgressTracker", "PromptStatusType",
+    "QueueLogger", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
-    "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream",
-    "ValidationMethodType", "VariableFieldType", "VersionCompare", "Watchdog", "XRayStateType", "start"
+    "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",
+    "VariableFieldType", "VersionCompare", "XRayStateType", "start"
 ]

@@ -11,7 +11,7 @@ Description:
 import re
 from typing import Optional
 
-# AutoForge imports`
+# AutoForge imports
 from auto_forge import (ExpectedVersionInfoType)
 
 AUTO_FORGE_MODULE_NAME = "VersionCompare"

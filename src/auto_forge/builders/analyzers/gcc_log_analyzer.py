@@ -187,7 +187,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         try:
 
             # Remove current exported file if exists.
-            if export_file_name:
+            if isinstance(export_file_name, str):
                 Path(export_file_name).unlink(missing_ok=True)
 
             # Open log source
@@ -261,6 +261,12 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 current_diagnostic['gcc']['message'] = "\n".join(current_message_lines).strip()
                 parsed_entries.append(current_diagnostic)
 
+            # Export to JSON
+            if parsed_entries and export_file_name is not None:
+                self._serialize(parsed_entries=parsed_entries, output_path=export_file_name)
+
+            return parsed_entries if parsed_entries else None
+
         except (FileNotFoundError, PermissionError) as file_error:
             raise file_error
         except Exception as exception:
@@ -269,9 +275,3 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         finally:
             if isinstance(log_lines_iterable, IO):
                 log_lines_iterable.close()
-
-        # Export to JSON
-        if parsed_entries and export_file_name:
-            self._serialize(parsed_entries=parsed_entries, output_path=export_file_name)
-
-        return parsed_entries if parsed_entries else None

@@ -32,7 +32,7 @@ import threading
 import time
 import zipfile
 from contextlib import suppress
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Optional, SupportsInt, Union, Callable
@@ -47,10 +47,13 @@ from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor,
+    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
 )
+
+# Note: Compatibility bypass - no native "UTC" import in Python 3.9.
+UTC = timezone.utc
 
 AUTO_FORGE_MODULE_NAME = "ToolBox"
 AUTO_FORGE_MODULE_DESCRIPTION = "General purpose support routines"
@@ -70,19 +73,22 @@ class CoreToolBox(CoreModuleInterface):
 
     def _initialize(self, *_args, **_kwargs) -> None:
         """
-        Initialize the 'ToolBox' class.
+        Initialize the 'CoreToolBox' class.
         """
 
-        self._dynamic_vars_storage = {}  # Local static dictionary for managed session variables
-
-        # Persist this module instance in the global registry for centralized access
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._dynamic_vars_storage: dict = {}  # Dictionary for managed arbitrary session variables
         self._registry = CoreRegistry.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
         self._show_status_lock = threading.RLock()
         self._pre_compiled_escape_patterns = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
 
+        # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
+
+        # Inform telemetry that the module is up & running
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     @staticmethod
     def print_bytes(byte_array: bytes, bytes_per_line: int = 16):
@@ -260,44 +266,48 @@ class CoreToolBox(CoreModuleInterface):
         return value
 
     @staticmethod
-    def format_duration(seconds):
+    def format_duration(seconds: Union[int, float], include_milliseconds: bool = True) -> str:
         """
-        Converts a number of total seconds (which can include fractional seconds) into a human-readable
-        string representing the duration in hours, minutes, seconds, and milliseconds.
+        Converts a number of total seconds into a human-readable string representing the duration
+        in hours, minutes, seconds, and optionally milliseconds.
         Args:
-            seconds (float or int): Total duration in seconds, including fractional parts for milliseconds.
+            seconds (float or int): Total duration in seconds (may include fractional part).
+            include_milliseconds (bool, optional): If True (default), includes milliseconds in the output.
+                                                   If False, rounds to full seconds and omits milliseconds.
         Returns:
-            str: A string formatted as 'X hours Y minutes Z seconds W milliseconds', omitting any value
-                 that is zero.
+            str: A formatted string such as '1 minute, 17 seconds' or '2 seconds, 803 milliseconds' or
+                'conversion error' on any exception.
         """
-        try:
+
+        def _pluralize(_value: int, _unit: str) -> str:
+            """ Convert to plural day -> days """
+            return f"{_value} {_unit}" + ("s" if _value != 1 else "")
+
+        with suppress(Exception):
             seconds = float(seconds)
-        except ValueError as value_error:
-            raise ValueError(f"invalid input: {seconds} cannot be converted to a float") from value_error
 
-        def _pluralize(_time, _unit):
-            """ Returns a string with the unit correctly pluralized based on the time. """
-            if _time == 1:
-                return f"{_time} {_unit}"
-            else:
-                return f"{_time} {_unit}s"
+            if not include_milliseconds:
+                seconds = round(seconds)
 
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        seconds_int = int(seconds % 60)  # Get the integer part of the remaining seconds
-        milliseconds = int((seconds - int(seconds)) * 1000)  # Correct calculation of milliseconds
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            seconds_int = int(seconds % 60)
+            milliseconds = int((seconds - int(seconds)) * 1000) if include_milliseconds else 0
 
-        parts = []
-        if hours:
-            parts.append(_pluralize(hours, "hour"))
-        if minutes:
-            parts.append(_pluralize(minutes, "minute"))
-        if seconds_int:
-            parts.append(_pluralize(seconds_int, "second"))
-        if milliseconds:
-            parts.append(_pluralize(milliseconds, "millisecond"))
+            parts = []
+            if hours:
+                parts.append(_pluralize(hours, "hour"))
+            if minutes:
+                parts.append(_pluralize(minutes, "minute"))
+            if seconds_int or (not hours and not minutes and not include_milliseconds):
+                parts.append(_pluralize(seconds_int, "second"))
+            if include_milliseconds and milliseconds:
+                parts.append(_pluralize(milliseconds, "millisecond"))
 
-        return ", ".join(parts) if parts else "0 seconds"
+            return ", ".join(parts) if parts else "0 seconds"
+
+        # Suppressed conversion related exception
+        return "Conversion error"
 
     @staticmethod
     def class_has_property(class_name: str, property_name: str) -> bool:
@@ -2095,7 +2105,8 @@ class CoreToolBox(CoreModuleInterface):
                         if char == '\x1b' and self._pre_compiled_escape_patterns.match(content_without_trailing_codes,
                                                                                        idx):
                             # It's the start of an escape sequence, find its end
-                            match = self._pre_compiled_escape_patterns.match(content_without_trailing_codes, idx)
+                            match: re.Match = self._pre_compiled_escape_patterns.match(content_without_trailing_codes,
+                                                                                       idx)
                             if match:
                                 # Add the full escape sequence without counting it towards visible width
                                 truncated_text_chars.append(match.group(0))

@@ -3,15 +3,15 @@ Script:         auto_forge.py
 Author:         AutoForge Team
 
 Description:
-    This module serves as the central entry point of the AutoForge build system package.
-    It is responsible for orchestrating the entire build system lifecycle, including:
+    Central package entry point of the AutoForge build system package, responsible for orchestrating the entire
+    build system lifecycle, including:
         - Initializing core subsystems and shared services
         - Handling and validating command-line arguments
         - Parsing and loading solution-level configuration files
         - Dynamically discovering and registering CLI commands
         - Launching the interactive build shell or executing one-shot commands
 
-    This module acts as the glue layer between user input, system configuration, and the dynamically
+    Simply put, this is the glue layer between user input, system configuration, and the dynamically
     loaded modular components that implement the build system's functionality.
 """
 
@@ -31,13 +31,16 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeWorkModeType, AutoLogger, BuildTelemetry, CoreDynamicLoader,
+    AddressInfoType, AutoForgeWorkModeType, AutoLogger, CoreDynamicLoader,
     CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
-    CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox,
+    CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersTypes,
     PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
-    PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, StatusNotifType, Watchdog,
+    PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, StatusNotifType,
 )
+
+AUTO_FORGE_MODULE_NAME = "AutoForge"
+AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
 
 
 class AutoForge(CoreModuleInterface):
@@ -59,6 +62,7 @@ class AutoForge(CoreModuleInterface):
         self._exit_code: int = 0
 
         self._registry: Optional[CoreRegistry] = None
+        self._telemetry: Optional[CoreTelemetry] = None
         self._solution: Optional[CoreSolution] = None
         self._tool_box: Optional[CoreToolBox] = None
         self._environment: Optional[CoreEnvironment] = None
@@ -67,7 +71,6 @@ class AutoForge(CoreModuleInterface):
         self._gui: Optional[CoreGUI] = None
         self._loader: Optional[CoreDynamicLoader] = None
         self._prompt: Optional[CorePrompt] = None
-        self._telemetry: Optional[BuildTelemetry] = None
         self._xray: Optional[CoreXRayDB] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
         self._auto_logger: Optional[AutoLogger] = None
@@ -77,7 +80,7 @@ class AutoForge(CoreModuleInterface):
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[CoreSystemInfo] = None
         self._linux_aliases: Optional[CoreLinuxAliases] = None
-        self._watchdog_watchdog: Optional[Watchdog] = None
+        self._watchdog: Optional[CoreWatchdog] = None
         self._watchdog_timeout: int = 10  # Default timeout when not specified by configuration
         self._periodic_timer: Optional[threading.Timer] = None
         self._events_sync_thread: Optional[threading.Thread] = None
@@ -122,6 +125,7 @@ class AutoForge(CoreModuleInterface):
         # Instantiate core modules
         self._events = EventManager(StatusNotifType)
         self._registry = CoreRegistry()  # Must be first—anchors the core system
+        self._telemetry = CoreTelemetry()
         self._tool_box = CoreToolBox()
         self._processor = CoreJSONCProcessor()
         self._sys_info = CoreSystemInfo()
@@ -133,7 +137,7 @@ class AutoForge(CoreModuleInterface):
 
         # Configure and start watchdog with default or configuration provided timeout.
         self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
-        self._watchdog = Watchdog(default_timeout=self._watchdog_timeout)
+        self._watchdog = CoreWatchdog(default_timeout=self._watchdog_timeout)
         self._watchdog.stop()
 
         # Handle arguments
@@ -141,7 +145,7 @@ class AutoForge(CoreModuleInterface):
 
         # Reset terminal and clean it's buffer.
         if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
-            Watchdog.reset_terminal()
+            self._watchdog.reset_terminal()
 
         if self._remote_debugging is not None:
             self._init_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
@@ -150,6 +154,7 @@ class AutoForge(CoreModuleInterface):
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
                                         configuration=self._configuration,
                                         work_mode=self._work_mode)
+
         # Initializing the 'real' logger
         self._init_logger()
 
@@ -170,11 +175,6 @@ class AutoForge(CoreModuleInterface):
         # Instantiate the solution class
         self._init_solution()
 
-        # Get telemetry file from configuration and Instantiate the class
-        self._telemetry_file = self._configuration.get("telemetry_file", "telemetry.log")
-        self._telemetry_file = self._variables.expand(self._telemetry_file)
-        self._telemetry = BuildTelemetry.load(self._telemetry_file)
-
         # Set the events loop thread, without starting it.
         self._events_sync_thread = threading.Thread(target=self._events_loop, daemon=True, name="EvensSyncThread", )
 
@@ -187,6 +187,9 @@ class AutoForge(CoreModuleInterface):
         #
 
         self._watchdog.stop()  # Stopping Initialization protection watchdog
+
+        # Inform telemetry that the module is up & running.
+        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     def _init_solution(self):
         """ Get the solution package, instantiate its class which will expand and validate its content """
@@ -667,12 +670,7 @@ class AutoForge(CoreModuleInterface):
         return self._configuration
 
     @property
-    def telemetry(self) -> Optional[BuildTelemetry]:
-        """ Returns the AutoForge telemetry class instance """
-        return self._telemetry
-
-    @property
-    def watchdog(self) -> Optional[Watchdog]:
+    def watchdog(self) -> Optional[CoreWatchdog]:
         """ Returns the Package watchdog instance """
         return self._watchdog
 
