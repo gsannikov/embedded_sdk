@@ -17,13 +17,13 @@ import json
 import os
 import shutil
 import subprocess
+import threading
 from contextlib import suppress
 from nturl2path import pathname2url
 from typing import Optional, Any, Iterable
 
 from rich import box
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
@@ -75,10 +75,21 @@ class EditCommand(CommandInterface):
         fallback_search_path = self._purify_paths(paths=fallback_search_path,
                                                   max_items=self._max_fallback_search_paths)
 
-        self._detected_editors = self._detect_installed_editors(editors=searched_editors_data,
-                                                                fallback_search_path=fallback_search_path,
-                                                                max_depth=0)
-        self._logger.debug(f"Found {len(self._detected_editors)} editors, use 'edit -l' to list them")
+        if not len(searched_editors_data):
+            self._logger.warning(
+                "Missing 'searched_editors' list in configuration — editor detection feature disabled.")
+            return True
+
+        # Scan the system for known editors in a background thread.
+        # This prevents UI or CLI slowdown during potentially slow filesystem operations.
+        self._logger.debug(f"Searching for {len(searched_editors_data)} specified editors")
+        threading.Thread(
+            target=self._detect_installed_editors_thread,
+            args=(searched_editors_data, fallback_search_path, 0),
+            name="EditorScanThread",
+            daemon=True
+        ).start()
+
         return True
 
     def _inject_wsl_environment(self) -> None:
@@ -180,8 +191,7 @@ class EditCommand(CommandInterface):
 
         return None
 
-    def _detect_installed_editors(self, editors: list, fallback_search_path: list, max_depth: int = 3) -> list[
-        dict[str, str]]:
+    def _detect_installed_editors_thread(self, editors: list, fallback_search_path: list, max_depth: int = 3) -> None:
         """
         Detects which editors from the given list are available on the system.
         Args:
@@ -201,14 +211,14 @@ class EditCommand(CommandInterface):
 
             found_path: Optional[str] = None
 
-            # 1. Try PATH-based search
+            # Try PATH-based search
             for alias in aliases:
                 path = shutil.which(alias)
                 if path and not path.startswith("/mnt/"):
                     found_path = str(path)
                     break
 
-            # 2. Fallback directory scan
+            # Fallback directory scan
             if not found_path:
                 found_path = self._search_in_fallback_dirs(
                     aliases=aliases,
@@ -224,7 +234,8 @@ class EditCommand(CommandInterface):
                     "args": editor_args,
                 })
 
-        return detected
+        self._detected_editors = detected
+        self._logger.debug(f"Found {len(self._detected_editors)} editors, use 'edit -l' to list them")
 
     def _print_detected_editors(self, editor_index: Optional[int] = None) -> None:
         """
@@ -236,8 +247,8 @@ class EditCommand(CommandInterface):
         """
         console = Console(force_terminal=True)
 
-        if not self._detected_editors:
-            console.print(Panel("[bold red]No editors detected.[/bold red]", title="Detected Editors"))
+        if not len(self._detected_editors):
+            console.print("[bold red]No editors detected.[/bold red]")
             return None
 
         # Invalidate editor_index if we can't use it
@@ -388,10 +399,11 @@ class EditCommand(CommandInterface):
         Returns:
             Execution return code.
         """
+        if not len(self._detected_editors):
+            raise RuntimeError("no editors detected")
 
         if not isinstance(editor_index, int) or (editor_index > len(self._detected_editors)):
-            raise RuntimeError(
-                f"Invalid editor index specified, run 'edit -l' to list available editors.")
+            raise RuntimeError("invalid editor index specified, run 'edit -l' to list available editors")
 
         path = self._variables.expand(key=path, quiet=True)
         if os.path.basename(path) == path:
@@ -399,7 +411,7 @@ class EditCommand(CommandInterface):
             path = os.path.abspath(os.path.join(os.getcwd(), path))
 
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Path does not exist: {path}")
+            raise FileNotFoundError(f"path does not exist: {path}")
 
         selected_editor = self._detected_editors[editor_index]
         editor_path = selected_editor.get("path")

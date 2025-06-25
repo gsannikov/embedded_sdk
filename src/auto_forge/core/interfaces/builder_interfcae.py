@@ -22,8 +22,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType,
-                        CommandResultType, VersionCompare, CoreToolBoxProtocol, CoreLoggerProtocol )
-
+                        CommandResultType, VersionCompare, CoreToolBoxProtocol, CoreLoggerProtocol)
 # Lazy internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
 
@@ -182,6 +181,7 @@ class BuildLogAnalyzerInterface(ABC):
     def __init__(self):
         # Keep track of last analysis
         self._last_analysis: Optional[list[dict[str, Union[str, int, None, list[str]]]]] = None
+        self._logger: Optional[logging.Logger] = None
 
     @abstractmethod
     def analyze(self, log_source: Union[Path, str], json_name: Optional[str] = None) -> Optional[list[dict[str, Any]]]:

@@ -14,6 +14,7 @@ Description:
 import argparse
 import inspect
 import io
+import logging
 import shlex
 import sys
 import time
@@ -153,7 +154,7 @@ class CommandInterface(ABC):
 
         self._last_error_message: Optional[str] = None
         self._last_exception: Optional[Exception] = None
-        self._logger: Optional[Any] = None
+        self._logger: Optional[logging.Logger] = None
         self._hidden = hidden if hidden else False
         self._command_name: str = command_name
         self._args_parser: Optional[_CapturingArgumentParser] = None
