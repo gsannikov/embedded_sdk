@@ -335,7 +335,7 @@
             // Built-in (do_) commands
             "builtins": "fg:#1e90ff bold",           // Dodger blue
             // Dynamic commands
-            "commands": "fg:#cc8c00 bold italic",    // Amber/orange italic
+            "commands": "fg:#6600cc bold italic",    // Deep violet, elegant and highly readable
             // Aliases (shortcut commands)
             "aliases": "fg:#6666cc italic",          // Soft lavender
             // Regular files
@@ -502,25 +502,25 @@
         // A variety of "goodbye" phrases in common and less common languages,
         // randomly shown when signing out for a friendly multilingual touch..
 
-        { "language": "English",    "phrase": "Goodbye"             },
-        { "language": "Hebrew",     "phrase": "להתראות"             },
-        { "language": "Hindi",      "phrase": "अलविदा"              },
-        { "language": "Russian",    "phrase": "До свидания"         },
-        { "language": "Yiddish",    "phrase": "זיך געזען"           },
-        { "language": "French",     "phrase": "Au revoir"           },
-        { "language": "Spanish",    "phrase": "Adiós"               },
-        { "language": "German",     "phrase": "Auf Wiedersehen"     },
-        { "language": "Italian",    "phrase": "Arrivederci"         },
-        { "language": "Japanese",   "phrase": "さようなら"            },
-        { "language": "Chinese",    "phrase": "再见"                 },
-        { "language": "Portuguese", "phrase": "Adeus"               },
-        { "language": "Korean",     "phrase": "안녕히 가세요"         },
-        { "language": "Greek",      "phrase": "Αντίο"               },
-        { "language": "Turkish",    "phrase": "Hoşça kal"           },
-        { "language": "Dutch",      "phrase": "Vaarwel"             },
-        { "language": "Polish",     "phrase": "Do widzenia"         },
-        { "language": "Swedish",    "phrase": "Adjö"                },
-        { "language": "Swahili",    "phrase": "Kwaheri"             }
+        { "language": "English",    "phrase": "Goodbye"},
+        { "language": "Hebrew",     "phrase": "להתראות"},
+        { "language": "Hindi",      "phrase": "अलविदा"},
+        { "language": "Russian",    "phrase": "До свидания"},
+        { "language": "Yiddish",    "phrase": "זיך געזען"},
+        { "language": "French",     "phrase": "Au revoir"},
+        { "language": "Spanish",    "phrase": "Adiós"},
+        { "language": "German",     "phrase": "Auf Wiedersehen"},
+        { "language": "Italian",    "phrase": "Arrivederci"},
+        { "language": "Japanese",   "phrase": "さようなら"},
+        { "language": "Chinese",    "phrase": "再见"},
+        { "language": "Portuguese", "phrase": "Adeus"},
+        { "language": "Korean",     "phrase": "안녕히 가세요"},
+        { "language": "Greek",      "phrase": "Αντίο"},
+        { "language": "Turkish",    "phrase": "Hoşça kal"},
+        { "language": "Dutch",      "phrase": "Vaarwel"},
+        { "language": "Polish",     "phrase": "Do widzenia"},
+        { "language": "Swedish",    "phrase": "Adjö"},
+        { "language": "Swahili",    "phrase": "Kwaheri"}
     ],
 
     "editors_fallback_search_paths": [
