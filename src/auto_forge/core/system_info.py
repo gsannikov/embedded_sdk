@@ -29,7 +29,7 @@ from git import GitConfigParser
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, DataSizeFormatter,
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, CoreLogger, DataSizeFormatter,
     SysInfoLinuxDistroType, SysInfoPackageManagerType)
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
@@ -51,7 +51,10 @@ class CoreSystemInfo(CoreModuleInterface):
         virtualization/container status, user and host info, package manager, memory,
         and (on Linux) distribution details.
         """
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
         self._system_type: str = platform.system().lower()
         self._is_wsl: bool = "wsl" in platform.release().lower()
         self._wsl_home: Optional[str] = self._get_windows_home_from_wsl() if self._is_wsl else None

@@ -44,7 +44,7 @@ from rich.console import Console
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, AutoLogger, BuildProfileType,
+    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
     CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry, CoreTelemetry,
     CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
     ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PROJECT_NAME, PROJECT_VERSION,
@@ -316,7 +316,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             prompt (Optional[str]): Optional custom base prompt string instead of the solution name.
         """
 
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._tool_box = CoreToolBox.get_instance()
+        self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._variables = CoreVariables.get_instance()
         self._environment: CoreEnvironment = CoreEnvironment.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
@@ -342,10 +345,6 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._configuration = self.auto_forge.get_instance().configuration
         if self._configuration is None:
             raise RuntimeError("package configuration data not available")
-
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-        self._registry: CoreRegistry = CoreRegistry.get_instance()
 
         # Clear command line buffer
         sys.argv = [sys.argv[0]]

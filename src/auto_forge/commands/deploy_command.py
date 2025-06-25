@@ -13,13 +13,12 @@ import os
 import zipfile
 from datetime import datetime
 from enum import Enum, auto
-from logging import Logger
 from pathlib import Path
 from typing import Any
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, AutoLogger,
+from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, CoreLogger,
                         AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "deploy"
@@ -65,12 +64,12 @@ class DeployCommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._json_processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()  # JSON preprocessor instance
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._variables: CoreVariables = CoreVariables.get_instance()
 
-        # Get a logger instance
-        self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
         self._create_archive_backup: bool = True
 
         # Type for  essential JSON sections

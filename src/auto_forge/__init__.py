@@ -31,8 +31,6 @@ try:
                            PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_VIEWERS_PATH, PROJECT_NAME,
                            PROJECT_REPO, PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE, )
 
-    from auto_forge.logger import (AutoLogger, QueueLogger, LogHandlersTypes)
-
     # Common types
     from auto_forge.common.local_types import (
         AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
@@ -56,6 +54,13 @@ try:
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
+
+    from auto_forge.core.registry import CoreRegistry
+    from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
+    from auto_forge.core.watchdog import CoreWatchdog
+    from auto_forge.core.logger import (CoreLogger, LogHandlersTypes)
+    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
+
     from auto_forge.core.interfaces.command_interface import CommandInterface
     from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuildLogAnalyzerInterface,
                                                               BuilderToolChain)
@@ -64,10 +69,6 @@ try:
     from auto_forge.builders.analyzers.gcc_log_analyzer import GCCLogAnalyzer
 
     # Core / common modules
-    from auto_forge.core.registry import CoreRegistry
-    from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
-    from auto_forge.core.watchdog import CoreWatchdog
-    from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI
@@ -95,7 +96,7 @@ except Exception as exception:
 # Exported symbols
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
-    "AutoLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
+    "CoreLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
     "CommandResultType", "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor",
     "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface", "CorePrompt",
@@ -108,7 +109,7 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH", "ProgressTracker", "PromptStatusType",
-    "QueueLogger", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",
     "VariableFieldType", "VersionCompare", "XRayStateType", "start"

@@ -31,12 +31,12 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeWorkModeType, AutoLogger, CoreDynamicLoader,
+    AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersTypes,
     PROJECT_BUILDERS_PATH, PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
-    PROJECT_LOG_FILE, PROJECT_VERSION, QueueLogger, StatusNotifType,
+    PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
 )
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
@@ -54,10 +54,6 @@ class AutoForge(CoreModuleInterface):
         Early optional class initialization.
         """
 
-        # This is an early, pre-initialization RAM-only logger. Once the main logger is initialized,
-        # all records stored in RAM will be flushed to the package logger.
-
-        self._queue_logger: QueueLogger = QueueLogger()
         self._initial_path: Path = Path.cwd().resolve()  # Store our initial works path
         self._exit_code: int = 0
 
@@ -73,7 +69,7 @@ class AutoForge(CoreModuleInterface):
         self._prompt: Optional[CorePrompt] = None
         self._xray: Optional[CoreXRayDB] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
-        self._auto_logger: Optional[AutoLogger] = None
+        self._core_logger: Optional[CoreLogger] = None
         self._log_file_name: Optional[str] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
@@ -119,13 +115,23 @@ class AutoForge(CoreModuleInterface):
         # Order matters: they form the foundation upon which the rest of the system depends.
         #
 
-        self._queue_logger.debug("System initializing..")
-        self._queue_logger.debug(f"Started from {os.getcwd()}")
-
         # Instantiate core modules
         self._events = EventManager(StatusNotifType)
         self._registry = CoreRegistry()  # Must be first—anchors the core system
         self._telemetry = CoreTelemetry()
+
+        # Obtain a logger instance as early as possible, configured to support memory-based logging.
+        # Later, once we determine whether to use file and/or console output, all buffered memory logs
+        # will be flushed to the appropriate active handlers.
+        self._core_logger = CoreLogger(
+            log_level=logging.DEBUG,
+            configuration_data=self._configuration,
+            enable_memory_logger=True
+        )
+        self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=False)
+        self._logger.debug("System initializing..")
+        self._logger.debug(f"Started from {os.getcwd()}")
+
         self._tool_box = CoreToolBox()
         self._processor = CoreJSONCProcessor()
         self._sys_info = CoreSystemInfo()
@@ -248,14 +254,12 @@ class AutoForge(CoreModuleInterface):
                 self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
 
         # Initialize logger
-        self._auto_logger: AutoLogger = AutoLogger(log_level=logging.DEBUG, configuration_data=self._configuration)
-        self._auto_logger.set_log_file_name(self._log_file_name)
-        self._auto_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER)
-        self._logger: logging.Logger = self._auto_logger.get_logger(console_stdout=allow_console_output)
+        self._core_logger.set_log_file_name(self._log_file_name)
+        self._core_logger.set_handlers(LogHandlersTypes.FILE_HANDLER | LogHandlersTypes.CONSOLE_HANDLER | LogHandlersTypes.MEMORY_HANDLER)
+        self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=allow_console_output)
 
-        # System initialized, dump all memory stored records in the logger
-        self._queue_logger._target_logger = self._logger
-        self._queue_logger.flush()
+        # Flush memory logs and disable memory logger
+        self._core_logger.flush_memory_logs(LogHandlersTypes.FILE_HANDLER)
 
         self._logger.info(f"AutoForge version: {PROJECT_VERSION} starting")
         self._logger.info(str(self._sys_info))
@@ -336,7 +340,7 @@ class AutoForge(CoreModuleInterface):
                     raise RuntimeError(f"the specified URL '{solution_url}' does not point to a valid path")
                 else:
                     self._solution_url = solution_url
-                    self._queue_logger.debug(f"Using solution from URL '{solution_url}'")
+                    self._logger.debug(f"Using solution from URL '{solution_url}'")
 
                     self._git_token = kwargs.get("git_token")
                     if not self._git_token:
@@ -345,7 +349,7 @@ class AutoForge(CoreModuleInterface):
                         self._git_token = os.environ.get(git_token_var_name) if git_token_var_name else None
 
                     if self._git_token:
-                        self._queue_logger.debug("GitHub token '{self._git_token[:4]'...")
+                        self._logger.debug("GitHub token '{self._git_token[:4]'...")
 
         def _validate_network_options():
 
@@ -373,12 +377,12 @@ class AutoForge(CoreModuleInterface):
         self._run_sequence_ref_name = kwargs.get("run_sequence")
         if self._run_sequence_ref_name is not None:
             self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE
-            self._queue_logger.debug(f"Sequence ref name '{self._run_sequence_ref_name}'")
+            self._logger.debug(f"Sequence ref name '{self._run_sequence_ref_name}'")
         else:
             self._run_command_name = kwargs.get("run_command")
             if self._run_command_name is not None:
                 self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND
-                self._queue_logger.debug(f"Run command name '{self._run_command_name}'")
+                self._logger.debug(f"Run command name '{self._run_command_name}'")
 
                 # Handle 'single-command' arguments
                 self._run_command_args = kwargs.get("run_command_args", [])
@@ -395,7 +399,7 @@ class AutoForge(CoreModuleInterface):
         if not CoreToolBox.looks_like_unix_path(self._workspace_path):
             raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
 
-        self._queue_logger.debug(f"Workspace path '{self._workspace_path}'")
+        self._logger.debug(f"Workspace path '{self._workspace_path}'")
         self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
         # Move to the workspace path of we have it
         if self._workspace_exist:
@@ -416,8 +420,7 @@ class AutoForge(CoreModuleInterface):
         try:
 
             # Start remote debugging if enabled.
-            self._queue_logger.debug(
-                f"Remote debugging enabled using {host}:{port}")
+            self._logger.debug(f"Remote debugging enabled using {host}:{port}")
 
             # noinspection PyUnresolvedReferences
             import pydevd_pycharm
@@ -429,7 +432,7 @@ class AutoForge(CoreModuleInterface):
                 self._watchdog.stop()
 
         except ImportError:
-            self._queue_logger.warning("'pydevd_pycharm' is not installed; skipping remote debugging")
+            self._logger.warning("'pydevd_pycharm' is not installed; skipping remote debugging")
 
         except Exception as exception:
             if abort_execution:
@@ -679,11 +682,6 @@ class AutoForge(CoreModuleInterface):
         """Return whether the application was started in interactive or non-interactive mode."""
         return self._work_mode
 
-    @property
-    def root_logger(self) -> Optional[AutoLogger]:
-        """ AutoForge root logger instance """
-        return self._auto_logger
-
 
 def auto_forge_start(args: argparse.Namespace) -> Optional[int]:
     """
@@ -708,7 +706,7 @@ def auto_forge_start(args: argparse.Namespace) -> Optional[int]:
         # Retrieve information about the original exception that triggered this handler.
         file_name, line_number = ExceptionGuru().get_context()
         # If we can get a logger, use it to log the error.
-        logger_instance = AutoLogger.get_base_logger()
+        logger_instance = CoreLogger.get_base_logger()
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
         print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")

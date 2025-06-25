@@ -22,10 +22,10 @@ from contextlib import suppress
 from typing import IO, Any, Optional
 
 # Direct internal imports to avoid circular dependencies
-from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType,
-                        AutoForgCommandType, CoreToolBoxProtocol)
-# Direct internal imports to avoid circular dependencies
+from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreToolBoxProtocol)
+# Lazy internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
+from auto_forge.core.logger import CoreLogger
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "CommandInterface"
@@ -170,8 +170,8 @@ class CommandInterface(ABC):
         caller_module_version = caller_globals.get("AUTO_FORGE_MODULE_VERSION", "0.0.0")
 
         self._command_name: str = command_name if command_name is not None else caller_module_name
-        # Create a command dedicated logger instance
-        self._logger = AutoLogger().get_logger(name=command_name.capitalize())
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=command_name.capitalize())  # Get a logger instance
 
         # Register this command instance in the global registry for centralized access
         self._registry = CoreRegistry.get_instance()
@@ -364,7 +364,7 @@ class CommandInterface(ABC):
 
                 # Handle verbosity
                 if "-vv" in args_list or "--verbose" in args_list:
-                    AutoLogger().set_output_enabled(logger=self._logger, state=True)
+                    self._core_logger.set_output_enabled(logger=self._logger, state=True)
                     verbose = True
 
                 return_value = self.run(args)
@@ -392,7 +392,7 @@ class CommandInterface(ABC):
 
             if verbose:
                 # Restore verbosity
-                AutoLogger().set_output_enabled(logger=self._logger, state=False)
+                self._core_logger.set_output_enabled(logger=self._logger, state=False)
 
         return return_value
 

@@ -15,7 +15,6 @@ import fcntl
 import fnmatch
 import inspect
 import json
-import logging
 import os
 import pty
 import re
@@ -38,7 +37,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, AutoLogger, CommandFailedException, CommandResultType,
+    AddressInfoType, AutoForgeModuleType, CoreLogger, CommandFailedException, CommandResultType,
     CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface, CoreRegistry,
     CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog,
     PROJECT_SHARED_PATH, ProgressTracker,
@@ -81,7 +80,8 @@ class CoreEnvironment(CoreModuleInterface):
             to support early startup execution.
         """
 
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME, log_level=logging.DEBUG)
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path

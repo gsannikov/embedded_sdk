@@ -195,6 +195,7 @@ class SolutionCommand(CommandInterface):
             cheerful (bool): If True, display the log with enhanced formatting or emotive tone.
                              Otherwise, use a more standard presentation.
         """
+
         field_colors = [FieldColorType(field_name="AutoForge", color=Fore.GREEN),
                         FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
                         FieldColorType(field_name="Loader", color=Fore.MAGENTA),
@@ -204,7 +205,7 @@ class SolutionCommand(CommandInterface):
                         FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
                         FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
         try:
-            self._solution.auto_forge.root_logger.show(cheerful=cheerful, field_colors=field_colors)
+            self._core_logger.show(cheerful=cheerful, field_colors=field_colors)
             return 0
 
         except Exception as log_error:

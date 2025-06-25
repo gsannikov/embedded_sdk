@@ -22,7 +22,7 @@ from typing import Any, Optional, cast
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, AutoLogger, CoreJSONCProcessor, CoreModuleInterface, CoreTelemetry,
+    AutoForgeModuleType, CoreLogger, CoreJSONCProcessor, CoreModuleInterface, CoreTelemetry,
     CoreVariables, CoreRegistry, SignatureFieldType, SignatureSchemaType)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
@@ -46,16 +46,16 @@ class CoreSignatures(CoreModuleInterface):
             signatures_config_file_name (str): The path to the JSON file containing the signature descriptors.
         """
 
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
         self._config_file_name: Optional[str] = None
         self._signature_id: Optional[int] = 42
         self._raw_dictionary: Optional[dict[str, Any]] = {}
         self._schemas: list[SignatureSchemaType] = []
         self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
         self._variables: Optional[CoreVariables] = CoreVariables.get_instance()
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
 
         if not signatures_config_file_name:
             raise RuntimeError("signatures configuration file not specified")
@@ -506,8 +506,8 @@ class Signature:
             file_handler (SignatureFileHandler): Parent class instance
         """
 
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
 
         self.unpacked_data: tuple = unpacked_data
         self.data: bytes = data
@@ -663,7 +663,6 @@ class Signature:
     def save(self, file_name: Optional[str] = None, ignore_bad_integrity: Optional[bool] = False) -> Optional[bool]:
         """
         Saves the modified image along with its modified signature to a specified file.
-
         Args:
             file_name (Optional[str]): The name of the file where the image is to be saved. If not provided,
                 the image will be saved to the file specified by the object's `file_name` attribute.
@@ -672,7 +671,6 @@ class Signature:
                 signature can compromise the integrity check. This is particularly risky if the file is part of
                 a file system, where a 'wrong' CRC might appear correct but is actually a false positive due to
                 non-continuous raw binary data.
-
         Returns:
             Optional[bool]: Returns True if the image is successfully saved, or None if an error occurs.
         """
@@ -727,7 +725,6 @@ class Signature:
     def get_field_data(field: Optional[SignatureFieldType] = None, default: Optional[Any] = None) -> Optional[Any]:
         """
         Returns the field content or a default value if none is specified.
-
         Args:
             field (Optional["FileHandler._SignatureField"]): The field to get the content from.
             default (Optional[Any]): The default value to return if none is specified.
@@ -743,11 +740,9 @@ class Signature:
         SignatureFieldType]:
         """
         Sets a field with new data, encoding and adjusting it according to the field's type and size.
-
         Args:
             field (FileHandler.SignatureField): The field object to update.
             data (Any): The new data to encode into the field.
-
         Returns:
             FileHandler.SignatureField: The updated field object with the new data encoded.
         """

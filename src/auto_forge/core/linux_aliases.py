@@ -4,8 +4,7 @@ Author:         AutoForge Team
 
 Description:
     Provides safe and structured management of Linux shell aliases within a user's shell
-    startup file (typically '.zshrc' or '.bashrc'). It supports:
-
+    startup file (typically '.zshrc' or '.bashrc'), supports:
     - Querying the current value of an alias via lexical or live-shell resolution.
     - Adding or updating aliases with optional auto-tagging regions for clarity.
     - Committing batched alias changes as a single tagged block.
@@ -27,7 +26,7 @@ from typing import Optional, Union
 # AutoForge late imports
 from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry,
-    LinuxShellType, VersionCompare)
+    CoreLogger, LinuxShellType, VersionCompare)
 
 AUTO_FORGE_MODULE_NAME = "LinuxAliases"
 AUTO_FORGE_MODULE_DESCRIPTION = "Linux Shell Aliases Management Auxiliary Class"
@@ -64,14 +63,17 @@ class CoreLinuxAliases(CoreModuleInterface):
                 If None, the user's default shell is auto-detected.
         """
 
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._sys_info: CoreSystemInfo = CoreSystemInfo().get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
         self._shell_name: Optional[str] = None
         self._shell_version: Optional[str] = None
         self._shell_rc_file: Optional[Path] = None
         self._shell_type: LinuxShellType = LinuxShellType.UNKNOWN
         self._home_dir: Path = Path.home()
         self._rc_files_backup_path: Optional[Path] = Path(rc_files_backup_path) if rc_files_backup_path else None
-        self._sys_info: CoreSystemInfo = CoreSystemInfo().get_instance()
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
         if prefix_comment is None:
             # Generate default comments with dynamic date in MM-DD-YY format
@@ -95,7 +97,7 @@ class CoreLinuxAliases(CoreModuleInterface):
         # Auto Probe the environment
         self._probe_env(forced_shell=forced_shell)
 
-        # Inform telemetry that the module is up & running.
+        # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
         return None
 

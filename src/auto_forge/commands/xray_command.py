@@ -3,7 +3,7 @@ Module: xray_command.py
 Author: AutoForge Team
 
 Description:
-    XRay CLI commands allows for source analysis and duplicate detection.
+    The XRay command allows for source analysis and duplicate detection.
     It leverages the CoreXRayDB backend to index files under solution 'Source' paths into a
     SQLite database. Users can perform structured or wildcard-based file searches, detect
     duplicate content, or execute arbitrary SQL-style queries on the indexed metadata.
@@ -13,16 +13,16 @@ import argparse
 import json
 import os
 import re
-from logging import Logger
 from pathlib import Path
 from typing import Any, Optional
 
+# Third-party
 from rich import box
 from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, AutoLogger, CoreXRayDB, CoreSolution, XRayStateType)
+from auto_forge import (CoreVariables, CommandInterface, CoreLogger, CoreXRayDB, CoreSolution, XRayStateType)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -54,8 +54,8 @@ class XRayCommand(CommandInterface):
         Command specific initialization, will be executed lastly by the interface class
         after all other initializers.
         """
-        # Get a logger instance
-        self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
 
         # Detect installed editors
         if self._configuration is None:

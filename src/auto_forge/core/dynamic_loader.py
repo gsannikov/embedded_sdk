@@ -24,7 +24,7 @@ from typing import Any, Optional, Union, Type, cast, Callable
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, AutoLogger, BuildProfileType, BuilderRunnerInterface,
+    AutoForgeModuleType, CoreLogger, BuildProfileType, BuilderRunnerInterface,
     CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox, CoreTelemetry,
     ModuleInfoType, CoreRegistry, TerminalTeeStream
 )
@@ -55,8 +55,8 @@ class CoreDynamicLoader(CoreModuleInterface):
             to support early startup execution.
         """
 
-        # Get a logger instance
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME) # Get a logger instance
         self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()

@@ -47,7 +47,7 @@ from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry,
+    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry, CoreLogger,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
 )
@@ -76,7 +76,10 @@ class CoreToolBox(CoreModuleInterface):
         Initialize the 'CoreToolBox' class.
         """
 
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
         self._dynamic_vars_storage: dict = {}  # Dictionary for managed arbitrary session variables
         self._registry = CoreRegistry.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()

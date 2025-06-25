@@ -20,7 +20,7 @@ from typing import Optional, Tuple, Union, Any
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, ModuleInfoType, BuildProfileType,
+from auto_forge import (AutoForgeModuleType, CoreLogger, ModuleInfoType, BuildProfileType,
                         CommandResultType, VersionCompare, CoreToolBoxProtocol, )
 # Direct internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
@@ -212,6 +212,7 @@ class BuilderRunnerInterface(ABC):
                 class field 'AUTO_FORGE_MODULE_NAME' will be used.
             build_label (str, optional): The unique name of the builder instance build label to use.
         """
+
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
 
@@ -224,7 +225,9 @@ class BuilderRunnerInterface(ABC):
             raise RuntimeError("build_system properties cannot be None")
 
         # Create a builder dedicated logger instance
-        self._logger = AutoLogger().get_logger(name=self._build_system)
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(self._build_system.capitalize())  # Get a logger instance
+
         # Set optional build label
         self._build_label: str = build_label if build_label is not None else "AutoForge"
 

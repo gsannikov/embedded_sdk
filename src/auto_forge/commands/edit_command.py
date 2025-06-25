@@ -18,7 +18,6 @@ import os
 import shutil
 import subprocess
 from contextlib import suppress
-from logging import Logger
 from nturl2path import pathname2url
 from typing import Optional, Any, Iterable
 
@@ -28,7 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, CoreSystemInfo, AutoLogger, CoreSolution)
+from auto_forge import (CoreVariables, CommandInterface, CoreSystemInfo, CoreLogger, CoreSolution)
 
 AUTO_FORGE_MODULE_NAME = "edit"
 AUTO_FORGE_MODULE_DESCRIPTION = "Invokes the preferred editor to open files or directories"
@@ -55,8 +54,8 @@ class EditCommand(CommandInterface):
         self._solution: Optional[CoreSolution] = None
         self._max_fallback_search_paths: int = 10
 
-        # Get a logger instance
-        self._logger: Logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME.capitalize())
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)

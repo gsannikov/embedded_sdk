@@ -38,7 +38,7 @@ UTC = timezone.utc
 
 # AutoForge imports
 from auto_forge import (
-    AutoLogger, AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSolution, CoreVariables, CoreToolBox,
+    AutoForgeModuleType, CoreLogger, CoreModuleInterface, CoreRegistry, CoreSolution, CoreVariables, CoreToolBox,
     CoreTelemetry, PromptStatusType, XRayStateType
 )
 
@@ -95,17 +95,19 @@ class CoreXRayDB(CoreModuleInterface):
 
     def _initialize(self) -> None:
         """
-        Initialize CoreXRay.
+        Initializes the CoreXRay class.
         """
-        try:
-            self._variables = CoreVariables.get_instance()
-            self._solution = CoreSolution.get_instance()
-            self._tool_box = CoreToolBox.get_instance()
-            self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
-            # Get a logger instance
-            self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
-            self._registry: CoreRegistry = CoreRegistry.get_instance()
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._variables = CoreVariables.get_instance()
+        self._solution = CoreSolution.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._registry: CoreRegistry = CoreRegistry.get_instance()
+
+        try:
+
             self._get_and_validate_paths()
 
             # Retrieve AutoForge package configuration

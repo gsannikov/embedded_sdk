@@ -19,7 +19,7 @@ from rich.console import Console
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry)
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, CoreLogger)
 
 AUTO_FORGE_MODULE_NAME = "Processor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"
@@ -181,6 +181,9 @@ class CoreJSONCProcessor(CoreModuleInterface):
             normalize_anonymous_lists (bool): Detect blanks in anonymous lists and replace them with 'null'
         """
 
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._normalize_multilines: bool = normalize_multilines
 
@@ -189,7 +192,7 @@ class CoreJSONCProcessor(CoreModuleInterface):
         registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
-        # Inform telemetry that the module is up & running.
+        # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     @staticmethod

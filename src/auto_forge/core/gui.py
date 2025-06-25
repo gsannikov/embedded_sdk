@@ -3,10 +3,8 @@ Script:         gui.py
 Author:         AutoForge Team
 
 Description:
-    Core module defining the 'CoreGUI' class.
-    CoreGUI manages the graphical user interface (GUI) layer of the AutoForge
-    system while ensuring that all GUI interactions are handled safely from the
-    main thread, provides thread-safe message box support, and coordinates
+    CoreGUI manages the graphical user interface (GUI) layer of the AutoForg system while ensuring that all GUI
+    interactions are handled safely from the main thread, provides thread-safe message box support, and coordinates
     event dispatching across core modules through a managed Tkinter loop.
 """
 
@@ -25,7 +23,7 @@ with suppress(ImportError):
     from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoLogger, CoreModuleInterface, CoreRegistry,
+from auto_forge import (AutoForgeModuleType, CoreLogger, CoreModuleInterface, CoreRegistry,
                         CoreTelemetry, InputBoxButtonType, InputBoxLineType, InputBoxTextType, MessageBoxType, )
 
 AUTO_FORGE_MODULE_NAME = "GUI"
@@ -38,20 +36,30 @@ class CoreGUI(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared
         earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
+
         self._alive = True
         self._gui_thread = None  # Optional joinable thread
 
-        # This will terminate AutoForge if tkinter is not installed.
-        # This is required because tkinter must be installed as a system package and cannot be installed via 'pip install'.
+        # ------------------------------------------------------------------------------
+        #
+        # Note:
+        #   The following validation will terminate AutoForge if tkinter is not available.
+        #   This is intentional, as tkinter must be installed as a system package and
+        #   cannot be installed via 'pip install'.
+        #
+        # ------------------------------------------------------------------------------
+
         self._validate_tkinter_libraries()
 
         super().__init__(*args, **kwargs)
 
     def _initialize(self, **_kwargs: Any):
         """
-        Initializes the GUI system. Spawns a thread to run user logic,
+        Initializes the GUI system. Spawns a thread to run user logic
         and keeps the GUI running in the main thread.
         """
+        self._core_logger = CoreLogger.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
 
         if threading.current_thread() is not threading.main_thread():
             raise RuntimeError(f"{self.__class__.__name__} must be initialized from the main thread!")
@@ -60,7 +68,6 @@ class CoreGUI(CoreModuleInterface):
         self._root.withdraw()
         self._msg_queue = queue.Queue()
         self._response_queue = queue.Queue()
-        self._logger = AutoLogger().get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
 
         # Register finalizer just in case
@@ -73,7 +80,7 @@ class CoreGUI(CoreModuleInterface):
 
         self._root.after(100, lambda: self._process_queue())  # type: ignore
 
-        # Inform telemetry that the module is up & running.
+        # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     @staticmethod
