@@ -21,7 +21,7 @@
     "productivity_assist": true,                            // Productivity assist flag
 
     // Demo API Key
-    "api_key": "set key in here",
+    "api_key": "set your key in here",
 
     "keywords_mapping": [
 
