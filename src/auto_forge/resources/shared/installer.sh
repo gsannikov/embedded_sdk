@@ -61,6 +61,11 @@ install_auto_forge() {
     DIM="\033[2m"
     RESET="\033[0m"
 
+    # Set the terminal title using escape codes
+    _set_terminal_title() {
+        echo -ne "\033]0;$1\007"
+    }
+
     # Display help message
     _display_help() {
         echo
@@ -227,6 +232,8 @@ install_auto_forge() {
     if [[ -n "$token" ]]; then
         curl_args+=(-H "Authorization: token ${token}")
     fi
+
+    _set_terminal_title "AutoForge Installer"
 
     # Execute bootstrap
     if ! curl "${curl_args[@]}" "$bootstrap_url" | bash -s -- \

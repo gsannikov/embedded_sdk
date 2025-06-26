@@ -21,7 +21,6 @@ Developer Guidelines:
       - Assign runtime values to attributes declared earlier in `__init__()`
 """
 
-import inspect
 import threading
 import time
 from abc import ABCMeta
@@ -148,11 +147,6 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
             else:
                 if _CORE_AUTO_FORGE_ROOT is None:
                     raise RuntimeError("AutoForge must be instantiated before any core module.")
-
-            # Properties extracted from the module code
-            caller_frame = inspect.stack()[1].frame
-            caller_globals = caller_frame.f_globals
-            self.module_config_file_name = caller_globals.get("AUTO_FORGE_MODULE_CONFIG_FILE", None)
 
             # Preform core specific initialization
             self._initialize(*args, **kwargs)

@@ -216,6 +216,7 @@ class BuilderRunnerInterface(ABC):
             build_label (str, optional): The unique name of the builder instance build label to use.
         """
 
+        # Probe caller globals for command description and name
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
         caller_module_name = caller_globals.get("AUTO_FORGE_MODULE_NAME", None)

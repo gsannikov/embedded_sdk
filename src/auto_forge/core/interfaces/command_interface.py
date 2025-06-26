@@ -202,34 +202,6 @@ class CommandInterface(ABC):
         if not self.initialize():
             raise RuntimeError(f"failed to initialize '{self._module_info.name}' command")
 
-    @staticmethod
-    def _search_stack(module: str, variable: str) -> Optional[Any]:
-        """
-        Searches the call stack for a frame originating from the given module name
-        and attempts to retrieve a variable or attribute by name.
-        Args:
-            module (str): Name of the module (e.g., 'auto_forge').
-            variable (str): The name of the attribute or variable to retrieve.
-        Returns:
-            Optional[Any]: The value if found, else None.
-        """
-        with suppress(Exception):
-            for frame_info in inspect.stack():
-                frame = frame_info.frame
-                module_name = inspect.getmodule(frame)
-
-                if module_name and module_name.__name__.endswith(module):
-                    # Try to fetch from instance attribute
-                    self_obj = frame.f_locals.get("self")
-                    if self_obj and hasattr(self_obj, variable):
-                        return getattr(self_obj, variable)
-
-                    # Fallback to locals
-                    if variable in frame.f_locals:
-                        return frame.f_locals[variable]
-
-        return None
-
     def _create_parser(self) -> Optional[_CapturingArgumentParser]:
         """
         Call the mandatory implementation of  create_parser() to create parser instance and store it globally.
