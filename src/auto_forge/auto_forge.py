@@ -144,9 +144,9 @@ class AutoForge(CoreModuleInterface):
         self.ansi_codes = self._configuration.get("ansi_codes")
 
         # Configure and start watchdog with default or configuration provided timeout.
-        self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
-        self._watchdog = CoreWatchdog(default_timeout=self._watchdog_timeout)
-        self._watchdog.stop()
+        # self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
+        # self._watchdog = CoreWatchdog(default_timeout=self._watchdog_timeout)
+        # self._watchdog.stop()
 
         # Handle arguments
         self._init_arguments(*args, **kwargs)
@@ -194,7 +194,7 @@ class AutoForge(CoreModuleInterface):
         # and we can proceed in either interactive mode or automated non-interactive mode.
         #
 
-        self._watchdog.stop()  # Stopping Initialization protection watchdog
+        # self._watchdog.stop()  # Stopping Initialization protection watchdog
 
         # Inform telemetry that the module is up & running.
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
