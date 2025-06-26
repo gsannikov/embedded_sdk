@@ -75,13 +75,12 @@ try:
     from auto_forge.core.solution import CoreSolution
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.linux_aliases import CoreLinuxAliases
-    from auto_forge.core.environment import CoreEnvironment
+    from auto_forge.core.platform import CorePlatform
     from auto_forge.core.xray import CoreXRayDB
     from auto_forge.core.prompt import CorePrompt
 
     # AutoForg main
     from auto_forge.auto_forge import auto_forge_start as start
-
 
 except ImportError as import_error:
     print(f"Critical Startup Exception: failed to import: {import_error.name}")
@@ -96,7 +95,7 @@ __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
     "CoreLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
-    "CommandResultType", "CoreDynamicLoader", "CoreEnvironment", "CoreGUI", "CoreJSONCProcessor", "CoreLoggerProtocol",
+    "CommandResultType", "CoreDynamicLoader", "CorePlatform", "CoreGUI", "CoreJSONCProcessor", "CoreLoggerProtocol",
     "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface", "CorePrompt",
     "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox",
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",

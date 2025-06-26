@@ -49,7 +49,7 @@ from rich.console import Console
 # AutoForge imports
 from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
-    CoreDynamicLoader, CoreEnvironment, CoreModuleInterface, CoreRegistry, CoreTelemetry,
+    CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
     CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
     ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PROJECT_NAME, PROJECT_VERSION,
 )
@@ -328,7 +328,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._tool_box = CoreToolBox.get_instance()
         self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._variables = CoreVariables.get_instance()
-        self._environment: CoreEnvironment = CoreEnvironment.get_instance()
+        self._environment: CorePlatform = CorePlatform.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._solution: CoreSolution = CoreSolution.get_instance()
         self._sys_info = CoreSystemInfo()

@@ -1,14 +1,18 @@
 """
-Script:         environment.py
+Script:         platform.py
 Author:         AutoForge Team
 
 Description:
-    Core module providing a comprehensive API for simplifying various environment-related operations, including:
-    - Execution of shell commands and Python methods.
-    - Common Git-related operations.
-    - Management of Python virtual environments and PIP packages.
-    - Probing the user environment to ensure prerequisites are met.
+    Core module providing a unified API for various platform-related operations, including:
+
+    - Executing sequences of setup actions, primarily for generating a solution workspace.
+    - Running shell commands or arbitrary Python methods with response capturing and validation.
+    - Performing common Git operations.
+    - Managing Python virtual environments and PIP package installations.
+    - Executing safe file system operations (e.g., path deletion with checks).
+    - Probing the user environment to verify that all prerequisites are met.
 """
+
 import codecs
 import difflib
 import fcntl
@@ -43,13 +47,13 @@ from auto_forge import (
     PROJECT_SHARED_PATH, ProgressTracker,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
 
-AUTO_FORGE_MODULE_NAME = "Environment"
-AUTO_FORGE_MODULE_DESCRIPTION = "Environment operations"
+AUTO_FORGE_MODULE_NAME = "Platform"
+AUTO_FORGE_MODULE_DESCRIPTION = "Platform Guru"
 
 
-class CoreEnvironment(CoreModuleInterface):
+class CorePlatform(CoreModuleInterface):
     """
-    a Core class that serves as an environment related operation swissknife.
+    a Core class that serves as an platform / shell related operation swissknife.
     """
 
     def __init__(self, *args, **kwargs):
@@ -70,7 +74,7 @@ class CoreEnvironment(CoreModuleInterface):
 
     def _initialize(self, workspace_path: str, configuration: dict[str, Any]) -> None:
         """
-        Initialize the 'Environment' class.
+        Initialize the 'Platform' class.
         Args:
             workspace_path: path to the workspace directory to initialize.
             configuration: dictionary with package configuration data.
@@ -411,7 +415,6 @@ class CoreEnvironment(CoreModuleInterface):
     def environment_variable_set(name: str, value: str, allow_overwrite: bool = True):
         """
         Set an environment variable, optionally preventing overwrite.
-
         Args:
             name (str): The name of the environment variable.
             value (str): The value to assign to the environment variable.
@@ -426,7 +429,6 @@ class CoreEnvironment(CoreModuleInterface):
     def environment_variable_expect(name: str, searched_token: str, case_sensitive: bool = False):
         """
         Ensure a specific token is present in the value of an environment variable.
-
         Args:
             name (str): The name of the environment variable to check.
             searched_token (str): The token to search for in the variable's value.

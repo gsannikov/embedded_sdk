@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CoreEnvironment, CorePrompt, CoreToolBox, CommandResultType,
+                        TerminalEchoType, CorePlatform, CorePrompt, CoreToolBox, CommandResultType,
                         GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
@@ -63,7 +63,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             **_kwargs (Any): Optional keyword arguments for future extensibility.
                              Currently unused but accepted for interface compatibility.
         """
-        self._environment: Optional[CoreEnvironment] = None
+        self._environment: Optional[CorePlatform] = None
         self._prompt: Optional[CorePrompt] = None
         self._toolchain: Optional[BuilderToolChain] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
@@ -110,7 +110,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
 
-        self._environment = CoreEnvironment.get_instance()
+        self._environment = CorePlatform.get_instance()
         config = build_profile.config_data
 
         if not isinstance(config, dict):

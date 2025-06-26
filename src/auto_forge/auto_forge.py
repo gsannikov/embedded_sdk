@@ -32,14 +32,12 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
-    CoreEnvironment, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
+    CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
 )
-
-# Telemetry
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
@@ -53,7 +51,7 @@ class AutoForge(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """
-        Early optional class initialization.
+        Early class initialization.
         """
 
         self._initial_path: Path = Path.cwd().resolve()  # Store our initial works path
@@ -63,7 +61,7 @@ class AutoForge(CoreModuleInterface):
         self._telemetry: Optional[CoreTelemetry] = None
         self._solution: Optional[CoreSolution] = None
         self._tool_box: Optional[CoreToolBox] = None
-        self._environment: Optional[CoreEnvironment] = None
+        self._platform: Optional[CorePlatform] = None
         self._variables: Optional[CoreVariables] = None
         self._processor: Optional[CoreJSONCProcessor] = None
         self._gui: Optional[CoreGUI] = None
@@ -106,13 +104,8 @@ class AutoForge(CoreModuleInterface):
 
     def _initialize(self, *args, **kwargs) -> None:
         """
-        Initialize the AutoForge core system and prepare the workspace environment.
-        Depending on the context, this may involve:
-        - Creating a new workspace, or loading an existing one.
-        - Load the solution file from either a local path, local file or a git URL.
-        - Exec command and exit  in non-interactive mode.
-        Args:
-            kwargs: Arguments passed from the command line, validated and analyzed internally.
+        Initializes the AutoForge system: instantiates all core modules, validates command-line arguments,
+        expands the solution, and finally either starts the interactive user shell or performs an automated task.
         """
 
         # ----------------------------------------------------------------------
@@ -193,10 +186,10 @@ class AutoForge(CoreModuleInterface):
         self._loader = CoreDynamicLoader(configuration=self._configuration)
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
 
-        # Instantiate the environment module, which provides key utilities for interacting with the user's platform.
+        # Instantiate the platform module, which provides key utilities for interacting with the user's platform.
         # This includes methods for executing processes (individually or in sequence), performing essential Git operations,
         # working with the file system, and more.
-        self._environment = CoreEnvironment(workspace_path=self._workspace_path, configuration=self._configuration)
+        self._platform = CorePlatform(workspace_path=self._workspace_path, configuration=self._configuration)
 
         # Remove any previously generated autoforge temporary files.
         self._tool_box.clear_residual_files()
@@ -229,7 +222,7 @@ class AutoForge(CoreModuleInterface):
         if self._solution_url:
             # Download all files in a given remote git path to a local zip file
             self._solution_package_file = (
-                self._environment.git_get_path_from_url(url=self._solution_url, delete_if_exist=True))
+                self._platform.git_get_path_from_url(url=self._solution_url, delete_if_exist=True))
 
         if self._solution_package_file is not None and self._solution_package_path is None:
             self._solution_package_path = self._tool_box.uncompress_file(archive_path=self._solution_package_file)
@@ -664,12 +657,12 @@ class AutoForge(CoreModuleInterface):
                             f"sequence reference name '{self._run_sequence_ref_name}' was not found in '{self._solution_name}'")
 
                     # Execute sequence
-                    self._exit_code = self._environment.run_sequence(sequence_data=sequence_data)
+                    self._exit_code = self._platform.run_sequence(sequence_data=sequence_data)
                     if self._exit_code == 0:
                         # Finalize workspace creation
-                        self._environment.finalize_workspace_creation(solution_name=self._solution_name,
-                                                                      solution_package_path=self._solution_package_path,
-                                                                      sequence_log_file=self._log_file_name)
+                        self._platform.finalize_workspace_creation(solution_name=self._solution_name,
+                                                                   solution_package_path=self._solution_package_path,
+                                                                   sequence_log_file=self._log_file_name)
                 else:
                     raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
