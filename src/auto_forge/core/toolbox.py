@@ -994,12 +994,10 @@ class CoreToolBox(CoreModuleInterface):
 
         return False, None  # Returns False and None if an exception occurs
 
-    @staticmethod
-    def decompress_archive(archive_path: str, destination_path: Optional[str] = None, delete_after: bool = False,
+    def decompress_archive(self, archive_path: str, destination_path: Optional[str] = None, delete_after: bool = False,
                            update_progress: Optional[Callable[..., Any]] = None) -> Optional[str]:
         """
         Extracts a compressed archive (zip, tar, tar.gz, tar.bz2, etc.) into a destination directory.
-
         Args:
             archive_path (str): Path to the archive file to extract.
             destination_path (Optional[str]): Directory to extract to (defaults to archive directory).
@@ -1025,6 +1023,7 @@ class CoreToolBox(CoreModuleInterface):
                         if update_progress:
                             update_progress(f"{PurePosixPath(member.filename).name}")
                         zf.extract(member, path=destination_path)
+                        self._logger.debug(f"Extracting {member.filename} to {destination_path}")
                 if delete_after:
                     os.remove(archive_path)
 
@@ -1037,6 +1036,7 @@ class CoreToolBox(CoreModuleInterface):
                         if update_progress:
                             update_progress(f"{PurePosixPath(member.name).name}")
                         tf.extract(member, path=destination_path)
+                        self._logger.debug(f"Extracting {member.name} to {destination_path}")
                 if delete_after:
                     os.remove(archive_path)
             else:
