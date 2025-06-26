@@ -1663,7 +1663,6 @@ class CorePlatform(CoreModuleInterface):
             if expanded_msg:
                 sys.stdout.write('\033[2K')  # Clear current line
                 print(expanded_msg)
-
         try:
             self._running_sequence = True  # Mark our state globally
             self._steps_data = sequence_data.get("steps", [])

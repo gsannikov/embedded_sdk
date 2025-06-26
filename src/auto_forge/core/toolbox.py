@@ -1003,7 +1003,6 @@ class CoreToolBox(CoreModuleInterface):
             destination_path (Optional[str]): Directory to extract to (defaults to archive directory).
             delete_after (bool): If True, deletes the archive after successful extraction.
             update_progress (Optional[Callable[[str], None]]): Optional callback to report extraction progress.
-
         Returns:
             str: Path to the directory where files were extracted.
         """
@@ -1036,8 +1035,6 @@ class CoreToolBox(CoreModuleInterface):
                         if update_progress:
                             update_progress(f"{PurePosixPath(member.name).name}")
                         tf.extract(member, path=destination_path)
-                        self._logger.debug(f"Extracting {member.name} to {destination_path}")
-                        self._logger.debug(f"Extracting {PurePosixPath(member.name).name}")
                 if delete_after:
                     os.remove(archive_path)
             else:
