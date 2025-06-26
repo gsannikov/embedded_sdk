@@ -1033,7 +1033,10 @@ class CoreToolBox(CoreModuleInterface):
                         if member is None:
                             break
                         if update_progress:
-                            update_progress(f"{PurePosixPath(member.name).name}")
+                            decompressed_file = PurePosixPath(member.name).name
+                            print(decompressed_file)
+                            # update_progress(f"{PurePosixPath(member.name).name}")
+
                         tf.extract(member, path=destination_path)
                 if delete_after:
                     os.remove(archive_path)

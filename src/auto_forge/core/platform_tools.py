@@ -1647,6 +1647,7 @@ class CorePlatform(CoreModuleInterface):
         """
         step_number: int = 0
         warnings_count: int = 0
+        start_time:float = time.perf_counter()
         last_step_results: Optional[CommandResultType] = None
         original_path = os.path.abspath(os.getcwd())  # Store entry path
         status_on_error: Optional[str] = None
@@ -1729,6 +1730,9 @@ class CorePlatform(CoreModuleInterface):
 
             self._tracker.set_end()
             _expand_and_print(sequence_data.get("status_post_message"))
+
+            duration:float = (time.perf_counter()) - start_time
+            print(f"Operation Took: {self._tool_box.format_duration(seconds=duration)}")
 
             # Briefly delay when we had warnings during the sequence to allow the user to see
             if warnings_count > 0:
