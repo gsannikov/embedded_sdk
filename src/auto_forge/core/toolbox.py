@@ -1037,6 +1037,7 @@ class CoreToolBox(CoreModuleInterface):
                             update_progress(f"{PurePosixPath(member.name).name}")
                         tf.extract(member, path=destination_path)
                         self._logger.debug(f"Extracting {member.name} to {destination_path}")
+                        self._logger.debug(f"Extracting {PurePosixPath(member.name).name}")
                 if delete_after:
                     os.remove(archive_path)
             else:
