@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Protocol, Union, Optional, Any, runtime_checkable, Sequence
 
-# Avoid importing from the root package to prevent circular dependencies
+# AutoForge imports
 from auto_forge import (ModuleInfoType, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME: str = "Protocols"

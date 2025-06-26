@@ -1,6 +1,16 @@
+"""
+Script:         context.py
+Author:         AutoForge Team
+
+Description:
+    Central context manager that, together with protocol classes, facilitates global access to
+    methods and properties across the package—without requiring direct instantiation of the data provider class.
+"""
 
 from contextvars import ContextVar
+# AutoForge imports
 from auto_forge import HasConfigurationProtocol
+
 
 class CoreContext:
     """
