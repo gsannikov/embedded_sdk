@@ -23,8 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CorePlatform, CoreToolBox, CommandResultType,
-                        GCCLogAnalyzer)
+                        TerminalEchoType, CorePlatform, CoreToolBox, CommandResultType, GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -63,11 +62,11 @@ class CMakeBuilder(BuilderRunnerInterface):
             **_kwargs (Any): Optional keyword arguments for future extensibility.
                              Currently unused but accepted for interface compatibility.
         """
-        self._platform = CorePlatform.get_instance()
         self._tool_box = CoreToolBox.get_instance()
+        self._platform: Optional[CorePlatform] = None  # Late blooming module
 
         # Dependencies check
-        if None in (self._platform, self._tool_box):
+        if self._tool_box is None:
             raise RuntimeError("failed to instantiate critical dependencies")
 
         self._toolchain: Optional[BuilderToolChain] = None

@@ -129,9 +129,14 @@ class RefactorCommand(CommandInterface):
         Args:
             **kwargs (Any): Optional keyword arguments.
         """
-        self._json_processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()  # JSON preprocessor instance
-        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
-        self._variables: CoreVariables = CoreVariables.get_instance()
+
+        self._variables = CoreVariables.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+        self._processor = CoreJSONCProcessor.get_instance()
+
+        # Dependencies check
+        if None in (self._variables, self._tool_box, self._processor):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         # Raw JSON data
         self._recipe_data: Optional[dict[str, Any]] = None  # Complete JSON raw data
@@ -177,7 +182,7 @@ class RefactorCommand(CommandInterface):
                 recipe_file = self._variables.expand(key=alternative_path)
 
             # Preprocess the JSON file (e.g., strip comments)
-            self._recipe_data = self._json_processor.render(file_name=recipe_file)
+            self._recipe_data = self._processor.render(file_name=recipe_file)
 
             # Validate and parse 'defaults' section
             if "defaults" not in self._recipe_data:

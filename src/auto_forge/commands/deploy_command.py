@@ -63,9 +63,13 @@ class DeployCommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
-        self._json_processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()  # JSON preprocessor instance
-        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
-        self._variables: CoreVariables = CoreVariables.get_instance()
+        self._variables = CoreVariables.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+        self._processor = CoreJSONCProcessor.get_instance()
+
+        # Dependencies check
+        if None in (self._variables, self._tool_box, self._processor):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._create_archive_backup: bool = True
 
@@ -297,7 +301,7 @@ class DeployCommand(CommandInterface):
             self._logger.debug(f"Using recipe from: {recipe_file}")
 
             # Load and preprocess the recipe JSONC/JSON file
-            recipe_raw: Optional[dict] = self._json_processor.render(file_name=recipe_file)
+            recipe_raw: Optional[dict] = self._processor.render(file_name=recipe_file)
             if not isinstance(recipe_raw, dict):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
 

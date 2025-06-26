@@ -44,11 +44,12 @@ class MakeBuilder(BuilderRunnerInterface):
             **_kwargs (Any): Optional keyword arguments for future extensibility.
                              Currently unused but accepted for interface compatibility.
         """
-        self._platform = CorePlatform.get_instance()
+
         self._tool_box = CoreToolBox.get_instance()
+        self._platform: Optional[CorePlatform] = None  # Late blooming module
 
         # Dependencies check
-        if None in (self._platform, self._tool_box):
+        if self._tool_box is None:
             raise RuntimeError("failed to instantiate critical dependencies")
 
         self._toolchain: Optional[BuilderToolChain] = None
@@ -199,6 +200,15 @@ class MakeBuilder(BuilderRunnerInterface):
             Optional[int]: The return code from the build process, or None if not applicable.
         """
         try:
+
+            # Late instantiation of the CorePlatform class.
+            # This is necessary because when this plugin is dynamically loaded, the CorePlatform class has not yet been created.
+
+            if self._platform is None:
+                self._platform = CorePlatform.get_instance()
+            if self._platform is None:
+                raise RuntimeError("failed to instantiate critical dependencies")
+
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
 

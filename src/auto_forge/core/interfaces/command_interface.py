@@ -24,7 +24,7 @@ from typing import IO, Any, Optional
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreToolBoxProtocol,
-                        CoreLoggerProtocol)
+                        CoreLoggerProtocol, CoreContext)
 # Lazy internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
 
@@ -142,14 +142,15 @@ class CommandInterface(ABC):
 
     def __init__(self, command_name: Optional[str] = None,
                  hidden: Optional[bool] = False,
-                 command_type: Optional[AutoForgCommandType] = AutoForgCommandType.MISCELLANEOUS, ):
+                 command_type: Optional[AutoForgCommandType] = AutoForgCommandType.MISCELLANEOUS):
         """
         Initializes the command and prepares its argument parser using
         the name and description provided by the subclass.
         Args:.
             command_name (str, optional): The name of the command.
-            raise_exceptions (bool, optional): Whether to raise an exception when parsing errors.
             hidden (bool, optional): Whether to hide commands from the menu.
+            command_type (AutoForgCommandType, optional): The type of the command.
+            auto_forge (Any): Reference to 'auto_forge' main class
         """
 
         self._last_error_message: Optional[str] = None
@@ -160,13 +161,9 @@ class CommandInterface(ABC):
         self._args_parser: Optional[_CapturingArgumentParser] = None
         self._tutorials_relative_path: Optional[str] = None
 
-        # Get the configuration from the not yet created 'AutoForge' main class.
-        self._configuration: Optional[dict[str, Any]] = self._search_stack(module='auto_forge',
-                                                                           variable='_configuration')
-
+        # Probe caller globals for command description and name
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
-
         caller_module_name = caller_globals.get("AUTO_FORGE_MODULE_NAME", None)
         caller_module_description = caller_globals.get("AUTO_FORGE_MODULE_DESCRIPTION", "Description not provided")
         caller_module_version = caller_globals.get("AUTO_FORGE_MODULE_VERSION", "0.0.0")
@@ -181,30 +178,29 @@ class CommandInterface(ABC):
                                            auto_forge_module_type=AutoForgeModuleType.COMMAND, hidden=self._hidden,
                                            command_type=command_type))
 
+        # Get configuration from the root auto_forge class through context provider
+        self._configuration = CoreContext.get_config_provider().configuration
+
         # Lazily retrieve the core logger using the registry and a protocol interface.
         # This pattern minimizes startup import overhead and avoids circular dependencies.
         self._core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
-            "CoreLogger", return_protocol=True)
+            class_name="CoreLogger", return_protocol=True)
 
         if self._core_logger is not None:
             self._logger = self._core_logger.get_logger(name=command_name.capitalize())
 
-        if self._logger is None:
-            raise RuntimeError("Unable to instantiate required CoreLogger module.")
-
         # Lazily retrieve the CoreToolBox instance via the registry using its protocol interface.
         # This access pattern reduces startup import overhead and avoids circular dependencies.
-        self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
+        self._tool_box: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
             "CoreToolBox", return_protocol=True)
 
-        if self._tool_box_proto is None:
-            raise RuntimeError("Unable to instantiate required CoreToolBox module.")
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._tool_box):
+            raise RuntimeError("unable to instantiate dependent core")
 
         # Optional tool initialization logic
         if not self.initialize():
             raise RuntimeError(f"failed to initialize '{self._module_info.name}' command")
-
-        super().__init__()
 
     @staticmethod
     def _search_stack(module: str, variable: str) -> Optional[Any]:
@@ -254,7 +250,7 @@ class CommandInterface(ABC):
                 # Auto add tutorials if we have an .md file for this command.
                 relative_path = f"commands/{self._module_info.name}.md"
 
-                if self._tool_box_proto.resolve_help_file(relative_path=relative_path):
+                if self._tool_box.resolve_help_file(relative_path=relative_path):
                     self._args_parser.add_argument("-t", "--tutorials", action="store_true",
                                                    help="Show command tutorials.")
                     self._tutorials_relative_path = relative_path
@@ -367,7 +363,7 @@ class CommandInterface(ABC):
             # Handle tutorials request
             elif "-t" in args_list or "--tutorials" in args_list:
                 if self._tutorials_relative_path:
-                    return_value = self._tool_box_proto.show_help_file(relative_path=self._tutorials_relative_path)
+                    return_value = self._tool_box.show_help_file(relative_path=self._tutorials_relative_path)
                 else:
                     raise RuntimeError('tutorials ware not found for this command')
 

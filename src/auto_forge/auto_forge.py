@@ -37,6 +37,7 @@ from auto_forge import (
     CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
+    CoreContext
 )
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
@@ -143,6 +144,10 @@ class AutoForge(CoreModuleInterface):
         # and is used extensively at runtime. This is not a user configuration file,
         # but rather an internal AutoForge configuration and metadata store.
         self._configuration = self._processor.render(PROJECT_CONFIG_FILE)
+
+        # Allow the configuration to be accessed from any module via the context,
+        # without requiring those modules to instantiate this class.
+        CoreContext.set_config_provider(self)
 
         # Configure start the watchdog which will auto-terminate the application if start time goes beyond the defined interval
         self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)

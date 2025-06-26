@@ -21,7 +21,7 @@ from typing import Optional, Tuple, Union, Any
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType,
+from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
                         CommandResultType, VersionCompare, CoreToolBoxProtocol, CoreLoggerProtocol)
 # Lazy internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
@@ -49,11 +49,12 @@ class BuilderToolChain:
         self._builder_instance = builder_instance
 
         self._registry = CoreRegistry.get_instance()
+
         # Retrieve a Toolbox instance and its protocol interface via the registry.
         # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
-        self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
+        self._tool_box: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
             "CoreToolBox", return_protocol=True)
-        if self._tool_box_proto is None:
+        if self._tool_box is None:
             raise RuntimeError("unable to instantiate dependent core module")
 
     def validate(self, show_help_on_error: bool = False) -> Optional[bool]:
@@ -93,7 +94,7 @@ class BuilderToolChain:
                 # If we have to auto show help
                 if show_help_on_error:
                     if help_path:
-                        if self._tool_box_proto.show_help_file(help_path) != 0:
+                        if self._tool_box.show_help_file(help_path) != 0:
                             self._builder_instance.print_message(
                                 message=f"Error displaying help file '{help_path}' see log for details",
                                 log_level=logging.WARNING)
@@ -217,7 +218,6 @@ class BuilderRunnerInterface(ABC):
 
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
-
         caller_module_name = caller_globals.get("AUTO_FORGE_MODULE_NAME", None)
         caller_module_description = caller_globals.get("AUTO_FORGE_MODULE_DESCRIPTION", "Description not provided")
         caller_module_version = caller_globals.get("AUTO_FORGE_MODULE_VERSION", "0.0.0")
@@ -236,23 +236,25 @@ class BuilderRunnerInterface(ABC):
                                            version=caller_module_version,
                                            auto_forge_module_type=AutoForgeModuleType.BUILDER))
 
+        # Get configuration from the root auto_forge class through context provider
+        self._configuration = CoreContext.get_config_provider().configuration
+
         # Lazily retrieve the core logger using the registry and a protocol interface.
         # This pattern minimizes startup import overhead and avoids circular dependencies.
-        self._core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
+        core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
             "CoreLogger", return_protocol=True)
 
-        if self._core_logger is not None:
-            self._logger = self._core_logger.get_logger(name=self._build_system.capitalize())
+        if core_logger is not None:
+            self._logger = core_logger.get_logger(name=self._build_system.capitalize())
 
         # Lazily retrieve the CoreToolBox instance via the registry using its protocol interface.
         # This access pattern reduces startup import overhead and avoids circular dependencies.
-        self._tool_box_proto: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
+        self._tool_box: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
             "CoreToolBox", return_protocol=True)
 
-        if self._tool_box_proto is None:
+        # Dependencies check
+        if None in (self._logger, self._tool_box):
             raise RuntimeError("unable to instantiate dependent core module")
-
-        super().__init__()
 
     @abstractmethod
     def build(self, build_profile: BuildProfileType) -> Optional[int]:
@@ -319,7 +321,7 @@ class BuilderRunnerInterface(ABC):
 
         else:
             leading_text = f"-- {self._build_label}: "
-            message = self._tool_box_proto.strip_ansi(text=message, bare_text=True)
+            message = self._tool_box.strip_ansi(text=message, bare_text=True)
 
         # Optionally log the message
         if log_level is not None:

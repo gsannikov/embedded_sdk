@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, CoreXRayDB, CoreSolution, XRayStateType)
+from auto_forge import (CommandInterface, CoreVariables, CoreXRayDB, CoreSolution, XRayStateType)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -42,8 +42,8 @@ class XRayCommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
-        self._variables: CoreVariables = CoreVariables.get_instance()
-        self._xray_db: Optional[CoreXRayDB] = None
+        self._variables = CoreVariables.get_instance()
+        self._xray_db: Optional[CoreXRayDB] = None  # Late bloomer
         self._console = Console(force_terminal=True)
 
         # Base class initialization
@@ -54,8 +54,7 @@ class XRayCommand(CommandInterface):
         Command specific initialization, will be executed lastly by the interface class
         after all other initializers.
         """
-
-        # Detect installed editors
+        # Make sure we have access to the package configuration
         if self._configuration is None:
             raise RuntimeError("Package configuration was missing during initialization")
 
@@ -226,10 +225,6 @@ class XRayCommand(CommandInterface):
             """
             return re.sub(r"(\$\{[^}]+})", r"[green]\1[/green]", text)
 
-        xray_db = CoreXRayDB.get_instance()
-        if xray_db is None or xray_db.state != XRayStateType.RUNNING:
-            raise RuntimeError("XRay is not initialized or not running")
-
         # Try to locate CMake-registered paths auto-generated during userspace build
         cmake_prefixes: list[tuple[str, str]] = []
 
@@ -264,7 +259,7 @@ class XRayCommand(CommandInterface):
             query += " ORDER BY path LIMIT ?"
             params.append(str(limit or 500))
 
-            rows = xray_db.query_raw(query, tuple(params))
+            rows = self._xray_db.query_raw(query, tuple(params))
             if not rows:
                 print("No matching files found.")
                 return 1
@@ -310,13 +305,8 @@ class XRayCommand(CommandInterface):
         """
         Print sets of files that have identical purified content, grouped by checksum.
         """
-
-        xray_db = CoreXRayDB.get_instance()
-        if xray_db is None or xray_db.state != XRayStateType.RUNNING:
-            raise RuntimeError("XRay is not initialized or not running")
-
         try:
-            rows = xray_db.query_raw(f"""
+            rows = self._xray_db.query_raw(f"""
                 SELECT checksum, GROUP_CONCAT(path, '|') 
                 FROM file_meta
                 WHERE checksum IS NOT NULL
@@ -358,13 +348,8 @@ class XRayCommand(CommandInterface):
         Args:
             limit (int): Maximum number of candidate files to scan. Default is 500.
         """
-
-        xray = CoreXRayDB.get_instance()
-        if not xray or xray.state != XRayStateType.RUNNING:
-            raise RuntimeError("XRay is not running or unavailable")
-
         try:
-            rows = xray.query_raw(f"""
+            rows = self._xray_db.query_raw(f"""
                 SELECT files.path, files.content
                 FROM files
                 JOIN file_meta ON files.path = file_meta.path
@@ -386,7 +371,7 @@ class XRayCommand(CommandInterface):
                         break  # Only first match per file
 
             if not matches:
-                print("No valid 'main' implementations found.")
+                print("No results containing 'main' ware found.")
                 return 1
 
             # Render with Rich
@@ -441,6 +426,13 @@ class XRayCommand(CommandInterface):
         Returns:
             int: 0 on success, non-zero on failure.
         """
+
+        # Instantiate XRayDB needed
+        if not isinstance(self._xray_db, CoreXRayDB):
+            self._xray_db = CoreXRayDB.get_instance()
+        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.RUNNING:
+            raise RuntimeError("XRay is not running or unavailable")
+
         limit: int = args.limit if args.limit else 500
         extensions: list = args.ext if args.ext else ["c", "h"]
 
@@ -453,7 +445,6 @@ class XRayCommand(CommandInterface):
         elif args.locate_files:
             return_code = self._locate_files(file_name_pattern=args.locate_files, limit=limit, extensions=extensions,
                                              show_cmake_paths=args.cmake_include)
-
         else:
             # Error: no arguments
             return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

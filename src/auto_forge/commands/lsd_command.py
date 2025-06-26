@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreToolBox, )
+from auto_forge import (CommandInterface, CoreToolBox)
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
@@ -58,15 +58,11 @@ class LSDCommand(CommandInterface):
         Args:
             **kwargs (Any): Optional keyword arguments.
         """
-        self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
 
-        if None in (self._tool_box, self._configuration):
-            raise RuntimeError("failed to instantiate critical dependencies")
+        self._tool_box: Optional[CoreToolBox] = None
 
-        # Retrieve the ANSI codes map from the main AutoForge instance.
-        self._ansi_codes: Optional[dict[str, Any]] = self._configuration.get("ansi_codes", {})
-
-        # Placeholder for the large icons dictionary
+        # Variables fwe should populate from configuration
+        self._ansi_codes: Optional[dict[str, Any]] = None
         self._terminal_icons: Optional[dict[str, Any]] = None
 
         # Helps to get the date formatted to the specific system local settings
@@ -75,6 +71,23 @@ class LSDCommand(CommandInterface):
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
+
+    def initialize(self, **_kwargs: Any) -> bool:
+        """ Late initialization, we should now have access to to the project configuration """
+        self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
+
+        # Dependencies check
+        if None in (self._tool_box, self._configuration):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
+        # Gets resources  from configuration
+        self._ansi_codes: Optional[dict[str, Any]] = self._configuration.get("ansi_codes", {})
+        self._terminal_icons: Optional[dict[str, Any]] = self._configuration.get("terminal_icons")
+
+        if None in (self._terminal_icons, self._ansi_codes):
+            raise RuntimeError("'lsd' can't run, essential terminal resources (icons and ANSI codes) are unavailable")
+
+        return True
 
     def _get_icon_info(self, ext_or_name: Path) -> _LSDIconInfo:
         """
@@ -406,13 +419,6 @@ class LSDCommand(CommandInterface):
         """
 
         target_paths = args.paths if args.paths else [os.getcwd()]
-
-        # Load the terminal icons map from the package configuration, if not already loaded.
-        if self._terminal_icons is None and self._configuration:
-            self._terminal_icons = self._configuration.get("terminal_icons")
-
-        if not self._terminal_icons or not self._ansi_codes:
-            raise RuntimeError("'lsd' can't run, essential terminal resources (icons and ANSI codes) are unavailable")
 
         # Gets the directory listing and print
         results = self._lsd(destination_paths=target_paths, show_all=args.all,

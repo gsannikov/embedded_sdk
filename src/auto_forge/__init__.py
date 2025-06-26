@@ -48,9 +48,12 @@ try:
     from auto_forge.common.progress_tracker import ProgressTracker
 
     # Protocols
-    from auto_forge.core.protocols.protocols import (CoreJSONCProcessorProtocol, CoreVariablesProtocol,
-                                                     CoreLinuxAliasesProtocol, CoreToolBoxProtocol,
-                                                     CommandInterfaceProtocol, CoreLoggerProtocol)
+    from auto_forge.core.protocols.protocols import (
+        CoreJSONCProcessorProtocol, CoreVariablesProtocol, CoreLinuxAliasesProtocol, CoreToolBoxProtocol,
+        CommandInterfaceProtocol, CoreLoggerProtocol, HasConfigurationProtocol)
+
+    # Context providers
+    from auto_forge.core.protocols.context import (CoreContext)
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import CoreModuleInterface
@@ -109,5 +112,6 @@ __all__ = [
     "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",
-    "VariableFieldType", "VersionCompare", "XRayStateType", "start"
+    "CoreContext",
+    "HasConfigurationProtocol", "VariableFieldType", "VersionCompare", "XRayStateType", "start"
 ]

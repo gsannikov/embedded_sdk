@@ -20,6 +20,13 @@ AUTO_FORGE_MODULE_NAME: str = "Protocols"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
 
 
+class HasConfigurationProtocol(Protocol):
+    """ Generic for an object that exposes 'configuration' property """
+    @property
+    def configuration(self) -> Optional[dict[str, Any]]:
+        """Must return the configuration as a dictionary (or None)."""
+        ...
+
 @runtime_checkable
 class CoreLoggerProtocol(Protocol):
     """
