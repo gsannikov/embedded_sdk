@@ -62,7 +62,7 @@ class _TrackerState(Enum):
 class ProgressTracker:
     """ Implements the ProgressTracker class """
 
-    def __init__(self, title_length: int = 80, add_time_prefix: bool = False, min_update_interval_ms: int = 10,
+    def __init__(self, title_length: int = 80, add_time_prefix: bool = False, min_update_interval_ms: int = 100,
                  hide_cursor: bool = True, linger_interval_ms: int = 0, default_new_line: bool = True) -> None:
         """
         Initializes the ProgressTracker instance.
@@ -223,7 +223,9 @@ class ProgressTracker:
         sys.stdout.write(text[:max_body_length])
         self._ansi_term.erase_line_to_end()
         sys.stdout.flush()
-        time.sleep(0.01)
+
+        if self._linger_interval_ms:
+            time.sleep(self._linger_interval_ms / 1000.0)
 
         # Update the last update time
         self._last_update_time = current_time

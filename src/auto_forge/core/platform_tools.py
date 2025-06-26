@@ -1679,6 +1679,7 @@ class CorePlatform(CoreModuleInterface):
 
             # Initialize progress tracker
             self._tracker = tracker if tracker else ProgressTracker(title_length=self._status_title_length,
+                                                                    linger_interval_ms=150,
                                                                     add_time_prefix=self._status_add_time_prefix)
             # Optional pre-message
             _expand_and_print(sequence_data.get("status_pre_message"))
