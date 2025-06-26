@@ -54,9 +54,10 @@ class CoreSystemInfo(CoreModuleInterface):
         self._core_logger = CoreLogger.get_instance()
         self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._registry = CoreRegistry.get_instance()
 
         # Dependencies check
-        if None in (self._core_logger, self._logger, self._telemetry):
+        if None in (self._core_logger, self._logger, self._telemetry, self._registry):
             raise RuntimeError("failed to instantiate critical dependencies")
 
         self._system_type: str = platform.system().lower()
@@ -122,8 +123,7 @@ class CoreSystemInfo(CoreModuleInterface):
                            "gfx": self._gfx, "uptime": self._uptime}
 
         # Register this module with the package registry
-        registry = CoreRegistry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Inform telemetry that the module is up & running

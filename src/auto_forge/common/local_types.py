@@ -374,6 +374,15 @@ class MethodLocationType(NamedTuple):
     method_name: Optional[str]
     module_path: Optional[str]
 
+class VariableType(Enum):
+    """ Types of variables which could be autodetect """
+    UNKNOWN = auto()
+    PATH = auto()
+    WIN_PATH = auto()
+    URL = auto()
+    INT = auto()
+    FLOAT = auto()
+    STRING = auto()
 
 @dataclass
 class VariableFieldType:
@@ -385,6 +394,7 @@ class VariableFieldType:
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None
     folder_type: Optional[AutoForgFolderType] = AutoForgFolderType.UNKNOWN
+    type:Optional[VariableType] = VariableType.UNKNOWN,
     kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 

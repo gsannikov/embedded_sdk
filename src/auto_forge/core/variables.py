@@ -16,6 +16,7 @@ from bisect import bisect_left
 from contextlib import suppress
 from dataclasses import asdict
 from typing import Any, Optional, Union, Iterator
+from urllib.parse import urlparse
 
 # Third-party
 from jsonschema.validators import validate
@@ -23,7 +24,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreTelemetry,
-    CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType
+    CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType, VariableType
 )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
@@ -79,6 +80,9 @@ class CoreVariables(CoreModuleInterface):
             # Get the workspace from AutoForge
             self._workspace_path = workspace_path
             self._solution_name = solution_name
+
+            # Are we allow to override 'is_path' using auto detection?
+            self._auto_categorize: bool = bool(self._configuration.get('auto_categorize', False))
 
             # Get essential variables list from the package configuration
             if "essential_variables" in self._configuration:
@@ -163,6 +167,57 @@ class CoreVariables(CoreModuleInterface):
                      is_path=var.get("is_path", True), path_must_exist=var.get("path_must_exist"),
                      create_path_if_not_exist=var.get("create_path_if_not_exist"), folder_type=folder_type,
                      **extra_kwargs, )
+
+    def _classify_variable(self, value: Optional[Any]) -> VariableType:
+        """
+        Attempt to classify a variable type based on its value.
+        Args:
+            value (Optional[Any]): The value to analyze.
+        Returns:
+            VariableType: The detected type of the variable. Returns UNKNOWN if the type cannot be determined.
+        """
+        if value is None:
+            return VariableType.UNKNOWN
+        if isinstance(value, int):
+            return VariableType.INT
+        if isinstance(value, float):
+            return VariableType.FLOAT
+        if not isinstance(value, str):
+            return VariableType.UNKNOWN
+
+        val = value.strip()
+
+        # Check for Unix path
+        if self._tool_box.looks_like_unix_path(val):
+            return VariableType.PATH
+
+        # Check for URL
+        with suppress(Exception):
+            parsed = urlparse(val)
+            if parsed.scheme and parsed.netloc:
+                return VariableType.URL
+
+        # Check for integer-like string
+        if val.isdigit() or (val.startswith("-") and val[1:].isdigit()):
+            return VariableType.INT
+
+        # Check for float-like string
+        with suppress(Exception):
+            if "." in val or "e" in val.lower():
+                float(val)
+                return VariableType.FLOAT
+
+        # Windows Path
+        if (
+                len(val) >= 3
+                and val[1] == ':'
+                and val[2] in ('\\', '/')
+                and val[0].isalpha()
+        ) or val.startswith('\\\\'):
+            return VariableType.WIN_PATH
+
+        # When you have eliminated the impossible, whatever remains, however improbable, must be the truth
+        return VariableType.STRING
 
     @staticmethod
     def _to_string(value: Optional[Any]) -> Optional[str]:
@@ -290,16 +345,22 @@ class CoreVariables(CoreModuleInterface):
             self._load_from_dictionary(variables_data)
             return len(variables_data)
 
-    def get(self, key: str, flexible: bool = False, quiet: bool = False) -> Optional[str]:
+    def get(self, key: str, default: Optional[str] = None,
+            flexible: bool = False, quiet: Optional[bool] = None) -> Optional[str]:
         """
         Gets a Variable value by its key. If not found, attempts to expand as a variable.
         Args:
             key (str): The name of the Variable to find.
+            default (Optional[str]): Value to return if the key is not found or unresolved.
             flexible (bool): If True, allows partial matching of a variable prefix.
             quiet (bool): If True, exceptions will be suppressed.
         Returns:
-            Optional[str]: The value converted to string if found, raises Exception otherwise.
+            Optional[str]: The variable value as a string, or the default if not found.
         """
+
+        if quiet is None:
+            quiet = default is not None
+
         with self._lock:
             index = self._get_index(key=key, flexible=flexible)
             if index == -1:
@@ -316,13 +377,12 @@ class CoreVariables(CoreModuleInterface):
                         if expanded == env_var:  # No expansion occurred
                             if not quiet:
                                 raise RuntimeError(f"variable '{env_var}' was not resolved or expanded")
-                            return None
-
+                            return default
                         return expanded
                 else:
                     if not quiet:
                         raise RuntimeError(f"variable '{key}' not found")
-                    return None
+                    return default
 
             return self._to_string(self._variables[index].value)
 
@@ -408,7 +468,6 @@ class CoreVariables(CoreModuleInterface):
             create_path_if_not_exist (bool): If True, the path will be created.
             folder_type (AutoForgFolderType): The type of the path, when it's a path.
             _kwargs(optional): Additional keyword arguments to pass to the variable.
-
         Returns:
             Optional[bool]: Returns True if the variable was successfully added. Returns
                             None if a variable with the same name already exists.
@@ -417,12 +476,25 @@ class CoreVariables(CoreModuleInterface):
         new_var = VariableFieldType()
         new_var.key = key.strip().upper()
 
+        # Auto detect the variable type
+        classification: VariableType = self._classify_variable(value=value)
+        if self._classify_variable:
+            if classification == VariableType.UNKNOWN:
+                raise RuntimeError(f"variable '{key}' with value '{value}' could not be classified")
+            # Internally we only have path / non path
+            elif classification == VariableType.PATH:
+                is_path = True
+            else:
+                is_path = path_must_exist = False
+                folder_type = AutoForgFolderType.UNKNOWN
+
         # Force defaults when not provided
         new_var.description = description if description is not None else "Description not specified"
         new_var.folder_type = folder_type if folder_type is not None else AutoForgFolderType.UNKNOWN
         new_var.is_path = is_path if is_path is not None else self._tool_box.looks_like_unix_path(value)
         new_var.path_must_exist = path_must_exist if path_must_exist is not None else True
         new_var.create_path_if_not_exist = create_path_if_not_exist if create_path_if_not_exist is not None else True
+        new_var.type = classification
         new_var.kwargs = _kwargs
 
         # Normalize description field

@@ -34,7 +34,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
+    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
     PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
     CoreContext
@@ -69,6 +69,7 @@ class AutoForge(CoreModuleInterface):
         self._loader: Optional[CoreDynamicLoader] = None
         self._prompt: Optional[CorePrompt] = None
         self._xray: Optional[CoreXRayDB] = None
+        self._ai_bridge: Optional[CoreAI] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
         self._core_logger: Optional[CoreLogger] = None
         self._log_file_name: Optional[str] = None
@@ -203,6 +204,9 @@ class AutoForge(CoreModuleInterface):
         # preprocess them, and resolve all references, pointers, and variables into a clean, validated JSON.
         # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
+
+        # AI Bridge
+        self._ai_bridge = CoreAI()
 
         # Set the events-loop thread, without starting it yet.
         self._events_sync_thread = threading.Thread(target=self._events_loop, daemon=True, name="EvensSyncThread", )

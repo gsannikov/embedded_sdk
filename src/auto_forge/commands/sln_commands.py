@@ -25,7 +25,7 @@ from rich.text import Text
 
 # AutoForge imports
 from auto_forge import (AutoForgFolderType, CommandInterface, CoreSolution, CoreVariables,
-                        CoreJSONCProcessor, CoreToolBox, CoreTelemetry, FieldColorType)
+                        CoreJSONCProcessor, CoreToolBox, CoreTelemetry, FieldColorType, VariableType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -89,10 +89,11 @@ class SolutionCommand(CommandInterface):
             # Define columns based on VariableFieldType
             table.add_column("Key", style="bold cyan", no_wrap=True)
             table.add_column("Value", style="green")
-            table.add_column("Description", style="dim")
+            table.add_column("Info", style="dim")
             table.add_column("Path?", style="yellow", justify="center")
-            table.add_column("Auto Create", justify="center")
-            table.add_column("Type", justify="center")
+            table.add_column("Create", justify="center")
+            table.add_column("Folder", justify="center")
+            table.add_column("Class", style="dim italic", justify="center")
 
             for var in var_list:
                 key = str(var.get("key", "") or "")
@@ -100,6 +101,7 @@ class SolutionCommand(CommandInterface):
                 is_path = var.get("is_path", False)
                 value = var.get("value", "")
                 folder_type = var.get("folder_type", AutoForgFolderType.UNKNOWN)
+                var_type:VariableType = var.get("type", VariableType.UNKNOWN)
 
                 # Get and format folder type
                 folder_type_str = folder_type.name if isinstance(folder_type, AutoForgFolderType) else ""
@@ -122,7 +124,7 @@ class SolutionCommand(CommandInterface):
                     value_text = Text(str(value))
 
                 table.add_row(key, value_text, description, self._bool_emoji(is_path),
-                              self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str)
+                              self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str, var_type.name.capitalize())
 
             console.print('\n', table)
             return 0

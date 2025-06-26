@@ -50,29 +50,32 @@
     //   - folder_type:                 (Optional, default: "UNKNOWN") Describes the folder type.
     //                                  Valid values: UNKNOWN, BUILD, SOURCES, DOCUMENTS, SCRIPTS, EXTERNALS, IMAGES.
 
+    "auto_categorize": true,            // Auto detect and set the 'is_path' attribute.
     "essential_variables": [
         //
-        //   Key                 Value                               Description                                Path must exist, Crate path, Folder type
-	    //-----------------------------------------------------------------------------------------------------------------------------------------------
+        //   Key                 Value                               Description                                       Path must exist, Crate path, Folder type
+	    //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        ["AF_BASE",             "$HOME/.auto_forge",                "AutoForge persistent directory",              null,    null,   null                ],
-        ["AF_BIN",              "$AF_BASE/bin",                     "Persistent binaries path",                    null,    null,   null                ],
-        ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",             "Persistent tool-chains",                      null,    null,   null                ],
-        ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",          "Persistent solution resources",               null,    null,   null                ],
-        ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",        "Persistent solution resources",               null,    null,   "INDEX"             ],
-        ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",            "Persistent solution binaries",                null,    null,   null                ],
-        ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Solution root directory",                     null,    null,   null                ],
-        ["BUILD_BASE",          "$PROJ_WORKSPACE/build",            "Base path for compilers outputs",             null,    null,   null                ],
-        ["BUILD_OUT",           "$BUILD_BASE/out",                  "Compilation outputs and temporary files",     null,    null,   "BUILD"             ],
-        ["BUILD_IMAGES",        "$BUILD_BASE/images",               "Compiled binaries",                           null,    null,   "IMAGES"            ],
-        ["BUILD_LOGS",          "$BUILD_BASE/logs",                 "Runtime build logs",                          null,    null,   "LOGS"              ],
-        ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",          "Foreign non versioned resources",             null,    null,   "EXTERNALS"         ],
-        ["PYTHON_VENV",         "$PROJ_WORKSPACE/.venv",            "Python virtual environment",                  true,    false,  null                ],
-        ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",   "Project base path",                           null,    null,   null                ],
-        ["DOCS_BASE",           "$PROJ_BASE/docs",                  "Project Documents",                           null,    null,   "DOCUMENTS"         ],
-        ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",               "Project scripts",                             null,    null,   "SCRIPTS"           ],
-        ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",           "Solution JSON configuration files",           null,    null,   "SCRIPTS"           ],
-        ["SOURCE_BASE",         "$PROJ_BASE/src",                   "Sources base path",                           null,    null,   "SOURCES"           ]
+        ["AF_BASE",             "$HOME/.auto_forge",                            "AutoForge persistent directory",              null,    null,   null                ],
+        ["AF_BIN",              "$AF_BASE/bin",                                 "Persistent binaries path",                    null,    null,   null                ],
+        ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",                         "Persistent tool-chains",                      null,    null,   null                ],
+        ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                      "Persistent solution resources",               null,    null,   null                ],
+        ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",                    "Persistent solution indexes",                 null,    null,   "INDEX"             ],
+        ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                        "Persistent solution binaries",                null,    null,   null                ],
+        ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Solution root directory",                     null,    null,   null                ],
+        ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                        "Base path for compilers outputs",             null,    null,   null                ],
+        ["BUILD_OUT",           "$BUILD_BASE/out",                              "Compilation outputs",                         null,    null,   "BUILD"             ],
+        ["BUILD_IMAGES",        "$BUILD_BASE/images",                           "Compiled binaries",                           null,    null,   "IMAGES"            ],
+        ["BUILD_LOGS",          "$BUILD_BASE/logs",                             "Runtime build logs",                          null,    null,   "LOGS"              ],
+        ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",                      "Foreign resources",                           null,    null,   "EXTERNALS"         ],
+        ["PYTHON_VENV",         "$PROJ_WORKSPACE/.venv",                        "Python virtual environment",                  true,    false,  null                ],
+        ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Project base path",                           null,    null,   null                ],
+        ["DOCS_BASE",           "$PROJ_BASE/docs",                              "Project Documents",                           null,    null,   "DOCUMENTS"         ],
+        ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                           "Project scripts",                             null,    null,   "SCRIPTS"           ],
+        ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                       "Solution JSONs",                              null,    null,   "SCRIPTS"           ],
+        ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ],
+        ["AI_ENDPOINT",         "https://api.openai.com/v1/chat/completions",   "AI Request URL",                              null,    null,   null                ],
+        ["AI_MODEL",            "gpt-4",                                        "AI Model",                                    null,    null,   null                ]
     ],
 
 

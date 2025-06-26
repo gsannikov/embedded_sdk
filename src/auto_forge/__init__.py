@@ -40,7 +40,7 @@ try:
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
-        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, XRayStateType
+        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType
     )
 
     # Common modules
@@ -78,6 +78,7 @@ try:
     from auto_forge.core.solution import CoreSolution
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.linux_aliases import CoreLinuxAliases
+    from auto_forge.core.ai import CoreAI
     from auto_forge.core.platform_tools import CorePlatform
     from auto_forge.core.xray import CoreXRayDB
     from auto_forge.core.prompt import CorePrompt
@@ -100,7 +101,7 @@ __all__ = [
     "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
     "CommandResultType", "CoreDynamicLoader", "CorePlatform", "CoreGUI", "CoreJSONCProcessor", "CoreLoggerProtocol",
     "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface", "CorePrompt",
-    "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox",
+    "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox", "CoreAI",
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "GCCLogAnalyzer", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
@@ -113,5 +114,5 @@ __all__ = [
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",
     "CoreContext",
-    "HasConfigurationProtocol", "VariableFieldType", "VersionCompare", "XRayStateType", "start"
+    "HasConfigurationProtocol", "VariableFieldType", "VariableType", "VersionCompare", "XRayStateType", "start"
 ]
