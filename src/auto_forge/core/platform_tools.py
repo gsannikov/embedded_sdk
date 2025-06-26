@@ -1730,17 +1730,13 @@ class CorePlatform(CoreModuleInterface):
                     self._tracker.set_result(text="OK", status_code=0)
                 step_number += 1
 
-            self._tracker.set_end()
-            _expand_and_print(sequence_data.get("status_post_message"))
-
             duration: float = (time.perf_counter()) - start_time
             # Last line reserved for duration
-            self._tracker.set_complete_line(pre_text="Operation too",
-                                            result_text=f"{self._tool_box.format_duration(seconds=duration)}")
+            self._tracker.set_complete_line(pre_text="Install took",
+                                            result_text=f"{self._tool_box.format_duration(seconds=duration, add_ms=False)}")
 
-            # Briefly delay when we had warnings during the sequence to allow the user to see
-            if warnings_count > 0:
-                time.sleep(2)
+            self._tracker.set_end()
+            _expand_and_print(sequence_data.get("status_post_message"))
             return 0
 
         except Exception as steps_error:

@@ -1598,7 +1598,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
 
         # Use telemetry to tell how long we've been running
         formatted_work_time = self._tool_box.format_duration(seconds=self._telemetry.elapsed_since_start(),
-                                                             include_milliseconds=False)
+                                                             add_ms=False)
         # Say goodbye
         print(f"\nTotal session time: {formatted_work_time}" + (
             f"\n{productivity_message}" if productivity_message else ""))

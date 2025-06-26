@@ -310,13 +310,13 @@ class CoreToolBox(CoreModuleInterface):
         return f"Productivity Leve: {label} (~{events_per_minute:.1f} events/min)"
 
     @staticmethod
-    def format_duration(seconds: Union[int, float], include_milliseconds: bool = True) -> str:
+    def format_duration(seconds: Union[int, float], add_ms: bool = True) -> str:
         """
         Converts a number of total seconds into a human-readable string representing the duration
         in hours, minutes, seconds, and optionally milliseconds.
         Args:
             seconds (float or int): Total duration in seconds (may include fractional part).
-            include_milliseconds (bool, optional): If True (default), includes milliseconds in the output.
+            add_ms (bool, optional): If True (default), includes milliseconds in the output.
                                                    If False, rounds to full seconds and omits milliseconds.
         Returns:
             str: A formatted string such as '1 minute, 17 seconds' or '2 seconds, 803 milliseconds' or
@@ -330,22 +330,22 @@ class CoreToolBox(CoreModuleInterface):
         with suppress(Exception):
             seconds = float(seconds)
 
-            if not include_milliseconds:
+            if not add_ms:
                 seconds = round(seconds)
 
             hours = int(seconds // 3600)
             minutes = int((seconds % 3600) // 60)
             seconds_int = int(seconds % 60)
-            milliseconds = int((seconds - int(seconds)) * 1000) if include_milliseconds else 0
+            milliseconds = int((seconds - int(seconds)) * 1000) if add_ms else 0
 
             parts = []
             if hours:
                 parts.append(_pluralize(hours, "hour"))
             if minutes:
                 parts.append(_pluralize(minutes, "minute"))
-            if seconds_int or (not hours and not minutes and not include_milliseconds):
+            if seconds_int or (not hours and not minutes and not add_ms):
                 parts.append(_pluralize(seconds_int, "second"))
-            if include_milliseconds and milliseconds:
+            if add_ms and milliseconds:
                 parts.append(_pluralize(milliseconds, "millisecond"))
 
             return ", ".join(parts) if parts else "0 seconds"
