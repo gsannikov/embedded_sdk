@@ -34,7 +34,7 @@ import tty
 import zipfile
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import ModuleType
 from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
@@ -1023,7 +1023,7 @@ class CoreToolBox(CoreModuleInterface):
                 with zipfile.ZipFile(archive_path) as zf:
                     for member in zf.filelist:
                         if update_progress:
-                            update_progress(f"{os.path.basename(member.filename)}")
+                            update_progress(f"{PurePosixPath(member.filename).name}")
                         zf.extract(member, path=destination_path)
                 if delete_after:
                     os.remove(archive_path)
@@ -1035,7 +1035,7 @@ class CoreToolBox(CoreModuleInterface):
                         if member is None:
                             break
                         if update_progress:
-                            update_progress(f"{os.path.basename(member.name)}")
+                            update_progress(f"{PurePosixPath(member.name).name}")
                         tf.extract(member, path=destination_path)
                 if delete_after:
                     os.remove(archive_path)
