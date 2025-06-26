@@ -98,6 +98,10 @@ class AutoForge(CoreModuleInterface):
         self._remote_debugging: Optional[AddressInfoType] = None
         self._proxy_server: Optional[AddressInfoType] = None
 
+        # Set how often Python checks for thread switches (every 1 millisecond).
+        # This can improve responsiveness in multi-threaded programs.
+        sys.setswitchinterval(0.001)
+
         super().__init__(*args, **kwargs)
 
     def _initialize(self, *args, **kwargs) -> None:
@@ -111,79 +115,99 @@ class AutoForge(CoreModuleInterface):
             kwargs: Arguments passed from the command line, validated and analyzed internally.
         """
 
+        # ----------------------------------------------------------------------
+        # Core Module Instantiation Notes:
         #
-        # Initialize the most fundamental and essential core modules FIRST.
-        # These must be constructed before anything else—including the logger or any plugin infrastructure.
-        # Order matters: they form the foundation upon which the rest of the system depends.
+        # Initialize the most fundamental and essential core modules first.
+        # The instantiation order is critical: independent modules must be initialized
+        # before dependent ones to avoid circular dependency issues.
         #
+        # This order must align with the import sequence defined in the package's __init__.py.
+        # Modifying it will almost certainly result in import-time dependency errors.
+        #
+        # All core modules derive from the abstract base class `CoreModuleInterface`,
+        # which enforces a singleton pattern to ensure each module is only instantiated once.
+        # ----------------------------------------------------------------------
 
         # Instantiate core modules
-        self._events = EventManager(StatusNotifType)
         self._registry = CoreRegistry()  # Must be first—anchors the core system
         self._telemetry = CoreTelemetry()
 
         # Obtain a logger instance as early as possible, configured to support memory-based logging.
         # Later, once we determine whether to use file and/or console output, all buffered memory logs
         # will be flushed to the appropriate active handlers.
-        self._core_logger = CoreLogger(
-            log_level=logging.DEBUG,
-            configuration_data=self._configuration,
-            enable_memory_logger=True
-        )
+        self._core_logger = CoreLogger(log_level=logging.DEBUG, configuration_data=self._configuration)
         self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=False)
         self._logger.debug("System initializing..")
         self._logger.debug(f"Started from {os.getcwd()}")
 
-        self._tool_box = CoreToolBox()
+        # Instantiate the JSONC processor. This module cleans and processes .jsonc files,
+        # returning a validated JSON object. Since nearly all configuration files in this system
+        # are either JSON or mostly JSONC, this module must be loaded as early as possible.
         self._processor = CoreJSONCProcessor()
+
+        # Load the package configuration from 'auto_forge.jsonc', which is part of the package itself
+        # and is used extensively at runtime. This is not a user configuration file,
+        # but rather an internal AutoForge configuration and metadata store.
+        self._configuration = self._processor.render(PROJECT_CONFIG_FILE)
+
+        # Configure start the watchdog which will auto-terminate the application if start time goes beyond the defined interval
+        self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
+        self._watchdog = CoreWatchdog(default_timeout=self._watchdog_timeout)
+        self._watchdog.stop()
+
+        # Reset of the core modules
         self._sys_info = CoreSystemInfo()
+        self._tool_box = CoreToolBox()
         self._linux_aliases = CoreLinuxAliases()
 
-        # Load package configuration and several dictionaries we might need later
-        self._configuration = self._processor.render(PROJECT_CONFIG_FILE)
-        self.ansi_codes = self._configuration.get("ansi_codes")
-
-        # Configure and start watchdog with default or configuration provided timeout.
-        # self._watchdog_timeout = self._configuration.get("watchdog_timeout", self._watchdog_timeout)
-        # self._watchdog = CoreWatchdog(default_timeout=self._watchdog_timeout)
-        # self._watchdog.stop()
-
-        # Handle arguments
+        # Handle command-line arguments to determine the work mode — for example,
+        # whether we're running in automation mode, interactive shell mode, or using
+        # other user-defined startup flags.
         self._init_arguments(*args, **kwargs)
 
         # Reset terminal and clean it's buffer.
         if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
-            self._watchdog.reset_terminal()
+            self._tool_box.reset_terminal()
 
+        # If debug mode was enabled via the command line, attempt to safely import and start
+        # `pydevd_pycharm`, which tries to connect to a remote PyCharm debug server.
+        # Since this build system heavily relies on terminal-focused libraries like cmd2 and prompt_toolkit,
+        # traditional in-terminal debugging may not work as expected. This remote debug mode is currently
+        # the most reliable way to perform step-by-step debugging.
         if self._remote_debugging is not None:
             self._init_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
 
-        # Instantiate variables
+        # Instantiate the variables module, which replaces the traditional shell environment
+        # with a more powerful and extensible core-based system.
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
                                         configuration=self._configuration,
                                         work_mode=self._work_mode)
 
-        # Initializing the 'real' logger
+        # At this point, we have enough information to finalize logger initialization.
+        # This step flushes all temporarily buffered logs into the finalized logger instance,
+        # which will be used from this point onward.
         self._init_logger()
 
-        # Load all built-in commands
+        # Load all supported dynamic modules — currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader(configuration=self._configuration)
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
-        # Start the environment core module
-        self._environment = CoreEnvironment(workspace_path=self._workspace_path,
-                                            configuration=self._configuration)
 
-        # Set the switch interval to 0.001 seconds (1 millisecond), it may make threads
-        # responsiveness slightly better
-        sys.setswitchinterval(0.001)
+        # Instantiate the environment module, which provides key utilities for interacting with the user's platform.
+        # This includes methods for executing processes (individually or in sequence), performing essential Git operations,
+        # working with the file system, and more.
+        self._environment = CoreEnvironment(workspace_path=self._workspace_path, configuration=self._configuration)
 
-        # Remove anny previously generated autoforge temporary files.
+        # Remove any previously generated autoforge temporary files.
         self._tool_box.clear_residual_files()
 
-        # Instantiate the solution class
+        # The last core module to be instantiated is the solution module. It comes last because it depends
+        # on most of the other core modules to function correctly. Its task is to load the project’s solution file(s),
+        # preprocess them, and resolve all references, pointers, and variables into a clean, validated JSON.
+        # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
 
-        # Set the events loop thread, without starting it.
+        # Set the events-loop thread, without starting it yet.
         self._events_sync_thread = threading.Thread(target=self._events_loop, daemon=True, name="EvensSyncThread", )
 
         #
@@ -194,7 +218,7 @@ class AutoForge(CoreModuleInterface):
         # and we can proceed in either interactive mode or automated non-interactive mode.
         #
 
-        # self._watchdog.stop()  # Stopping Initialization protection watchdog
+        self._watchdog.stop()  # Stopping Initialization protection watchdog
 
         # Inform telemetry that the module is up & running.
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
@@ -255,10 +279,11 @@ class AutoForge(CoreModuleInterface):
                 # Patch it with timestamp so we will have dedicated log for each build system run.
                 self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
 
-        # Initialize logger
+        # Initialize logger, do not disable memory logger, it will be auto disabled by flush_memory_logs()
         self._core_logger.set_log_file_name(self._log_file_name)
         self._core_logger.set_handlers(
             LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
+
         self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=allow_console_output)
 
         # Flush memory logs and disable memory logger
@@ -430,7 +455,7 @@ class AutoForge(CoreModuleInterface):
             with contextlib.redirect_stderr(io.StringIO()):
                 pydevd_pycharm.settrace(host=host, port=port, suspend=False,
                                         trace_only_current_thread=False)
-                # No watch in debug mode
+                # Dogs not allowed in debug
                 self._watchdog.stop()
 
         except ImportError:
@@ -464,6 +489,9 @@ class AutoForge(CoreModuleInterface):
         """
         AutoForge events handler main loop.
         """
+
+        # Setup events manager
+        self._events = EventManager(StatusNotifType)
 
         # Start periodic background timer
         self._periodic_timer = self._tool_box.set_timer(timer=self._periodic_timer,

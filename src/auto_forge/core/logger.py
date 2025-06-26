@@ -293,6 +293,7 @@ class CoreLogger(CoreModuleInterface):
         self._internal_logger: Optional[logging.Logger] = None
         self._name: str = PROJECT_NAME
         self._log_level: int = log_level
+        self._known_logger_names = set()  # Track logger created by this class
         self._erase_exiting_file: bool = erase_exiting_file
         self._stream_console_handler: Optional[logging.StreamHandler] = None
         self._stream_file_handler: Optional[logging.FileHandler] = None
@@ -352,7 +353,7 @@ class CoreLogger(CoreModuleInterface):
                 other_logger = logging.getLogger(name)
                 other_logger.disabled = True
 
-    def _get_stream_handler(self, handler_type: LogHandlersType) -> Any:
+    def _get_stream_handler_by_type(self, handler_type: LogHandlersType) -> Any:
         """ Return the stream handler associated with the provided handler type """
         if handler_type == LogHandlersType.MEMORY_HANDLER:
             return self._stream_memory_handler
@@ -362,6 +363,30 @@ class CoreLogger(CoreModuleInterface):
             return self._stream_console_handler
         else:
             raise RuntimeError(f'invalid handler {handler_type.name}')
+
+    def _reconfigure_all_known_loggers(self):
+        """
+        Apply the current handler configuration to all known loggers.
+        This method clears all handlers on every logger registered in the logging system
+        and reattaches only the enabled handlers, effectively resynchronizing logger behavior
+        across the entire application.
+        """
+
+        for logger_name in self._known_logger_names:
+            logger = logging.getLogger(logger_name)
+            logger.handlers.clear()  # Important: Remove old handlers
+
+            # Optionally reset propagation, filters, etc.
+            logger.propagate = False
+            logger.setLevel(self._log_level)
+
+            # Attach to the enabled handlers
+            if self._enabled_handlers & LogHandlersType.CONSOLE_HANDLER:
+                logger.addHandler(self._stream_console_handler)
+            if self._enabled_handlers & LogHandlersType.FILE_HANDLER:
+                logger.addHandler(self._stream_file_handler)
+            if self._enabled_handlers & LogHandlersType.MEMORY_HANDLER:
+                logger.addHandler(self._stream_memory_handler)
 
     def _enable_handlers(self, handlers: LogHandlersType):
         """
@@ -426,15 +451,13 @@ class CoreLogger(CoreModuleInterface):
 
         self._logger.propagate = True
         self._logger.name = self._name
+        self._reconfigure_all_known_loggers()
 
     def _disable_handlers(self, handlers: LogHandlersType):
         """
         Disable and release the specified handlers if its currently enabled.
         No-op for already non-active handlers.
         """
-
-        if not hasattr(self, "_enabled_handlers"):
-            self._enabled_handlers = LogHandlersType.NO_HANDLERS
 
         if LogHandlersType.MEMORY_HANDLER in handlers and self._stream_memory_handler is not None:
             self._stream_memory_handler.flush()
@@ -457,6 +480,9 @@ class CoreLogger(CoreModuleInterface):
             self._logger.removeHandler(self._stream_file_handler)
             self._stream_file_handler = None
             self._enabled_handlers &= ~LogHandlersType.FILE_HANDLER
+
+        # Update child loggers
+        self._reconfigure_all_known_loggers()
 
     def flush_memory_logs(self, destination_handler: LogHandlersType):
         """
@@ -484,25 +510,24 @@ class CoreLogger(CoreModuleInterface):
         if LogHandlersType.MEMORY_HANDLER not in self._enabled_handlers:
             raise RuntimeError("Memory handler is not enabled — nothing to flush.")
 
-        destination_stream_handler = self._get_stream_handler(handler_type=destination_handler)
+        destination_stream_handler = self._get_stream_handler_by_type(handler_type=destination_handler)
         if destination_stream_handler is None:
             raise RuntimeError(
                 f"No active stream handler found for {destination_handler.name}, "
                 f"even though it is marked as enabled."
             )
 
-        self._internal_logger.debug(
-            f"Memory logger flushing {len(self._memory_logs_buffer)} recods to destination logger")
-
         # Flush memory buffer to the destination stream
         for entry in self._memory_logs_buffer:
             destination_stream_handler.stream.write(entry + "\n")
 
         destination_stream_handler.flush()
-        self._memory_logs_buffer.clear()
 
-        # Disable memory handler after flush
+        # Disable and clear memory handler after flush
         self._disable_handlers(LogHandlersType.MEMORY_HANDLER)
+        self._internal_logger.debug(
+            f"Flushed {len(self._memory_logs_buffer)} memory record(s) to the destination logger.")
+        self._memory_logs_buffer.clear()
 
     def write(self, message: str):
         """
@@ -686,12 +711,10 @@ class CoreLogger(CoreModuleInterface):
         """
         Returns a logger instance. If a name is provided, returns a named logger
         sharing the same handlers and config as the CoreLogger.
-
         Args:
             name (Optional[str]): Custom display name for the logger (overrides .name).
             log_level (Optional[int]): Override for logger level.
             console_stdout (Optional[bool]): Sets the initial state of the console streamer.
-
         Returns:
             logging.Logger: Configured logger instance.
         """
@@ -712,6 +735,7 @@ class CoreLogger(CoreModuleInterface):
                     custom_logger.addHandler(handler)
 
             returned_instance: logging.Logger = custom_logger
+            self._known_logger_names.add(custom_logger.name)  # Track locally created loggers
 
         # Use the base logger console state flag if not specified
         if console_stdout is None:
@@ -739,7 +763,6 @@ class CoreLogger(CoreModuleInterface):
         if not hasattr(self, "_enabled_handlers"):
             self._enabled_handlers = LogHandlersType.NO_HANDLERS
 
-        self._disable_handlers(LogHandlersType.CONSOLE_HANDLER | LogHandlersType.FILE_HANDLER)
-
-        # Optional: reset the enabled mask
+        self._disable_handlers(
+            LogHandlersType.CONSOLE_HANDLER | LogHandlersType.FILE_HANDLER | LogHandlersType.MEMORY_HANDLER)
         self._enabled_handlers = LogHandlersType.NO_HANDLERS

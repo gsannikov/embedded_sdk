@@ -30,6 +30,7 @@ import termios
 import textwrap
 import threading
 import time
+import tty
 import zipfile
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
@@ -47,7 +48,7 @@ from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry, CoreLogger,
+    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry, CoreLogger, CoreSystemInfo,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
     PROJECT_BASE_PATH, PROJECT_HELP_PATH, PROJECT_TEMP_PREFIX, PROJECT_VIEWERS_PATH
 )
@@ -77,14 +78,23 @@ class CoreToolBox(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._system_info = CoreSystemInfo()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-
-        self._dynamic_vars_storage: dict = {}  # Dictionary for managed arbitrary session variables
         self._registry = CoreRegistry.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._system_info, self._telemetry, self._preprocessor,
+                    self.auto_forge.configuration):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
+        self._dynamic_vars_storage: dict = {}  # Dictionary for managed arbitrary session variables
         self._show_status_lock = threading.RLock()
         self._pre_compiled_escape_patterns = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+
+        # Populate ANSI codes from the configuration data
+        self._ansi_codes = self.auto_forge.configuration.get("ansi_codes", {})
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -267,17 +277,21 @@ class CoreToolBox(CoreModuleInterface):
         return value
 
     @staticmethod
-    def format_productivity(events_per_minute: float) -> Optional[str]:
+    def format_productivity(events_per_minute: float, total_seconds: Optional[float] = None) -> Optional[str]:
         """
         Translates raw events-per-minute into a mysterious productivity descriptor,
         using a pseudo-scientific algorithm known only to ancient CI monks.
         Args:
             events_per_minute (float): The measured events per minute.
+            total_seconds (float): Total recorded duration in seconds (for sanity check)
         Returns:
             str: A productivity label, or None if input is invalid.
         """
         if not isinstance(events_per_minute, (float, int)):
             return None
+
+        if isinstance(total_seconds, float) and (total_seconds / 60) < 3:
+            return "Productivity Level: ⚠️ Under 3 minutes logged (we're going to pretend this didn't happen)"
 
         if events_per_minute < 0.5:
             label = "🧘 Zen Mode (possibly sleeping with eyes open)"
@@ -294,7 +308,7 @@ class CoreToolBox(CoreModuleInterface):
         else:
             label = "🧠 Quantum typing event detected — seek medical attention"
 
-        return f"Status: {label} (~{events_per_minute:.1f} events/min)"
+        return f"Productivity Leve: {label} (~{events_per_minute:.1f} events/min)"
 
     @staticmethod
     def format_duration(seconds: Union[int, float], include_milliseconds: bool = True) -> str:
@@ -465,8 +479,8 @@ class CoreToolBox(CoreModuleInterface):
                     continue
 
                 file_path = os.path.join(root, file)
-                content = ""
-                module_path = ""
+                content: str = ""
+                module_path: str = ""
 
                 with suppress(Exception):
                     module_path = str(os.path.relpath(str(file_path), str(directory)))
@@ -676,6 +690,65 @@ class CoreToolBox(CoreModuleInterface):
             else:
                 sys.stdout.write("\033]0;\007")
             sys.stdout.flush()
+
+    @staticmethod
+    def reset_terminal(use_shell: bool = True):
+        """
+        Restores terminal to a sane state using term-ios.
+        Equivalent to 'stty sane', but avoids shell calls.
+        """
+        if use_shell:
+            subprocess.run(["stty", "sane"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        if sys.stdin.isatty():
+            with suppress(Exception):
+                fd = sys.stdin.fileno()
+                with suppress(Exception):
+                    tty.setcbreak(fd)  # minimal reset (line buffering on, echo preserved)
+                    attrs = termios.tcgetattr(fd)
+                    attrs[3] |= termios.ECHO | termios.ICANON  # enable echo and canonical mode
+                    termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
+
+                print("\033[?1049l", end="", flush=True)  # Exit alt screens (for ex. 'nano')
+                print("\033[3J\033[H\033[2J", end="", flush=True)
+
+    def safe_start_keyboard_listener(self, listener_handler: callable) -> Optional[Any]:
+        """
+        Safely attempts to import `pynput.keyboard` if the system environment supports it.
+        Args:
+            listener_handler (callable): Function which will be called when a keyboard key is pressed.
+        Returns:
+            The `pynput.keyboard.Listener` module if available and safe to use, otherwise None.
+        Notes:
+            The actual return type is `pynput.keyboard.Listener`, but `Any` is used to avoid
+            importing the module at the top level, which may crash in unsupported environments.
+        """
+        # Check for GUI session (X11 or Wayland)
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            self._logger.warning("Skipping scanner - no graphical session detected")
+            return None
+
+        # Check for WSL
+        if self._system_info.is_wsl:
+            self._logger.warning("Skipping scanner - running under WSL")
+            return None
+
+        # Check for SSH or headless session
+        if os.environ.get("SSH_CONNECTION") or not sys.stdout.isatty():
+            self._logger.warning("Skipping scanner - SSH or headless session")
+            return None
+
+        # Try importing pynput
+        with suppress(Exception):
+            from pynput import keyboard
+            listener = keyboard.Listener(on_press=listener_handler)
+            listener.start()
+            self._logger.info("Scanner started")
+            return listener
+
+        # Skipping pynput - backend import failed
+        self._logger.info("Skipping scanner - backend import failed")
+        return None
 
     @staticmethod
     def validate_path(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
@@ -1235,11 +1308,9 @@ class CoreToolBox(CoreModuleInterface):
         if not text:
             return
 
-        # Retrieve ANSI codes
+        # We must have the ANSI codes for this to work
         if self._ansi_codes is None:
-            self._ansi_codes = self.auto_forge.ansi_codes
-        if self._ansi_codes is None:
-            return  # Could not get the ANSI codes table
+            return
 
         if clear_screen:
             sys.stdout.write(self._ansi_codes.get('SCREEN_CLS_SB'))

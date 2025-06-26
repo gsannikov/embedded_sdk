@@ -63,17 +63,16 @@ try:
 
     # Core / common modules
     from auto_forge.core.registry import CoreRegistry
-    from auto_forge.core.logger import (CoreLogger)
     from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
+    from auto_forge.core.logger import (CoreLogger)
+    from auto_forge.core.system_info import (CoreSystemInfo)
     from auto_forge.core.watchdog import CoreWatchdog
-
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
     from auto_forge.core.gui import CoreGUI
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
     from auto_forge.core.solution import CoreSolution
-    from auto_forge.core.system_info import CoreSystemInfo
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.linux_aliases import CoreLinuxAliases
     from auto_forge.core.environment import CoreEnvironment

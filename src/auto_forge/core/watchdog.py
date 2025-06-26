@@ -10,14 +10,11 @@ Description:
 
 import os
 import signal
-import subprocess
 import sys
-import termios
 import threading
 import time
-import tty
 from contextlib import suppress
-from typing import Optional
+from typing import Optional, Any
 
 # AutoForge essential imports
 from auto_forge import (
@@ -58,30 +55,28 @@ class CoreWatchdog(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, default_timeout: Optional[float] = None, auto_start: bool = True) -> None:
+    def _initialize(self, default_timeout: Optional[float] = None) -> None:
         """
         Initializes the CoreWatchdog class.
         Args:
             default_timeout (int): Timeout in seconds before the watchdog triggers.
-            auto_start (bool): If True, starts the watchdog automatically on instantiation.
         """
         self._lock = threading.Lock()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._keyboard_listener: Optional[Any] = None
         self._default_timeout = default_timeout if default_timeout is not None else AUTO_FORGE_WATCHDOG_DEFAULT_TIMEOUT
-        self._auto_start: bool = auto_start
         self._trigger = threading.Event()
-        self._reset_terminal_on_termination: bool = True
         self._thread_running: bool = False
         self._thread: threading.Thread = threading.Thread(target=self._watch, daemon=True, name="WatchDog")
+
+        # Dependencies check
+        if self._telemetry is None:
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         # Start the inner thread
         self._thread.start()
         while not self._thread_running:
             time.sleep(0.05)  # Wait for thread readiness
-
-        # Start monitoring
-        if self._auto_start:
-            self.start()
 
         # Register this module with the package registry
         registry = CoreRegistry.get_instance()
@@ -89,7 +84,8 @@ class CoreWatchdog(CoreModuleInterface):
                                  auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Inform telemetry that the module is up & running
-        self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
+        with suppress(Exception):
+            self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
     def _watch(self):
         """ Watchdog inner thread """
@@ -97,6 +93,7 @@ class CoreWatchdog(CoreModuleInterface):
         while True:
             self._trigger.wait(timeout=self._timeout if self._active else None)
             if not self._active:
+                time.sleep(0.1)
                 continue
 
             if time.time() - self._last_refresh > self._timeout:
@@ -111,8 +108,6 @@ class CoreWatchdog(CoreModuleInterface):
         Falls back to SIGKILL if the process does not exit promptly.
         """
 
-        if self._reset_terminal_on_termination:
-            self.reset_terminal()
         sys.stderr.write(
             f"\n\nCritical: AutoForge became unresponsive after {self._timeout} seconds and will be terminated.\n"
         )
@@ -160,22 +155,3 @@ class CoreWatchdog(CoreModuleInterface):
         if self._active:
             self._active = False
             self._trigger.set()  # Wake the thread in case it's sleeping on a short timeout
-
-    @staticmethod
-    def reset_terminal(use_shell: bool = True):
-        """
-        Restores terminal to a sane state using term-ios.
-        Equivalent to 'stty sane', but avoids shell calls.
-        """
-        if use_shell:
-            subprocess.run(["stty", "sane"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        fd = sys.stdin.fileno()
-        with suppress(Exception):
-            tty.setcbreak(fd)  # minimal reset (line buffering on, echo preserved)
-            attrs = termios.tcgetattr(fd)
-            attrs[3] |= termios.ECHO | termios.ICANON  # enable echo and canonical mode
-            termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
-
-        print("\033[?1049l", end="", flush=True)  # Exit alt screens (for ex. 'nano')
-        print("\033[3J\033[H\033[2J", end="", flush=True)

@@ -307,6 +307,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_styles: Optional[Style] = None
         self._loop_stop_flag: bool = False
         self._productivity_assist: bool = False
+        self._keyboard_hook_activated: bool = False
 
         # Telemetry counters
         self._build_success_counter: Optional[TelemetryTrackedCounter] = None
@@ -467,6 +468,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         if not isinstance(meter, Meter):
             raise RuntimeError("Telemetry meter is not available or improperly initialized")
 
+        def _keyboard_hook(_key):
+            """ PyInput listener callable on event """
+            self._productivity_events_count.add(1)
+
         # Get productivity flag from configuration
         self._productivity_assist = bool(self._configuration.get('productivity_assist', False))
         try:
@@ -480,6 +485,13 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 self._logger.info("Productivity assist activated")
                 self._productivity_events_count = self._telemetry.create_counter(
                     name="productivity.total_events", unit="1", description="Cumulative number of user keystrokes")
+
+                # Attempt to start the global PyInput listener first.
+                # If unavailable or unsupported, we will fall back to prompt_toolkit key bindings,
+                # which are limited to this terminal session and won't capture global keyboard activity.
+                if self._tool_box.safe_start_keyboard_listener(_keyboard_hook):
+                    self._keyboard_hook_activated = True
+
             return True
 
         except Exception as telemetry_error:
@@ -1577,14 +1589,14 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             elapsed_seconds = self._telemetry.elapsed_since_start()
             if elapsed_seconds > 0:
                 events_per_minute = total_events / (elapsed_seconds / 60)
-                productivity_message = self._tool_box.format_productivity(events_per_minute=events_per_minute)
+                productivity_message = self._tool_box.format_productivity(events_per_minute=events_per_minute,total_seconds=elapsed_seconds)
 
         # Use telemetry to tell how long we've been running
         formatted_work_time = self._tool_box.format_duration(seconds=self._telemetry.elapsed_since_start(),
                                                              include_milliseconds=False)
-        # Goodbye
-        print(f"\nTotal time: {formatted_work_time}" + (f", {productivity_message}" if productivity_message else ""))
-        sys.stdout.write("Closing session, ")
+        # Say goodbye
+        print(f"\nTotal session time: {formatted_work_time}" + (f"\n{productivity_message}" if productivity_message else ""))
+        sys.stdout.write("Goodbye, ")
         self._tool_box.print_lolcat(f"{self._get_dynamic_goodbye()}!\n\n")
 
     @property
@@ -1669,14 +1681,16 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             buffer.insert_text('.')
             buffer.start_completion(select_first=True)
 
-        @kb.add("<any>", filter=Condition(lambda: self._productivity_assist))
+        @kb.add("<any>", filter=Condition(lambda: self._productivity_assist
+                                                  and not self._keyboard_hook_activated))
         def _keystroke_hook(event: KeyPressEvent):
             """ User productivity assist helper """
             self._productivity_events_count.add(1)
             # Push back everything printable or otherwise back to the keyboard buffer
             event.current_buffer.insert_text(event.key_sequence[0].key)
 
-        @kb.add("enter", filter=Condition(lambda: self._productivity_assist))
+        @kb.add("enter", filter=Condition(lambda: self._productivity_assist
+                                                  and not self._keyboard_hook_activated))
         def _on_enter(event: KeyPressEvent):
             """ User productivity assist helper """
             self._productivity_events_count.add(1)

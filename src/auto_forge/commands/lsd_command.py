@@ -10,7 +10,6 @@ Description:
     This module defines file and directory icon mappings using the Nerd Fonts glyph set.
     It requires the terminal or code editor to use a compatible Nerd Font, or icons will appear
     as blank boxes or question marks.
-
     Nerd Fonts: https://www.nerdfonts.com/font-downloads
 
     To use these icons correctly, install one of the patched fonts (e.g. FiraCode Nerd Font, Hack Nerd Font)
@@ -59,11 +58,13 @@ class LSDCommand(CommandInterface):
         Args:
             **kwargs (Any): Optional keyword arguments.
         """
-
         self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
 
+        if None in (self._tool_box, self._configuration):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         # Retrieve the ANSI codes map from the main AutoForge instance.
-        self._ansi_codes: Optional[dict[str, Any]] = CoreToolBox.get_instance().auto_forge.ansi_codes
+        self._ansi_codes: Optional[dict[str, Any]] = self._configuration.get("ansi_codes", {})
 
         # Placeholder for the large icons dictionary
         self._terminal_icons: Optional[dict[str, Any]] = None
