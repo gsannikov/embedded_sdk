@@ -51,7 +51,7 @@ class SolutionCommand(CommandInterface):
         self._solution: Optional[CoreSolution] = None  # Lazy import
 
         # Dependencies check
-        if None in (self._telemetry, self._variables, self._tool_box,  self._processor):
+        if None in (self._telemetry, self._variables, self._tool_box, self._processor):
             raise RuntimeError("failed to instantiate critical dependencies")
 
         # Base class initialization
@@ -278,7 +278,8 @@ class SolutionCommand(CommandInterface):
         group.add_argument('-tl', '--show-telemetry', action='store_true', help='Show telemetry status.')
         group.add_argument('-g', '--show-guide', action='store_true', help='Show the solution creation guide.')
 
-        # General purpose tools
+        # General purpose viewers
+        group.add_argument('-m', '--show-mark-down', help='Markdown File Viewer.')
         group.add_argument('-j', '--show-json', help='JSON file Viewer.')
 
     def run(self, args: argparse.Namespace) -> int:
@@ -311,6 +312,10 @@ class SolutionCommand(CommandInterface):
         elif args.show_guide:
             # Show tutorials for the solution JSON file structure
             return self._tool_box.show_help_file(relative_path='solution/guide.md')
+
+        elif args.show_mark_down:
+            # View Markdown file
+            return self._tool_box.show_help_file(relative_path=f'{args.show_mark_down}')
 
         elif args.show_json:
             # View JSON/C file.

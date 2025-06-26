@@ -56,6 +56,7 @@ class AutoForgCommandType(Enum):
     SHELL = 10
     ALIASES = 11
     BUILTIN = 12
+    HELP = 13
 
     @classmethod
     def from_str(cls, value: str, default: Union[str, 'AutoForgCommandType'] = None) -> 'AutoForgCommandType':

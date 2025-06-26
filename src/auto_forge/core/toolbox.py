@@ -1765,38 +1765,37 @@ class CoreToolBox(CoreModuleInterface):
         return help_file_path
 
     @staticmethod
-    def show_help_file(relative_path: Union[str, Path]) -> int:
+    def show_help_file(relative_path: Union[str, Path]) -> Optional[int]:
         """
         Displays a markdown help file using the textual markdown viewer.
         Args:
             relative_path (str): Relative path to the help file under PROJECT_HELP_PATH.
         Returns:
-            int: 0 on success, 1 on error or suppressed failure.
+            int: 0 on success, else error or exception
         """
         help_viewer_tool = PROJECT_VIEWERS_PATH / "help_viewer.py"
 
         # Resolve the file path
         help_file_path = CoreToolBox.resolve_help_file(relative_path)
 
-        with suppress(Exception):
-            if not help_viewer_tool.exists() or not help_file_path:
-                return 1
+        if not help_viewer_tool.exists():
+            raise RuntimeError("required viewer could not be found")
 
-            if help_file_path.stat().st_size > 64 * 1024:
-                return 1
+        if not help_file_path:
+            raise RuntimeError(f"markdown file '{str(relative_path)}'could not be found")
 
-            status = subprocess.run(["python3", str(help_viewer_tool), "--markdown", str(help_file_path)],
-                                    env=os.environ.copy())
-            return_code = status.returncode
+        if help_file_path.stat().st_size > 64 * 1024:
+            raise RuntimeError("markdown file size too large")
 
-            # Reset TTY settings
-            os.system("stty sane")
-            sys.stdout.flush()
-            sys.stderr.flush()
+        status = subprocess.run(["python3", str(help_viewer_tool), "--markdown", str(help_file_path)],
+                                env=os.environ.copy())
+        return_code = status.returncode
 
-            return return_code
-
-        return 1  # If anything failed silently
+        # Reset TTY settings
+        os.system("stty sane")
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return return_code
 
     def show_status(self, message: Optional[str] = None,
                     status_type: PromptStatusType = PromptStatusType.INFO,
