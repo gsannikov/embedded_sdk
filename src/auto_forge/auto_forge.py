@@ -229,7 +229,7 @@ class AutoForge(CoreModuleInterface):
                 self._platform.git_get_path_from_url(url=self._solution_url, delete_if_exist=True))
 
         if self._solution_package_file is not None and self._solution_package_path is None:
-            self._solution_package_path = self._tool_box.uncompress_file(archive_path=self._solution_package_file)
+            self._solution_package_path = self._tool_box.decompress_archive(archive_path=self._solution_package_file)
 
         self._logger.debug(f"Solution files path: '{self._solution_package_path}'")
 

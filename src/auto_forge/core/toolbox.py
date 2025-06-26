@@ -995,8 +995,8 @@ class CoreToolBox(CoreModuleInterface):
         return False, None  # Returns False and None if an exception occurs
 
     @staticmethod
-    def uncompress_file(archive_path: str, destination_path: Optional[str] = None, delete_after: bool = False,
-                        update_progress: Optional[Callable[..., Any]] = None) -> Optional[str]:
+    def decompress_archive(archive_path: str, destination_path: Optional[str] = None, delete_after: bool = False,
+                           update_progress: Optional[Callable[..., Any]] = None) -> Optional[str]:
         """
         Extracts a compressed archive (zip, tar, tar.gz, tar.bz2, etc.) into a destination directory.
 
@@ -1023,7 +1023,7 @@ class CoreToolBox(CoreModuleInterface):
                 with zipfile.ZipFile(archive_path) as zf:
                     for member in zf.filelist:
                         if update_progress:
-                            update_progress(f"{member.filename}")
+                            update_progress(f"{os.path.basename(member.filename)}")
                         zf.extract(member, path=destination_path)
                 if delete_after:
                     os.remove(archive_path)
@@ -1035,7 +1035,7 @@ class CoreToolBox(CoreModuleInterface):
                         if member is None:
                             break
                         if update_progress:
-                            update_progress(f"{member.name}")
+                            update_progress(f"{os.path.basename(member.name)}")
                         tf.extract(member, path=destination_path)
                 if delete_after:
                     os.remove(archive_path)

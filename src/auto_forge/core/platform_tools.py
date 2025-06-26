@@ -1083,10 +1083,10 @@ class CorePlatform(CoreModuleInterface):
             self._variables.expand(key=destination_path) if destination_path else None)
 
         try:
-            extracted_path = self._tool_box.uncompress_file(archive_path=expanded_archive_path,
-                                                            destination_path=expanded_destination_path,
-                                                            delete_after=True,
-                                                            update_progress=self._tracker.set_body_in_place)
+            extracted_path = self._tool_box.decompress_archive(archive_path=expanded_archive_path,
+                                                               destination_path=expanded_destination_path,
+                                                               delete_after=True,
+                                                               update_progress=self._tracker.set_body_in_place)
             return CommandResultType(response=extracted_path, return_code=0)
 
         except Exception as decompress_error:
