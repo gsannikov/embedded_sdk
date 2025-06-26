@@ -6,7 +6,7 @@
 # Script Name:    installer.sh
 # Description:    Auxiliary script for installing AutoForge using bootstrap.
 #                 Note: This script could be sourced or directly invoked.
-# Version:        1.2
+# Version:        1.3
 #
 # ------------------------------------------------------------------------------
 
@@ -47,6 +47,7 @@ install_auto_forge() {
     local dest_workspace_path="" # Path for the new workspace
     local solution_name=""       # In this context: also the sample path name
     local solution_package=""
+    local sequence_name="workspace_sequence"
     local bootstrap_url="${GITHUB_RAW}/${GITHUB_REPO}/main/${GITHUB_PATH}"
     local auto_start=false
     local allow_non_empty=false
@@ -65,15 +66,16 @@ install_auto_forge() {
         echo
         echo "Usage: $0 [options]"
         echo
-        echo "  -w, --workspace    [path]     Destination workspace path."
-        echo "  -n, --name         [name]     Solution name to use."
-        echo "  -p, --package      [path/url] Optional solution package URL or local path."
-        echo "  -b, --bootstrap    [url]      Optional override for the bootstrap URL."
-        echo "      --auto_start              Automatically start the package upon successful setup."
-        echo "      --allow_non_empty         Allow using non-empty directories by clearing their contents first."
-        echo "      --verbose                 Enable more detailed output."
-        echo "      --no_token                Do not attempt to acquire GitHub token using 'dt'."
-        echo "  -h, --help                    Display this help message and exit."
+        echo "  -w, --workspace    [path]       Destination workspace path."
+        echo "  -n, --name         [name]       Solution name to use."
+        echo "  -p, --package      [path/url]   Optional solution package URL or local path."
+        echo "  -b, --bootstrap    [url]        Optional override for the bootstrap URL."
+        echo "  -s, --sequence     [json/prop]  Optional specific sequence property name."
+        echo "      --auto_start                Automatically start the package upon successful setup."
+        echo "      --allow_non_empty           Allow using non-empty directories by clearing their contents first."
+        echo "      --verbose                   Enable more detailed output."
+        echo "      --no_token                  Do not attempt to acquire GitHub token using 'dt'."
+        echo "  -h, --help                      Display this help message and exit."
         echo
         printf "Examples:\n\n"
         printf "To install the AutoForge 'demo' solution sample and automatically start it upon completion:\n"
@@ -106,6 +108,10 @@ install_auto_forge() {
             ;;
         -b | --bootstrap)
             bootstrap_url="$2"
+            shift 2
+            ;;
+        -s | --sequence)
+            sequence_name="$2"
             shift 2
             ;;
         --auto_start)
@@ -226,7 +232,7 @@ install_auto_forge() {
     if ! curl "${curl_args[@]}" "$bootstrap_url" | bash -s -- \
         -n "$solution_name" \
         -w "$workspace_name" \
-        -s create_environment_sequence \
+        -s "$sequence_name" \
         -p "$solution_package"; then
 
         echo "Bootstrap failed"
