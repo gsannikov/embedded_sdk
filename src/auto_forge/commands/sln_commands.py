@@ -24,7 +24,7 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgFolderType, CommandInterface, CorePlatform, CoreSolution, CoreVariables,
+from auto_forge import (AutoForgFolderType, CommandInterface, CoreSolution, CoreVariables,
                         CoreJSONCProcessor, CoreToolBox, CoreTelemetry, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
@@ -44,12 +44,15 @@ class SolutionCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        self._solution: Optional[CoreSolution] = None
-        self._variables: Optional[CoreVariables] = None
-        self._environment: Optional[CorePlatform] = None
-        self._telemetry: Optional[CoreTelemetry] = None
-        self._tool_box: Optional[CoreToolBox] = CoreToolBox.get_instance()
-        self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
+        self._telemetry = CoreTelemetry.get_instance()
+        self._variables = CoreVariables.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+        self._processor = CoreJSONCProcessor.get_instance()
+        self._solution: Optional[CoreSolution] = None  # Lazy import
+
+        # Dependencies check
+        if None in (self._telemetry, self._variables, self._tool_box,  self._processor):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
@@ -132,7 +135,6 @@ class SolutionCommand(CommandInterface):
         Displays a summary of the current telemetry state, including initialized tracer/meter components,
         counters, and uptime, using Rich formatting.
         """
-        self._telemetry = CoreTelemetry.get_instance()
         if not isinstance(self._telemetry, CoreTelemetry):
             raise RuntimeError("could not get telemetry class instance")
 
@@ -183,7 +185,7 @@ class SolutionCommand(CommandInterface):
             except Exception as telemetry_error:
                 console.print(f"[red]Warning:[/red] Could not enumerate counters: {telemetry_error}")
 
-            console.print(table,'\n')
+            console.print(table, '\n')
         else:
             console.print("[dim]No 'meter' available — counters not tracked.[/dim]")
 
@@ -289,7 +291,6 @@ class SolutionCommand(CommandInterface):
         """
 
         self._solution: CoreSolution = CoreSolution.get_instance()
-        self._variables: CoreVariables = CoreVariables.get_instance()
 
         if args.show_solution:
             # Show the expanded solution using the JSON viewer

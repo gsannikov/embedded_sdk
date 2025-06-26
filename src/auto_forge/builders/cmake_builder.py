@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CorePlatform, CorePrompt, CoreToolBox, CommandResultType,
+                        TerminalEchoType, CorePlatform, CoreToolBox, CommandResultType,
                         GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
@@ -63,11 +63,15 @@ class CMakeBuilder(BuilderRunnerInterface):
             **_kwargs (Any): Optional keyword arguments for future extensibility.
                              Currently unused but accepted for interface compatibility.
         """
-        self._environment: Optional[CorePlatform] = None
-        self._prompt: Optional[CorePrompt] = None
+        self._platform = CorePlatform.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+
+        # Dependencies check
+        if None in (self._platform, self._tool_box):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         self._toolchain: Optional[BuilderToolChain] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
-        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._gcc_analyzer = GCCLogAnalyzer()
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
@@ -110,7 +114,6 @@ class CMakeBuilder(BuilderRunnerInterface):
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
 
-        self._environment = CorePlatform.get_instance()
         config = build_profile.config_data
 
         if not isinstance(config, dict):
@@ -189,10 +192,10 @@ class CMakeBuilder(BuilderRunnerInterface):
             self._set_state(build_state=_CMakeBuildStep.PRE_CONFIGURE, extra_args=build_profile.extra_args,
                             config=config)
             self.print_message(message=f"Configuring in '{execute_from}'")
-            results = self._environment.execute_shell_command(command_and_args=command_line,
-                                                              echo_type=TerminalEchoType.LINE,
-                                                              cwd=str(execute_from),
-                                                              leading_text=build_profile.terminal_leading_text)
+            results = self._platform.execute_shell_command(command_and_args=command_line,
+                                                           echo_type=TerminalEchoType.LINE,
+                                                           cwd=str(execute_from),
+                                                           leading_text=build_profile.terminal_leading_text)
         except CommandFailedException as execution_error:
             results = execution_error.results
             raise RuntimeError(
@@ -215,10 +218,10 @@ class CMakeBuilder(BuilderRunnerInterface):
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
                 ninja_command_line = f"{ninja_build_command} -C {str(build_path)}"
-                results = self._environment.execute_shell_command(command_and_args=ninja_command_line,
-                                                                  echo_type=TerminalEchoType.LINE,
-                                                                  cwd=str(execute_from),
-                                                                  leading_text=build_profile.terminal_leading_text)
+                results = self._platform.execute_shell_command(command_and_args=ninja_command_line,
+                                                               echo_type=TerminalEchoType.LINE,
+                                                               cwd=str(execute_from),
+                                                               leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
                 raise RuntimeError(
@@ -297,8 +300,8 @@ class CMakeBuilder(BuilderRunnerInterface):
         if command.startswith("!"):
             command = command[1:].lstrip()  # Remove a trailing '!'
         try:
-            results = self._environment.execute_shell_command(command_and_args=command,
-                                                              echo_type=TerminalEchoType.SINGLE_LINE)
+            results = self._platform.execute_shell_command(command_and_args=command,
+                                                           echo_type=TerminalEchoType.SINGLE_LINE)
             return results.return_code
 
         except Exception as execution_error:

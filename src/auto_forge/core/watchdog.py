@@ -14,25 +14,15 @@ import sys
 import threading
 import time
 from contextlib import suppress
-from typing import Optional, Any
+from typing import Optional
 
 # AutoForge essential imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreTelemetry, CoreRegistry)
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry)
 
 AUTO_FORGE_MODULE_NAME = "WatchDog"
 AUTO_FORGE_MODULE_DESCRIPTION = "Package Watchdog thread manager"
 AUTO_FORGE_WATCHDOG_DEFAULT_TIMEOUT = 10.0
-
-
-# ------------------------------------------------------------------------------
-#
-# Note:
-#   This module is used during early initialization and must remain self-contained.
-#   Avoid importing any project-specific code or third-party libraries to ensure
-#   portability and prevent circular import issues.
-#
-# ------------------------------------------------------------------------------
 
 
 class CoreWatchdog(CoreModuleInterface):
@@ -61,13 +51,18 @@ class CoreWatchdog(CoreModuleInterface):
         Args:
             default_timeout (int): Timeout in seconds before the watchdog triggers.
         """
+        self._registry = CoreRegistry.get_instance()
+        self._telemetry = CoreTelemetry.get_instance()
+
+        # Dependencies check
+        if None in (self._registry, self._telemetry):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         self._lock = threading.Lock()
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-        self._keyboard_listener: Optional[Any] = None
+        self._thread: threading.Thread = threading.Thread(target=self._watch, daemon=True, name="WatchDog")
         self._default_timeout = default_timeout if default_timeout is not None else AUTO_FORGE_WATCHDOG_DEFAULT_TIMEOUT
         self._trigger = threading.Event()
         self._thread_running: bool = False
-        self._thread: threading.Thread = threading.Thread(target=self._watch, daemon=True, name="WatchDog")
 
         # Dependencies check
         if self._telemetry is None:

@@ -44,11 +44,9 @@ class CoreDynamicLoader(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, configuration: dict[str, Any]) -> None:
+    def _initialize(self) -> None:
         """
         Initializes the 'CoreLoader' class and prepares the command registry.
-        Args:
-            configuration: dictionary with package configuration data.
         Note:
             These core modules may be initialized before the main AutoForge controller is constructed.
             As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
@@ -56,12 +54,18 @@ class CoreDynamicLoader(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._registry: CoreRegistry = CoreRegistry.get_instance()
-        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._registry, self._telemetry,
+                    self._tool_box, self.auto_forge.configuration):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         self._loaded_commands: int = 0
-        self._configuration: dict[str, Any] = configuration
+        self._configuration: dict[str, Any] = self.auto_forge.configuration
 
         # Supported base interfaces for command classes
         self._supported_interfaces = {CommandInterface: "CommandInterface",

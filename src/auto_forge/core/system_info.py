@@ -52,8 +52,12 @@ class CoreSystemInfo(CoreModuleInterface):
         and (on Linux) distribution details.
         """
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._telemetry):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._system_type: str = platform.system().lower()
         self._is_wsl: bool = "wsl" in platform.release().lower()

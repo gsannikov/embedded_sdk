@@ -46,12 +46,16 @@ class EditCommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
-        # Extract optional parameters
+        self._variables = CoreVariables.get_instance()
+        self._system_info = CoreSystemInfo.get_instance()
+        self._solution: Optional[CoreSolution] = None  # Lazy import
+
+        # Dependencies check
+        if None in (self._variables, self._system_info):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         self._detected_editors: Optional[list[dict[str, Any]]] = []
-        self._sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
         self._selected_editor_index: Optional[int] = None
-        self._variables: CoreVariables = CoreVariables.get_instance()
-        self._solution: Optional[CoreSolution] = None
         self._max_fallback_search_paths: int = 10
 
         # Base class initialization
@@ -97,13 +101,13 @@ class EditCommand(CommandInterface):
         Injects relevant WSL environment variables into the package runtime,
         such as the user's home path and the Windows C: drive mount path.
         """
-        wsl_home = self._sys_info.wsl_home
+        wsl_home = self._system_info.wsl_home
         if isinstance(wsl_home, str):
             # noinspection SpellCheckingInspection
             self._variables.add(key='WSL_HOMEPATH', value=wsl_home, is_path=True, path_must_exist=True,
                                 description='WSL user home path')
 
-        wsl_c_mount = self._sys_info.wsl_c_mount
+        wsl_c_mount = self._system_info.wsl_c_mount
         if isinstance(wsl_c_mount, str):
             # noinspection SpellCheckingInspection
             self._variables.add(key='WSL_C_MOUNT', value=wsl_c_mount, is_path=True, path_must_exist=True,
@@ -138,7 +142,7 @@ class EditCommand(CommandInterface):
             path = self._variables.expand(key=raw_path, quiet=True).replace("\\", "/").rstrip("/")
 
             # Skip Windows paths if we're not in WSL or not targeting .exe
-            if is_wsl_path and (not self._sys_info.is_wsl or not is_windows_target):
+            if is_wsl_path and (not self._system_info.is_wsl or not is_windows_target):
                 continue
 
             if os.path.isdir(path):
@@ -359,7 +363,7 @@ class EditCommand(CommandInterface):
             folder_uri = "file://" + pathname2url(trusted_path)
 
             # Detect WSL environment
-            is_wsl = self._sys_info.is_wsl
+            is_wsl = self._system_info.is_wsl
 
             if is_wsl:
                 # noinspection SpellCheckingInspection

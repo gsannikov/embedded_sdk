@@ -328,7 +328,6 @@ class CoreSolution(CoreModuleInterface):
         The referenced value may be either a dictionary (inline sequence) or a string
         pointing to a file path. In the latter case, the string will be expanded and
         treated as a path to a JSON-compatible file that will be preprocessed and loaded.
-
         Args:
             sequence_name (str): The name of the sequence to retrieve.
         Returns:

@@ -182,9 +182,9 @@ class CoreJSONCProcessor(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._registry = CoreRegistry.get_instance()
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._telemetry = CoreTelemetry.get_instance()
 
         # Dependencies check
         if None in (self._core_logger, self._logger, self._registry, self._telemetry):

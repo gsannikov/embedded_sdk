@@ -21,9 +21,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Tracer, TracerProvider as SDKTracerProvider
 
 # AutoForge imports
-from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry
-)
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry)
 # Borrowing just the bare minium rom the package
 from auto_forge.settings import PROJECT_NAME
 

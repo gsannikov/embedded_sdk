@@ -64,9 +64,14 @@ class CoreLinuxAliases(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._registry = CoreRegistry.get_instance()
         self._sys_info: CoreSystemInfo = CoreSystemInfo().get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._registry, self._sys_info, self._telemetry):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._shell_name: Optional[str] = None
         self._shell_version: Optional[str] = None
@@ -90,9 +95,8 @@ class CoreLinuxAliases(CoreModuleInterface):
         self._env_valid: bool = False
 
         # Register this module with the package registry
-        registry = CoreRegistry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                 auto_forge_module_type=AutoForgeModuleType.CORE)
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Auto Probe the environment
         self._probe_env(forced_shell=forced_shell)

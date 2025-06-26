@@ -14,7 +14,7 @@
         {
             "name": "userspace",
             "description": "Userspace CMake port",
-            "create_environment_sequence": "<$include>environment.jsonc",
+            "workspace_sequence": "<$include>workspace_sequence.jsonc",
             "aliases": "<$include>aliases.jsonc",
             // Include additional project specific commands
             "default_editor": "*code*",

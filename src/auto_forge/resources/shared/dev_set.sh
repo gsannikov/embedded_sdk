@@ -4,7 +4,7 @@
 #
 # Script Name:    dev_set.sh
 # Description:    AutoForge developer helper.
-# Version:        1.0
+# Version:        1.1
 #
 # ------------------------------------------------------------------------------
 
@@ -178,7 +178,6 @@ main() {
     # Attempting to install fresh 'pydev' at a specific revision to our venv.
     pip uninstall pydevd-pycharm -y &>/dev/null
     pip install pydevd-pycharm~=251.25410.122 &>/dev/null || {
-
         printf "Warning: 'pydev' was not installed successfully.\n"
     }
 

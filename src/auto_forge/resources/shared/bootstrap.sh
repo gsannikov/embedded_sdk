@@ -4,7 +4,7 @@
 #
 # Script Name:    bootstrap.sh
 # Description:    AutoForge bootstrap installer.
-# Version:        1.1
+# Version:        1.2
 #
 # ------------------------------------------------------------------------------
 
@@ -83,8 +83,8 @@ main() {
         echo "  -w, --workspace 	  [path]      Destination workspace path."
         echo "  -n, --name      	  [name]      Solution name to use."
         echo "  -p, --package   	  [path/url]  Solution package to use (local path or URL)."
-        echo "  -s, --sequence  	  [name]      Reference sequence name in specified solution"
-        echo "  -a, --auto_forge    [url]       Optional override AutoForge package URL."
+        echo "  -s, --sequence  	  [name]      Solution sequence name required for preparing new workspace"
+        echo "  -u, --url           [url]       Optional override AutoForge package URL."
         echo "  -h, --help                      Display this help and exit."
         echo
     }
@@ -106,6 +106,10 @@ main() {
             ;;
         -s | --sequence)
             sequence_name="$2"
+            shift 2
+            ;;
+        -u | --url)
+            auto_forge_url="$2"
             shift 2
             ;;
         -h | --help)

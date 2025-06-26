@@ -45,32 +45,32 @@ class CoreVariables(CoreModuleInterface):
         self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted listy of objects
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, solution_name: str, configuration: dict[str, Any],
-                    work_mode: AutoForgeWorkModeType) -> None:
+    def _initialize(self, workspace_path: str, solution_name: str, work_mode: AutoForgeWorkModeType) -> None:
         """
         Initialize the 'Variables' class using a configuration JSON file.
         Args:
             workspace_path (str): The workspace path.
             solution_name (str): Solution name.
-            configuration (dict[str, Any]): Package configuration data.
         Note:
             These core modules may be initialized before the main AutoForge controller is constructed.
             As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
             to support early startup execution.
         """
         try:
+            self._registry = CoreRegistry.get_instance()
+            self._telemetry = CoreTelemetry.get_instance()
+            self._processor = CoreJSONCProcessor.get_instance()
             self._tool_box = CoreToolBox.get_instance()
-            self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-            self._processor: CoreJSONCProcessor = CoreJSONCProcessor.get_instance()
+
+            # Dependencies check
+            if None in (self._registry, self._telemetry, self._processor, self.auto_forge.configuration):
+                raise RuntimeError("failed to instantiate critical dependencies")
+
             self._ignore_path_errors: bool = False
             self._essential_variables_essential_variables: Optional[list[dict]] = None
             self._lock: threading.RLock = threading.RLock()  # Initialize the re-entrant lock
             self._search_keys: Optional[list[tuple[bool, str]]] = None  # Allow for faster binary search
-
-            # Store package configuration
-            self._configuration: dict[str, Any] = configuration
-            if self._configuration is None:
-                raise RuntimeError("missing package configuration data")
+            self._configuration: dict[str, Any] = self.auto_forge.configuration
 
             # Set to ignore invalid path when in environment t creation mode
             if work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
@@ -95,9 +95,8 @@ class CoreVariables(CoreModuleInterface):
             self._reset()
 
             # Register this module with the package registry
-            registry = CoreRegistry.get_instance()
-            registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                     auto_forge_module_type=AutoForgeModuleType.CORE)
+            self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                           auto_forge_module_type=AutoForgeModuleType.CORE)
 
             # Inform telemetry that the module is up & running
             self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)

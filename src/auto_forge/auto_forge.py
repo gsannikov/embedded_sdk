@@ -174,7 +174,6 @@ class AutoForge(CoreModuleInterface):
         # Instantiate the variables module, which replaces the traditional shell environment
         # with a more powerful and extensible core-based system.
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
-                                        configuration=self._configuration,
                                         work_mode=self._work_mode)
 
         # At this point, we have enough information to finalize logger initialization.
@@ -183,13 +182,13 @@ class AutoForge(CoreModuleInterface):
         self._init_logger()
 
         # Load all supported dynamic modules — currently includes: command handlers and build plugins
-        self._loader = CoreDynamicLoader(configuration=self._configuration)
+        self._loader = CoreDynamicLoader()
         self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
 
         # Instantiate the platform module, which provides key utilities for interacting with the user's platform.
         # This includes methods for executing processes (individually or in sequence), performing essential Git operations,
         # working with the file system, and more.
-        self._platform = CorePlatform(workspace_path=self._workspace_path, configuration=self._configuration)
+        self._platform = CorePlatform(workspace_path=self._workspace_path)
 
         # Remove any previously generated autoforge temporary files.
         self._tool_box.clear_residual_files()

@@ -323,17 +323,25 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             prompt (Optional[str]): Optional custom base prompt string instead of the solution name.
         """
 
+        # Required Autoforge modules
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
-        self._tool_box = CoreToolBox.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._registry: CoreRegistry = CoreRegistry.get_instance()
+        self._system_info = CoreSystemInfo.get_instance()
+        self._telemetry = CoreTelemetry.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
         self._variables = CoreVariables.get_instance()
-        self._environment: CorePlatform = CorePlatform.get_instance()
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-        self._solution: CoreSolution = CoreSolution.get_instance()
-        self._sys_info = CoreSystemInfo()
+        self._platform = CorePlatform.get_instance()
+        self._solution = CoreSolution.get_instance()
+        self._loader = CoreDynamicLoader.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._registry, self._system_info, self._telemetry,
+                    self._tool_box, self._variables, self._platform, self._solution, self._loader,
+                    self.auto_forge.configuration):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         self._prompt_base: Optional[str] = prompt
-        self._loader: Optional[CoreDynamicLoader] = CoreDynamicLoader.get_instance()
         self._history_file_name: Optional[str] = None
         self._path_completion_rules_metadata: dict[str, Any] = {}
         self._commands_metadata: dict[str, Any] = {}
@@ -344,14 +352,10 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
         self._work_mode: Optional[AutoForgeWorkModeType] = self.auto_forge.work_mode
+        self._configuration = self.auto_forge.get_instance().configuration
 
         # Disable user input until the prompt is active
         self._tool_box.set_terminal_input()
-
-        # Retrieve AutoForge package configuration
-        self._configuration = self.auto_forge.get_instance().configuration
-        if self._configuration is None:
-            raise RuntimeError("package configuration data not available")
 
         # Clear command line buffer
         sys.argv = [sys.argv[0]]
@@ -1127,7 +1131,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 f.write(f"### Package\n")
                 f.write(f"- Version: {self.auto_forge.version}\n")
                 f.write(f"- Solution: {self._solution.solution_name}\n")
-                f.write(self._sys_info.to_markdown(as_table=False, heading_level=3))
+                f.write(self._system_info.to_markdown(as_table=False, heading_level=3))
 
             self._logger.debug(f"Dynamic help file generated in {output_path.name}")
             return str(output_path)
@@ -1543,7 +1547,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             # Export local variables to an environment mapping
             var_env = self._variables.export(as_env=True)
 
-            results = self._environment.execute_shell_command(
+            results = self._platform.execute_shell_command(
                 command_and_args=statement.command_and_args, env=var_env, echo_type=TerminalEchoType.LINE)
 
             self.last_result = results.return_code if results else 0
@@ -1589,13 +1593,15 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             elapsed_seconds = self._telemetry.elapsed_since_start()
             if elapsed_seconds > 0:
                 events_per_minute = total_events / (elapsed_seconds / 60)
-                productivity_message = self._tool_box.format_productivity(events_per_minute=events_per_minute,total_seconds=elapsed_seconds)
+                productivity_message = self._tool_box.format_productivity(events_per_minute=events_per_minute,
+                                                                          total_seconds=elapsed_seconds)
 
         # Use telemetry to tell how long we've been running
         formatted_work_time = self._tool_box.format_duration(seconds=self._telemetry.elapsed_since_start(),
                                                              include_milliseconds=False)
         # Say goodbye
-        print(f"\nTotal session time: {formatted_work_time}" + (f"\n{productivity_message}" if productivity_message else ""))
+        print(f"\nTotal session time: {formatted_work_time}" + (
+            f"\n{productivity_message}" if productivity_message else ""))
         sys.stdout.write("Goodbye, ")
         self._tool_box.print_lolcat(f"{self._get_dynamic_goodbye()}!\n\n")
 

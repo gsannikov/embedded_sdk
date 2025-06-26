@@ -1,5 +1,5 @@
 """
-Script:         platform.py
+Script:         platform_tools.py
 Author:         AutoForge Team
 
 Description:
@@ -72,12 +72,11 @@ class CorePlatform(CoreModuleInterface):
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, workspace_path: str, configuration: dict[str, Any]) -> None:
+    def _initialize(self, workspace_path: str) -> None:
         """
         Initialize the 'Platform' class.
         Args:
             workspace_path: path to the workspace directory to initialize.
-            configuration: dictionary with package configuration data.
         Note:
             These core modules may be initialized before the main AutoForge controller is constructed.
             As such, they must receive configuration data directly from the top-level auto_forge bootstrap logic
@@ -85,20 +84,27 @@ class CorePlatform(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._registry = CoreRegistry.get_instance()
+        self._telemetry = CoreTelemetry.get_instance()
+        self._watchdog = CoreWatchdog.get_instance()
+        self._processor = CoreJSONCProcessor.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+        self._system_info = CoreSystemInfo.get_instance()
+        self._loader = CoreDynamicLoader.get_instance()
+        self._variables = CoreVariables.get_instance()
+        self._linux_aliases = CoreLinuxAliases.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._registry, self._system_info, self._telemetry,
+                    self._watchdog, self._processor, self._tool_box, self._variables, self._loader,
+                    self.auto_forge.configuration):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path
         self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
-        self._watchdog: CoreWatchdog = CoreWatchdog.get_instance()
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-        self._processor = CoreJSONCProcessor.get_instance()
-        self._tool_box: CoreToolBox = CoreToolBox.get_instance()
-        self._sys_info: CoreSystemInfo = CoreSystemInfo.get_instance()
-        self._loader: CoreDynamicLoader = CoreDynamicLoader.get_instance()
-        self._variables: CoreVariables = CoreVariables.get_instance()
-        self._configuration: dict[str, Any] = configuration
-        self._linux_aliases: CoreLinuxAliases = CoreLinuxAliases.get_instance()
+        self._configuration: dict[str, Any] = self.auto_forge.configuration
 
         # Get the interactive commands from package configuration or use defaults if not available
         self._interactive_commands = self._configuration.get('interactive_commands',
@@ -110,7 +116,6 @@ class CorePlatform(CoreModuleInterface):
                                                                     self._subprocess_execution_timout)
 
         # Register this module with the package registry
-        self._registry = CoreRegistry.get_instance()
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
                                        auto_forge_module_type=AutoForgeModuleType.CORE)
 

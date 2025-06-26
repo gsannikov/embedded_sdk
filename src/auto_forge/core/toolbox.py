@@ -67,9 +67,6 @@ class CoreToolBox(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared
         earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
-        self._ansi_codes: Optional[dict[str, str]] = None
-        self._preprocessor: Optional[CoreJSONCProcessor] = None
-
         super().__init__(*args, **kwargs)
 
     def _initialize(self, *_args, **_kwargs) -> None:
@@ -89,6 +86,8 @@ class CoreToolBox(CoreModuleInterface):
                     self.auto_forge.configuration):
             raise RuntimeError("failed to instantiate critical dependencies")
 
+        self._ansi_codes: Optional[dict[str, str]] = None
+        self._preprocessor: Optional[CoreJSONCProcessor] = None
         self._dynamic_vars_storage: dict = {}  # Dictionary for managed arbitrary session variables
         self._show_status_lock = threading.RLock()
         self._pre_compiled_escape_patterns = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
@@ -1713,10 +1712,6 @@ class CoreToolBox(CoreModuleInterface):
                 json_file_path: Optional[str] = variables_class.expand(key=json_path_or_data, quiet=True)
                 if json_file_path and os.path.exists(json_file_path):
                     json_file_path = os.path.abspath(json_file_path)
-
-                    if self._preprocessor is None:
-                        self._preprocessor = CoreJSONCProcessor.get_instance()
-
                     json_path_or_data = self._preprocessor.render(file_name=json_file_path)
 
             if isinstance(json_path_or_data, dict):

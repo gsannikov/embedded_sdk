@@ -47,8 +47,13 @@ class CoreSignatures(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._registry = CoreRegistry.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._registry, self._telemetry):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._config_file_name: Optional[str] = None
         self._signature_id: Optional[int] = 42
@@ -138,9 +143,8 @@ class CoreSignatures(CoreModuleInterface):
             self._schemas.append(schema)
 
         # Register this module with the package registry
-        registry = CoreRegistry.get_instance()
-        registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                 auto_forge_module_type=AutoForgeModuleType.CORE)
+        self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
