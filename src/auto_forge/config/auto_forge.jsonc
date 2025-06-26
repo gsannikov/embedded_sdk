@@ -19,6 +19,10 @@
     "subprocess_execution_timout": 120.0,                   // Default timeout (in seconds) for sub-process execution.
     "watchdog_timeout": 10.0,                               // Default timeout (in seconds) for sub-process execution.
     "productivity_assist": true,                            // Productivity assist flag
+
+    // Demo API Key
+    "api_key": "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",
+
     "keywords_mapping": [
 
         // Defines placeholder-to-value mappings used for runtime substitution.
@@ -75,7 +79,8 @@
         ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                       "Solution JSONs",                              null,    null,   "SCRIPTS"           ],
         ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ],
         ["AI_ENDPOINT",         "https://api.openai.com/v1/chat/completions",   "AI Request URL",                              null,    null,   null                ],
-        ["AI_MODEL",            "gpt-4",                                        "AI Model",                                    null,    null,   null                ]
+        ["AI_MODEL",            "gpt-4",                                        "AI Model",                                    null,    null,   null                ],
+        ["AI_REQ_TIMEOUT",      "10",                                           "AI Request timeout",                          null,    null,   null                ]
     ],
 
 

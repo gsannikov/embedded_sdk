@@ -29,6 +29,14 @@
             "path_must_exist": true,
             "create_path_if_not_exist": false,
             "folder_type": "SOURCES"
+        },
+        {
+            "name": "AI_DEMO_KEY",
+            "value": "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 \n",
+            "description": "Demo OpenAI key",
+            "path_must_exist": false,
+            "create_path_if_not_exist": false,
+            "folder_type": ""
         }
     ]
 }

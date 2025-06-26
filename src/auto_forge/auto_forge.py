@@ -165,10 +165,6 @@ class AutoForge(CoreModuleInterface):
         # other user-defined startup flags.
         self._init_arguments(*args, **kwargs)
 
-        # Reset terminal and clean it's buffer.
-        if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
-            self._tool_box.reset_terminal()
-
         # If debug mode was enabled via the command line, attempt to safely import and start
         # `pydevd_pycharm`, which tries to connect to a remote PyCharm debug server.
         # Since this build system heavily relies on terminal-focused libraries like cmd2 and prompt_toolkit,
@@ -176,6 +172,10 @@ class AutoForge(CoreModuleInterface):
         # the most reliable way to perform step-by-step debugging.
         if self._remote_debugging is not None:
             self._init_debugger(host=self._remote_debugging.host, port=self._remote_debugging.port)
+
+        # Reset terminal and clean it's buffer.
+        if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
+            self._tool_box.reset_terminal()
 
         # Instantiate the variables module, which replaces the traditional shell environment
         # with a more powerful and extensible core-based system.
@@ -186,6 +186,7 @@ class AutoForge(CoreModuleInterface):
         # This step flushes all temporarily buffered logs into the finalized logger instance,
         # which will be used from this point onward.
         self._init_logger()
+        self._ai_bridge = CoreAI()
 
         # Load all supported dynamic modules — currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader()
@@ -204,9 +205,6 @@ class AutoForge(CoreModuleInterface):
         # preprocess them, and resolve all references, pointers, and variables into a clean, validated JSON.
         # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
-
-        # AI Bridge
-        self._ai_bridge = CoreAI()
 
         # Set the events-loop thread, without starting it yet.
         self._events_sync_thread = threading.Thread(target=self._events_loop, daemon=True, name="EvensSyncThread", )
@@ -574,7 +572,6 @@ class AutoForge(CoreModuleInterface):
 
             # Construct normalized proxy URL
             # noinspection HttpUrlsUsage
-
             if self._variables is not None:
                 self._variables.add(key="HTTP_PROXY", value=self._proxy_server.url, is_path=False,
                                     description="Proxy Server")

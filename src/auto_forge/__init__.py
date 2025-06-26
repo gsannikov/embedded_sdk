@@ -73,12 +73,12 @@ try:
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
+    from auto_forge.core.ai import CoreAI
     from auto_forge.core.gui import CoreGUI
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
     from auto_forge.core.solution import CoreSolution
     from auto_forge.core.dynamic_loader import CoreDynamicLoader
     from auto_forge.core.linux_aliases import CoreLinuxAliases
-    from auto_forge.core.ai import CoreAI
     from auto_forge.core.platform_tools import CorePlatform
     from auto_forge.core.xray import CoreXRayDB
     from auto_forge.core.prompt import CorePrompt

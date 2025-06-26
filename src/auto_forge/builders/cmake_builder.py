@@ -24,6 +24,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
                         TerminalEchoType, CorePlatform, CoreToolBox, CommandResultType, GCCLogAnalyzer)
+from auto_forge.core.ai import CoreAI
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -64,6 +65,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         """
         self._tool_box = CoreToolBox.get_instance()
         self._platform: Optional[CorePlatform] = None  # Late blooming module
+        self._ai_bridge: Optional[CoreAI] = None  # Late blooming module
 
         # Dependencies check
         if self._tool_box is None:
@@ -201,8 +203,9 @@ class CMakeBuilder(BuilderRunnerInterface):
                 f"build process failed to start {results.message if results else 'unknown'}") from execution_error
         finally:
             if results is not None:
-                self._gcc_analyzer.analyze(log_source=results.response,
-                                           export_file_name=AUTO_FORGE_MODULE_CONTEXT_FILE_NAME)
+                error_context = self._gcc_analyzer.analyze(log_source=results.response)
+                if isinstance(error_context, list):
+                    self._ai_bridge.query(prompt="I Got some compilation errors", context=str(error_context))
 
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
@@ -343,6 +346,10 @@ class CMakeBuilder(BuilderRunnerInterface):
             return _s if _s.endswith('.') else _s + '.'
 
         try:
+
+            self._ai_bridge: CoreAI.get_instance()
+            self._platform: CorePlatform.get_instance()
+
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
 
