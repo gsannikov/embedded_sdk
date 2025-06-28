@@ -9,10 +9,11 @@ from typing import Optional
 
 # from openai.lib.azure import AzureOpenAI
 import httpx
+from httpx import TimeoutException, RequestError, HTTPStatusError
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry,
-                        CoreVariables, CoreTelemetry, CoreLogger, TerminalSpinner)
+                        CoreVariables, CoreTelemetry, CoreLogger)
 
 AUTO_FORGE_MODULE_NAME = "AIBridge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AI Services Bridge"
@@ -73,7 +74,25 @@ class CoreAI(CoreModuleInterface):
 
         return None
 
-    async def query(self, prompt: str, context: str, max_tokens: int = 300) -> Optional[str]:
+    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 300,
+                    temperature: Optional[float] = 0.7, timeout: Optional[int] = None) -> Optional[str]:
+        """
+        Asynchronously sends a prompt to the AI service and retrieves the generated response.
+
+        Args:
+            prompt (str): The user's input message or query.
+            context (Optional[str]): System-level instruction or role description (e.g., "You are a helpful assistant").
+            max_tokens (int, optional): The maximum number of tokens to generate in the response. Defaults to 300.
+            timeout (Optional[int], optional): Request timeout in seconds. If None, uses self._req_timeout.
+            temperature (Optional[float], optional): The temperature to use. Defaults to 0.7.
+
+        Returns:
+            Optional[str]: The AI-generated response, or None if an error occurred.
+        """
+        request_timeout = timeout if timeout is not None else self._req_timeout
+        request_context = context or ("You are a helpful assistant specializing in "
+                                      "embedded firmware development using C and C++.")
+
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json"
@@ -82,23 +101,29 @@ class CoreAI(CoreModuleInterface):
         payload = {
             "model": self._model,
             "messages": [
-                {"role": "system", "content": f"{context}"},
-                {"role": "user", "content": str(prompt)}
+                {"role": "system", "content": request_context},
+                {"role": "user", "content": prompt}
             ],
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
+            "temperature": temperature,
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self._req_timeout) as client:
+            async with httpx.AsyncClient(timeout=request_timeout) as client:
                 response = await client.post(self._endpoint, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
                 return data["choices"][0]["message"]["content"].strip()
 
-        except httpx.RequestError as e:
-            print(f"Network error: {e}")
-        except httpx.HTTPStatusError as e:
+        except TimeoutException as e:
+            print(f"Request timed out after {request_timeout} seconds: {e}")
+        except HTTPStatusError as e:
             print(f"HTTP error: {e.response.status_code} - {e.response.text}")
+        except RequestError as e:
+            print(f"Network error: {e}")
         except (KeyError, IndexError):
-            print("Unexpected response format.")
+            print("Unexpected response format")
+        except Exception as exception:
+            print(f"Unexpected exception: {exception}")
+
         return None

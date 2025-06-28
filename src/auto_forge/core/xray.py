@@ -31,7 +31,12 @@ from fnmatch import fnmatch
 from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
+# Third-party
 from typing import Optional, Any
+
+from rich import box
+from rich.console import Console
+from rich.table import Table
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
 UTC = timezone.utc
@@ -90,6 +95,7 @@ class CoreXRayDB(CoreModuleInterface):
         self._db_filter_files_content: bool = True
         self._serving_query: bool = False
         self._state: XRayStateType = XRayStateType.NO_INITIALIZED
+        self._console = Console(force_terminal=True)
 
         super().__init__(*args, **kwargs)
 
@@ -302,7 +308,7 @@ class CoreXRayDB(CoreModuleInterface):
         #
         # Creating SQLite tables:
         # Data table: 'files', fields { path , content }
-        # Files metadata table:  'file_meta', fields { path, modified, checksum ..}
+        # Files metadata table:  'file_meta', fields { path, modified, checksum }
         # General metadata Key/Value table: 'meta', fields { db_version, db_creation_date .. }
         #
         # ----------------------------------------------------------------------
@@ -903,42 +909,6 @@ class CoreXRayDB(CoreModuleInterface):
         writer.join()
         return True
 
-    def query(self, query: str) -> Optional[str]:
-        """
-        Execute a raw SQL query against the content database and return the result as a string.
-        Args:
-            query (str): SQL query string.
-        Returns:
-            Optional[str]: Result rows joined by newlines, or None on failure.
-        """
-
-        conn = sqlite3.connect(str(self._db_file))
-
-        with self._lock:
-            if self._state != XRayStateType.RUNNING:
-                raise RuntimeError(f"XRay Can't execute query on state '{self._state.name}'")
-            if self._serving_query:
-                raise RuntimeError("Another query is already running")
-            self._serving_query = True
-
-        try:
-            conn = self._get_sql_connection(read_only=True)
-            cursor = conn.cursor()
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            conn.close()
-            if not rows:
-                return None
-            return "\n".join(" | ".join(str(cell) for cell in row) for row in rows)
-
-        except Exception as db_error:
-            raise db_error from db_error
-        finally:
-            if conn:
-                conn.close()
-            with self._lock:
-                self._serving_query = False
-
     def _management_thread(self):
         """
         Internal thread entry point for managing internal states, initializing and performing the indexing process.
@@ -979,19 +949,73 @@ class CoreXRayDB(CoreModuleInterface):
                                            expire_after=2,
                                            erase_after=True)
 
-    def query_raw(self, query: str, params: Optional[tuple[Any, ...]] = None) -> Optional[list[tuple]]:
+    @staticmethod
+    def _format_cell(value: Any, col_name: str) -> str:
         """
-        Execute a raw SQL query and return raw (path, content) tuples.
-        This is primarily used for internal analysis or full-text scanning,
-        where the full content of matching files is needed for further filtering.
+        Format individual cell values based on column name and type.
+        Converts Unix timestamps to human-readable dates for 'modified'.
+        """
+        if value is None:
+            return ""
+        if isinstance(value, float) and "modified" in col_name.lower():
+            try:
+                return datetime.fromtimestamp(value).strftime("%Y-%m-%d %H:%M:%S")
+            except (ValueError, OSError):
+                return str(value)  # fallback in case of bad timestamp
+        return str(value)
+
+    def query(self, query: str) -> Optional[str]:
+        """
+        Execute a raw SQL query against the content database and return the result as a string.
+        Args:
+            query (str): SQL query string.
+        Returns:
+            Optional[str]: Result rows joined by newlines, or None on failure.
+        """
+
+        conn: Optional[sqlite3.Connection] = None
+
+        with self._lock:
+            if self._state != XRayStateType.RUNNING:
+                raise RuntimeError(f"XRay Can't execute query on state '{self._state.name}'")
+            if self._serving_query:
+                raise RuntimeError("Another query is already running")
+            self._serving_query = True
+
+        try:
+            conn = self._get_sql_connection(read_only=True)
+            cursor = conn.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+            if not rows:
+                return None
+
+            return "\n".join(" | ".join(str(cell) for cell in row) for row in rows)
+
+        except Exception as db_error:
+            raise db_error from db_error
+
+        finally:
+            if conn:
+                conn.close()
+            with self._lock:
+                self._serving_query = False
+
+    def query_raw(self, query: str, params: Optional[tuple[Any, ...]] = None, print_table: bool = False) -> Optional[
+        list[tuple]]:
+        """
+        Execute a raw SQL query and optionally display the result as a Rich table.
+
         Args:
             query (str): SQL query to run.
             params (Optional[tuple]): Optional SQL parameters for safe substitution.
+            print_table (bool): If True, print the result as a Rich table.
+
         Returns:
             Optional[list[tuple]]: List of result tuples, or None if query fails.
         """
-
-        conn = sqlite3.connect(str(self._db_file))
+        conn: Optional[sqlite3.Connection] = None
 
         with self._lock:
             if self._state != XRayStateType.RUNNING:
@@ -1003,17 +1027,30 @@ class CoreXRayDB(CoreModuleInterface):
         try:
             conn = self._get_sql_connection(read_only=True)
             cursor = conn.cursor()
+
             if params:
                 cursor.execute(query, params)
             else:
                 cursor.execute(query)
 
             rows = cursor.fetchall()
-            conn.close()
+
+            if print_table:
+                columns = [desc[0] for desc in cursor.description]
+                table = Table(title="Query Results", header_style="bold magenta", show_lines=False, box=box.ROUNDED)
+                for col in columns:
+                    table.add_column(str(col).title(), overflow="ellipsis", style="white")
+
+                for row in rows:
+                    formatted = [self._format_cell(cell, col) for cell, col in zip(row, columns)]
+                    table.add_row(*formatted)
+
+                self._console.print(table)
             return rows
 
         except Exception as db_error:
             raise db_error from db_error
+
         finally:
             if conn:
                 conn.close()
