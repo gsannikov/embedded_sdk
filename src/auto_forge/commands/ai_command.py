@@ -43,7 +43,7 @@ class AICommand(CommandInterface):
         self._console = Console(force_terminal=True)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
 
     @staticmethod
     def _sanitize_prompt(text: str) -> str:
