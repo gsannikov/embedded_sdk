@@ -48,7 +48,7 @@ from auto_forge import (
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
 
 AUTO_FORGE_MODULE_NAME = "Platform"
-AUTO_FORGE_MODULE_DESCRIPTION = "Platform Guru"
+AUTO_FORGE_MODULE_DESCRIPTION = "Platform Services"
 
 
 class CorePlatform(CoreModuleInterface):

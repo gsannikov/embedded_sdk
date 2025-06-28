@@ -23,7 +23,7 @@ from jsonschema.validators import validate
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreTelemetry,
+    AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreLogger, CoreTelemetry,
     CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType, VariableType
 )
 
@@ -62,6 +62,8 @@ class CoreVariables(CoreModuleInterface):
             self._telemetry = CoreTelemetry.get_instance()
             self._processor = CoreJSONCProcessor.get_instance()
             self._tool_box = CoreToolBox.get_instance()
+            self._core_logger = CoreLogger.get_instance()
+            self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
 
             # Dependencies check
             if None in (self._registry, self._telemetry, self._processor, self.auto_forge.configuration):
@@ -81,7 +83,7 @@ class CoreVariables(CoreModuleInterface):
             self._workspace_path = workspace_path
             self._solution_name = solution_name
 
-            # Are we allow to override 'is_path' using auto detection?
+            # Are we allow to override 'is_path' using auto-detection?
             self._auto_categorize: bool = bool(self._configuration.get('auto_categorize', False))
 
             # Get essential variables list from the package configuration
@@ -208,11 +210,10 @@ class CoreVariables(CoreModuleInterface):
                 return VariableType.FLOAT
 
         # Windows Path
-        if (
-                len(val) >= 3
-                and val[1] == ':'
-                and val[2] in ('\\', '/')
-                and val[0].isalpha()
+        if (len(val) >= 3
+            and val[1] == ':'
+            and val[2] in ('\\', '/')
+            and val[0].isalpha()
         ) or val.startswith('\\\\'):
             return VariableType.WIN_PATH
 
@@ -305,8 +306,8 @@ class CoreVariables(CoreModuleInterface):
             # Load essential
             self._load_from_dictionary(self._essential_variables)
 
-    def load_from_file(self, config_file_name: str, reset: bool = False, variables_schema: Optional[dict] = None) -> \
-            Optional[int]:
+    def load_from_file(self, config_file_name: str, reset: bool = False,
+                       variables_schema: Optional[dict] = None) -> Optional[int]:
         """
         Constructs or rebuilds the configuration data based on a JSONc file.
 
@@ -476,7 +477,7 @@ class CoreVariables(CoreModuleInterface):
         new_var = VariableFieldType()
         new_var.key = key.strip().upper()
 
-        # Auto detect the variable type
+        # Auto-detect the variable type
         classification: VariableType = self._classify_variable(value=value)
         if self._classify_variable:
             if classification == VariableType.UNKNOWN:

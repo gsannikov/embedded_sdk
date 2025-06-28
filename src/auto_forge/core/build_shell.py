@@ -55,7 +55,7 @@ from auto_forge import (
 )
 
 # Basic types
-AUTO_FORGE_MODULE_NAME = "BuildShell"
+AUTO_FORGE_MODULE_NAME = "Shell"
 AUTO_FORGE_MODULE_DESCRIPTION = "Build Shell for AutoForge"
 
 

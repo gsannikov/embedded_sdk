@@ -3,7 +3,7 @@ Script:         ai_prompt.py
 Author:         AutoForge Team
 
 Description:
-    Bridge the build system with an AI model to allow for..
+    Bridge the build system with an AI model.
 """
 from typing import Optional
 
@@ -12,7 +12,7 @@ import httpx
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry,
-                        CoreVariables, CoreTelemetry, CoreLogger)
+                        CoreVariables, CoreTelemetry, CoreLogger, TerminalSpinner)
 
 AUTO_FORGE_MODULE_NAME = "AIBridge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AI Services Bridge"
@@ -42,12 +42,16 @@ class CoreAI(CoreModuleInterface):
             raise RuntimeError("failed to instantiate critical dependencies")
 
         # Get mandatory variables
-        self._model = self._variables.get("AI_MODEL",quiet=True)
-        self._endpoint = self._variables.get("AI_ENDPOINT",quiet=True)
-        self._req_timeout  = int(self._variables.get("AI_REQ_TIMEOUT", quiet=True))
-        self._api_key  = self.auto_forge.configuration.get("api_key")
-        self._proxies = {"https://": proxy} if proxy else None
+        self._model = self._variables.get("AI_MODEL", quiet=True)
+        self._endpoint = self._variables.get("AI_ENDPOINT", quiet=True)
+        self._req_timeout = int(self._variables.get("AI_REQ_TIMEOUT", quiet=True))
 
+        # Get API key from the stored secrets
+        self._api_key = self._get_key_from_secrets('openai_api_key')
+        if self._api_key is None or not self._api_key:
+            raise RuntimeError("failed to retrieve AI API key")
+
+        self._proxies = {"https://": proxy} if proxy else None
         if None in (self._model, self._endpoint, self._req_timeout, self._api_key):
             raise RuntimeError("environment is missing critical AI_* variables")
 
@@ -58,7 +62,18 @@ class CoreAI(CoreModuleInterface):
         # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
-    async def query(self, prompt: str, context:str, max_tokens: int = 300) -> Optional[str]:
+    def _get_key_from_secrets(self, key_name: str) -> Optional[str]:
+        """ Gets the API key from the secrets' dictionary. """
+        secrets = self.auto_forge.secrets
+        if secrets is not None:
+            api_keys = secrets.get('api_keys')  # This will be None
+            if isinstance(api_keys, dict):  # This condition will be False
+                google_ai_key = api_keys.get(key_name)
+                return google_ai_key.strip() if google_ai_key else None
+
+        return None
+
+    async def query(self, prompt: str, context: str, max_tokens: int = 300) -> Optional[str]:
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json"

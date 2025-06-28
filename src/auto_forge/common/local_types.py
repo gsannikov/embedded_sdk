@@ -6,12 +6,14 @@ Description:
     Single point module defining many common types, enumerations, and simple classes
     shared across multiple components of the project.
 """
+import asyncio
 import os
 import re
 import sys
 import threading
 from dataclasses import dataclass, field
 from enum import Enum, auto, IntFlag
+from itertools import cycle
 from types import ModuleType
 from typing import Any, NamedTuple, Optional, TextIO, Union
 
@@ -57,6 +59,7 @@ class AutoForgCommandType(Enum):
     ALIASES = 11
     BUILTIN = 12
     HELP = 13
+    AI = 14
 
     @classmethod
     def from_str(cls, value: str, default: Union[str, 'AutoForgCommandType'] = None) -> 'AutoForgCommandType':
@@ -137,25 +140,6 @@ class AutoForgFolderType(Enum):
             return default_enum
 
         return cls.__members__.get(value.strip().upper(), default_enum)
-
-
-# @formatter:off
-# noinspection SpellCheckingInspection
-COMMAND_TYPE_COLOR_MAP = {
-    AutoForgCommandType.UNKNOWN: "#444444",
-    AutoForgCommandType.BUILD: "#00c0c0",
-    AutoForgCommandType.NAVIGATE: "#4070ff",
-    AutoForgCommandType.EMULATION: "#8a2be2",
-    AutoForgCommandType.AUTOMATION: "#ffcc00",
-    AutoForgCommandType.GIT: "#d84040",
-    AutoForgCommandType.UTILITY: "#3fd66f",
-    AutoForgCommandType.SYSTEM: "#ababab",
-    AutoForgCommandType.INSTALLER: "#4070ff",
-    AutoForgCommandType.MISCELLANEOUS: "#888888",
-    AutoForgCommandType.SHELL: "#1a2b92",
-    AutoForgCommandType.ALIASES: "#999999",
-}
-# @formatter:on
 
 
 class XRayStateType(Enum):
@@ -374,6 +358,7 @@ class MethodLocationType(NamedTuple):
     method_name: Optional[str]
     module_path: Optional[str]
 
+
 class VariableType(Enum):
     """ Types of variables which could be autodetect """
     UNKNOWN = auto()
@@ -383,6 +368,7 @@ class VariableType(Enum):
     INT = auto()
     FLOAT = auto()
     STRING = auto()
+
 
 @dataclass
 class VariableFieldType:
@@ -394,7 +380,7 @@ class VariableFieldType:
     path_must_exist: Optional[bool] = None
     create_path_if_not_exist: Optional[bool] = None
     folder_type: Optional[AutoForgFolderType] = AutoForgFolderType.UNKNOWN
-    type:Optional[VariableType] = VariableType.UNKNOWN,
+    type: Optional[VariableType] = VariableType.UNKNOWN,
     kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 
@@ -567,6 +553,35 @@ class TerminalAnsiGuru:
         response = sys.stdin.read(20)  # Read enough characters for typical response
         match = re.search(r"\033\[(\d+);(\d+)R", response)
         return (int(match.group(1)) - 1, int(match.group(2)) - 1) if match else None
+
+
+class TerminalSpinner:
+    """
+    A colorful animated terminal spinner for asynchronous operations.
+    """
+    SPINNER_FRAMES = [
+        "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"
+    ]
+    COLORS = [
+        "\033[91m",  # Red
+        "\033[93m",  # Yellow
+        "\033[92m",  # Green
+        "\033[96m",  # Cyan
+        "\033[94m",  # Blue
+        "\033[95m",  # Magenta
+    ]
+    COLOR_END = "\033[0m"
+
+    @staticmethod
+    async def run(message="Thinking..."):
+        color_cycle = cycle(TerminalSpinner.COLORS)
+        frame_cycle = cycle(TerminalSpinner.SPINNER_FRAMES)
+
+        while True:
+            color = next(color_cycle)
+            frame = next(frame_cycle)
+            print(f"\r{color}{frame}{TerminalSpinner.COLOR_END} {message}", end='', flush=True)
+            await asyncio.sleep(0.1)
 
 
 class FieldColorType(NamedTuple):

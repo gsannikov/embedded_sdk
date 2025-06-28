@@ -54,18 +54,20 @@
     //   - folder_type:                 (Optional, default: "UNKNOWN") Describes the folder type.
     //                                  Valid values: UNKNOWN, BUILD, SOURCES, DOCUMENTS, SCRIPTS, EXTERNALS, IMAGES.
 
-    "auto_categorize": true,            // Auto detect and set the 'is_path' attribute.
+    "auto_categorize": true,            // Auto-detect and set the 'is_path' attribute.
     "essential_variables": [
         //
         //   Key                 Value                               Description                                       Path must exist, Crate path, Folder type
 	    //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-        ["AF_BASE",             "$HOME/.auto_forge",                            "AutoForge persistent directory",              null,    null,   null                ],
+        ["AF_BASE",             "$HOME/.auto_forge",                            "AutoForge persistent directory",              null,    null,   "PERSIST"           ],
         ["AF_BIN",              "$AF_BASE/bin",                                 "Persistent binaries path",                    null,    null,   null                ],
         ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",                         "Persistent tool-chains",                      null,    null,   null                ],
         ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                      "Persistent solution resources",               null,    null,   null                ],
         ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",                    "Persistent solution indexes",                 null,    null,   "INDEX"             ],
         ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                        "Persistent solution binaries",                null,    null,   null                ],
+        ["AF_SOLUTION_SECRETS", "$AF_SOLUTION_BASE/.bits",                      "Persistent encrypted user dictionary",        false,   false,  null                ],
+        ["AF_SOLUTION_KEY",     "$AF_SOLUTION_BASE/.key",                       "Persistent encryption key file",              false,   false,  null                ],
         ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Solution root directory",                     null,    null,   null                ],
         ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                        "Base path for compilers outputs",             null,    null,   null                ],
         ["BUILD_OUT",           "$BUILD_BASE/out",                              "Compilation outputs",                         null,    null,   "BUILD"             ],
@@ -216,6 +218,7 @@
         { "name": "..",           "command": "cd ..",                                   "cmd_type": "NAVIGATE",     "description": "Go up one directory"                        },
         { "name": "...",          "command": "cd ../../",                               "cmd_type": "NAVIGATE",     "description": "Go up two directories"                      },
         { "name": "....",         "command": "cd ../../../",                            "cmd_type": "NAVIGATE",     "description": "Go up three directories"                    },
+        { "name": "ai",           "command": "ai_chat",                                 "cmd_type": "AI",           "description": "Go to the build logs path",                 "hidden": true },
         { "name": "cls",          "command": "clear",                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true },
         { "name": "cln",          "command": "clear",                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true },
         { "name": "e",            "command": "edit -p",                                 "cmd_type": "UTILITY",      "description": "📝 Open file or path in default editor"     },
@@ -586,5 +589,29 @@
         { "name": "vscode",       "aliases": ["code", "code-insiders", "Code.exe"],       "type": "gui",      "executable": "code",         "args": ["--reuse-window"] },
         { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] },
         { "name": "notepad",      "aliases": ["notepad.exe"],                             "type": "gui",      "executable": "notepad",      "args": [] }
-  ]
+  ],
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // General application schema for encrypted information
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
+    "secrets_schema": {
+        // General application metadata or global secrets
+        "metadata": {
+            "version": "1.0",
+            "last_updated": null,
+            "description": "Encrypted secrets for build pipelines and application runtime."
+        },
+
+        // API Keys for external services
+        "api_keys": {
+            "google_ai_studio_api_key": null,
+            "openai_api_key": null,
+            "aws_access_key_id": null,
+            "aws_secret_access_key":  null
+        }
+    }
 }
+

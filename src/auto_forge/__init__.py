@@ -34,18 +34,19 @@ try:
     # Common types
     from auto_forge.common.local_types import (
         AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
-        BuildProfileType, COMMAND_TYPE_COLOR_MAP, CommandResultType, CommandFailedException,
+        BuildProfileType, CommandResultType, CommandFailedException,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType, LogHandlersType,
         LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
-        SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
+        SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru, TerminalSpinner,
         TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType
     )
 
     # Common modules
     from auto_forge.common.version_compare import VersionCompare
     from auto_forge.common.progress_tracker import ProgressTracker
+    from auto_forge.common.crypto import Crypto
 
     # Protocols
     from auto_forge.core.protocols.protocols import (
@@ -98,10 +99,9 @@ except Exception as exception:
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
     "CoreLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
-    "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
+    "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol", "CoreBuildShell", "XRayStateType",
     "CommandResultType", "CoreDynamicLoader", "CorePlatform", "CoreGUI", "CoreJSONCProcessor", "CoreLoggerProtocol",
     "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface",
-    "CoreBuildShell",
     "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox", "CoreAI",
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
@@ -111,9 +111,8 @@ __all__ = [
     "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
     "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
     "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH", "ProgressTracker", "PromptStatusType",
-    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler", "TerminalSpinner",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",
-    "CoreContext",
-    "HasConfigurationProtocol", "VariableFieldType", "VariableType", "VersionCompare", "XRayStateType", "start"
+    "CoreContext", "Crypto", "HasConfigurationProtocol", "VariableFieldType", "VariableType", "VersionCompare", "start"
 ]

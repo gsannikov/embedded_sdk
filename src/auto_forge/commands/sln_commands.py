@@ -208,9 +208,9 @@ class SolutionCommand(CommandInterface):
                         FieldColorType(field_name="Variables", color=Fore.LIGHTBLUE_EX),
                         FieldColorType(field_name="Loader", color=Fore.MAGENTA),
                         FieldColorType(field_name="XRayDB", color=Fore.CYAN),
-                        FieldColorType(field_name="Environment", color=Fore.BLUE),
-                        FieldColorType(field_name="Prompt", color=Fore.LIGHTCYAN_EX),
-                        FieldColorType(field_name="Solution", color=Fore.LIGHTYELLOW_EX),
+                        FieldColorType(field_name="Platform", color=Fore.BLUE),
+                        FieldColorType(field_name="Shell", color=Fore.LIGHTCYAN_EX),
+                        FieldColorType(field_name="ToolBox", color=Fore.LIGHTYELLOW_EX),
                         FieldColorType(field_name="Signatures", color=Fore.LIGHTRED_EX), ]
         try:
             self._core_logger.show(cheerful=cheerful, field_colors=field_colors)

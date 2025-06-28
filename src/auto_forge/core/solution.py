@@ -63,12 +63,12 @@ class CoreSolution(CoreModuleInterface):
             raise RuntimeError("solution configuration file not specified")
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
-        self._tool_box = CoreToolBox.get_instance()  # Get the TooBox auxiliary class instance.
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()  # Telemetry instance
-        self._processor = CoreJSONCProcessor.get_instance()  # Get the JSON preprocessing class instance.
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._tool_box = CoreToolBox.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._processor = CoreJSONCProcessor.get_instance()
         self._variables: Optional[
-            CoreVariables] = CoreVariables.get_instance()  # Instantiate variable management library
+            CoreVariables] = CoreVariables.get_instance()
 
         self._config_file_name: Optional[str] = None  # Loaded solution file name
         self._config_file_path: Optional[str] = None  # Loaded solution file path
