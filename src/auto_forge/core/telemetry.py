@@ -26,7 +26,7 @@ from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry)
 from auto_forge.settings import PROJECT_NAME
 
 AUTO_FORGE_MODULE_NAME = "Telemetry"
-AUTO_FORGE_MODULE_DESCRIPTION = "Package telemetry and tracer provider"
+AUTO_FORGE_MODULE_DESCRIPTION = "Central Telemetry and Tracing"
 
 
 # ------------------------------------------------------------------------------

@@ -73,7 +73,7 @@ try:
     from auto_forge.core.jsonc_processor import CoreJSONCProcessor
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import CoreVariables
-    from auto_forge.core.ai import CoreAI
+    from auto_forge.core.ai_bridge import CoreAI
     from auto_forge.core.gui import CoreGUI
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
     from auto_forge.core.solution import CoreSolution
@@ -81,7 +81,7 @@ try:
     from auto_forge.core.linux_aliases import CoreLinuxAliases
     from auto_forge.core.platform_tools import CorePlatform
     from auto_forge.core.xray import CoreXRayDB
-    from auto_forge.core.prompt import CorePrompt
+    from auto_forge.core.build_shell import CoreBuildShell
 
     # AutoForg main
     from auto_forge.auto_forge import auto_forge_start as start
@@ -100,7 +100,8 @@ __all__ = [
     "CoreLogger", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
     "COMMAND_TYPE_COLOR_MAP", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
     "CommandResultType", "CoreDynamicLoader", "CorePlatform", "CoreGUI", "CoreJSONCProcessor", "CoreLoggerProtocol",
-    "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface", "CorePrompt",
+    "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreModuleInterface",
+    "CoreBuildShell",
     "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox", "CoreAI",
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",

@@ -32,7 +32,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
-    CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CorePrompt,
+    CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
     PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,
@@ -67,7 +67,7 @@ class AutoForge(CoreModuleInterface):
         self._processor: Optional[CoreJSONCProcessor] = None
         self._gui: Optional[CoreGUI] = None
         self._loader: Optional[CoreDynamicLoader] = None
-        self._prompt: Optional[CorePrompt] = None
+        self._build_shell: Optional[CoreBuildShell] = None
         self._xray: Optional[CoreXRayDB] = None
         self._ai_bridge: Optional[CoreAI] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
@@ -99,7 +99,7 @@ class AutoForge(CoreModuleInterface):
         self._proxy_server: Optional[AddressInfoType] = None
 
         # Set how often Python checks for thread switches (every 1 millisecond).
-        # This can improve responsiveness in multi-threaded programs.
+        # This can improve responsiveness in multithreaded programs.
         sys.setswitchinterval(0.001)
 
         super().__init__(*args, **kwargs)
@@ -608,15 +608,15 @@ class AutoForge(CoreModuleInterface):
                 self._logger.debug("Running in interactive user shell mode")
 
                 self._gui: CoreGUI = CoreGUI()
-                self._prompt = CorePrompt()
+                self._build_shell = CoreBuildShell()
 
                 # Initializes XRay SQLite background indexing service.
                 self._xray = CoreXRayDB()
                 self._xray.start()
 
                 # Start user prompt loop
-                self._prompt.cmdloop()
-                self._exit_code = self._prompt.last_result
+                self._build_shell.cmdloop()
+                self._exit_code = self._build_shell.last_result
                 return self._exit_code
 
             else:
@@ -636,15 +636,15 @@ class AutoForge(CoreModuleInterface):
                     self._logger.debug("Running in single command automatic non-interactive mode")
 
                     # Prepare the prompt instance
-                    self._prompt = CorePrompt()
+                    self._build_shell = CoreBuildShell()
 
                     # Compose the full command string (with arguments, if any)
                     command_line = " ".join([self._run_command_name.strip()] + self._run_command_args)
                     self._logger.debug("Executing command: %s", command_line)
 
                     # Execute the command (same way cmdloop does internally)
-                    self._prompt.onecmd_plus_hooks(command_line)
-                    self._exit_code = self._prompt.last_result if self._prompt.last_result is not None else 0
+                    self._build_shell.onecmd_plus_hooks(command_line)
+                    self._exit_code = self._build_shell.last_result if self._build_shell.last_result is not None else 0
 
                 elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
 

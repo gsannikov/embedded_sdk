@@ -33,8 +33,8 @@ from colorama import Fore, Style
 from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, FieldColorType, LogHandlersType, PROJECT_NAME)
 
-AUTO_FORGE_MODULE_NAME = "CoreLogger"
-AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Logging Provider"
+AUTO_FORGE_MODULE_NAME = "Logger"
+AUTO_FORGE_MODULE_DESCRIPTION = "Central Logging"
 
 
 # ------------------------------------------------------------------------------

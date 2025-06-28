@@ -19,7 +19,7 @@ from auto_forge import (AutoForgCommandType, AutoForgeModuleType, CoreModuleInte
 from auto_forge.core.protocols import protocols
 
 AUTO_FORGE_MODULE_NAME = "Registry"
-AUTO_FORGE_MODULE_DESCRIPTION = "Modules registry"
+AUTO_FORGE_MODULE_DESCRIPTION = "Central Modules Registry"
 
 
 # ------------------------------------------------------------------------------

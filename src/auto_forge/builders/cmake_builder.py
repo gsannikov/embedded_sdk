@@ -23,8 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CorePlatform, CoreToolBox, CommandResultType, GCCLogAnalyzer)
-from auto_forge.core.ai import CoreAI
+                        TerminalEchoType, CorePlatform, CoreToolBox, CoreAI, CommandResultType, GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"

@@ -53,7 +53,7 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Platform Guru"
 
 class CorePlatform(CoreModuleInterface):
     """
-    a Core class that serves as an platform / shell related operation swissknife.
+    a Core class that serves as a platform / shell related operation swissknife.
     """
 
     def __init__(self, *args, **kwargs):

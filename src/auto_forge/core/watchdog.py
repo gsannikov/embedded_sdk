@@ -21,7 +21,7 @@ from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry)
 
 AUTO_FORGE_MODULE_NAME = "WatchDog"
-AUTO_FORGE_MODULE_DESCRIPTION = "Package Watchdog thread manager"
+AUTO_FORGE_MODULE_DESCRIPTION = "Watchdog Thread manager"
 AUTO_FORGE_WATCHDOG_DEFAULT_TIMEOUT = 10.0
 
 

@@ -26,7 +26,7 @@ from auto_forge import (
     CoreVariables, CoreRegistry, SignatureFieldType, SignatureSchemaType)
 
 AUTO_FORGE_MODULE_NAME = "Signatures"
-AUTO_FORGE_MODULE_DESCRIPTION = "Signatures operations support"
+AUTO_FORGE_MODULE_DESCRIPTION = "Binary Signatures"
 
 
 class CoreSignatures(CoreModuleInterface):

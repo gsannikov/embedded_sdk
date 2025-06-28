@@ -21,7 +21,7 @@ from rich.text import Text
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, CoreLogger)
 
-AUTO_FORGE_MODULE_NAME = "Processor"
+AUTO_FORGE_MODULE_NAME = "JSONProcessor"
 AUTO_FORGE_MODULE_DESCRIPTION = "JSONC preprocessor"
 
 

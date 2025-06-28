@@ -1,9 +1,9 @@
 """
-Script:         prompt.py
+Script:         build_shell.py
 Author:         AutoForge Team
 
 Description:
-    Core module that defines and manages the CorePrompt class, which integrates the cmd2
+    Core module that defines and manages the BuildShell class, which integrates the cmd2
     interactive shell with prompt_toolkit to provide a rich command-line interface for the
     AutoForge build system.
 """
@@ -55,7 +55,7 @@ from auto_forge import (
 )
 
 # Basic types
-AUTO_FORGE_MODULE_NAME = "Prompt"
+AUTO_FORGE_MODULE_NAME = "BuildShell"
 AUTO_FORGE_MODULE_DESCRIPTION = "Build Shell for AutoForge"
 
 
@@ -71,14 +71,14 @@ class _CorePathCompleter(Completer):
             _path_completer (PathCompleter): Internal prompt_toolkit completer for paths.
         """
 
-    def __init__(self, core_prompt: "CorePrompt", command_name: str, only_directories: bool):
+    def __init__(self, build_shell: "CoreBuildShell", command_name: str, only_directories: bool):
         """
         Initialize the completer for a specific command.
         Args:
             command_name (str): The command to match against the beginning of input lines (e.g., "cd").
             only_directories (bool): If True, only suggest directory names (not files).
         """
-        self._core_prompt = core_prompt
+        self._build_shell = build_shell
         self._variables = CoreVariables.get_instance()
         self._command_name = command_name
         self._path_completer = PathCompleter(only_directories=only_directories, expanduser=True)
@@ -108,18 +108,18 @@ class _CorePathCompleter(Completer):
         if arg.startswith("-"):
             return
 
-        meta = self._core_prompt.path_completion_rules_metadata.get(self._command_name, {})
+        meta = self._build_shell.path_completion_rules_metadata.get(self._command_name, {})
         raw_arg = arg.strip().strip('"').strip("'")
         raw_arg = self._variables.expand(raw_arg) if raw_arg else raw_arg  # Expand
         arg_to_complete = raw_arg if raw_arg else "."
-        matches = self._core_prompt.gather_path_matches(
+        matches = self._build_shell.gather_path_matches(
             text=arg_to_complete,
             only_dirs=meta.get("only_dirs", False),
             allowed_names=meta.get("allowed_names"),
             filter_glob=meta.get("filter_glob"),
         )
 
-        for m in islice(matches, self._core_prompt.max_completion_results):
+        for m in islice(matches, self._build_shell.max_completion_results):
             yield m
 
 
@@ -139,9 +139,9 @@ class _CoreCompleter(Completer):
     2. Argument-level completion: delegates to registered per-command completer or generic path matching
     """
 
-    def __init__(self, core_prompt: "CorePrompt", logger: logging.Logger):
+    def __init__(self, build_shell: "CoreBuildShell", logger: logging.Logger):
 
-        self._core_prompt = core_prompt
+        self._build_shell = build_shell
         self._logger = logger
         self._loader: Optional[CoreDynamicLoader] = CoreDynamicLoader.get_instance()
 
@@ -158,15 +158,15 @@ class _CoreCompleter(Completer):
         if completer_func:
             return False
 
-        if not self._core_prompt.path_completion_rules_metadata:
+        if not self._build_shell.path_completion_rules_metadata:
             return True
 
-        meta = self._core_prompt.path_completion_rules_metadata.get(cmd)
+        meta = self._build_shell.path_completion_rules_metadata.get(cmd)
         if meta:
             return meta.get("path_completion", False)  # allow even if arg_text is empty
 
         # Fallback for unlisted known commands
-        is_known_command = (cmd in self._core_prompt.executables_metadata or cmd in self._core_prompt.commands_metadata)
+        is_known_command = (cmd in self._build_shell.executables_metadata or cmd in self._build_shell.commands_metadata)
         return is_known_command and bool(arg_text.strip())
 
     def get_completions(  # noqa: C901
@@ -197,37 +197,37 @@ class _CoreCompleter(Completer):
 
                 # First-token path completion support
                 if partial.startswith(("/", "./", "../")):
-                    matches = self._core_prompt.gather_path_matches(text=os.path.expanduser(partial))
+                    matches = self._build_shell.gather_path_matches(text=os.path.expanduser(partial))
                     for m in matches:
                         yield m
                     return
 
                 # Registered dynamic commands
-                for cmd in self._core_prompt.commands_metadata:
+                for cmd in self._build_shell.commands_metadata:
                     if cmd.startswith(partial):
                         matches.append(Completion(cmd, start_position=-len(partial),
-                                                  style=self._core_prompt.get_safe_style('commands')))
+                                                  style=self._build_shell.get_safe_style('commands')))
 
                 # Built-in do_* methods
-                for name, method in vars(self._core_prompt.__class__).items():
+                for name, method in vars(self._build_shell.__class__).items():
                     if name.startswith("do_") and callable(method):
                         cmd_name = name[3:]
                         # Check if its one of the aliases that gets executed through a dynamic do_ implementation.
-                        is_known_alias = (cmd_name in self._core_prompt.commands_metadata)
+                        is_known_alias = (cmd_name in self._build_shell.commands_metadata)
                         if cmd_name.startswith(partial):
                             if not is_known_alias:
                                 matches.append(
                                     Completion(cmd_name, start_position=-len(partial),
-                                               style=self._core_prompt.get_safe_style('builtins')))
+                                               style=self._build_shell.get_safe_style('builtins')))
                             else:
                                 matches.append(
                                     Completion(cmd_name, start_position=-len(partial),
-                                               style=self._core_prompt.get_safe_style('aliases')))
+                                               style=self._build_shell.get_safe_style('aliases')))
 
                 # System executables (styled if executable)
-                sys_bin_style = self._core_prompt.get_safe_style('executable')
+                sys_bin_style = self._build_shell.get_safe_style('executable')
                 matches += [Completion(sys_binary, start_position=-len(partial), style=sys_bin_style) for
-                            sys_binary in self._core_prompt.executables_metadata if sys_binary.startswith(partial)]
+                            sys_binary in self._build_shell.executables_metadata if sys_binary.startswith(partial)]
 
             # Case 2: Completing arguments for a command
             elif len(tokens) >= 1:
@@ -237,7 +237,7 @@ class _CoreCompleter(Completer):
                 begin_idx = len(text) - len(arg_text)
                 end_idx = len(text)
 
-                completer_func = getattr(self._core_prompt, f"complete_{cmd}", None)
+                completer_func = getattr(self._build_shell, f"complete_{cmd}", None)
                 # Retrieve optional arguments hints for registered commands
                 command_args_list = self._loader.get_command_known_args(name=cmd)
 
@@ -253,8 +253,8 @@ class _CoreCompleter(Completer):
                         self._logger.debug(f"Completer error for '{cmd}': {completer_exception}")
 
                 elif self._should_fallback_to_path_completion(cmd=cmd, arg_text=arg_text, completer_func=None):
-                    meta = self._core_prompt.path_completion_rules_metadata.get(cmd, {})
-                    matches = self._core_prompt.gather_path_matches(
+                    meta = self._build_shell.path_completion_rules_metadata.get(cmd, {})
+                    matches = self._build_shell.gather_path_matches(
                         text=arg_text if arg_text.strip() else ".",
                         only_dirs=meta.get("only_dirs", False),
                         allowed_names=meta.get("allowed_names"),
@@ -276,7 +276,7 @@ class _CoreCompleter(Completer):
                     deduplicated.append(
                         match if isinstance(match, Completion) else Completion(key, start_position=-len(arg_text))
                     )
-                    if len(deduplicated) >= self._core_prompt.max_completion_results:
+                    if len(deduplicated) >= self._build_shell.max_completion_results:
                         break
 
             # Sort: hidden entries (text starts with ".") appear last
@@ -288,10 +288,11 @@ class _CoreCompleter(Completer):
 
         except Exception as completer_exception:
             error_message = f"Completer exception {completer_exception}"
-            self._core_prompt.command_loop_abort(error_message=error_message)
+            self._build_shell.command_loop_abort(error_message=error_message)
 
 
-class CorePrompt(CoreModuleInterface, cmd2.Cmd):
+# noinspection DuplicatedCode
+class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
     """
     Interactive shell for with shell-like behavior.
     Provides dynamic prompt updates, path-aware tab completion,
@@ -596,7 +597,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         """
 
         @with_argument_list
-        def _alias_dynamic_func(cmd_instance: CorePrompt, args: Any):
+        def _alias_dynamic_func(cmd_instance: CoreBuildShell, args: Any):
             """Generic dynamic alias handler"""
             metadata = cmd_instance._get_command_metadata(name)
 
@@ -652,7 +653,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
             Callable: A function object (unbound) to be turned into a cmd2 command.
         """
 
-        def _run_command(cmd_instance: CorePrompt, arg: Any):
+        def _run_command(cmd_instance: CoreBuildShell, arg: Any):
             """Dynamic command dispatcher."""
             try:
                 if isinstance(arg, Statement):
@@ -1009,7 +1010,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 def completer(_self, _text, line, _begin_idx, end_idx):
                     """ Toolkit completer implement """
                     event = CompleteEvent(completion_requested=True)
-                    comp = _CorePathCompleter(core_prompt=self, command_name=command_name,
+                    comp = _CorePathCompleter(build_shell=self, command_name=command_name,
                                               only_directories=only_directories)
                     return list(comp.get_completions(Document(text=line, cursor_position=end_idx), event))
 
@@ -1296,7 +1297,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
                 return completions
 
         # Fallback to injected generic path completer
-        comp = _CorePathCompleter(core_prompt=self, command_name='cd', only_directories=True)
+        comp = _CorePathCompleter(build_shell=self, command_name='cd', only_directories=True)
         event = CompleteEvent(completion_requested=True)
         path_completions = comp.get_completions(Document(text=line, cursor_position=end_idx), event)
         completions.extend(path_completions)
@@ -1706,7 +1707,7 @@ class CorePrompt(CoreModuleInterface, cmd2.Cmd):
         self._prompt_styles = self._get_dynamic_styles()
 
         # Set up the custom completer
-        completer = _CoreCompleter(core_prompt=self, logger=self._logger)
+        completer = _CoreCompleter(build_shell=self, logger=self._logger)
 
         # Create the prompt-toolkit history object
         pt_history = InMemoryHistory()

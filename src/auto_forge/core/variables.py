@@ -28,7 +28,7 @@ from auto_forge import (
 )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
-AUTO_FORGE_MODULE_DESCRIPTION = "Variables manager"
+AUTO_FORGE_MODULE_DESCRIPTION = "Variables Manager"
 
 
 class CoreVariables(CoreModuleInterface):

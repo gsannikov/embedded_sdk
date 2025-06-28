@@ -28,7 +28,7 @@ from auto_forge import (
     CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox, CoreTelemetry,
     ModuleInfoType, CoreRegistry, TerminalTeeStream)
 
-AUTO_FORGE_MODULE_NAME = "Loader"
+AUTO_FORGE_MODULE_NAME = "DynamicLoader"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamically search and load supported modules"
 
 

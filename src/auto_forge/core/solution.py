@@ -40,7 +40,7 @@ from auto_forge import (
     CoreSignatures, CoreVariables, CoreRegistry, CoreToolBox, CoreTelemetry, PROJECT_SCHEMAS_PATH)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
-AUTO_FORGE_MODULE_DESCRIPTION = "Solution preprocessor core service"
+AUTO_FORGE_MODULE_DESCRIPTION = "Solution Preprocessor Service"
 
 
 class CoreSolution(CoreModuleInterface):
