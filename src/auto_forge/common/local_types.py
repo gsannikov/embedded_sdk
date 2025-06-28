@@ -571,17 +571,24 @@ class TerminalSpinner:
         "\033[95m",  # Magenta
     ]
     COLOR_END = "\033[0m"
+    CURSOR_HIDE = "\033[?25l"
+    CURSOR_SHOW = "\033[?25h"
 
     @staticmethod
     async def run(message="Thinking..."):
         color_cycle = cycle(TerminalSpinner.COLORS)
         frame_cycle = cycle(TerminalSpinner.SPINNER_FRAMES)
 
-        while True:
-            color = next(color_cycle)
-            frame = next(frame_cycle)
-            print(f"\r{color}{frame}{TerminalSpinner.COLOR_END} {message}", end='', flush=True)
-            await asyncio.sleep(0.1)
+        print(TerminalSpinner.CURSOR_HIDE, end='', flush=True)
+
+        try:
+            while True:
+                color = next(color_cycle)
+                frame = next(frame_cycle)
+                print(f"\r{color}{frame}{TerminalSpinner.COLOR_END} {message}", end='', flush=True)
+                await asyncio.sleep(0.1)
+        finally:
+            print(f"\r{TerminalSpinner.CURSOR_SHOW}", end='', flush=True)
 
 
 class FieldColorType(NamedTuple):

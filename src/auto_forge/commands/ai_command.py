@@ -91,6 +91,11 @@ class AICommand(CommandInterface):
             - "uses rich" → look for 'import rich' or 'from rich import'
             - "uses numpy" → 'import numpy'
         - Do not match vague terms like 'rich' unless no better keyword is implied.
+        - All code content searches (e.g., #define, macros, functions) must be case-sensitive.
+        - Use COLLATE BINARY with LIKE, or GLOB for accurate results.
+        - Example:
+          -- LIKE '%#define MIN%' COLLATE BINARY
+          -- GLOB '*#define MIN*'
 
         Limitations:
         - You cannot match code structure, similarity, or syntax trees.

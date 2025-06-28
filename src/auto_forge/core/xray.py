@@ -31,12 +31,13 @@ from fnmatch import fnmatch
 from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
-# Third-party
 from typing import Optional, Any
 
 from rich import box
 from rich.console import Console
 from rich.table import Table
+# Third-party
+from rich.text import Text
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
 UTC = timezone.utc
@@ -950,18 +951,26 @@ class CoreXRayDB(CoreModuleInterface):
                                            erase_after=True)
 
     @staticmethod
-    def _format_cell(value: Any, col_name: str) -> str:
+    def _format_cell(value: Any, col_name: str) -> str | Text:
         """
         Format individual cell values based on column name and type.
-        Converts Unix timestamps to human-readable dates for 'modified'.
+        - Converts Unix timestamps to human-readable dates for 'modified'
+        - Makes paths clickable using Rich's hyperlink-safe Text object
         """
         if value is None:
             return ""
+
         if isinstance(value, float) and "modified" in col_name.lower():
             try:
                 return datetime.fromtimestamp(value).strftime("%Y-%m-%d %H:%M:%S")
             except (ValueError, OSError):
-                return str(value)  # fallback in case of bad timestamp
+                return str(value)
+
+        if "path" in col_name.lower() and isinstance(value, str) and value.startswith("/"):
+            text = Text(value, style="cyan")
+            text.stylize(f"link file://{value}")
+            return text
+
         return str(value)
 
     def query(self, query: str) -> Optional[str]:
