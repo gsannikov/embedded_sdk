@@ -37,24 +37,36 @@ class CoreAI(CoreModuleInterface):
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._variables = CoreVariables.get_instance()
         self._registry = CoreRegistry.get_instance()
+        self._enabled: bool = False
 
         # Dependencies check
         if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry):
             raise RuntimeError("failed to instantiate critical dependencies")
 
-        # Get mandatory variables
+        # Get mandatory variables, any error will prevent the module for running correctly
         self._model = self._variables.get("AI_MODEL", quiet=True)
+        if self._model is None:
+            self._logger.error("Failed to retrieve 'AI_MODEL', AI bridge disabled")
+            return
+
         self._endpoint = self._variables.get("AI_ENDPOINT", quiet=True)
+        if self._endpoint is None:
+            self._logger.error("Failed to retrieve 'AI_ENDPOINT', AI bridge disabled")
+            return
+
         self._req_timeout = int(self._variables.get("AI_REQ_TIMEOUT", quiet=True))
+        if not isinstance(self._req_timeout, (int, float)) or self._req_timeout == 0:
+            self._logger.warning("Failed to retrieve 'AI_REQ_TIMEOUT', setting demodulate 30 seconds")
+            self._req_timeout = 30
 
         # Get API key from the stored secrets
         self._api_key = self._get_key_from_secrets('openai_api_key')
         if self._api_key is None or not self._api_key:
-            raise RuntimeError("failed to retrieve AI API key")
+            self._logger.error("Failed to retrieve AI API key, AI bridge disabled")
+            return
 
+        # Set proxy server
         self._proxies = {"https://": proxy} if proxy else None
-        if None in (self._model, self._endpoint, self._req_timeout, self._api_key):
-            raise RuntimeError("environment is missing critical AI_* variables")
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -62,6 +74,9 @@ class CoreAI(CoreModuleInterface):
 
         # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
+
+        self._logger.info(f"AI Bridge successfully initialized with mode '{self._model}'")
+        self._enabled = True
 
     def _get_key_from_secrets(self, key_name: str) -> Optional[str]:
         """ Gets the API key from the secrets' dictionary. """
@@ -89,6 +104,9 @@ class CoreAI(CoreModuleInterface):
         Returns:
             Optional[str]: The AI-generated response, or None if an error occurred.
         """
+        if not self._enabled:
+            raise RuntimeError(f"AI bridge was misconfigured, cannot execute query")
+
         request_timeout = timeout if timeout is not None else self._req_timeout
         request_context = context or ("You are a helpful assistant specializing in "
                                       "embedded firmware development using C and C++.")

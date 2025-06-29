@@ -31,7 +31,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 from rich import box
 from rich.console import Console
@@ -951,7 +951,7 @@ class CoreXRayDB(CoreModuleInterface):
                                            erase_after=True)
 
     @staticmethod
-    def _format_cell(value: Any, col_name: str) -> str | Text:
+    def _format_cell(value: Any, col_name: str) -> Union[str, Text]:
         """
         Format individual cell values based on column name and type.
         - Converts Unix timestamps to human-readable dates for 'modified'
