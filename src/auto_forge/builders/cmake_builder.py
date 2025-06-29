@@ -346,8 +346,12 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         try:
 
-            self._ai_bridge: CoreAI.get_instance()
-            self._platform: CorePlatform.get_instance()
+            if self._platform is None:
+                self._platform = CorePlatform.get_instance()
+            if self._platform is None:
+                raise RuntimeError("failed to instantiate critical dependencies")
+
+            self._ai_bridge = CoreAI.get_instance()
 
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
