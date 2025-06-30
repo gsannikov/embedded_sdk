@@ -1608,6 +1608,7 @@ class CorePlatform(CoreModuleInterface):
             except Exception as create_config_error:
                 raise RuntimeError(
                     f"failed to create .config in {_create_path}: {create_config_error}") from create_config_error
+
         try:
             # Store the solution files in the newly created workspace.
             scripts_path = self._variables.get(key="SCRIPTS_BASE")
