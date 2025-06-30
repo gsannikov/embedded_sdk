@@ -61,19 +61,19 @@ class PackageGlobals:
     def populate(cls) -> Optional[bool]:
         """Populate class-level project settings from metadata and pyproject.toml."""
         try:
-            package_path = Path(__file__).resolve().parent.parent.parent
+            package_path = Path(__file__).resolve().parent
             package_name = __package__ or sys.modules[__name__].__package__
             cls.PACKAGE_PATH = package_path
 
-            project_data = metadata("auto_forge")
-            cls.VERSION = version("auto_forge")
+            project_data = metadata(package_name)
+            cls.VERSION = version(package_name)
             cls.PROJ_NAME = project_data.get("Name")
             cls.REPO = project_data.get("Home-page")
             cls.NAME = cls.snake_to_pascal(s=cls.PROJ_NAME)
             cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
 
             base = Path(__file__).resolve().parent
-            print(f"package_path={package_path}, package_name={package_name},VERSION={cls.VERSION}")
+            print(f"PACKAGE_PATH={cls.PACKAGE_PATH}, PROJ_NAME ={cls.PROJ_NAME },NAME={cls.NAME}")
             time.sleep(3)
 
             cls.SOURCE_PATH = base
