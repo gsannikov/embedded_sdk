@@ -51,6 +51,17 @@ class PackageGlobals:
             cls.export()
         return cls._instance
 
+    # Try to walk up until you find pyproject.toml (workspace mode)
+    @staticmethod
+    def find_pyproject_root(start_path: Path, limit=5) -> Optional[Path]:
+        current = start_path.resolve()
+        for _ in range(limit):
+            candidate = current / "pyproject.toml"
+            if candidate.exists():
+                return candidate
+            current = current.parent
+        return None
+
     @classmethod
     def populate(cls) -> Optional[bool]:
         """Populate class-level project settings from metadata and pyproject.toml."""
@@ -61,8 +72,8 @@ class PackageGlobals:
             package_name = __package__ or sys.modules[__name__].__package__
             cls.VERSION = importlib.metadata.version(package_name)
 
-            toml_path = package_path / "pyproject.toml"
-            print(str(toml_path))
+            toml_path = cls.find_pyproject_root(Path(__file__))
+            print(str(toml_path)) # got /home/eitan/.local/lib/python3.13/pyproject.toml
             time.sleep(3)
 
             if toml_path.exists():
