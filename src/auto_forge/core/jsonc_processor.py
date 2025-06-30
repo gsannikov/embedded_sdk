@@ -170,7 +170,7 @@ class _JOSNPrettyPrinter:
 
 class CoreJSONCProcessor(CoreModuleInterface):
     """
-    JSON Pre-processing class - system service that let us work with non standard JSON files, aka JSONC.
+    JSON Pre-processing class - system service that let us work with non-standard JSON files, aka JSONC.
     """
 
     def _initialize(self, normalize_multilines: bool = True, normalize_anonymous_lists: bool = True):

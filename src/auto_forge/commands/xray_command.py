@@ -407,6 +407,8 @@ class XRayCommand(CommandInterface):
         parser.add_argument(
             "-l", "--locate-files", type=str, help="Locate files (optionally limit number of results")
 
+        parser.add_argument("-r", "--refresh-indexes", action="store_true", help="Perform DB indexes refresh")
+
         parser.add_argument(
             "--limit", type=int, default=500, help="Maximum number of results to return (default: 500)")
 
@@ -430,13 +432,16 @@ class XRayCommand(CommandInterface):
         # Instantiate XRayDB needed
         if not isinstance(self._xray_db, CoreXRayDB):
             self._xray_db = CoreXRayDB.get_instance()
-        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.RUNNING:
+        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.IDLE:
             raise RuntimeError("XRay is not running or unavailable")
 
         limit: int = args.limit if args.limit else 500
         extensions: list = args.ext if args.ext else ["c", "h"]
 
-        if args.find_mains:
+        if args.refresh_indexes:
+            return self._xray_db.refresh()
+
+        elif args.find_mains:
             return_code = self._find_all_mains(limit=limit)
 
         elif args.find_duplicates:

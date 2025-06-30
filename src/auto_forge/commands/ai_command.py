@@ -221,7 +221,7 @@ class AICommand(CommandInterface):
         # Instantiate XRayDB needed
         if not isinstance(self._xray_db, CoreXRayDB):
             self._xray_db = CoreXRayDB.get_instance()
-        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.RUNNING:
+        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.IDLE:
             raise RuntimeError("XRay is not running or unavailable")
 
         if args.message:

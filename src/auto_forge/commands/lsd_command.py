@@ -73,7 +73,7 @@ class LSDCommand(CommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def initialize(self, **_kwargs: Any) -> bool:
-        """ Late initialization, we should now have access to to the project configuration """
+        """ Late initialization, we should now have access to the project configuration """
         self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
 
         # Dependencies check

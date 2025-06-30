@@ -143,13 +143,14 @@ class AutoForgFolderType(Enum):
 
 
 class XRayStateType(Enum):
-    """ XRay data base status types"""
-    NO_INITIALIZED = auto()
-    INITIALIZED = auto()
-    INDEXING = auto()
-    RUNNING = auto()
-    STOPPING = auto()
-    ERROR = auto()
+    """ XRay SQLite managment class status types"""
+    UNKNOWN = 0
+    INITIALIZED = auto()        # Class is initialized
+    DB_READY = auto()           # SQLite DB is initialized
+    DB_INDEXING = auto()        # SQLite DB is indexing files
+    IDLE = auto()               # Module is running and ready to serve requests
+    DB_QUERY = auto()           # Executing SQL query
+    ERROR = auto()              # Module is in error state
 
 
 class PromptStatusType(Enum):

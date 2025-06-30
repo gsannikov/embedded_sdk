@@ -346,6 +346,8 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         try:
 
+            # Late instantiation of the CorePlatform class.
+            # This is necessary because when this plugin is dynamically loaded, the CorePlatform class has not yet been created.
             if self._platform is None:
                 self._platform = CorePlatform.get_instance()
             if self._platform is None:

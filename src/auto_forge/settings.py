@@ -3,74 +3,109 @@ Script:         settings.py
 Author:         AutoForge Team
 
 Description:
-    Configuration script that retrieves project information from the pyproject.toml file and sets
-    global variables for project version and name.
+    Populate the 'ProjectGlobals' class which holds project-wide constants such as version,
+    repository, name, and filesystem paths derived from pyproject.toml and the source layout.
+    All attributes are class-level and can be accessed without instantiation.
 """
 import importlib.metadata
-import os
-from contextlib import suppress
+import sys
 from pathlib import Path
+from typing import Optional
 
 # Third-party
 import toml
 
-# Initialize default values for global variables
-PROJECT_VERSION: str = "1.3.1"
-PROJECT_NAME: str = "AutoForge"
-PROJECT_REPO: str = "https://github.com/emichael72/auto_forge.git"
-PROJECT_PACKAGE: str = "auto_forge"
 
-# Determine the base directory of the project
-PROJECT_BASE_PATH: Path = Path(__file__).resolve().parent
-PROJECT_CONFIG_PATH: Path = PROJECT_BASE_PATH / "config"
-PROJECT_CONFIG_FILE: Path = PROJECT_CONFIG_PATH / "auto_forge.jsonc"
-PROJECT_COMMANDS_PATH: Path = PROJECT_BASE_PATH / "commands"
-PROJECT_BUILDERS_PATH: Path = PROJECT_BASE_PATH / "builders"
-PROJECT_RESOURCES_PATH: Path = PROJECT_BASE_PATH / "resources"
-PROJECT_SHARED_PATH: Path = PROJECT_RESOURCES_PATH / "shared"
-PROJECT_SAMPLES_PATH: Path = PROJECT_RESOURCES_PATH / "samples"
-PROJECT_HELP_PATH: Path = PROJECT_RESOURCES_PATH / "help"
-PROJECT_VIEWERS_PATH: Path = PROJECT_SHARED_PATH / "viewers"
-PROJECT_SCHEMAS_PATH: Path = PROJECT_CONFIG_PATH / "schemas"
-PROJECT_PACKAGE_BASE_PATH: Path = Path(__file__).resolve().parent.parent.parent
-PROJECT_TEMP_PREFIX: str = "__AUTO_FORGE_"  # Prefix for temporary paths and files names
-PROJECT_LOG_FILE: str = "auto_forge.log"
-
-
-def auto_forge_get_info(base_path: Path):
+class ProjectGlobals:
     """
-    Retrieves project parameters such as version and name from the pyproject.toml file
-    located in the base directory of the auto_forge project.
-    Args:
-        base_path (str): The base directory path where pyproject.toml is located.
-    Returns:
-        bool: True if the project information was successfully retrieved and globals updated,
-              False otherwise.
+    Singleton-style global container for project metadata and path configuration.
     """
-    global PROJECT_VERSION, PROJECT_NAME, PROJECT_REPO, PROJECT_PACKAGE
 
-    # Suppress all exceptions derived from Exception class to prevent crash
-    with suppress(Exception):
-        # Construct the full path to the pyproject.toml file
-        toml_path = base_path / "pyproject.toml"
+    _instance = None  # Singleton enforcement
+    data: Optional[dict] = None
 
-        PROJECT_VERSION = importlib.metadata.version(PROJECT_PACKAGE)
+    VERSION: Optional[str] = None
+    PACKAGE: Optional[str] = None
+    REPO: Optional[str] = None
+    NAME: Optional[str] = None
+    TEMP_PREFIX: Optional[str] = None
+    LOG_FILE: Optional[str] = None
 
-        # Export several key essential variables to the environment
-        os.environ['AUTO_FORGE_VERSION'] = str(PROJECT_VERSION)
-        os.environ['AUTO_FORGE_PROJECT_BASE_PATH'] = str(PROJECT_BASE_PATH)
-        os.environ['AUTO_FORGE_PROJECT_CONFIG_PATH'] = str(PROJECT_CONFIG_PATH)
-        os.environ['AUTO_FORGE_PROJECT_SAMPLES_PATH'] = str(PROJECT_SAMPLES_PATH)
+    PACKAGE_PATH: Optional[Path] = None  # Package path
+    SOURCE_PATH: Optional[Path] = None  # Package sources (within the package)
+    CONFIG_PATH: Optional[Path] = None
+    CONFIG_FILE: Optional[Path] = None
+    COMMANDS_PATH: Optional[Path] = None
+    BUILDERS_PATH: Optional[Path] = None
+    RESOURCES_PATH: Optional[Path] = None
+    SHARED_PATH: Optional[Path] = None
+    SAMPLES_PATH: Optional[Path] = None
+    HELP_PATH: Optional[Path] = None
+    VIEWERS_PATH: Optional[Path] = None
+    SCHEMAS_PATH: Optional[Path] = None
 
-        # Try to open and load the TOML file
-        with open(file=toml_path) as toml_file:
-            data = toml.load(toml_file)
-            # Update global variables with data from the TOML file
-            PROJECT_VERSION = data.get('project', {}).get('version', '0.0')
-            PROJECT_PACKAGE = data.get('project', {}).get('name', 'Unknown')
-            PROJECT_REPO = (data.get('project', {}).get('urls', {}).get('repository', "Unknown"))
-            PROJECT_NAME = (data.get('tool', {}).get('autoforge_metadata', {}).get('fancy_name', "Unknown"))
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ProjectGlobals, cls).__new__(cls)
+            cls.populate()
+            cls.data = cls.to_dict()
+        return cls._instance
+
+    @classmethod
+    def populate(cls) -> Optional[bool]:
+        """Populate class-level project settings from metadata and pyproject.toml."""
+        try:
+            package_path = Path(__file__).resolve().parent.parent.parent
+            cls.PACKAGE_PATH = package_path
+
+            package_name = __package__ or sys.modules[__name__].__package__
+            cls.VERSION = importlib.metadata.version(package_name)
+
+            toml_path = package_path / "pyproject.toml"
+            if toml_path.exists():
+                with open(toml_path, "r", encoding="utf-8") as f:
+                    data = toml.load(f)
+
+                project_data = data.get("project", {})
+                cls.VERSION = cls.VERSION or project_data.get("version")
+                cls.PACKAGE = project_data.get("name")
+                cls.REPO = project_data.get("urls", {}).get("repository")
+
+                fancy = data.get("tool", {}).get("autoforge_metadata", {}).get("fancy_name")
+                cls.NAME = fancy or cls.NAME
+
+                cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
+                cls.LOG_FILE = f"{cls.PACKAGE}.log" if cls.PACKAGE else None
+
+            base = Path(__file__).resolve().parent
+            cls.SOURCE_PATH = base
+            cls.CONFIG_PATH = base / "config"
+            cls.CONFIG_FILE = cls.CONFIG_PATH / "auto_forge.jsonc"
+            cls.COMMANDS_PATH = base / "commands"
+            cls.BUILDERS_PATH = base / "builders"
+            cls.RESOURCES_PATH = base / "resources"
+            cls.SHARED_PATH = cls.RESOURCES_PATH / "shared"
+            cls.SAMPLES_PATH = cls.RESOURCES_PATH / "samples"
+            cls.HELP_PATH = cls.RESOURCES_PATH / "help"
+            cls.VIEWERS_PATH = cls.SHARED_PATH / "viewers"
+            cls.SCHEMAS_PATH = cls.CONFIG_PATH / "schemas"
+            return True
+
+        except Exception as e:
+            print(f"Failed to populate project globals : {str(e)}", file=sys.stderr)
+
+    @classmethod
+    def to_dict(cls) -> dict:
+        """
+        Export all uppercase global attributes to a dictionary.
+        Returns:
+            dict: A dictionary containing all global project configuration values.
+        """
+        return {
+            k: getattr(cls, k)
+            for k in vars(cls)
+            if k.isupper() and not k.startswith("__")}
 
 
-# Attempt to update global defaults based on the module's TOML file
-auto_forge_get_info(PROJECT_PACKAGE_BASE_PATH)
+# Singleton instance
+_ = ProjectGlobals()

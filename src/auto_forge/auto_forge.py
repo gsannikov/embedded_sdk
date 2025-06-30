@@ -35,9 +35,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, Crypto,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, PROJECT_BUILDERS_PATH,
-    PROJECT_COMMANDS_PATH, PROJECT_CONFIG_FILE,PROJECT_SAMPLES_PATH,
-    PROJECT_LOG_FILE, PROJECT_VERSION, StatusNotifType,
+    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType, ProjectGlobals,
     CoreContext
 )
 
@@ -146,7 +144,7 @@ class AutoForge(CoreModuleInterface):
         # Load the package configuration from 'auto_forge.jsonc', which is part of the package itself
         # and is used extensively at runtime. This is not a user configuration file,
         # but rather an internal AutoForge configuration and metadata store.
-        self._configuration = self._processor.render(PROJECT_CONFIG_FILE)
+        self._configuration = self._processor.render(ProjectGlobals.CONFIG_FILE)
 
         # Allow the configuration to be accessed from any module via the context,
         # without requiring those modules to instantiate this class.
@@ -195,7 +193,7 @@ class AutoForge(CoreModuleInterface):
 
         # Load all supported dynamic modules — currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader()
-        self._loader.probe(paths=[PROJECT_COMMANDS_PATH, PROJECT_BUILDERS_PATH])
+        self._loader.probe(paths=[ProjectGlobals.COMMANDS_PATH, ProjectGlobals.BUILDERS_PATH])
 
         # Instantiate the platform module, which provides key utilities for interacting with the user's platform.
         # This includes methods for executing processes (individually or in sequence), performing essential Git operations,
@@ -279,7 +277,7 @@ class AutoForge(CoreModuleInterface):
             # Normal flow
             elif logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path,
                                                                                   raise_exception=False):
-                self._log_file_name = os.path.join(logs_workspace_path, PROJECT_LOG_FILE)
+                self._log_file_name = os.path.join(logs_workspace_path, ProjectGlobals.LOG_FILE)
                 # Patch it with timestamp so we will have dedicated log for each build system run.
                 self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
 
@@ -292,9 +290,7 @@ class AutoForge(CoreModuleInterface):
 
         # Flush memory logs and disable memory logger
         self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
-
-        self._logger.info(f"AutoForge version: {PROJECT_VERSION} starting")
-        self._logger.info(str(self._sys_info))
+        self._logger.info(f"AutoForge version: {ProjectGlobals.VERSION} starting")
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -469,7 +465,7 @@ class AutoForge(CoreModuleInterface):
             if abort_execution:
                 raise exception
 
-    def _init_secrets(self, demo_mode:bool = True) -> Optional[dict]:
+    def _init_secrets(self, demo_mode: bool = True) -> Optional[dict]:
         """
         Initialize the secrets container using the 'Crypto' module, update the metadata date field,
         and get a fresh copy of the stored secrets.
@@ -480,15 +476,16 @@ class AutoForge(CoreModuleInterface):
                 key_file_path = self._variables.get("AF_SOLUTION_KEY")
                 secrets_file_path = self._variables.get("AF_SOLUTION_SECRETS")
             else:
-                key_file_path = str(PROJECT_SAMPLES_PATH / "demo" / "res_1.bin")
-                secrets_file_path = str(PROJECT_SAMPLES_PATH / "demo" / "res_2.bin")
+                key_file_path = str(ProjectGlobals.SAMPLES_PATH / "demo" / "res_1.bin")
+                secrets_file_path = str(ProjectGlobals.SAMPLES_PATH / "demo" / "res_2.bin")
 
             secrets_schema_data = self.configuration.get("secrets_schema")
             if secrets_schema_data is None:
                 raise ValueError("'secrets_schema' is missing from configuration. Cannot initialize secrets.")
 
             if key_file_path is None or secrets_file_path is None:
-                raise ValueError("'AF_SOLUTION_KEY' or 'AF_SOLUTION_SECRETS' are not defined in variables. Cannot initialize Crypto.")
+                raise ValueError(
+                    "'AF_SOLUTION_KEY' or 'AF_SOLUTION_SECRETS' are not defined in variables. Cannot initialize Crypto.")
 
             # Initialize Crypto with the key file path, creating it if needed
             crypto = Crypto(key_file=key_file_path, create_as_needed=True)
@@ -744,7 +741,7 @@ class AutoForge(CoreModuleInterface):
     @property
     def version(self) -> str:
         """ Return package version string """
-        return PROJECT_VERSION
+        return ProjectGlobals.VERSION
 
     @property
     def proxy_server(self) -> Optional[AddressInfoType]:

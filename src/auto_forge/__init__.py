@@ -26,10 +26,7 @@ try:
     pyperclip.determine_clipboard()
     pyperclip.set_clipboard("no")
 
-    from .settings import (PROJECT_BASE_PATH, PROJECT_CONFIG_FILE, PROJECT_CONFIG_PATH, PROJECT_RESOURCES_PATH,
-                           PROJECT_SHARED_PATH, PROJECT_COMMANDS_PATH, PROJECT_SAMPLES_PATH, PROJECT_BUILDERS_PATH,
-                           PROJECT_HELP_PATH, PROJECT_SCHEMAS_PATH, PROJECT_VERSION, PROJECT_VIEWERS_PATH, PROJECT_NAME,
-                           PROJECT_REPO, PROJECT_PACKAGE, PROJECT_TEMP_PREFIX, PROJECT_LOG_FILE, )
+    from .settings import ProjectGlobals
 
     # Common types
     from auto_forge.common.local_types import (
@@ -106,13 +103,9 @@ __all__ = [
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "GCCLogAnalyzer", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
-    "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PROJECT_BASE_PATH",
-    "PROJECT_BUILDERS_PATH", "PROJECT_COMMANDS_PATH", "PROJECT_CONFIG_FILE", "PROJECT_CONFIG_PATH",
-    "PROJECT_HELP_PATH", "PROJECT_LOG_FILE", "PROJECT_NAME", "PROJECT_PACKAGE", "PROJECT_REPO",
-    "PROJECT_RESOURCES_PATH", "PROJECT_SAMPLES_PATH", "PROJECT_SCHEMAS_PATH", "PROJECT_SHARED_PATH",
-    "PROJECT_TEMP_PREFIX", "PROJECT_VERSION", "PROJECT_VIEWERS_PATH", "ProgressTracker", "PromptStatusType",
-    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler", "TerminalSpinner",
-    "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
+    "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "ProjectGlobals", "ProgressTracker",
+    "PromptStatusType", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "TerminalSpinner", "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",
     "CoreContext", "Crypto", "HasConfigurationProtocol", "VariableFieldType", "VariableType", "VersionCompare", "start"
 ]

@@ -83,21 +83,21 @@ class CoreXRayDB(CoreModuleInterface):
 
         self._managed_paths: Optional[list[Path]] = None
         self._index_path: Optional[Path] = None
+        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_running: Optional[bool] = False
+        self._lock = threading.Lock()
         self._db_indexed_file_types: Optional[list[str]] = None
         self._db_connection: Optional[sqlite3.Connection] = None
         self._db_file: Optional[Path] = None
-        self._manage_thread: Optional[threading.Thread] = None
-        self._lock = threading.Lock()
-        self._stop_flag = threading.Event()
         self._db_indexing_log_frequency: int = 1000
         self._db_row_count: int = 0
+        self._db_last_indexed_date: Optional[datetime] = None
+        self._db_last_indexed_age_days: Optional[int] = None
         self._clean_slate: bool = False
         self._db_meta_data: Optional[dict[str, Any]] = None  # 'meta' table loaded key values pairs
         self._db_filter_files_content: bool = True
-        self._serving_query: bool = False
-        self._state: XRayStateType = XRayStateType.NO_INITIALIZED
+        self._state: XRayStateType = XRayStateType.UNKNOWN
         self._console = Console(force_terminal=True)
-
         super().__init__(*args, **kwargs)
 
     def _initialize(self) -> None:
@@ -151,10 +151,6 @@ class CoreXRayDB(CoreModuleInterface):
             # Number of days after which existing index data is considered stale
             self._db_max_index_age_days: int = self._configuration.get("db_max_index_age_days", 30)
 
-            # We will get that from the 'meta' table
-            self._db_last_indexed_date: Optional[datetime] = None
-            self._db_last_indexed_age_days: Optional[int] = None
-
             # Load excluded paths list from the solution
             self._solution_excluded_paths: Any = self._solution.get_arbitrary_item(key="xray_excluded_path")
             if not isinstance(self._solution_excluded_paths, list) or len(self._solution_excluded_paths) < 1:
@@ -176,6 +172,10 @@ class CoreXRayDB(CoreModuleInterface):
 
             # Inform telemetry that the module is up & running
             self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
+
+            # Mark state as initialized. Note: this does not imply that the database was successfully
+            # initialized or that the system is ready to accept requests.
+            self._state: XRayStateType = XRayStateType.INITIALIZED
 
         # Forward exceptions
         except Exception as exception:
@@ -217,6 +217,32 @@ class CoreXRayDB(CoreModuleInterface):
 
         self._index_path = index_path
 
+    def _set_state(self, new_state: XRayStateType, initial_state: Optional[XRayStateType] = None) -> XRayStateType:
+        """
+        Safely transition to a new state. If 'initial_state' is provided, the transition will only
+        occur if the current state matches it.
+        Args:
+            new_state (XRayStateType): The state to transition to.
+            initial_state (Optional[XRayStateType]): Optional expected current state to validate before transitioning.
+        Returns:
+            XRayStateType: The resulting state after attempting the transition.
+        """
+        with self._lock:
+            if isinstance(initial_state, XRayStateType) and self._state != initial_state:
+                return self._state
+
+            self._state = new_state
+            return self._state
+
+    def _get_state(self) -> XRayStateType:
+        """
+        Safely retrieve the current state of the XRay system.
+        Returns:
+            XRayStateType: The current state.
+        """
+        with self._lock:
+            return self._state
+
     def _get_sql_connection(self, read_only: bool = False) -> sqlite3.Connection:
         """
         Returns a connection to the SQLite database.
@@ -237,10 +263,6 @@ class CoreXRayDB(CoreModuleInterface):
         If `force_new` is True, an existing database will be deleted and rebuilt from scratch.
 
         """
-        with self._lock:
-            # We are allowed to initialize the database only when not yet initialized.
-            if self._state != XRayStateType.NO_INITIALIZED:
-                raise RuntimeError(f"XRay Can't perform initialization on state '{self._state.name}'")
 
         # Normalize 'clean_slate' variable based on SQLite file existence.
         if self._clean_slate:
@@ -600,12 +622,15 @@ class CoreXRayDB(CoreModuleInterface):
         file_queue = Queue()
         result_queue = Queue()
         count_lock = Lock()
+        conn: Optional[sqlite3.Connection] = None
         total_processed: int = 0
         read_stats: _XRayStats = _XRayStats()
         write_stats: _XRayStats = _XRayStats()
         indexing_start_time: float = time.time()
         last_log_time = indexing_start_time
         paths = list(self._managed_paths or [])
+        meta_lookup = {}
+        seen_paths = set()
         indexed_items = list(self._db_indexed_file_types or [])
 
         def _should_skip_path(_path: Path) -> bool:
@@ -706,6 +731,42 @@ class CoreXRayDB(CoreModuleInterface):
                 read_stats.processed = read_stats.errors = 0
                 write_stats.processed = write_stats.skipped = write_stats.errors = 0
 
+        def _compact():
+            """
+            Determine and remove stale entries — present in DB but not indexed in this run.
+            Only applies in non-clean-slate mode.
+            """
+            nonlocal meta_lookup, seen_paths
+            _conn: Optional[sqlite3.Connection] = None
+
+            if self._clean_slate:
+                return  # Nothing to compact when starting from scratch
+
+            db_paths = set(meta_lookup.keys())
+            stale_paths = db_paths - seen_paths
+
+            if not stale_paths:
+                self._logger.info(f"DB is synchronized")
+                return  # Nothing to remove
+
+            self._logger.info(f"Removing {len(stale_paths)} stale entries from the DB")
+
+            try:
+                _conn = self._get_sql_connection()
+                stale_list = list(stale_paths)
+                for i in range(0, len(stale_list), XRAY_BATCH_SIZE):
+                    batch = stale_list[i:i + XRAY_BATCH_SIZE]
+                    _conn.executemany("DELETE FROM files WHERE path = ?", [(p,) for p in batch])
+                    _conn.executemany("DELETE FROM file_meta WHERE path = ?", [(p,) for p in batch])
+                _conn.commit()
+
+            except Exception as cleanup_error:
+                self._logger.error(f"Failed to delete stale entries: {cleanup_error}")
+                _conn.rollback()
+            finally:
+                if _conn:
+                    _conn.close()
+
         def _reader_worker():
             """
             Thread worker that reads and optionally purifies file content from the queue.
@@ -772,100 +833,102 @@ class CoreXRayDB(CoreModuleInterface):
             - Commits batched inserts.
             - Updates statistics.
             """
-            _conn = self._get_sql_connection()
-            _conn.execute("BEGIN")
+            nonlocal conn, write_stats, meta_lookup, seen_paths
+
             _batch = []
             _meta_batch = []
-            _meta_lookup = {}
             _path = "<unknown>"
-            nonlocal write_stats
-            write_stats.start_time = time.time()
 
-            # Before loop starts
-            if not self._clean_slate:
-                self._logger.debug(f"Preloading metadata..")
-                _meta_lookup = {
-                    row[0]: row[1]
-                    for row in _conn.execute("SELECT path, checksum FROM file_meta")
-                }
-                self._logger.debug(f"Metadata preloaded size {len(_meta_lookup)}")
+            try:
+                write_stats.start_time = time.time()
+                conn = self._get_sql_connection()
+                conn.execute("BEGIN")
 
-            while True:
-                _item = result_queue.get()
-                if _item is None:
-                    self._logger.debug(f"Queue is empty, consumer thread stopped")
-                    break
+                # Preload metadata table to allow skipping on index files which ware not changed
+                if not self._clean_slate:
+                    self._logger.debug(f"Preloading metadata..")
+                    meta_lookup = {
+                        row[0]: row[1]
+                        for row in conn.execute("SELECT path, checksum FROM file_meta")
+                    }
+                    self._logger.debug(f"Metadata preloaded size {len(meta_lookup)}")
 
-                _log_stats()
+                while True:
+                    _item = result_queue.get()
+                    if _item is None:
+                        self._logger.debug(f"Queue is empty, consumer thread stopped")
+                        break
 
-                try:
-                    _path, _content, _mtime, _checksum, _file_ext, _file_base = _item
+                    _log_stats()
 
-                    # Skip unchanged files
-                    if not self._clean_slate:
-                        if _meta_lookup.get(_path) == _checksum:
-                            write_stats.skipped += 1
-                            continue
+                    try:
+                        _path, _content, _mtime, _checksum, _file_ext, _file_base = _item
+                        seen_paths.add(_path)
 
-                    _batch.append((_path, _content))
-                    _meta_batch.append((_path, _mtime, _checksum, _file_ext, _file_base))
-                    write_stats.processed += 1
+                        # Skip unchanged files
+                        if not self._clean_slate:
+                            if _checksum == meta_lookup.get(_path):
+                                write_stats.skipped += 1
+                                continue
 
-                    if len(_batch) >= XRAY_BATCH_SIZE:
-                        try:
-                            _conn.executemany("""
-                                INSERT OR REPLACE INTO files (path, content)
-                                VALUES (?, ?)
-                            """, _batch)
+                        _batch.append((_path, _content))
+                        _meta_batch.append((_path, _mtime, _checksum, _file_ext, _file_base))
+                        write_stats.processed += 1
 
-                            _conn.executemany("""
-                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext, base)
-                                VALUES (?, ?, ?, ?, ?)
-                            """, _meta_batch)
+                        if len(_batch) >= XRAY_BATCH_SIZE:
+                            try:
+                                conn.executemany("""
+                                    INSERT OR REPLACE INTO files (path, content)
+                                    VALUES (?, ?)
+                                """, _batch)
 
-                            _conn.commit()
-                            _batch.clear()
-                            _meta_batch.clear()
+                                conn.executemany("""
+                                    INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext, base)
+                                    VALUES (?, ?, ?, ?, ?)
+                                """, _meta_batch)
 
-                        except Exception as sql_error:
-                            self._logger.error(f"Batch insert failed at '{_path}': {sql_error}")
-                            _conn.rollback()
+                                conn.commit()
+                                _batch.clear()
+                                _meta_batch.clear()
 
-                except Exception as write_error:
-                    self._logger.error(f"Failed to process '{os.path.basename(_path)}': {write_error}")
-                    write_stats.errors += 1
-                finally:
-                    result_queue.task_done()
+                            except Exception as sql_error:
+                                self._logger.error(f"Batch insert failed at '{_path}': {sql_error}")
+                                conn.rollback()
 
-            # Final flush
-            if _batch:
-                try:
-                    _conn.executemany("""
-                                INSERT OR REPLACE INTO files (path, content)
-                                VALUES (?, ?)
-                            """, _batch)
-                    _conn.executemany("""
-                                INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext, base)
-                                VALUES (?, ?, ?, ?, ?)
-                            """, _meta_batch)
-                    _conn.commit()
-                    write_stats.processed += len(_batch)
+                    except Exception as write_error:
+                        self._logger.error(f"Failed to process '{os.path.basename(_path)}': {write_error}")
+                        write_stats.errors += 1
+                    finally:
+                        result_queue.task_done()
 
-                except Exception as sql_error:
-                    self._logger.error(f"Final batch insert failed: {sql_error}")
-                    _conn.rollback()
+                # Final flush
+                if _batch:
+                    try:
+                        conn.executemany("""
+                                    INSERT OR REPLACE INTO files (path, content)
+                                    VALUES (?, ?)
+                                """, _batch)
+                        conn.executemany("""
+                                    INSERT OR REPLACE INTO file_meta (path, modified, checksum, ext, base)
+                                    VALUES (?, ?, ?, ?, ?)
+                                """, _meta_batch)
+                        conn.commit()
+                        write_stats.processed += len(_batch)
 
-            # Refresh current records (indexed files) count in the 'files' table post our indexing operation.
-            self._db_row_count = _conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-            self._logger.info(f"DB row count in 'files': {self._db_row_count}")
+                        # Refresh current records (indexed files) count in the 'files' table post our indexing operation.
+                        self._db_row_count = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+                        self._logger.info(f"DB row count in 'files': {self._db_row_count}")
 
-            _conn.close()
-            _batch = []
-            _meta_batch = []
-            _log_stats(_summarize=True)
-
-            # Update 'meta' table with the last indexed timestamp
-            self._update_meta_table(clean_slate=False)
+                    except Exception as sql_error:
+                        self._logger.error(f"Final batch insert failed: {sql_error}")
+                        conn.rollback()
+            finally:
+                if conn is not None:
+                    conn.close()
+                _batch.clear()
+                _meta_batch.clear()
+                _log_stats(_summarize=True)
+                self._update_meta_table(clean_slate=False)
 
         # ----------------------------------------------------------------------
         #
@@ -873,20 +936,15 @@ class CoreXRayDB(CoreModuleInterface):
         #
         # ----------------------------------------------------------------------
 
+        self._logger.info(f"Starting background indexing, enumerating files ..")
         queued_files = _add_files_to_queue()
         if not queued_files:
             self._logger.debug("No files matched indexing criteria — queue is empty.")
             return True  # Nothing to do
 
-        # Set indexing state
-        with self._lock:
-            if self._state not in (XRayStateType.INITIALIZED, XRayStateType.RUNNING):
-                raise RuntimeError(f"XRay Can't perform indexing on state '{self._state.name}'")
-            self._state = XRayStateType.INDEXING
-
-        self._logger.info(f"Starting background indexing of approximately {queued_files} files..")
+        self._logger.info(f"Found approximately {queued_files} files..")
         if self._db_filter_files_content:
-            self._logger.info("Files will be filtered prior to indexing")
+            self._logger.info("Indexed files will be normalized prior to indexing")
 
         # Create worker threads.
         readers = [Thread(target=_reader_worker, daemon=True, name="IndexerReader") for _ in range(XRAY_NUM_READERS)]
@@ -908,47 +966,87 @@ class CoreXRayDB(CoreModuleInterface):
         result_queue.join()
         result_queue.put(None)
         writer.join()
+
+        # Perform, database optimization
+        _compact()
         return True
 
-    def _management_thread(self):
+    def _monitor(self, *, force_clean_slate: Optional[bool] = False):
         """
-        Internal thread entry point for managing internal states, initializing and performing the indexing process.
-        This function is intended to be executed in a background thread.
+        Internal monitoring thread responsible for managing the module state, including initialization,
+        indexing, and readiness checks. This is the only component allowed to set the module's state,
+        ensuring actions are only performed when permitted.
         """
 
-        time.sleep(1)  # Minimal delay before starting
+        self._monitor_running = True
 
-        try:
+        # Set 'clean slate' mode - dropping and re-creating tables.
+        if isinstance(force_clean_slate, bool) and force_clean_slate:
+            self._clean_slate = True
 
-            # Initialize the database and set the state
-            self._initialize_database()
-            with self._lock:
-                self._state = XRayStateType.INITIALIZED
+        time.sleep(1)  # Initial delay before monitoring begins
 
-            # If the database is recent enough, perform indexing and transition to the running state upon success.
-            has_recently_indexed = self._tool_box.is_recent_event(event_date=self._db_last_indexed_date,
-                                                                  days_back=self._db_max_index_age_days)
-            if has_recently_indexed:
-                self._logger.info("Database was recently indexed, skipping")
-            else:
-                self._tool_box.show_status(message="XRayDB starting background indexing", expire_after=2,
-                                           erase_after=True)
-                has_recently_indexed = self._perform_indexing()
+        while self._monitor_running:
+            try:
+                current_state = self._get_state()
 
-            if has_recently_indexed:
-                with self._lock:
-                    self._logger.info("Database initialized")
-                    self._state = XRayStateType.RUNNING
-                    self._tool_box.show_status(message="XRayDB is up and running.", expire_after=2, erase_after=True)
+                # ------------------------------------------------------------------
+                # INITIALIZED → DB_READY
+                #
+                # Check runtime conditions and initialize the database if needed.
+                # Any exception here will transition to the ERROR state.
+                # ------------------------------------------------------------------
+                if current_state == XRayStateType.INITIALIZED:
+                    self._initialize_database()
+                    self._set_state(XRayStateType.DB_READY)
+                    continue
 
-        except Exception as indexing_error:
-            # Any exception leads to error state from which there is no recovery.
-            self._logger.error(f"Indexer error: {indexing_error}")
-            with self._lock:
-                self._state = XRayStateType.ERROR
-                self._tool_box.show_status("XrayDB Error, check logs.", status_type=PromptStatusType.ERROR,
-                                           expire_after=2,
-                                           erase_after=True)
+                # ------------------------------------------------------------------
+                # DB_READY → DB_INDEXING → IDLE
+                #
+                # If database was recently indexed, skip. Otherwise, perform indexing.
+                # On success, transition to IDLE. On failure, fallback to ERROR.
+                # ------------------------------------------------------------------
+                if current_state == XRayStateType.DB_READY:
+                    has_recently_indexed = self._tool_box.is_recent_event(
+                        event_date=self._db_last_indexed_date,
+                        days_back=self._db_max_index_age_days,
+                    )
+
+                    if has_recently_indexed:
+                        self._logger.info("Database was recently indexed, skipping.")
+                    else:
+                        self._set_state(XRayStateType.DB_INDEXING)
+                        self._tool_box.show_status(
+                            message="XRayDB Refreshing indexes...", expire_after=2, erase_after=True)
+                        has_recently_indexed = self._perform_indexing()
+
+                    if has_recently_indexed:
+                        self._logger.info("Database initialized.")
+                        self._tool_box.show_status(
+                            message="XRayDB is up and running.", expire_after=2, erase_after=True)
+                        self._set_state(XRayStateType.IDLE)
+
+                # ------------------------------------------------------------------
+                # IDLE / DB_QUERY — No-op for now
+                # ------------------------------------------------------------------
+                if current_state in (XRayStateType.IDLE, XRayStateType.DB_QUERY):
+                    pass
+
+                # ------------------------------------------------------------------
+                # ERROR — Fatal state, terminate thread and prevent further use.
+                # ------------------------------------------------------------------
+                if current_state == XRayStateType.ERROR:
+                    raise RuntimeError("XRay entered ERROR state. Monitoring thread is terminating.")
+
+                time.sleep(1)
+
+            except Exception as e:
+                self._set_state(XRayStateType.ERROR)
+                self._logger.error(f"Indexer error: {e}")
+                self._tool_box.show_status(
+                    "XRayDB Error", status_type=PromptStatusType.ERROR, expire_after=2, erase_after=True)
+                return
 
     @staticmethod
     def _format_cell(value: Any, col_name: str) -> Union[str, Text]:
@@ -984,12 +1082,10 @@ class CoreXRayDB(CoreModuleInterface):
 
         conn: Optional[sqlite3.Connection] = None
 
-        with self._lock:
-            if self._state != XRayStateType.RUNNING:
-                raise RuntimeError(f"XRay Can't execute query on state '{self._state.name}'")
-            if self._serving_query:
-                raise RuntimeError("Another query is already running")
-            self._serving_query = True
+        # Safe conditional transition to query state
+        if self._set_state(new_state=XRayStateType.DB_QUERY,
+                           initial_state=XRayStateType.IDLE) != XRayStateType.DB_QUERY:
+            raise RuntimeError("Cannot execute query: DB not in IDLE state")
 
         try:
             conn = self._get_sql_connection(read_only=True)
@@ -1008,30 +1104,26 @@ class CoreXRayDB(CoreModuleInterface):
         finally:
             if conn:
                 conn.close()
-            with self._lock:
-                self._serving_query = False
+            # Switch back to idle
+            self._set_state(new_state=XRayStateType.IDLE, initial_state=XRayStateType.DB_QUERY)
 
     def query_raw(self, query: str, params: Optional[tuple[Any, ...]] = None, print_table: bool = False) -> Optional[
         list[tuple]]:
         """
         Execute a raw SQL query and optionally display the result as a Rich table.
-
         Args:
             query (str): SQL query to run.
             params (Optional[tuple]): Optional SQL parameters for safe substitution.
             print_table (bool): If True, print the result as a Rich table.
-
         Returns:
             Optional[list[tuple]]: List of result tuples, or None if query fails.
         """
         conn: Optional[sqlite3.Connection] = None
 
-        with self._lock:
-            if self._state != XRayStateType.RUNNING:
-                raise RuntimeError(f"Can't execute query on state '{self._state.name}'")
-            if self._serving_query:
-                raise RuntimeError("Another query is already running")
-            self._serving_query = True
+        # Safe conditional transition to query state
+        if self._set_state(new_state=XRayStateType.DB_QUERY,
+                           initial_state=XRayStateType.IDLE) != XRayStateType.DB_QUERY:
+            raise RuntimeError("Cannot execute query: DB not in IDLE state")
 
         try:
             conn = self._get_sql_connection(read_only=True)
@@ -1063,8 +1155,25 @@ class CoreXRayDB(CoreModuleInterface):
         finally:
             if conn:
                 conn.close()
-            with self._lock:
-                self._serving_query = False
+            # Switch back to idle
+            self._set_state(new_state=XRayStateType.IDLE, initial_state=XRayStateType.DB_QUERY)
+
+    def refresh(self) -> Optional[int]:
+        """
+        Triggers an immediate reindexing of the SQLite database by simulating an outdated
+        last-indexed timestamp. This forces the monitor thread to re-enter the indexing state.
+        Can only be executed when the system is in the IDLE state.
+        """
+        # Simulate an old last-indexed date to force reindexing
+        self._db_last_indexed_date = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        self._db_last_indexed_age_days = 0
+
+        # Attempt to reset the state to DB_READY, only if it's already IDLE
+        if self._set_state(new_state=XRayStateType.DB_READY,
+                           initial_state=XRayStateType.IDLE) != XRayStateType.DB_READY:
+            raise RuntimeError("Cannot refresh: DB is not in READY state")
+
+        return 0
 
     def start(self, force_clean_slate: Optional[bool] = None, quiet: bool = False) -> None:
         """
@@ -1075,24 +1184,13 @@ class CoreXRayDB(CoreModuleInterface):
             quiet (bool): If False, expansion misses will result in raising an exception.
         """
         try:
-            with self._lock:
-                if self._state != XRayStateType.NO_INITIALIZED:
-                    raise RuntimeError(f"Cannot start from state '{self._state.name}'")
+            if self._monitor_running:
+                raise RuntimeError(f"Cannot start, monitoring thread is already running")
 
-            if self._manage_thread and self._manage_thread.is_alive():
-                raise RuntimeError(f"Cannot start, Indexer thread is already running")
-
-            # Respect caller's request to start with a clean slate
-            if force_clean_slate:
-                self._clean_slate = True
-
-            self._stop_flag.clear()
-            self._manage_thread = threading.Thread(
-                target=self._management_thread,
-                name="XRayManager",
-                daemon=True
-            )
-            self._manage_thread.start()
+            self._monitor_thread = threading.Thread(target=self._monitor,
+                                                    kwargs={"force_clean_slate": force_clean_slate},
+                                                    name="XRayManager", daemon=True)
+            self._monitor_thread.start()
 
         except Exception as exception:
             exception_message: Optional[str] = f"XRayDB Exception: {exception}"

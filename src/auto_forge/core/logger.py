@@ -31,7 +31,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, FieldColorType, LogHandlersType, PROJECT_NAME)
+    AutoForgeModuleType, CoreModuleInterface, CoreRegistry, FieldColorType, LogHandlersType, ProjectGlobals)
 
 AUTO_FORGE_MODULE_NAME = "Logger"
 AUTO_FORGE_MODULE_DESCRIPTION = "Central Logging"
@@ -291,7 +291,7 @@ class CoreLogger(CoreModuleInterface):
 
         self._logger: Optional[logging.Logger] = None
         self._internal_logger: Optional[logging.Logger] = None
-        self._name: str = PROJECT_NAME
+        self._name: str = ProjectGlobals.NAME
         self._log_level: int = log_level
         self._known_logger_names = set()  # Track logger created by this class
         self._erase_exiting_file: bool = erase_exiting_file

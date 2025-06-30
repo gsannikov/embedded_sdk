@@ -44,7 +44,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreLogger, CommandFailedException, CommandResultType,
     CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface, CoreRegistry,
     CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog,
-    PROJECT_SHARED_PATH, ProgressTracker,
+    ProgressTracker, ProjectGlobals,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
 
 AUTO_FORGE_MODULE_NAME = "Platform"
@@ -1614,7 +1614,7 @@ class CorePlatform(CoreModuleInterface):
             scripts_path = self._variables.get(key="SCRIPTS_BASE")
             if scripts_path is not None:
                 solution_destination_path = os.path.join(scripts_path, 'solution')
-                env_starter_file: Path = PROJECT_SHARED_PATH / 'env.sh'
+                env_starter_file: Path = ProjectGlobals.SHARED_PATH / 'env.sh'
 
                 # Move all project specific jsons along with any zip files to the destination path.
                 self._tool_box.cp(
