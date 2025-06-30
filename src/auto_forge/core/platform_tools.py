@@ -1612,25 +1612,28 @@ class CorePlatform(CoreModuleInterface):
         try:
             # Store the solution files in the newly created workspace.
             scripts_path = self._variables.get(key="SCRIPTS_BASE")
-            if scripts_path is not None:
-                solution_destination_path = os.path.join(scripts_path, 'solution')
-                env_starter_file: Path = PackageGlobals.SHARED_PATH / 'env.sh'
+            logs_path = self._variables.get(key="BUILD_LOGS")
+            if not isinstance(scripts_path, str) or not isinstance(logs_path, str):
+                raise RuntimeError("Crucial variable are not defined")
 
-                # Move all project specific jsons along with any zip files to the destination path.
-                self._tool_box.cp(
-                    pattern=f'{solution_package_path}/*.json*,{solution_package_path}/*.zip',
-                    dest_dir=solution_destination_path)
+            solution_destination_path = os.path.join(scripts_path, 'solution')
+            env_starter_file: Path = PackageGlobals.SHARED_PATH / 'env.sh'
 
-                # Place the build system default initiator script
-                self._tool_box.cp(pattern=f'{env_starter_file.__str__()}', dest_dir=self._workspace_path)
+            # Copy project resources to the destination workspace path
+            if self._tool_box.copy_files(source=solution_package_path,
+                                         destination=solution_destination_path,
+                                         pattern=["*.json*", "*.zip", "*.py"], descend=True) is None:
+                raise RuntimeError(f"Failed to copy resources files to '{solution_destination_path}'")
 
-                # Place the sequence log to the newly created workspace logs path.
-                if sequence_log_file is not None:
-                    sequence_log_file = str(sequence_log_file)
-                    self._tool_box.cp(pattern=sequence_log_file, dest_dir=self._variables.get(key="BUILD_LOGS"))
+            # Copy the initiator shell script rom the package resources to the workspace
+            shutil.copy(src=env_starter_file, dst=self._workspace_path)
 
-                # Finally, create a hidden '.config' file in the solution directory with essential metadata.
-                _create_config_file(_solution_name=solution_name, _create_path=self._workspace_path)
+            # Copy the sequence log file to the newly created workspace logs path.
+            if sequence_log_file is not None:
+                shutil.copy(src=sequence_log_file, dst=logs_path)
+
+            # Finally, create a hidden '.config' file in the solution directory with essential metadata.
+            _create_config_file(_solution_name=solution_name, _create_path=self._workspace_path)
 
         except Exception as exception:
             raise exception from exception

@@ -9,7 +9,6 @@ Description:
 """
 
 import base64
-import glob
 import gzip
 import importlib.metadata
 import importlib.util
@@ -1597,35 +1596,60 @@ class CoreToolBox(CoreModuleInterface):
         return doc.strip()
 
     @staticmethod
-    def cp(pattern: Union[str, list[str]], dest_dir: str):
+    def copy_files(source: Union[Path, str], destination: Union[Path, str], pattern: Union[str, list[str]],
+                   descend: bool = False) -> Optional[int]:
         """
-        Copies files matching one or more wildcard patterns to the destination directory.
-        If the destination directory does not exist, it will be created.
-        Metadata such as timestamps and permissions are preserved.
-
+        Copies files from a source path to a destination path based on wildcard patterns.
         Args:
-            pattern (Union[str, List[str]]): Wildcard pattern(s) (e.g. '*.txt' or ['*.json', '*.zip']).
-            dest_dir (str): Target directory to copy files into.
+            source: The path to the source directory. Must exist.
+            destination: The path to the destination directory. Will be created as needed.
+            pattern: A single wildcard pattern (e.g., '*.json') or a list of wildcard patterns.
+            descend: If true, searches for patterns in all subfolders of 'source_path'
+                     and creates relative paths under 'destination_path' for matches.
+        Returns:
+            The number of files copied if no exception occurred, otherwise None.
         """
+        source = Path(source)
+        destination = Path(destination)
+        copied_files_count = 0
+
+        if not source.exists():
+            raise FileNotFoundError(f"Source path '{source}' does not exist.")
+
+        destination.mkdir(parents=True, exist_ok=True)
+
         if isinstance(pattern, str):
-            patterns = [p.strip() for p in pattern.split(",")]
+            patterns = [pattern]
         else:
             patterns = pattern
 
-        matched_files = []
-        for pat in patterns:
-            matched_files.extend(glob.glob(pat))
+        with suppress(Exception):
+            if descend:
+                # Walk through all directories and subdirectories
+                for root, _, _ in source.walk():
+                    # Determine the relative path from the source to the current directory
+                    current_relative_path = root.relative_to(source)
+                    # Construct the corresponding destination directory
+                    current_destination_dir = destination / current_relative_path
+                    current_destination_dir.mkdir(parents=True, exist_ok=True)
 
-        if not matched_files:
-            raise FileNotFoundError(f"no files match pattern(s): {patterns}")
+                    # Apply each pattern to the current directory
+                    for p in patterns:
+                        for file_path in root.glob(p):
+                            if file_path.is_file():
+                                shutil.copy2(file_path, current_destination_dir)
+                                copied_files_count += 1
+            else:
+                # Only process the source_path directly
+                for p in patterns:
+                    for file_path in source.glob(p):
+                        if file_path.is_file():
+                            shutil.copy2(file_path, destination)
+                            copied_files_count += 1
+            return copied_files_count
 
-        os.makedirs(dest_dir, exist_ok=True)
-
-        for src_file in matched_files:
-            if os.path.isfile(src_file):
-                base_name = os.path.basename(src_file)
-                dst_path = os.path.join(dest_dir, base_name)
-                shutil.copy2(src_file, dst_path)
+        # Return None if any exception occurs during the copying process
+        return None
 
     def get_man_description(self, command: str) -> Optional[str]:
         """
