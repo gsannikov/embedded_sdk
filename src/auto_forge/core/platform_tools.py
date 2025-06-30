@@ -1608,11 +1608,10 @@ class CorePlatform(CoreModuleInterface):
             except Exception as create_config_error:
                 raise RuntimeError(
                     f"failed to create .config in {_create_path}: {create_config_error}") from create_config_error
-
         try:
             # Store the solution files in the newly created workspace.
             scripts_path = self._variables.get(key="SCRIPTS_BASE")
-            logs_path = self._variables.get(key="BUILD_LOGS")
+            logs_path = Path(self._variables.get(key="BUILD_LOGS"))
             if not isinstance(scripts_path, str) or not isinstance(logs_path, str):
                 raise RuntimeError("Crucial variable are not defined")
 
@@ -1630,6 +1629,8 @@ class CorePlatform(CoreModuleInterface):
 
             # Copy the sequence log file to the newly created workspace logs path.
             if sequence_log_file is not None:
+                logs_path = Path(logs_path)
+                logs_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(src=sequence_log_file, dst=logs_path)
 
             # Finally, create a hidden '.config' file in the solution directory with essential metadata.
