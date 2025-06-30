@@ -1612,7 +1612,7 @@ class CorePlatform(CoreModuleInterface):
         try:
             # Store the solution files in the newly created workspace.
             scripts_path = self._variables.get(key="SCRIPTS_BASE")
-            logs_path = Path(self._variables.get(key="BUILD_LOGS"))
+            logs_path = self._variables.get(key="BUILD_LOGS")
             if not isinstance(scripts_path, str) or not isinstance(logs_path, str):
                 raise RuntimeError("Crucial variable are not defined")
 
