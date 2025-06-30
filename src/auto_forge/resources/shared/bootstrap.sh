@@ -74,6 +74,7 @@ main() {
     local auto_forge_url=""
     local package=""
     local token=""
+    local original_dir="$PWD"
 
     # Help message function
     display_help() {
@@ -178,6 +179,10 @@ main() {
     # Quietly uninstall auto_forge from the global scope to restrict it as possible  only to virtual environments.
     pip3 uninstall -y auto_forge &>/dev/null
     echo -ne '\e[?25h' # Restore cursor.
+
+    # Restore original directory
+    cd "$original_dir" || return 1
+
     return $ret_val
 }
 

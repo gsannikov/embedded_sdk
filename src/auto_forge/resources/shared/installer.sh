@@ -269,6 +269,7 @@ install_auto_forge() {
 main() {
 
     local ret_val=0
+    local original_dir="$PWD"
 
     # We can only be sourced.
     if ! is_sourced; then
@@ -277,6 +278,8 @@ main() {
         exit $ret_val
     fi
 
+    # Restore original directory
+    cd "$original_dir" || return 1
     return $ret_val
 }
 

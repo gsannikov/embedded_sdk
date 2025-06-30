@@ -74,6 +74,8 @@ get_config_value() {
 #
 
 main() {
+
+    local ret_val=0
     local solution_name
     local script_dir
     local venv_path=".venv/bin/activate"
@@ -82,6 +84,7 @@ main() {
     local verbose=false
     local -a run_command=()
     local parsing=true
+    local original_dir="$PWD"
 
     # Determine the script's directory (works in both bash and zsh)
     if [[ -n "${BASH_SOURCE:-}" ]]; then
@@ -171,7 +174,12 @@ main() {
     fi
 
     "${cmd[@]}"
-    return $?
+    ret_val=$?
+
+    # Restore original directory
+    cd "$original_dir" || return 1
+
+    return $ret_val
 }
 
 #
