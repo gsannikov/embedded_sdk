@@ -39,6 +39,8 @@ class PackageGlobals:
     VIEWERS_PATH: Optional[Path] = None
     SCHEMAS_PATH: Optional[Path] = None
 
+    SOURCE_PATH:Optional[Path] = None
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(PackageGlobals, cls).__new__(cls)
@@ -74,6 +76,7 @@ class PackageGlobals:
             project_data = metadata(package_name)
 
             cls.PACKAGE_PATH = package_path
+            cls.SOURCE_PATH = package_path
             cls.VERSION = version(package_name)
             cls.PROJ_NAME = project_data.get("Name")
             cls.REPO = cls.get_project_url("auto_forge", "repository")
