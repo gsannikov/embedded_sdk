@@ -72,8 +72,10 @@ class PackageGlobals:
             package_name = __package__ or sys.modules[__name__].__package__
             cls.VERSION = importlib.metadata.version(package_name)
 
+            print(f"Path(__file__) == {Path(__file__)}")
+            time.sleep(3)
             toml_path = cls.find_pyproject_root(Path(__file__))
-            print(str(toml_path)) # got /home/eitan/.local/lib/python3.13/pyproject.toml
+            print(f"toml_path={str(toml_path)}")
             time.sleep(3)
 
             if toml_path.exists():
