@@ -394,7 +394,7 @@ class CoreToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
-    def find_class_in_project(class_name: str, root_path: str = PackageGlobals.SOURCE_PATH) -> Optional[type]:
+    def find_class_in_project(class_name: str, root_path: str = PackageGlobals.PACKAGE_PATH) -> Optional[type]:
         """
         Search for a class by name in all Python files under a specified directory.
         This function dynamically loads each Python file that contains the specified class name,
@@ -465,7 +465,7 @@ class CoreToolBox(CoreModuleInterface):
                 or None if not found or on error.
         """
         if directory is None:
-            directory = PackageGlobals.SOURCE_PATH
+            directory = PackageGlobals.PACKAGE_PATH
 
         base_package_name = os.path.basename(directory)
         class_regex = re.compile(r'^class\s+(\w+)\s*:', re.MULTILINE)
@@ -968,30 +968,6 @@ class CoreToolBox(CoreModuleInterface):
             return True
 
         return False
-
-    @staticmethod
-    def is_likely_editable() -> tuple[bool, Optional[str]]:
-        """
-        Determines if the current running environment is within a Python virtual environment,
-        which typically indicates a non-editable (production) environment. Otherwise, it suggests
-        a development setup.
-
-        Returns:
-            tuple[bool, Optional[str]]: A tuple containing a boolean indicating if the current environment
-            is likely in editable mode (not in a virtual environment), and the path to the project's base directory.
-        """
-        with suppress(Exception):
-            package_path = PackageGlobals.SOURCE_PATH  # Use a global variable that indicates where the project is running from
-            virtual_env_path = os.getenv('VIRTUAL_ENV')
-
-            # Check if the package path starts with the virtual environment path if it's set
-            in_virtual_env = virtual_env_path and str(package_path).startswith(virtual_env_path)
-
-            # Determine if it's likely editable: editable if not in a virtual environment
-            is_development = not in_virtual_env
-            return is_development, str(package_path)
-
-        return False, None  # Returns False and None if an exception occurs
 
     def decompress_archive(self, archive_path: str, destination_path: Optional[str] = None, delete_after: bool = False,
                            update_progress: Optional[Callable[..., Any]] = None) -> Optional[str]:

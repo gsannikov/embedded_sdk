@@ -22,8 +22,8 @@ class PackageGlobals:
     """
 
     _instance = None  # Singleton enforcement
-    NAME: Optional[str] = None # Pascal case: 'AutoForge'
-    PROJ_NAME: Optional[str] = None # Snake case: 'auto_forge'
+    NAME: Optional[str] = None  # Pascal case: 'AutoForge'
+    PROJ_NAME: Optional[str] = None  # Snake case: 'auto_forge'
     REPO: Optional[str] = None
     VERSION: Optional[str] = None
     TEMP_PREFIX: Optional[str] = None
@@ -38,8 +38,7 @@ class PackageGlobals:
     HELP_PATH: Optional[Path] = None
     VIEWERS_PATH: Optional[Path] = None
     SCHEMAS_PATH: Optional[Path] = None
-
-    SOURCE_PATH:Optional[Path] = None
+    EDITABLE: Optional[bool] = True
 
     def __new__(cls):
         if cls._instance is None:
@@ -75,8 +74,10 @@ class PackageGlobals:
             package_name = __package__ or sys.modules[__name__].__package__
             project_data = metadata(package_name)
 
+            if "site-packages" in str(package_path):
+                cls.EDITABLE = False
+
             cls.PACKAGE_PATH = package_path
-            cls.SOURCE_PATH = package_path
             cls.VERSION = version(package_name)
             cls.PROJ_NAME = project_data.get("Name")
             cls.REPO = cls.get_project_url("auto_forge", "repository")
