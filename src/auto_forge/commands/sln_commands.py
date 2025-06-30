@@ -101,7 +101,7 @@ class SolutionCommand(CommandInterface):
                 is_path = var.get("is_path", False)
                 value = var.get("value", "")
                 folder_type = var.get("folder_type", AutoForgFolderType.UNKNOWN)
-                var_type:VariableType = var.get("type", VariableType.UNKNOWN)
+                var_type: VariableType = var.get("type", VariableType.UNKNOWN)
 
                 # Get and format folder type
                 folder_type_str = folder_type.name if isinstance(folder_type, AutoForgFolderType) else ""
@@ -110,21 +110,31 @@ class SolutionCommand(CommandInterface):
                 # Build styled value text
                 value_text = Text()
                 try:
-                    if is_path and isinstance(value, str) and value.startswith(project_workspace):
-                        rel_path = Path(value).relative_to(project_workspace)
-                        value_text.append("$", style="blue")
-                        value_text.append(f"/{rel_path}")
-                    elif is_path and isinstance(value, str) and value.startswith(home_directory):
-                        rel_path = Path(value).relative_to(home_directory)
-                        value_text.append("~", style="purple")
-                        value_text.append(f"/{rel_path}")
+                    if is_path and isinstance(value, str):
+                        path_obj = Path(value)
+
+                        if value.startswith(project_workspace):
+                            rel_path = path_obj.relative_to(project_workspace)
+                            value_text.append("$", style="blue")
+                            value_text.append(f"/{rel_path}")
+                        elif value.startswith(home_directory):
+                            rel_path = path_obj.relative_to(home_directory)
+                            value_text.append("~", style="purple")
+                            value_text.append(f"/{rel_path}")
+                        else:
+                            value_text.append(str(value))
+                        # Highlight missing paths in yellow
+                        if not path_obj.exists():
+                            value_text.stylize("yellow")
+
                     else:
                         value_text = Text(str(value))
                 except ValueError:
                     value_text = Text(str(value))
 
                 table.add_row(key, value_text, description, self._bool_emoji(is_path),
-                              self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str, var_type.name.capitalize())
+                              self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str,
+                              var_type.name.capitalize())
 
             console.print('\n', table)
             return 0

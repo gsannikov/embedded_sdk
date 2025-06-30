@@ -25,11 +25,10 @@ class PackageGlobals:
     data: Optional[dict] = None
 
     VERSION: Optional[str] = None
-    PACKAGE: Optional[str] = None
+    PROJ_NAME: Optional[str] = None
     REPO: Optional[str] = None
     NAME: Optional[str] = None
     TEMP_PREFIX: Optional[str] = None
-    LOG_FILE: Optional[str] = None
 
     PACKAGE_PATH: Optional[Path] = None  # Package path
     SOURCE_PATH: Optional[Path] = None  # Package sources (within the package)
@@ -68,14 +67,14 @@ class PackageGlobals:
 
                 project_data = data.get("project", {})
                 cls.VERSION = cls.VERSION or project_data.get("version")
-                cls.PACKAGE = project_data.get("name")
+                cls.PROJ_NAME = project_data.get("name")
                 cls.REPO = project_data.get("urls", {}).get("repository")
 
                 fancy = data.get("tool", {}).get("autoforge_metadata", {}).get("fancy_name")
                 cls.NAME = fancy or cls.NAME
 
                 cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
-                cls.LOG_FILE = f"{cls.PACKAGE}.log" if cls.PACKAGE else None
+                cls.LOG_FILE = f"{cls.PROJ_NAME}.log" if cls.PROJ_NAME else None
 
             base = Path(__file__).resolve().parent
             cls.SOURCE_PATH = base

@@ -217,6 +217,11 @@ class CoreVariables(CoreModuleInterface):
         ) or val.startswith('\\\\'):
             return VariableType.WIN_PATH
 
+        # Check for version-like string (e.g. "1.2.3", "v1.0", "2.0-beta")
+        version_pattern = re.compile(r'^(v?\d+(\.\d+)*([-_a-zA-Z0-9]*)?)$')
+        if version_pattern.match(val):
+            return VariableType.VERSION
+
         # When you have eliminated the impossible, whatever remains, however improbable, must be the truth
         return VariableType.STRING
 
@@ -302,21 +307,27 @@ class CoreVariables(CoreModuleInterface):
             self.add(key="SOLUTION_NAME", value=self._solution_name, description="Solution name", is_path=False)
             self.add(key="PROJ_WORKSPACE", value=self._workspace_path, description="Workspace path",
                      create_path_if_not_exist=False)
+            create_path_if_not_exist:bool = True
+            path_must_exist:bool = True
 
             # Add all the package constants
             for key, value in PackageGlobals.to_dict().items():
                 # Tag internal packager internal help path
                 if "HELP_PATH" in key:
                     folder_type = AutoForgFolderType.HELP
+                    create_path_if_not_exist = False
                 elif "COMMANDS_PATH" in key:
                     folder_type = AutoForgFolderType.COMMANDS
+                    create_path_if_not_exist = False
                 elif "BUILDERS_PATH" in key:
                     folder_type = AutoForgFolderType.BUILDERS
+                    create_path_if_not_exist = False
                 else:
                     folder_type = AutoForgFolderType.UNKNOWN
 
                 self.add(key=f"PACKAGE_{key}", value=value, description="Package constant",
-                         create_path_if_not_exist=False, folder_type=folder_type)
+                         path_must_exist=path_must_exist,
+                         create_path_if_not_exist=create_path_if_not_exist, folder_type=folder_type)
 
             # Load essential
             self._load_from_dictionary(self._essential_variables)
