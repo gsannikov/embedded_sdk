@@ -72,10 +72,10 @@ class PackageGlobals:
             cls.NAME = cls.snake_to_pascal(s=cls.PROJ_NAME)
             cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
 
-            base = Path(__file__).resolve().parent
-            print(f"PACKAGE_PATH={cls.PACKAGE_PATH}, PROJ_NAME ={cls.PROJ_NAME },NAME={cls.NAME}")
-            time.sleep(3)
+            # print(f"PACKAGE_PATH={cls.PACKAGE_PATH}, PROJ_NAME ={cls.PROJ_NAME },NAME={cls.NAME}")
+            # time.sleep(3)
 
+            base = Path(__file__).resolve().parent
             cls.SOURCE_PATH = base
             cls.CONFIG_PATH = base / "config"
             cls.CONFIG_FILE = cls.CONFIG_PATH / "auto_forge.jsonc"
