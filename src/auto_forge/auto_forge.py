@@ -259,6 +259,7 @@ class AutoForge(CoreModuleInterface):
         """ Construct the logger file name, initialize and start logging"""
 
         allow_console_output = False
+        default_log_file = f"{PackageGlobals.PROJ_NAME}.log"
 
         # Determine if we have a workspace which could she log file
         logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
@@ -278,7 +279,7 @@ class AutoForge(CoreModuleInterface):
             # Normal flow
             elif logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path,
                                                                                   raise_exception=False):
-                self._log_file_name = os.path.join(logs_workspace_path, PackageGlobals.LOG_FILE)
+                self._log_file_name = os.path.join(logs_workspace_path, default_log_file)
                 # Patch it with timestamp so we will have dedicated log for each build system run.
                 self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
 
