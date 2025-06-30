@@ -96,7 +96,9 @@ class CoreTelemetry(CoreModuleInterface):
         Initializes the CoreTelemetry service.
         This method should be called once during startup.
         """
-        self._service_name = service_name if service_name else PackageGlobals.NAME
+
+        if isinstance(service_name, str):
+            self._service_name = service_name
 
         # Register this module with the package registry
         registry = CoreRegistry.get_instance()
@@ -106,8 +108,6 @@ class CoreTelemetry(CoreModuleInterface):
             auto_forge_module_type=AutoForgeModuleType.CORE,
         )
 
-        print (self._service_name )
-        print ( PackageGlobals.NAME )
         # Start tracing and metrics
         self._init_tracing()
         self._init_metrics()
