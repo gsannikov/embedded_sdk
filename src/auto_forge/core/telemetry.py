@@ -125,12 +125,12 @@ class CoreTelemetry(CoreModuleInterface):
             # Set up the tracer provider with a service identity
             provider = SDKTracerProvider(
                 resource=Resource.create({
-                    "service.name": self._service_name or PackageGlobals.NAME
+                    "service.name": self._service_name
                 })
             )
 
             trace.set_tracer_provider(provider)
-            self._tracer = trace.get_tracer(self._service_name or PackageGlobals.NAME)
+            self._tracer = trace.get_tracer(self._service_name)
             self._tracing_started = True
 
     def _init_metrics(self):
@@ -143,7 +143,7 @@ class CoreTelemetry(CoreModuleInterface):
             reader = InMemoryMetricReader()
             provider = MeterProvider(metric_readers=[reader])
             metrics.set_meter_provider(provider)
-            self._meter = metrics.get_meter(self._service_name or PackageGlobals.NAME)
+            self._meter = metrics.get_meter(self._service_name)
             self._metrics_started = True
 
     def _register_counter(self, counter: Any):
