@@ -9,6 +9,7 @@ Description:
 """
 import importlib.metadata
 import os
+import time
 import sys
 from pathlib import Path
 from typing import Optional
@@ -62,6 +63,8 @@ class PackageGlobals:
 
             toml_path = package_path / "pyproject.toml"
             print(str(toml_path))
+            time.sleep(3)
+
             if toml_path.exists():
                 with open(toml_path, "r", encoding="utf-8") as f:
                     data = toml.load(f)
