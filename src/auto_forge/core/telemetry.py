@@ -96,7 +96,7 @@ class CoreTelemetry(CoreModuleInterface):
         Initializes the CoreTelemetry service.
         This method should be called once during startup.
         """
-        self._service_name = service_name if service_name
+        self._service_name = service_name if service_name else PackageGlobals.NAME
 
         # Register this module with the package registry
         registry = CoreRegistry.get_instance()
