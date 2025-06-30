@@ -77,8 +77,6 @@ class CoreTelemetry(CoreModuleInterface):
         self._lock: threading.Lock = threading.Lock()
         self._tracing_started: bool = False
         self._tracer: Optional[Tracer] = None
-        self._start_perf: float = time.perf_counter()
-        self._start_unix: float = time.time()
         self._service_name: Optional[str] = PackageGlobals.NAME
 
         # Metrics providers
@@ -99,6 +97,9 @@ class CoreTelemetry(CoreModuleInterface):
 
         if isinstance(service_name, str):
             self._service_name = service_name
+
+        self._start_perf: float = time.perf_counter()
+        self._start_unix: float = time.time()
 
         # Register this module with the package registry
         registry = CoreRegistry.get_instance()
