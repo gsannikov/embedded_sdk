@@ -1628,10 +1628,10 @@ class CorePlatform(CoreModuleInterface):
             # Copy the initiator shell script rom the package resources to the workspace
             shutil.copy(src=env_starter_file, dst=self._workspace_path)
 
-            # Copy the sequence log file to the newly created workspace logs path.
+            # Create logs path and copy the sequence log file to the newly created workspace
             if sequence_log_file is not None:
                 logs_path = Path(logs_path)
-                logs_path.parent.mkdir(parents=True, exist_ok=True)
+                logs_path.mkdir(parents=True, exist_ok=True)
                 shutil.copy(src=sequence_log_file, dst=logs_path)
 
             # Finally, create a hidden '.config' file in the solution directory with essential metadata.
