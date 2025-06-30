@@ -10,13 +10,10 @@ Description:
 import os
 import re
 import sys
-import time
+from contextlib import suppress
 from importlib.metadata import metadata, version
 from pathlib import Path
 from typing import Optional
-
-
-# Third-party
 
 
 class PackageGlobals:
@@ -25,15 +22,12 @@ class PackageGlobals:
     """
 
     _instance = None  # Singleton enforcement
-
-    VERSION: Optional[str] = None
-    PROJ_NAME: Optional[str] = None
+    NAME: Optional[str] = None # Pascal case: 'AutoForge'
+    PROJ_NAME: Optional[str] = None # Snake case: 'auto_forge'
     REPO: Optional[str] = None
-    NAME: Optional[str] = None
+    VERSION: Optional[str] = None
     TEMP_PREFIX: Optional[str] = None
-
     PACKAGE_PATH: Optional[Path] = None  # Package path
-    SOURCE_PATH: Optional[Path] = None  # Package sources (within the package)
     CONFIG_PATH: Optional[Path] = None
     CONFIG_FILE: Optional[Path] = None
     COMMANDS_PATH: Optional[Path] = None
@@ -55,7 +49,21 @@ class PackageGlobals:
     # Try to walk up until you find pyproject.toml (workspace mode)
     @staticmethod
     def snake_to_pascal(s: str) -> str:
+        """ Convert snake case to pascal case """
         return re.sub(r'(?:^|_)(\w)', lambda m: m.group(1).upper(), s)
+
+    @staticmethod
+    def get_project_url(package_name: str, key: str = "repository") -> Optional[str]:
+        """ Extract a URL from the package metadata"""
+        with suppress(Exception):
+            meta = metadata(package_name)
+            project_urls = meta.get_all("Project-URL") or []
+
+            for entry in project_urls:
+                if re.match(rf"{key}\s*,", entry, re.IGNORECASE):
+                    # Format: "repository, https://url"
+                    return entry.split(",", 1)[1].strip()
+        return None
 
     @classmethod
     def populate(cls) -> Optional[bool]:
@@ -63,25 +71,19 @@ class PackageGlobals:
         try:
             package_path = Path(__file__).resolve().parent
             package_name = __package__ or sys.modules[__name__].__package__
-            cls.PACKAGE_PATH = package_path
-
             project_data = metadata(package_name)
+
+            cls.PACKAGE_PATH = package_path
             cls.VERSION = version(package_name)
             cls.PROJ_NAME = project_data.get("Name")
-            cls.REPO = project_data.get("Home-page")
+            cls.REPO = cls.get_project_url("auto_forge", "repository")
             cls.NAME = cls.snake_to_pascal(s=cls.PROJ_NAME)
             cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
-
-            # print(f"PACKAGE_PATH={cls.PACKAGE_PATH}, PROJ_NAME ={cls.PROJ_NAME },NAME={cls.NAME}")
-            # time.sleep(3)
-
-            base = Path(__file__).resolve().parent
-            cls.SOURCE_PATH = base
-            cls.CONFIG_PATH = base / "config"
+            cls.CONFIG_PATH = cls.PACKAGE_PATH / "config"
             cls.CONFIG_FILE = cls.CONFIG_PATH / "auto_forge.jsonc"
-            cls.COMMANDS_PATH = base / "commands"
-            cls.BUILDERS_PATH = base / "builders"
-            cls.RESOURCES_PATH = base / "resources"
+            cls.COMMANDS_PATH = cls.PACKAGE_PATH / "commands"
+            cls.BUILDERS_PATH = cls.PACKAGE_PATH / "builders"
+            cls.RESOURCES_PATH = cls.PACKAGE_PATH / "resources"
             cls.SHARED_PATH = cls.RESOURCES_PATH / "shared"
             cls.SAMPLES_PATH = cls.RESOURCES_PATH / "samples"
             cls.HELP_PATH = cls.RESOURCES_PATH / "help"

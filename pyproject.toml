@@ -46,7 +46,7 @@ dependencies = [
     "cmd2==2.3.3"]
 
 [project.urls]
-homepage = "https://github.com/emichael72/auto_forge.git"
+Home-page = "https://github.com/emichael72/auto_forge.git"
 repository = "https://github.com/emichael72/auto_forge.git"
 
 [project.scripts]
