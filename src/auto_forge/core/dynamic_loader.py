@@ -15,17 +15,16 @@ import inspect
 import io
 import os
 import sys
-from collections.abc import Sequence
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType, FunctionType
-from typing import Any, Optional, Union, Type, cast, Callable
+from typing import Any, Optional, Type, cast, Callable, Union
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgeModuleType, CoreLogger, BuildProfileType, BuilderRunnerInterface,
-    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox, CoreTelemetry,
+    AutoForgFolderType, AutoForgeModuleType, CoreLogger, BuildProfileType, BuilderRunnerInterface,
+    CommandInterface, CommandInterfaceProtocol, CoreModuleInterface, CoreToolBox, CoreTelemetry, CoreVariables,
     ModuleInfoType, CoreRegistry, TerminalTeeStream)
 
 AUTO_FORGE_MODULE_NAME = "Loader"
@@ -52,11 +51,12 @@ class CoreDynamicLoader(CoreModuleInterface):
         self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._registry: CoreRegistry = CoreRegistry.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+        self._variables: CoreVariables = CoreVariables.get_instance()
         self._tool_box: CoreToolBox = CoreToolBox.get_instance()
 
         # Dependencies check
         if None in (self._core_logger, self._logger, self._registry, self._telemetry,
-                    self._tool_box):
+                    self._variables, self._tool_box):
             raise RuntimeError("failed to instantiate critical dependencies")
 
         self._loaded_commands: int = 0
@@ -119,13 +119,10 @@ class CoreDynamicLoader(CoreModuleInterface):
 
         return False
 
-    def probe(  # noqa: C901
-            self, paths: Union[str, Path, Sequence[Union[str, Path]]]) -> int:
+    def probe(self) -> int:
         """
         Scans one or more paths for Python modules, searches for classes derived from known base classes,
         instantiates them, and registers them.
-        Args:
-            paths (str or list of str/Paths): A single path or a list of paths to search for modules.
         Returns:
             int: Number of successfully instantiated classes.
         NOTE:
@@ -133,16 +130,33 @@ class CoreDynamicLoader(CoreModuleInterface):
             It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flo
         """
-        if isinstance(paths, str):
-            paths = [paths]
+
+        def _to_list(_v: Union[str, list[str], None]) -> list[str]:
+            """ Normalize str, list or None into list """
+            if _v is None:
+                return []
+            if isinstance(_v, str):
+                return [_v]
+            return _v
+
+        commands = _to_list(self._variables.get_by_folder_type(AutoForgFolderType.COMMANDS))
+        builders = _to_list(self._variables.get_by_folder_type(AutoForgFolderType.BUILDERS))
+
+        # Create a unified list of paths
+        paths: list[Path] = [Path(p) for p in commands + builders]
+        if len(paths) == 0:
+            self._logger.warning("No commands or builders registered paths found")
+            return 0
+
+        # Iterate on those paths and registered supported moules
         for path in paths:
 
-            commands_path = Path(path)
-            if not commands_path.exists():
-                self._logger.warning(f"Specified commands path not found: {path}")
-                return 0
+            modules_path = Path(path)
+            if not modules_path.exists():
+                self._logger.warning(f"Specified modules path not found: {path}")
+                continue
 
-            for file in glob.glob(str(commands_path / "*.py")):
+            for file in glob.glob(str(modules_path / "*.py")):
 
                 file_base_name: str = os.path.basename(file)
                 file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension

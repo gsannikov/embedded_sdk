@@ -50,7 +50,7 @@ from wcwidth import wcswidth
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry, CoreLogger, CoreSystemInfo,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
-    ProjectGlobals
+    PackageGlobals
 )
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
@@ -395,7 +395,7 @@ class CoreToolBox(CoreModuleInterface):
         return False
 
     @staticmethod
-    def find_class_in_project(class_name: str, root_path: str = ProjectGlobals.SOURCE_PATH) -> Optional[type]:
+    def find_class_in_project(class_name: str, root_path: str = PackageGlobals.SOURCE_PATH) -> Optional[type]:
         """
         Search for a class by name in all Python files under a specified directory.
         This function dynamically loads each Python file that contains the specified class name,
@@ -466,7 +466,7 @@ class CoreToolBox(CoreModuleInterface):
                 or None if not found or on error.
         """
         if directory is None:
-            directory = ProjectGlobals.SOURCE_PATH
+            directory = PackageGlobals.SOURCE_PATH
 
         base_package_name = os.path.basename(directory)
         class_regex = re.compile(r'^class\s+(\w+)\s*:', re.MULTILINE)
@@ -815,7 +815,7 @@ class CoreToolBox(CoreModuleInterface):
             create_path (bool, optional): If True, creates a new temporary directory path.
         """
         try:
-            temp_path = tempfile.mkdtemp(prefix=ProjectGlobals.TEMP_PREFIX)
+            temp_path = tempfile.mkdtemp(prefix=PackageGlobals.TEMP_PREFIX)
             if not create_path:  # Typically we're only interested ony in a temporary name without creating the path
                 os.rmdir(temp_path)
             return temp_path
@@ -832,7 +832,7 @@ class CoreToolBox(CoreModuleInterface):
             temp_dir = tempfile.gettempdir()
 
             for entry in os.scandir(temp_dir):
-                if entry.is_dir() and entry.name.startswith(ProjectGlobals.TEMP_PREFIX):
+                if entry.is_dir() and entry.name.startswith(PackageGlobals.TEMP_PREFIX):
                     with suppress(Exception):
                         shutil.rmtree(entry.path)
 
@@ -982,7 +982,7 @@ class CoreToolBox(CoreModuleInterface):
             is likely in editable mode (not in a virtual environment), and the path to the project's base directory.
         """
         with suppress(Exception):
-            package_path = ProjectGlobals.SOURCE_PATH  # Use a global variable that indicates where the project is running from
+            package_path = PackageGlobals.SOURCE_PATH  # Use a global variable that indicates where the project is running from
             virtual_env_path = os.getenv('VIRTUAL_ENV')
 
             # Check if the package path starts with the virtual environment path if it's set
@@ -1692,7 +1692,7 @@ class CoreToolBox(CoreModuleInterface):
         """
 
         json_temp_file_path: Optional[Path] = None
-        json_viewer_tool: Path = ProjectGlobals.VIEWERS_PATH / "json_viewer.py"
+        json_viewer_tool: Path = PackageGlobals.VIEWERS_PATH / "json_viewer.py"
 
         if not json_viewer_tool.exists():
             return 1
@@ -1755,7 +1755,7 @@ class CoreToolBox(CoreModuleInterface):
             str: The resolved path to the .md help file if the file exists, else None.
         """
 
-        help_file_path: Path = ProjectGlobals.HELP_PATH / Path(relative_path)
+        help_file_path: Path = PackageGlobals.HELP_PATH / Path(relative_path)
 
         # Must have a markdown (.md) extension
         if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
@@ -1772,7 +1772,7 @@ class CoreToolBox(CoreModuleInterface):
         Returns:
             int: 0 on success, else error or exception
         """
-        help_viewer_tool = ProjectGlobals.VIEWERS_PATH / "help_viewer.py"
+        help_viewer_tool = PackageGlobals.VIEWERS_PATH / "help_viewer.py"
 
         # Resolve the file path
         help_file_path = CoreToolBox.resolve_help_file(relative_path)

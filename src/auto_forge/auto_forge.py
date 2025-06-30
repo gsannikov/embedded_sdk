@@ -35,7 +35,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, Crypto,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType, ProjectGlobals,
+    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType, PackageGlobals,
     CoreContext
 )
 
@@ -144,7 +144,7 @@ class AutoForge(CoreModuleInterface):
         # Load the package configuration from 'auto_forge.jsonc', which is part of the package itself
         # and is used extensively at runtime. This is not a user configuration file,
         # but rather an internal AutoForge configuration and metadata store.
-        self._configuration = self._processor.render(ProjectGlobals.CONFIG_FILE)
+        self._configuration = self._processor.render(PackageGlobals.CONFIG_FILE)
 
         # Allow the configuration to be accessed from any module via the context,
         # without requiring those modules to instantiate this class.
@@ -193,7 +193,6 @@ class AutoForge(CoreModuleInterface):
 
         # Load all supported dynamic modules — currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader()
-        self._loader.probe(paths=[ProjectGlobals.COMMANDS_PATH, ProjectGlobals.BUILDERS_PATH])
 
         # Instantiate the platform module, which provides key utilities for interacting with the user's platform.
         # This includes methods for executing processes (individually or in sequence), performing essential Git operations,
@@ -208,6 +207,8 @@ class AutoForge(CoreModuleInterface):
         # preprocess them, and resolve all references, pointers, and variables into a clean, validated JSON.
         # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
+
+        self._loader.probe()
 
         # Set the events-loop thread, without starting it yet.
         self._events_sync_thread = threading.Thread(target=self._events_loop, daemon=True, name="EvensSyncThread", )
@@ -277,7 +278,7 @@ class AutoForge(CoreModuleInterface):
             # Normal flow
             elif logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path,
                                                                                   raise_exception=False):
-                self._log_file_name = os.path.join(logs_workspace_path, ProjectGlobals.LOG_FILE)
+                self._log_file_name = os.path.join(logs_workspace_path, PackageGlobals.LOG_FILE)
                 # Patch it with timestamp so we will have dedicated log for each build system run.
                 self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
 
@@ -290,7 +291,7 @@ class AutoForge(CoreModuleInterface):
 
         # Flush memory logs and disable memory logger
         self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
-        self._logger.info(f"AutoForge version: {ProjectGlobals.VERSION} starting")
+        self._logger.info(f"AutoForge version: {PackageGlobals.VERSION} starting")
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -476,8 +477,8 @@ class AutoForge(CoreModuleInterface):
                 key_file_path = self._variables.get("AF_SOLUTION_KEY")
                 secrets_file_path = self._variables.get("AF_SOLUTION_SECRETS")
             else:
-                key_file_path = str(ProjectGlobals.SAMPLES_PATH / "demo" / "res_1.bin")
-                secrets_file_path = str(ProjectGlobals.SAMPLES_PATH / "demo" / "res_2.bin")
+                key_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_1.bin")
+                secrets_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_2.bin")
 
             secrets_schema_data = self.configuration.get("secrets_schema")
             if secrets_schema_data is None:
@@ -741,7 +742,7 @@ class AutoForge(CoreModuleInterface):
     @property
     def version(self) -> str:
         """ Return package version string """
-        return ProjectGlobals.VERSION
+        return PackageGlobals.VERSION
 
     @property
     def proxy_server(self) -> Optional[AddressInfoType]:

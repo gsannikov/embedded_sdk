@@ -26,7 +26,7 @@ try:
     pyperclip.determine_clipboard()
     pyperclip.set_clipboard("no")
 
-    from .settings import ProjectGlobals
+    from .settings import PackageGlobals
 
     # Common types
     from auto_forge.common.local_types import (
@@ -103,7 +103,7 @@ __all__ = [
     "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "GCCLogAnalyzer", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
-    "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "ProjectGlobals", "ProgressTracker",
+    "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PackageGlobals", "ProgressTracker",
     "PromptStatusType", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "TerminalSpinner", "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalTeeStream", "ValidationMethodType",

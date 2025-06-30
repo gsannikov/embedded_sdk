@@ -21,7 +21,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Tracer, TracerProvider as SDKTracerProvider
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, ProjectGlobals)
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, PackageGlobals)
 
 AUTO_FORGE_MODULE_NAME = "Telemetry"
 AUTO_FORGE_MODULE_DESCRIPTION = "Central Telemetry and Tracing"
@@ -96,7 +96,7 @@ class CoreTelemetry(CoreModuleInterface):
         Initializes the CoreTelemetry service.
         This method should be called once during startup.
         """
-        self._service_name = service_name if service_name else ProjectGlobals.NAME
+        self._service_name = service_name if service_name else PackageGlobals.NAME
 
         # Register this module with the package registry
         registry = CoreRegistry.get_instance()
@@ -125,12 +125,12 @@ class CoreTelemetry(CoreModuleInterface):
             # Set up the tracer provider with a service identity
             provider = SDKTracerProvider(
                 resource=Resource.create({
-                    "service.name": self._service_name or ProjectGlobals.NAME
+                    "service.name": self._service_name or PackageGlobals.NAME
                 })
             )
 
             trace.set_tracer_provider(provider)
-            self._tracer = trace.get_tracer(self._service_name or ProjectGlobals.NAME)
+            self._tracer = trace.get_tracer(self._service_name or PackageGlobals.NAME)
             self._tracing_started = True
 
     def _init_metrics(self):
@@ -143,7 +143,7 @@ class CoreTelemetry(CoreModuleInterface):
             reader = InMemoryMetricReader()
             provider = MeterProvider(metric_readers=[reader])
             metrics.set_meter_provider(provider)
-            self._meter = metrics.get_meter(self._service_name or ProjectGlobals.NAME)
+            self._meter = metrics.get_meter(self._service_name or PackageGlobals.NAME)
             self._metrics_started = True
 
     def _register_counter(self, counter: Any):

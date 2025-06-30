@@ -15,7 +15,7 @@ from typing import Optional
 from colorama import init
 
 # AutoForge imports
-from auto_forge import ProjectGlobals, start
+from auto_forge import (PackageGlobals, start)
 
 
 def arguments_process() -> Optional[argparse.Namespace]:
@@ -26,7 +26,7 @@ def arguments_process() -> Optional[argparse.Namespace]:
     """
 
     with suppress(Exception):
-        version_string = f"{ProjectGlobals.NAME} Ver {ProjectGlobals.VERSION}"
+        version_string = f"{PackageGlobals.NAME} Ver {PackageGlobals.VERSION}"
 
         # Check early for the version flag before constructing the parser
         if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):

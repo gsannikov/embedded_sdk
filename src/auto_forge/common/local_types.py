@@ -113,6 +113,9 @@ class AutoForgFolderType(Enum):
     INDEX = 8
     LOGS = 9
     AUTOMATION = 10
+    HELP = 11
+    COMMANDS = 12
+    BUILDERS = 13
 
     @classmethod
     def from_str(cls, value: Optional[str],

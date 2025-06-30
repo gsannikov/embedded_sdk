@@ -51,7 +51,7 @@ from auto_forge import (
     AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
     CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
     CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
-    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, ProjectGlobals
+    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PackageGlobals
 )
 
 # Basic types
@@ -1352,7 +1352,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         """
         Show package version information.
         """
-        print(f"\n{ProjectGlobals.NAME} ver. {ProjectGlobals.VERSION}")
+        print(f"\n{PackageGlobals.NAME} ver. {PackageGlobals.VERSION}")
         print(f"cmd2: {cmd2.__version__}\n")
 
     def do_echo(self, arg: str):

@@ -37,7 +37,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, CoreLogger, CoreJSONCProcessor, CoreModuleInterface,
-    CoreSignatures, CoreVariables, CoreRegistry, CoreToolBox, CoreTelemetry, ProjectGlobals)
+    CoreSignatures, CoreVariables, CoreRegistry, CoreToolBox, CoreTelemetry, PackageGlobals)
 
 AUTO_FORGE_MODULE_NAME = "Solution"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution Preprocessor Service"
@@ -377,7 +377,7 @@ class CoreSolution(CoreModuleInterface):
         # Get an optional path to schema files
         schema_version = solution_data.get("schema")
         if schema_version is not None:
-            schema_path = os.path.join(ProjectGlobals.SCHEMAS_PATH.__str__(), schema_version)
+            schema_path = os.path.join(PackageGlobals.SCHEMAS_PATH.__str__(), schema_version)
             if os.path.exists(schema_path):
                 self._schema_files = self._get_files_list(path=str(schema_path), extension=[".json", ".jsonc"])
                 if self._schema_files is not None:

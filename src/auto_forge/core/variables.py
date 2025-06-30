@@ -24,7 +24,7 @@ from jsonschema.validators import validate
 # AutoForge imports
 from auto_forge import (
     AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreLogger, CoreTelemetry,
-    CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType, VariableType
+    CoreModuleInterface, CoreRegistry, CoreToolBox, VariableFieldType, VariableType, PackageGlobals
 )
 
 AUTO_FORGE_MODULE_NAME = "Variables"
@@ -302,6 +302,21 @@ class CoreVariables(CoreModuleInterface):
             self.add(key="SOLUTION_NAME", value=self._solution_name, description="Solution name", is_path=False)
             self.add(key="PROJ_WORKSPACE", value=self._workspace_path, description="Workspace path",
                      create_path_if_not_exist=False)
+
+            # Add all the package constants
+            for key, value in PackageGlobals.to_dict().items():
+                # Tag internal packager internal help path
+                if "HELP_PATH" in key:
+                    folder_type = AutoForgFolderType.HELP
+                elif "COMMANDS_PATH" in key:
+                    folder_type = AutoForgFolderType.COMMANDS
+                elif "BUILDERS_PATH" in key:
+                    folder_type = AutoForgFolderType.BUILDERS
+                else:
+                    folder_type = AutoForgFolderType.UNKNOWN
+
+                self.add(key=f"PACKAGE_{key}", value=value, description="Package constant",
+                         create_path_if_not_exist=False, folder_type=folder_type)
 
             # Load essential
             self._load_from_dictionary(self._essential_variables)

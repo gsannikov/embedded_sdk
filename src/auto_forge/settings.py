@@ -3,7 +3,7 @@ Script:         settings.py
 Author:         AutoForge Team
 
 Description:
-    Populate the 'ProjectGlobals' class which holds project-wide constants such as version,
+    Populate the 'PackageGlobals' class which holds project-wide constants such as version,
     repository, name, and filesystem paths derived from pyproject.toml and the source layout.
     All attributes are class-level and can be accessed without instantiation.
 """
@@ -16,9 +16,9 @@ from typing import Optional
 import toml
 
 
-class ProjectGlobals:
+class PackageGlobals:
     """
-    Singleton-style global container for project metadata and path configuration.
+    Singleton-style global container for package metadata and paths constants.
     """
 
     _instance = None  # Singleton enforcement
@@ -46,7 +46,7 @@ class ProjectGlobals:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ProjectGlobals, cls).__new__(cls)
+            cls._instance = super(PackageGlobals, cls).__new__(cls)
             cls.populate()
             cls.data = cls.to_dict()
         return cls._instance
@@ -102,10 +102,11 @@ class ProjectGlobals:
             dict: A dictionary containing all global project configuration values.
         """
         return {
-            k: getattr(cls, k)
+            str(k): str(getattr(cls, k)) if getattr(cls, k) is not None else ""
             for k in vars(cls)
-            if k.isupper() and not k.startswith("__")}
+            if k.isupper() and not k.startswith("__")
+        }
 
 
 # Singleton instance
-_ = ProjectGlobals()
+_ = PackageGlobals()
