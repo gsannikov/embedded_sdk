@@ -29,7 +29,7 @@
         // Placeholders in the form <keyword> will be replaced by their mapped values, if defined.
         // Each entry is a pair: [keyword (without angle brackets), replacement string].
 
-        ["samples", "$AUTO_FORGE_PROJECT_SAMPLES_PATH"]
+        ["samples", "$SAMPLES_PATH"]
     ],
 
     // -----------------------------------------------------------------------------------------------------------------
