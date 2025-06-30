@@ -79,7 +79,7 @@ class CoreTelemetry(CoreModuleInterface):
         self._tracer: Optional[Tracer] = None
         self._start_perf: float = time.perf_counter()
         self._start_unix: float = time.time()
-        self._service_name: Optional[str] = None
+        self._service_name: Optional[str] = PackageGlobals.NAME
 
         # Metrics providers
         self._metrics_started: bool = False
@@ -96,7 +96,7 @@ class CoreTelemetry(CoreModuleInterface):
         Initializes the CoreTelemetry service.
         This method should be called once during startup.
         """
-        self._service_name = service_name if service_name else PackageGlobals.NAME
+        self._service_name = service_name if service_name
 
         # Register this module with the package registry
         registry = CoreRegistry.get_instance()
