@@ -7,15 +7,16 @@ Description:
     repository, name, and filesystem paths derived from pyproject.toml and the source layout.
     All attributes are class-level and can be accessed without instantiation.
 """
-import importlib.metadata
 import os
-import time
+import re
 import sys
+import time
+from importlib.metadata import metadata, version
 from pathlib import Path
 from typing import Optional
 
+
 # Third-party
-import toml
 
 
 class PackageGlobals:
@@ -53,47 +54,28 @@ class PackageGlobals:
 
     # Try to walk up until you find pyproject.toml (workspace mode)
     @staticmethod
-    def find_pyproject_root(start_path: Path, limit=5) -> Optional[Path]:
-        current = start_path.resolve()
-        for _ in range(limit):
-            candidate = current / "pyproject.toml"
-            if candidate.exists():
-                return candidate
-            current = current.parent
-        return None
+    def snake_to_pascal(s: str) -> str:
+        return re.sub(r'(?:^|_)(\w)', lambda m: m.group(1).upper(), s)
 
     @classmethod
     def populate(cls) -> Optional[bool]:
         """Populate class-level project settings from metadata and pyproject.toml."""
         try:
             package_path = Path(__file__).resolve().parent.parent.parent
+            package_name = __package__ or sys.modules[__name__].__package__
             cls.PACKAGE_PATH = package_path
 
-            package_name = __package__ or sys.modules[__name__].__package__
-            cls.VERSION = importlib.metadata.version(package_name)
-
-            print(f"Path(__file__) == {Path(__file__)}")
-            time.sleep(3)
-            toml_path = cls.find_pyproject_root(Path(__file__))
-            print(f"toml_path={str(toml_path)}")
-            time.sleep(3)
-
-            if toml_path.exists():
-                with open(toml_path, "r", encoding="utf-8") as f:
-                    data = toml.load(f)
-
-                project_data = data.get("project", {})
-                cls.VERSION = cls.VERSION or project_data.get("version")
-                cls.PROJ_NAME = project_data.get("name")
-                cls.REPO = project_data.get("urls", {}).get("repository")
-
-                fancy = data.get("tool", {}).get("autoforge_metadata", {}).get("fancy_name")
-                cls.NAME = fancy or cls.NAME
-
-                cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
-                cls.LOG_FILE = f"{cls.PROJ_NAME}.log" if cls.PROJ_NAME else None
+            project_data = metadata("auto_forge")
+            cls.VERSION = version("auto_forge")
+            cls.PROJ_NAME = project_data.get("Name")
+            cls.REPO = project_data.get("Home-page")
+            cls.NAME = cls.snake_to_pascal(s=cls.PROJ_NAME)
+            cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
 
             base = Path(__file__).resolve().parent
+            print(f"package_path={package_path}, package_name={package_name},VERSION={cls.VERSION}")
+            time.sleep(3)
+
             cls.SOURCE_PATH = base
             cls.CONFIG_PATH = base / "config"
             cls.CONFIG_FILE = cls.CONFIG_PATH / "auto_forge.jsonc"

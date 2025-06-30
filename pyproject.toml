@@ -53,7 +53,6 @@ repository = "https://github.com/emichael72/auto_forge.git"
 autoforge = "auto_forge.__main__:main"
 
 [tool.setuptools]
-include-package-data = true
 platforms = ["linux"]
 package-dir = { "" = "src" }
 packages = ["auto_forge",
@@ -65,9 +64,6 @@ packages = ["auto_forge",
     "auto_forge.builders",
     "auto_forge.builders.analyzers"
 ]
-
-[tool.setuptools.package-data]
-auto_forge = ["pyproject.toml"]
 
 # Extended package properties should only be placed here to ensure compliance with PEP 621.
 [tool.autoforge_metadata]
