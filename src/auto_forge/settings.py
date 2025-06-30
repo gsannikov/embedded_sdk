@@ -61,6 +61,7 @@ class PackageGlobals:
             cls.VERSION = importlib.metadata.version(package_name)
 
             toml_path = package_path / "pyproject.toml"
+            print(str(toml_path))
             if toml_path.exists():
                 with open(toml_path, "r", encoding="utf-8") as f:
                     data = toml.load(f)
