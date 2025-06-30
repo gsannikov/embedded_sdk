@@ -134,7 +134,7 @@ class AutoForge(CoreModuleInterface):
         self._core_logger = CoreLogger(log_level=logging.DEBUG, configuration_data=self._configuration)
         self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=False)
         self._logger.debug("System initializing..")
-        self._logger.debug(f"Started from '{os.getcwd()}', package path is '{PackageGlobals.PACKAGE_PATH}'")
+        self._logger.debug(f"Started from '{os.getcwd()}', editable package '{PackageGlobals.EDITABLE}'")
 
         # Instantiate the JSONC processor. This module cleans and processes .jsonc files,
         # returning a validated JSON object. Since nearly all configuration files in this system

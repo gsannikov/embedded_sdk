@@ -43,18 +43,18 @@ class PackageGlobals:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(PackageGlobals, cls).__new__(cls)
-            cls.populate()
-            cls.export()
+            cls._populate()
+            cls._export()
         return cls._instance
 
     # Try to walk up until you find pyproject.toml (workspace mode)
     @staticmethod
-    def snake_to_pascal(s: str) -> str:
+    def _snake_to_pascal(s: str) -> str:
         """ Convert snake case to pascal case """
         return re.sub(r'(?:^|_)(\w)', lambda m: m.group(1).upper(), s)
 
     @staticmethod
-    def get_project_url(package_name: str, key: str = "repository") -> Optional[str]:
+    def _get_project_url(package_name: str, key: str = "repository") -> Optional[str]:
         """ Extract a URL from the package metadata"""
         with suppress(Exception):
             meta = metadata(package_name)
@@ -67,7 +67,7 @@ class PackageGlobals:
         return None
 
     @classmethod
-    def populate(cls) -> Optional[bool]:
+    def _populate(cls) -> Optional[bool]:
         """Populate class-level project settings from metadata and pyproject.toml."""
         try:
             package_path = Path(__file__).resolve().parent
@@ -80,8 +80,8 @@ class PackageGlobals:
             cls.PACKAGE_PATH = package_path
             cls.VERSION = version(package_name)
             cls.PROJ_NAME = project_data.get("Name")
-            cls.REPO = cls.get_project_url("auto_forge", "repository")
-            cls.NAME = cls.snake_to_pascal(s=cls.PROJ_NAME)
+            cls.REPO = cls._get_project_url("auto_forge", "repository")
+            cls.NAME = cls._snake_to_pascal(s=cls.PROJ_NAME)
             cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
             cls.CONFIG_PATH = cls.PACKAGE_PATH / "config"
             cls.CONFIG_FILE = cls.CONFIG_PATH / "auto_forge.jsonc"
@@ -99,6 +99,15 @@ class PackageGlobals:
             print(f"Failed to populate project globals : {str(e)}", file=sys.stderr)
 
     @classmethod
+    def _export(cls) -> None:
+        """
+        Export all uppercase global attributes to the environment as string key-value pairs.
+        Existing environment variables with the same name will be overwritten.
+        """
+        for key, value in cls.to_dict().items():
+            os.environ[key] = value
+
+    @classmethod
     def to_dict(cls) -> dict:
         """
         Export all uppercase global attributes to a dictionary.
@@ -110,15 +119,6 @@ class PackageGlobals:
             for k in vars(cls)
             if k.isupper() and not k.startswith("__")
         }
-
-    @classmethod
-    def export(cls) -> None:
-        """
-        Export all uppercase global attributes to the environment as string key-value pairs.
-        Existing environment variables with the same name will be overwritten.
-        """
-        for key, value in cls.to_dict().items():
-            os.environ[key] = value
 
 
 # Singleton instance
