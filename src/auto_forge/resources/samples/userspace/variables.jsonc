@@ -23,7 +23,7 @@
 {
     "variables": [
         {
-            "name": "USERdSPACE_MMG",
+            "name": "USERSPACE_MMG",
             "value": "$HOME/projects/mmg_new_repo/sources",
             "description": "Userspace MMG new repo",
             "path_must_exist": true,
