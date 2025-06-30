@@ -8,6 +8,7 @@ Description:
     All attributes are class-level and can be accessed without instantiation.
 """
 import importlib.metadata
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -22,7 +23,6 @@ class PackageGlobals:
     """
 
     _instance = None  # Singleton enforcement
-    data: Optional[dict] = None
 
     VERSION: Optional[str] = None
     PROJ_NAME: Optional[str] = None
@@ -47,7 +47,7 @@ class PackageGlobals:
         if cls._instance is None:
             cls._instance = super(PackageGlobals, cls).__new__(cls)
             cls.populate()
-            cls.data = cls.to_dict()
+            cls.export()
         return cls._instance
 
     @classmethod
@@ -105,6 +105,15 @@ class PackageGlobals:
             for k in vars(cls)
             if k.isupper() and not k.startswith("__")
         }
+
+    @classmethod
+    def export(cls) -> None:
+        """
+        Export all uppercase global attributes to the environment as string key-value pairs.
+        Existing environment variables with the same name will be overwritten.
+        """
+        for key, value in cls.to_dict().items():
+            os.environ[key] = value
 
 
 # Singleton instance
