@@ -106,6 +106,8 @@ class CoreTelemetry(CoreModuleInterface):
             auto_forge_module_type=AutoForgeModuleType.CORE,
         )
 
+        print (self._service_name )
+        print ( PackageGlobals.NAME )
         # Start tracing and metrics
         self._init_tracing()
         self._init_metrics()
