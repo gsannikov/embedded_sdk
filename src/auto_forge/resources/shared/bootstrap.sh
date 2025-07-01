@@ -4,7 +4,7 @@
 #
 # Script Name:    bootstrap.sh
 # Description:    AutoForge bootstrap installer.
-# Version:        1.2
+# Version:        1.3
 #
 # ------------------------------------------------------------------------------
 

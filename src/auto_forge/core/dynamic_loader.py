@@ -151,9 +151,11 @@ class CoreDynamicLoader(CoreModuleInterface):
         # Iterate on those paths and registered supported moules
         for path in paths:
 
+            self._logger.debug(f"Discovering modules in '{path.name}'")
+
             modules_path = Path(path)
             if not modules_path.exists():
-                self._logger.warning(f"Specified modules path not found: {path}")
+                self._logger.warning(f"Specified modules path not found: '{path}'")
                 continue
 
             for file in glob.glob(str(modules_path / "*.py")):
@@ -162,6 +164,8 @@ class CoreDynamicLoader(CoreModuleInterface):
                 file_stem_name = os.path.splitext(file_base_name)[0]  # File name excluding the extension
                 python_module_type: Optional[ModuleType] = None
                 callable_object: Optional[object] = None
+
+                self._logger.debug(f"Analyzing '{file_base_name}'")
 
                 try:
                     # Attempt to dynamically import the file
