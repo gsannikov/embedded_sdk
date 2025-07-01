@@ -149,12 +149,16 @@ main() {
         return 1
     fi
 
-    # Validate venv and activation script
+    # Validate virtual environment, create if missing
     if [ ! -d "$venv_path" ]; then
-        printf "Error: Virtual environment directory '%s' not found.\n" "$venv_path"
-        return 1
+        printf "Warning: Virtual environment directory '%s' not found. Creating...\n" "$venv_path"
+        if ! python3 -m venv "$venv_path" &>/dev/null; then
+            printf "Error: Could not create virtual environment in '%s'\n" "$venv_path"
+            return 1
+        fi
     fi
 
+    # Validate activation script
     if [ ! -f "$activation_script" ]; then
         printf "Error: Activate script '%s' not found.\n", "$activation_script"
         return 1

@@ -2,6 +2,7 @@
 /src/auto_forge.egg-info/
 __pycache__/
 *.log
-
+# Python virtual paths
+**/.venv/
 # Ruff static analysis
 .ruff_cache

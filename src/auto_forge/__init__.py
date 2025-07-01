@@ -16,12 +16,14 @@ Note:
 --------------------------------------------------------------------------------
 
 """
-
 import sys
 import traceback
 from contextlib import suppress
-from dataclasses import dataclass, fields
-from typing import ClassVar, ForwardRef, Optional, get_origin, get_args, Union, TYPE_CHECKING
+from dataclasses import dataclass
+from dataclasses import fields
+from typing import ClassVar, TYPE_CHECKING, Union
+from typing import Optional
+from typing import get_origin, get_args, Any, ForwardRef
 
 # Third-party
 import pyperclip
@@ -130,10 +132,12 @@ try:
         auto_forge: Optional["AutoForge"] = None
 
         _instance: ClassVar[Optional["SDKType"]] = None
+        _type_hint_cache: Optional[dict[type, dict[str, Any]]] = None
 
         def __new__(cls, *args, **kwargs):
             if cls._instance is None:
                 cls._instance = super(SDKType, cls).__new__(cls)
+                cls._type_hint_cache = {}
             return cls._instance
 
         @classmethod
@@ -142,46 +146,42 @@ try:
 
         def auto_register(self, instance: object) -> None:
             """
-            Attempts to automatically register the given instance into the matching field
-            of the SDK singleton, based on its type.
-            The method compares the instance against each field's annotated type, resolving
-            string-based forward references and Optional/Union wrappers. If a match is found,
-            the instance is stored in that field.
+            Automatically registers a core instance into the appropriate field of the SDK singleton.
+            Handles Optional[...] and forward references like "CoreRegistry".
+            Skips fields it cannot resolve safely.
             Args:
-                instance: The core service instance to register.
-            Notes:
-                - If no matching field is found, the method silently returns.
-                - This is intended to be called during each core service's initialization.
+                instance: The service instance to register (e.g., CoreRegistry).
             """
-            sdk_globals = sys.modules[self.__class__.__module__].__dict__
+            cls = self.__class__
+            module_globals = sys.modules[cls.__module__].__dict__
 
-            for field_obj in fields(self):
-                field_name = field_obj.name
-                raw_type = field_obj.type
+            for field in fields(self):
+                field_type = field.type
 
-                # Resolve string annotations like "Optional['CoreRegistry']"
-                if isinstance(raw_type, str):
+                # Step 1: Resolve string-based annotations like "CoreRegistry"
+                if isinstance(field_type, str):
                     with suppress(Exception):
-                        raw_type = eval(raw_type, sdk_globals)
-                    if raw_type is None:
-                        continue
+                        field_type = eval(field_type, module_globals)
+                if field_type is None:
+                    continue
 
-                # Unwrap Optional[...] / Union[..., None]
-                origin = get_origin(raw_type)
+                # Step 2: Handle Union/Optional
+                origin = get_origin(field_type)
                 if origin is Union:
-                    type_list = [t for t in get_args(raw_type) if t is not type(None)]
+                    type_list = [t for t in get_args(field_type) if t is not type(None)]
                 else:
-                    type_list = [raw_type]
+                    type_list = [field_type]
 
-                for t in type_list:
-                    if isinstance(t, ForwardRef):
+                for typ in type_list:
+                    # Step 3: Resolve ForwardRef objects
+                    if isinstance(typ, ForwardRef):
                         with suppress(Exception):
-                            t = t._evaluate(sdk_globals, None, frozenset())
-                        if t is None:
-                            continue
-                    if isinstance(t, type) and isinstance(instance, t):
-                        setattr(self, field_name, instance)
+                            typ = eval(typ.__forward_arg__, module_globals)
+
+                    if typ is Any or (isinstance(typ, type) and isinstance(instance, typ)):
+                        setattr(self, field.name, instance)
                         return
+
 
 except ImportError as import_error:
     print(f"Critical Startup Exception: failed to import: {import_error.name}")
