@@ -4,9 +4,11 @@
 #
 # Script Name:    dev_set.sh
 # Description:    AutoForge developer helper.
-# Version:        1.1
+# Version:        1.2
 #
 # ------------------------------------------------------------------------------
+
+AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
 
 #
 # @brief  Checks if Auto Forge is installed in the current Python environment,
@@ -167,7 +169,7 @@ main() {
     # Clone AutoForge if package path is missing
     if [ ! -d "$package_path" ]; then
         printf "AutoForge package not found at '%s', cloning silently..." "$package_path"
-        git clone --quiet https://github.com/emichael72/auto_forge.git "$package_path" || {
+        git clone --quiet "$AUTO_FORGE_URL" "$package_path" || {
             printf "Error: Failed to clone AutoForge repository into '%s'." "$package_path"
             return 1
         }
