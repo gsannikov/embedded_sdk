@@ -1173,6 +1173,9 @@ class CorePlatform(CoreModuleInterface):
             if len(package_or_requirements) == 0:
                 raise RuntimeError("no package or requirements file specified for pip")
 
+            # Expand
+            package_or_requirements = self._variables.expand(key=package_or_requirements)
+
             # Determine if the input is a package name or a path to a requirements file
             if package_or_requirements.endswith('.txt'):
                 arguments = f"-m pip install -r {package_or_requirements}"
