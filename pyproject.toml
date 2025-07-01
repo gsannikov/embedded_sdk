@@ -46,8 +46,8 @@ dependencies = [
     "cmd2==2.3.3"]
 
 [project.urls]
-Home-page = "https://github.com/emichael72/auto_forge.git"
-repository = "https://github.com/emichael72/auto_forge.git"
+homepage = "https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge"
+repository = "https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge.git"
 
 [project.scripts]
 autoforge = "auto_forge.__main__:main"
