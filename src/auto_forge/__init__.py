@@ -132,12 +132,10 @@ try:
         auto_forge: Optional["AutoForge"] = None
 
         _instance: ClassVar[Optional["SDKType"]] = None
-        _type_hint_cache: Optional[dict[type, dict[str, Any]]] = None
 
         def __new__(cls, *args, **kwargs):
             if cls._instance is None:
                 cls._instance = super(SDKType, cls).__new__(cls)
-                cls._type_hint_cache = {}
             return cls._instance
 
         @classmethod
