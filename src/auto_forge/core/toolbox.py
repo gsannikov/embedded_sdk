@@ -39,18 +39,17 @@ from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
-# Third-party
-from pyfiglet import Figlet
-from rich.console import Console
-from rich.text import Text
-from wcwidth import wcswidth
-
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry, CoreLogger, CoreSystemInfo,
     CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
     PackageGlobals
 )
+# Third-party
+from pyfiglet import Figlet
+from rich.console import Console
+from rich.text import Text
+from wcwidth import wcswidth
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
 UTC = timezone.utc
@@ -1571,8 +1570,7 @@ class CoreToolBox(CoreModuleInterface):
         doc = "".join(parts)
         return doc.strip()
 
-    @staticmethod
-    def copy_files(source: Union[Path, str], destination: Union[Path, str], pattern: Union[str, list[str]],
+    def copy_files(self, source: Union[Path, str], destination: Union[Path, str], pattern: Union[str, list[str]],
                    descend: bool = False) -> Optional[int]:
         """
         Copies files from a source path to a destination path based on wildcard patterns.
@@ -1593,38 +1591,32 @@ class CoreToolBox(CoreModuleInterface):
             raise FileNotFoundError(f"Source path '{source}' does not exist.")
 
         destination.mkdir(parents=True, exist_ok=True)
+        patterns = [pattern] if isinstance(pattern, str) else pattern
 
-        if isinstance(pattern, str):
-            patterns = [pattern]
-        else:
-            patterns = pattern
-
-        with suppress(Exception):
+        try:
             if descend:
-                # Walk through all directories and subdirectories
-                for root, _, _ in source.walk():
-                    # Determine the relative path from the source to the current directory
-                    current_relative_path = root.relative_to(source)
-                    # Construct the corresponding destination directory
+                for root, _, _ in os.walk(source):
+                    root_path = Path(root)
+                    current_relative_path = root_path.relative_to(source)
                     current_destination_dir = destination / current_relative_path
                     current_destination_dir.mkdir(parents=True, exist_ok=True)
 
-                    # Apply each pattern to the current directory
                     for p in patterns:
-                        for file_path in root.glob(p):
+                        for file_path in root_path.glob(p):
                             if file_path.is_file():
                                 shutil.copy2(file_path, current_destination_dir)
                                 copied_files_count += 1
             else:
-                # Only process the source_path directly
                 for p in patterns:
                     for file_path in source.glob(p):
                         if file_path.is_file():
                             shutil.copy2(file_path, destination)
                             copied_files_count += 1
+
             return copied_files_count
 
-        # Return None if any exception occurs during the copying process
+        except Exception as copy_error:
+            self._logger.error(f"Copy files failed with : {str(copy_error)}")
         return None
 
     def get_man_description(self, command: str) -> Optional[str]:
