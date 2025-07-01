@@ -38,8 +38,7 @@ install_autoforge_package() {
 
     # Upgrade pip
     python3 -m pip install --upgrade pip >/dev/null 2>&1 || {
-        _log_line "Error: Python 'pip' could not be upgraded."
-        return 1
+        _log_line "Warning: Python 'pip' could not be upgraded."
     }
 
     # Quietly uninstall auto_forge if it exists
