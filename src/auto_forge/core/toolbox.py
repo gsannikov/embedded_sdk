@@ -289,7 +289,7 @@ class CoreToolBox(CoreModuleInterface):
             return None
 
         if isinstance(total_seconds, float) and (total_seconds / 60) < 3:
-            return "Productivity Level: ⚠️ Under 3 minutes logged (we're going to pretend this didn't happen)"
+            return "Productivity Level: ⚠️  Under 3 minutes logged (we're going to pretend this didn't happen)"
 
         if events_per_minute < 0.5:
             label = "🧘 Zen Mode (possibly sleeping with eyes open)"
