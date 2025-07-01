@@ -127,8 +127,9 @@ try:
         loader: Optional["CoreDynamicLoader"] = None
         linux_aliases: Optional["CoreLinuxAliases"] = None
         platform: Optional["CorePlatform"] = None
-        xray: Optional["CoreXRayDB"] = None
         build_shell: Optional["CoreBuildShell"] = None
+        xray: Optional["CoreXRayDB"] = None
+        gui: Optional["CoreGUI"] = None
         auto_forge: Optional["AutoForge"] = None
 
         _instance: ClassVar[Optional["SDKType"]] = None
