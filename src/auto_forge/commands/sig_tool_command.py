@@ -17,7 +17,7 @@ from typing import Any, Optional
 from git import Commit, Repo
 
 # AutoForge imports
-from auto_forge import CommandInterface, CoreSignatures, CoreToolBox
+from auto_forge import (CommandInterface)
 
 AUTO_FORGE_MODULE_NAME = "sig_tool"
 AUTO_FORGE_MODULE_DESCRIPTION = "Binary file signing tool"
@@ -33,8 +33,7 @@ class SigToolCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        self._toolbox = CoreToolBox.get_instance()  # AutoForge swissknife handy class
-        self._sig_tool: Optional[CoreSignatures] = None
+        self._sig_tool_created: bool = False
         self._descriptor_file: Optional[str] = None
         self._signature_id: int = -1
         self._git_repo_path: Optional[str] = None
@@ -51,7 +50,7 @@ class SigToolCommand(CommandInterface):
         """
 
         # Already created?
-        if self._sig_tool:
+        if self._sig_tool_created:
             return True
 
         try:
@@ -65,7 +64,7 @@ class SigToolCommand(CommandInterface):
                 if not isinstance(value, str) or not value.strip():
                     raise RuntimeError(f"missing or invalid required argument: '{name}'")
                 # Expand the value and validate we have it
-                value = self._toolbox.get_expanded_path(value)
+                value = self._tool_box.get_expanded_path(value)
                 if not Path(value).exists():
                     raise RuntimeError(f"path does not exist: {value}")
 
@@ -79,8 +78,7 @@ class SigToolCommand(CommandInterface):
             self._git_commit_hash = self._git_commit.hexsha
 
             # Create Signatures instance using the provided schema and the signature id.
-            self._sig_tool = CoreSignatures.get_instance()
-
+            self._sig_tool_created = True
             return True
 
         except Exception:
@@ -103,11 +101,11 @@ class SigToolCommand(CommandInterface):
         """
 
         try:
-            if self._sig_tool is None:
+            if not self._sig_tool_created:
                 raise RuntimeError("signature tool not initialized")
 
             # Expand and validate the source file path
-            source_binary_file = self._toolbox.get_expanded_path(path=source_binary_file)
+            source_binary_file = self._tool_box.get_expanded_path(path=source_binary_file)
             source_binary_file_base_name = os.path.basename(source_binary_file)
             padding_bytes: int = 0
 
@@ -133,7 +131,7 @@ class SigToolCommand(CommandInterface):
                         raise RuntimeError(f"error padding '{source_binary_file}'")
 
             # Load the file
-            file_handler = self._sig_tool.deserialize(source_binary_file)
+            file_handler = self.sdk.signatures.deserialize(source_binary_file)
             if not file_handler:
                 raise RuntimeError(f"error deserializing source file '{source_binary_file_base_name}'")
 
@@ -188,7 +186,7 @@ class SigToolCommand(CommandInterface):
         """
         try:
             # Expand as needed
-            source_binary_file = self._toolbox.get_expanded_path(path=source_binary_file)
+            source_binary_file = self._tool_box.get_expanded_path(path=source_binary_file)
 
             if not os.path.exists(source_binary_file):
                 raise RuntimeError(f"source binary file '{source_binary_file}' not found")
@@ -252,7 +250,7 @@ class SigToolCommand(CommandInterface):
         """
 
         # Create a signature tool instance if we don't have it
-        if self._sig_tool is None:
+        if not self._sig_tool_created:
             self._create_sig_tool(descriptor_file=args.descriptor_file, signature_id=args.signature_id,
                                   git_repo_path=args.git_path)
 

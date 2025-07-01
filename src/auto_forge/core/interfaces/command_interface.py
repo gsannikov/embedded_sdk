@@ -20,13 +20,14 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from contextlib import suppress
-from typing import IO, Any, Optional
+from typing import IO, Any, Optional, TYPE_CHECKING
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreToolBoxProtocol,
-                        CoreLoggerProtocol, CoreContext)
-# Lazy internal imports to avoid circular dependencies
-from auto_forge.core.registry import CoreRegistry
+from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreContext)
+
+# Lasy import SDK class instance
+if TYPE_CHECKING:
+    from auto_forge import SDKType
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "CommandInterface"
@@ -139,6 +140,7 @@ class CommandInterface(ABC):
 
     # Error constants
     COMMAND_ERROR_NO_ARGUMENTS: int = 0xFFFF
+    RESERVED_FLAGS = {"-v", "--version", "-vv", "--verbose", "-t", "--tutorials"}
 
     def __init__(self, command_name: Optional[str] = None,
                  hidden: Optional[bool] = False,
@@ -160,6 +162,7 @@ class CommandInterface(ABC):
         self._command_name: str = command_name
         self._args_parser: Optional[_CapturingArgumentParser] = None
         self._tutorials_relative_path: Optional[str] = None
+        self._registry = self.sdk.registry
 
         # Probe caller globals for command description and name
         caller_frame = inspect.stack()[1].frame
@@ -171,7 +174,6 @@ class CommandInterface(ABC):
         self._command_name: str = command_name if command_name is not None else caller_module_name
 
         # Register this command instance in the global registry for centralized access
-        self._registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
             self._registry.register_module(name=command_name, description=caller_module_description,
                                            version=caller_module_version,
@@ -180,22 +182,12 @@ class CommandInterface(ABC):
 
         # Get configuration from the root auto_forge class through context provider
         self._configuration = CoreContext.get_config_provider().configuration
-
-        # Lazily retrieve the core logger using the registry and a protocol interface.
-        # This pattern minimizes startup import overhead and avoids circular dependencies.
-        self._core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
-            class_name="CoreLogger", return_protocol=True)
-
-        if self._core_logger is not None:
-            self._logger = self._core_logger.get_logger(name=command_name.capitalize())
-
-        # Lazily retrieve the CoreToolBox instance via the registry using its protocol interface.
-        # This access pattern reduces startup import overhead and avoids circular dependencies.
-        self._tool_box: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
-            "CoreToolBox", return_protocol=True)
+        self._core_logger = self.sdk.logger
+        self._logger = self.sdk.logger.get_logger(name=command_name.capitalize())
+        self._tool_box = self.sdk.toolbox
 
         # Dependencies check
-        if None in (self._core_logger, self._logger, self._tool_box):
+        if None in (self._logger, self._tool_box):
             raise RuntimeError("unable to instantiate dependent core")
 
         # Optional tool initialization logic
@@ -204,15 +196,33 @@ class CommandInterface(ABC):
 
     def _create_parser(self) -> Optional[_CapturingArgumentParser]:
         """
-        Call the mandatory implementation of  create_parser() to create parser instance and store it globally.
+        Call the mandatory implementation of  create_parser() to create parser instance and store it globally and
+        protect reserved arguments by removing any conflicting arguments added by the derived class.
         Returns:
             _CapturingArgumentParser: arg parser instance or exception on error.
         """
+
+        def _remove_reserved_arguments():
+            """Remove user-defined arguments that collide with reserved ones"""
+            actions_to_remove = []
+            for action in self._args_parser._actions:
+                if any(flag in self.RESERVED_FLAGS for flag in action.option_strings):
+                    self._logger.warning(f"Removing user-defined argument {action.option_strings} (reserved).")
+                    actions_to_remove.append(action)
+
+            for action in actions_to_remove:
+                self._args_parser._actions.remove(action)
+                for opt in action.option_strings:
+                    self._args_parser._option_string_actions.pop(opt, None)
+
         if not self._args_parser:
             with suppress(Exception):
                 self._args_parser: _CapturingArgumentParser = _CapturingArgumentParser(
                     prog=self._module_info.name, description=self._module_info.description)
                 self.create_parser(self._args_parser)
+
+                # Protect reserved arguments
+                _remove_reserved_arguments()
 
                 # Ensure all commands support the 'version' and 'verbose' options.
                 self._args_parser.add_argument("-v", "--version", action="store_true", help="Show version and exit.")
@@ -406,3 +416,15 @@ class CommandInterface(ABC):
             int: 0 on success, non-zero on failure.
         """
         raise NotImplementedError("must implement 'run'")
+
+    @property
+    def sdk(self) -> Optional["SDKType"]:
+        """
+        Returns the global SDK singleton instance, which holds references
+        to all registered core module instances.
+        This property provides convenient access to the centralized SDKType
+        container, after all core modules have registered themselves during
+        initialization.
+        """
+        from auto_forge import SDKType
+        return SDKType.get_instance()

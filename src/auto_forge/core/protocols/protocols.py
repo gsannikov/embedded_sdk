@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Protocol, Union, Optional, Any, runtime_checkable, Sequence
 
 # AutoForge imports
-from auto_forge import (ModuleInfoType, FieldColorType)
+from auto_forge import (AutoForgFolderType, ModuleInfoType, FieldColorType)
 
 AUTO_FORGE_MODULE_NAME: str = "Protocols"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
@@ -58,6 +58,8 @@ class CoreVariablesProtocol(Protocol):
     """
 
     def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]: ...
+
+    def get_by_folder_type(self, folder_type: Union[AutoForgFolderType, str]) -> Optional[Union[list[str], str]]:...
 
 
 @runtime_checkable

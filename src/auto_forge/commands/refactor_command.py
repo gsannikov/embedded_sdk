@@ -18,7 +18,7 @@ from logging import Logger
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, AutoForgCommandType, CoreToolBox)
+from auto_forge import (CommandInterface, AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "refactor"
 AUTO_FORGE_MODULE_DESCRIPTION = "Directory tree restructure assistant"
@@ -130,14 +130,6 @@ class RefactorCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        self._variables = CoreVariables.get_instance()
-        self._tool_box = CoreToolBox.get_instance()
-        self._processor = CoreJSONCProcessor.get_instance()
-
-        # Dependencies check
-        if None in (self._variables, self._tool_box, self._processor):
-            raise RuntimeError("failed to instantiate critical dependencies")
-
         # Raw JSON data
         self._recipe_data: Optional[dict[str, Any]] = None  # Complete JSON raw data
         self._defaults_raw_data: Optional[dict[str, Any]] = None  # Defaults raw JSON data
@@ -179,10 +171,10 @@ class RefactorCommand(CommandInterface):
             # attempt to locate it in the local directory where relevant JSON files typically reside.
             if not os.path.exists(recipe_file) and (os.path.basename(recipe_file) == recipe_file):
                 alternative_path = f"$SCRIPTS_SOLUTION/{recipe_file}"
-                recipe_file = self._variables.expand(key=alternative_path)
+                recipe_file = self.sdk.variables.expand(key=alternative_path)
 
             # Preprocess the JSON file (e.g., strip comments)
-            self._recipe_data = self._processor.render(file_name=recipe_file)
+            self._recipe_data = self.sdk.processor.render(file_name=recipe_file)
 
             # Validate and parse 'defaults' section
             if "defaults" not in self._recipe_data:
@@ -268,9 +260,9 @@ class RefactorCommand(CommandInterface):
                                  "recipe_file, source_path, and destination_path.")
 
             # Expand and validate
-            recipe_file = self._variables.expand(recipe_file)
-            source_path = self._variables.expand(source_path)
-            destination_path = self._variables.expand(destination_path)
+            recipe_file = self.sdk.variables.expand(recipe_file)
+            source_path = self.sdk.variables.expand(source_path)
+            destination_path = self.sdk.variables.expand(destination_path)
 
             # Validate that source_path is an existing directory
             if not os.path.isdir(source_path):

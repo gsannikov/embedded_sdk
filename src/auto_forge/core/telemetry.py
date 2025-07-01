@@ -11,9 +11,8 @@ import threading
 import time
 from typing import Optional, Any
 
-from opentelemetry import metrics
 # Third-party
-# Telemetry
+from opentelemetry import metrics
 from opentelemetry import trace
 from opentelemetry.sdk.metrics import MeterProvider, Meter
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader

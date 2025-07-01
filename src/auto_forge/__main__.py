@@ -15,7 +15,8 @@ from typing import Optional
 from colorama import init
 
 # AutoForge imports
-from auto_forge import (PackageGlobals, start)
+from auto_forge import PackageGlobals
+from auto_forge.auto_forge import auto_forge_start as start
 
 
 def arguments_process() -> Optional[argparse.Namespace]:

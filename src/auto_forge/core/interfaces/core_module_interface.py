@@ -24,9 +24,10 @@ Developer Guidelines:
 import threading
 import time
 from abc import ABCMeta
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, cast
 
-# Import AutoForge only during static type checking to avoid circular import issues at runtime
+# AutoForge imports
 from auto_forge import (ExceptionGuru)
 
 # Lazy internal imports to avoid circular dependencies
@@ -138,11 +139,11 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         global _CORE_AUTO_FORGE_ROOT, _CORE_EXCEPTIONS_COUNT
 
         # Register AutoForge root once during its own construction
-        core_module_name: str = type(self).__name__
-        self._is_initialized = False
+        self._core_module_name: str = type(self).__name__
+        self._is_initialized: bool = False
 
         try:
-            if core_module_name == "AutoForge":
+            if self._core_module_name == "AutoForge":
                 _CORE_AUTO_FORGE_ROOT = cast("AutoForge", self)
             else:
                 if _CORE_AUTO_FORGE_ROOT is None:
@@ -150,8 +151,9 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
             # Preform core specific initialization
             self._initialize(*args, **kwargs)
-
             self.mark_ready()
+
+            self._self_register()
             self._is_initialized = True
 
         except Exception as core_exception:
@@ -160,7 +162,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
 
                 # Store the exception context in the exception guru utility class.
                 ExceptionGuru()
-                raise RuntimeError(f"Core module '{core_module_name}': {core_exception!s}") from core_exception
+                raise RuntimeError(f"Core module '{self._core_module_name}': {core_exception!s}") from core_exception
             else:
                 raise
 
@@ -170,6 +172,18 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         Override this method in subclasses to perform custom init using arguments passed on first instantiation.
         """
         pass
+
+    def _self_register(self):
+        """
+        Registers this instance with the global SDKType singleton,
+        creating it if needed.
+        """
+        with suppress(Exception):
+            from auto_forge import SDKType
+            if self._core_module_name == "AutoForge":
+                SDKType.get_instance().auto_forge = cast("AutoForge", self)
+            else:
+                SDKType.get_instance().auto_register(self)
 
     @property
     def auto_forge(self) -> "AutoForge":

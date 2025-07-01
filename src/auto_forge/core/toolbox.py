@@ -39,17 +39,18 @@ from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
-# AutoForge imports
-from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, CoreJSONCProcessor, CoreTelemetry, CoreLogger, CoreSystemInfo,
-    CoreModuleInterface, CoreRegistry, CoreVariablesProtocol, MethodLocationType, PromptStatusType,
-    PackageGlobals
-)
 # Third-party
 from pyfiglet import Figlet
 from rich.console import Console
 from rich.text import Text
 from wcwidth import wcswidth
+
+# AutoForge imports
+from auto_forge import (
+    AddressInfoType, AutoForgFolderType, AutoForgeModuleType, CoreJSONCProcessor, CoreLogger,
+    CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, CoreVariablesProtocol,
+    MethodLocationType, PackageGlobals, PromptStatusType
+)
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
 UTC = timezone.utc
@@ -1737,8 +1738,7 @@ class CoreToolBox(CoreModuleInterface):
         except Exception as viewer_exception:
             raise viewer_exception from viewer_exception
 
-    @staticmethod
-    def resolve_help_file(relative_path: Union[str, Path]) -> Optional[Path]:
+    def resolve_help_file(self, relative_path: Union[str, Path]) -> Optional[Path]:
         """
         Returns the path to a help markdown file based on its relative name if that the file was found.
         Args:
@@ -1747,16 +1747,37 @@ class CoreToolBox(CoreModuleInterface):
             str: The resolved path to the .md help file if the file exists, else None.
         """
 
-        help_file_path: Path = PackageGlobals.HELP_PATH / Path(relative_path)
+        def _to_path_list(_v: Union[str, list[str], None]) -> list[Path]:
+            """Normalize str, list of str, or None into list of Path objects."""
+            if _v is None:
+                return []
+            if isinstance(_v, str):
+                return [Path(_v)]
+            return [Path(p) for p in _v]
 
-        # Must have a markdown (.md) extension
-        if help_file_path.suffix.lower() != ".md" or not help_file_path.exists():
-            return None
+        # Since we need to use classes from modules that may not be directly imported at startup,
+        # we retrieve their instances dynamically from the registry.
+        variables_class: Optional[CoreVariablesProtocol] = self._registry.get_instance_by_class_name(
+            "CoreVariables", return_protocol=True)
 
-        return help_file_path
+        if not variables_class:
+            raise RuntimeError("required component instances could not be retrieved for this operation")
 
-    @staticmethod
-    def show_help_file(relative_path: Union[str, Path]) -> Optional[int]:
+        # Get a list of all path which ware tagged as 'help'
+        help_paths = _to_path_list(variables_class.get_by_folder_type(AutoForgFolderType.HELP))
+
+        for help_path in help_paths:
+            help_file_path = help_path / Path(relative_path)
+
+            # Must have a markdown (.md) extension
+            if not help_file_path.exists() or help_file_path.suffix.lower() != ".md":
+                continue
+
+            return help_file_path
+
+        return None
+
+    def show_help_file(self, relative_path: Union[str, Path]) -> Optional[int]:
         """
         Displays a markdown help file using the textual markdown viewer.
         Args:
@@ -1765,14 +1786,12 @@ class CoreToolBox(CoreModuleInterface):
             int: 0 on success, else error or exception
         """
         help_viewer_tool = PackageGlobals.VIEWERS_PATH / "help_viewer.py"
-
-        # Resolve the file path
-        help_file_path = CoreToolBox.resolve_help_file(relative_path)
-
         if not help_viewer_tool.exists():
             raise RuntimeError("required viewer could not be found")
 
-        if not help_file_path:
+        # Resolve the file path
+        help_file_path:Optional[Path] = self.resolve_help_file(relative_path)
+        if help_file_path is None or not help_file_path.exists():
             raise RuntimeError(f"markdown file '{str(relative_path)}'could not be found")
 
         if help_file_path.stat().st_size > 64 * 1024:

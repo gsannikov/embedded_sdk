@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreToolBox)
+from auto_forge import (CommandInterface)
 
 AUTO_FORGE_MODULE_NAME = "lsd"
 AUTO_FORGE_MODULE_DESCRIPTION = "ls - reimagined"
@@ -71,8 +71,6 @@ class LSDCommand(CommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def initialize(self, **_kwargs: Any) -> bool:
-
-        self._tool_box = CoreToolBox.get_instance()
 
         # Dependencies check
         if None in (self._tool_box, self._configuration):

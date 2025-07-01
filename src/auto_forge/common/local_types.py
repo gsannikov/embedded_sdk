@@ -146,7 +146,7 @@ class AutoForgFolderType(Enum):
 
 
 class XRayStateType(Enum):
-    """ XRay SQLite managment class status types"""
+    """ XRay SQLite management class status types"""
     UNKNOWN = 0
     INITIALIZED = auto()  # Class is initialized
     DB_READY = auto()  # SQLite DB is initialized

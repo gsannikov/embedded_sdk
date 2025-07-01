@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreVariables, CoreXRayDB, CoreSolution)
+from auto_forge import (CommandInterface, CoreSolution)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -42,13 +42,7 @@ class XRayCommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
-        self._variables = CoreVariables.get_instance()
-        self._xray_db = CoreXRayDB.get_instance()
         self._console = Console(force_terminal=True)
-
-        # Dependencies check
-        if None in (self._variables, self._xray_db):
-            raise RuntimeError("failed to instantiate critical dependencies")
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
@@ -263,7 +257,7 @@ class XRayCommand(CommandInterface):
             query += " ORDER BY path LIMIT ?"
             params.append(str(limit or 500))
 
-            rows = self._xray_db.query_raw(query, tuple(params))
+            rows = self.sdk.xray.query_raw(query, tuple(params))
             if not rows:
                 print("No matching files found.")
                 return 1
@@ -310,7 +304,7 @@ class XRayCommand(CommandInterface):
         Print sets of files that have identical purified content, grouped by checksum.
         """
         try:
-            rows = self._xray_db.query_raw(f"""
+            rows = self.sdk.xray.query_raw(f"""
                 SELECT checksum, GROUP_CONCAT(path, '|') 
                 FROM file_meta
                 WHERE checksum IS NOT NULL
@@ -353,7 +347,7 @@ class XRayCommand(CommandInterface):
             limit (int): Maximum number of candidate files to scan. Default is 500.
         """
         try:
-            rows = self._xray_db.query_raw(f"""
+            rows = self.sdk.xray.query_raw(f"""
                 SELECT files.path, files.content
                 FROM files
                 JOIN file_meta ON files.path = file_meta.path
@@ -437,7 +431,7 @@ class XRayCommand(CommandInterface):
         extensions: list = args.ext if args.ext else ["c", "h"]
 
         if args.refresh_indexes:
-            return self._xray_db.refresh()
+            return self.sdk.xray.refresh()
 
         elif args.find_mains:
             return_code = self._find_all_mains(limit=limit)

@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CorePlatform, CoreToolBox, CoreAI, CommandResultType, GCCLogAnalyzer)
+                        TerminalEchoType, CommandResultType, GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -62,13 +62,6 @@ class CMakeBuilder(BuilderRunnerInterface):
             **_kwargs (Any): Optional keyword arguments for future extensibility.
                              Currently unused but accepted for interface compatibility.
         """
-        self._tool_box = CoreToolBox.get_instance()
-        self._platform: Optional[CorePlatform] = None  # Late blooming module
-        self._ai_bridge: Optional[CoreAI] = None  # Late blooming module
-
-        # Dependencies check
-        if self._tool_box is None:
-            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._toolchain: Optional[BuilderToolChain] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
@@ -192,10 +185,10 @@ class CMakeBuilder(BuilderRunnerInterface):
             self._set_state(build_state=_CMakeBuildStep.PRE_CONFIGURE, extra_args=build_profile.extra_args,
                             config=config)
             self.print_message(message=f"Configuring in '{execute_from}'")
-            results = self._platform.execute_shell_command(command_and_args=command_line,
-                                                           echo_type=TerminalEchoType.LINE,
-                                                           cwd=str(execute_from),
-                                                           leading_text=build_profile.terminal_leading_text)
+            results = self.sdk.platform.execute_shell_command(command_and_args=command_line,
+                                                              echo_type=TerminalEchoType.LINE,
+                                                              cwd=str(execute_from),
+                                                              leading_text=build_profile.terminal_leading_text)
         except CommandFailedException as execution_error:
             results = execution_error.results
             raise RuntimeError(
@@ -204,7 +197,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             if results is not None:
                 error_context = self._gcc_analyzer.analyze(log_source=results.response)
                 if isinstance(error_context, list):
-                    self._ai_bridge.query(prompt="I Got some compilation errors", context=str(error_context))
+                    self.sdk.ai_bridge.query(prompt="I Got some compilation errors", context=str(error_context))
 
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
@@ -219,10 +212,10 @@ class CMakeBuilder(BuilderRunnerInterface):
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
                 ninja_command_line = f"{ninja_build_command} -C {str(build_path)}"
-                results = self._platform.execute_shell_command(command_and_args=ninja_command_line,
-                                                               echo_type=TerminalEchoType.LINE,
-                                                               cwd=str(execute_from),
-                                                               leading_text=build_profile.terminal_leading_text)
+                results = self.sdk.platform.execute_shell_command(command_and_args=ninja_command_line,
+                                                                  echo_type=TerminalEchoType.LINE,
+                                                                  cwd=str(execute_from),
+                                                                  leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
                 raise RuntimeError(
@@ -301,8 +294,8 @@ class CMakeBuilder(BuilderRunnerInterface):
         if command.startswith("!"):
             command = command[1:].lstrip()  # Remove a trailing '!'
         try:
-            results = self._platform.execute_shell_command(command_and_args=command,
-                                                           echo_type=TerminalEchoType.SINGLE_LINE)
+            results = self.sdk.platform.execute_shell_command(command_and_args=command,
+                                                              echo_type=TerminalEchoType.SINGLE_LINE)
             return results.return_code
 
         except Exception as execution_error:
@@ -345,15 +338,6 @@ class CMakeBuilder(BuilderRunnerInterface):
             return _s if _s.endswith('.') else _s + '.'
 
         try:
-
-            # Late instantiation of the CorePlatform class.
-            # This is necessary because when this plugin is dynamically loaded, the CorePlatform class has not yet been created.
-            if self._platform is None:
-                self._platform = CorePlatform.get_instance()
-            if self._platform is None:
-                raise RuntimeError("failed to instantiate critical dependencies")
-
-            self._ai_bridge = CoreAI.get_instance()
 
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)

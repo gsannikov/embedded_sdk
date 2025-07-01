@@ -35,9 +35,8 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, Crypto,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType, PackageGlobals,
-    CoreContext
-)
+    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
+    PackageGlobals, CoreContext)
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
@@ -56,7 +55,6 @@ class AutoForge(CoreModuleInterface):
 
         self._initial_path: Path = Path.cwd().resolve()  # Store our initial works path
         self._exit_code: int = 0
-
         self._registry: Optional[CoreRegistry] = None
         self._telemetry: Optional[CoreTelemetry] = None
         self._solution: Optional[CoreSolution] = None

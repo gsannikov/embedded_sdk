@@ -18,7 +18,7 @@ from typing import Any
 from typing import Optional
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreJSONCProcessor, CoreVariables, CoreToolBox, AutoForgCommandType)
+from auto_forge import (CommandInterface, CoreToolBox, AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "deploy"
 AUTO_FORGE_MODULE_DESCRIPTION = "Recipe Deployer"
@@ -62,14 +62,6 @@ class DeployCommand(CommandInterface):
         Args:
             **_kwargs (Any): Optional keyword arguments, such as:
         """
-
-        self._variables = CoreVariables.get_instance()
-        self._tool_box = CoreToolBox.get_instance()
-        self._processor = CoreJSONCProcessor.get_instance()
-
-        # Dependencies check
-        if None in (self._variables, self._tool_box, self._processor):
-            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._create_archive_backup: bool = True
 
@@ -292,16 +284,16 @@ class DeployCommand(CommandInterface):
             self._reset()
 
             # Expand variables (environment, etc.)
-            recipe_file = self._variables.expand(recipe_file)
+            recipe_file = self.sdk.variables.expand(recipe_file)
 
             # Expand and convert to path type
-            archive_path = Path(self._variables.expand(archive_path))
-            host_base_path = Path(self._variables.expand(host_base_path))
+            archive_path = Path(self.sdk.variables.expand(archive_path))
+            host_base_path = Path(self.sdk.variables.expand(host_base_path))
 
             self._logger.debug(f"Using recipe from: {recipe_file}")
 
             # Load and preprocess the recipe JSONC/JSON file
-            recipe_raw: Optional[dict] = self._processor.render(file_name=recipe_file)
+            recipe_raw: Optional[dict] = self.sdk.processor.render(file_name=recipe_file)
             if not isinstance(recipe_raw, dict):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
 

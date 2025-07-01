@@ -15,6 +15,7 @@ from typing import Any, Optional
 from auto_forge import (CommandInterface, AutoForgCommandType)
 
 
+# noinspection PyMethodMayBeStatic
 class HelloCommand(CommandInterface):
     """
     A simple 'hello world' command example for registering dynamically command.
@@ -26,7 +27,6 @@ class HelloCommand(CommandInterface):
         Args:
             **kwargs (Any): Optional keyword arguments.
         """
-
         super().__init__(command_name="hello", command_type=AutoForgCommandType.MISCELLANEOUS)
 
     def initialize(self, **_kwargs: Any) -> Optional[bool]:
@@ -34,7 +34,7 @@ class HelloCommand(CommandInterface):
         Command specific initialization, will be executed lastly by the interface class
         after all other initializers.
         """
-        self._logger.info("Initializing HelloCommand..")
+        self._logger.info("Initializing 'HelloCommand'..")
         return True
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:

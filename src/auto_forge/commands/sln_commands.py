@@ -24,8 +24,7 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgFolderType, CommandInterface, CoreSolution, CoreVariables,
-                        CoreJSONCProcessor, CoreToolBox, CoreTelemetry, FieldColorType, VariableType)
+from auto_forge import (AutoForgFolderType, CommandInterface, FieldColorType, VariableType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -43,16 +42,6 @@ class SolutionCommand(CommandInterface):
         Args:
             **kwargs (Any): Optional keyword arguments.
         """
-
-        self._telemetry = CoreTelemetry.get_instance()
-        self._variables = CoreVariables.get_instance()
-        self._tool_box = CoreToolBox.get_instance()
-        self._processor = CoreJSONCProcessor.get_instance()
-        self._solution: CoreSolution = CoreSolution.get_instance()
-
-        # Dependencies check
-        if None in (self._telemetry, self._variables, self._tool_box, self._processor):
-            raise RuntimeError("failed to instantiate critical dependencies")
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
@@ -73,9 +62,9 @@ class SolutionCommand(CommandInterface):
         """
         console = Console(force_terminal=True)
 
-        var_list: list = self._variables.export()
-        project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE')
-        solution_name: Optional[str] = self._variables.get('SOLUTION_NAME')
+        var_list: list = self.sdk.variables.export()
+        project_workspace: Optional[str] = self.sdk.variables.get('PROJ_WORKSPACE')
+        solution_name: Optional[str] = self.sdk.variables.get('SOLUTION_NAME')
         home_directory = self._tool_box.get_expanded_path(path="$HOME")
 
         if not isinstance(project_workspace, str) or not isinstance(solution_name, str):
@@ -147,8 +136,6 @@ class SolutionCommand(CommandInterface):
         Displays a summary of the current telemetry state, including initialized tracer/meter components,
         counters, and uptime, using Rich formatting.
         """
-        if not isinstance(self._telemetry, CoreTelemetry):
-            raise RuntimeError("could not get telemetry class instance")
 
         console = Console(force_terminal=True)
         print()
@@ -157,29 +144,29 @@ class SolutionCommand(CommandInterface):
         print()
 
         # High-level summary
-        elapsed = self._telemetry.elapsed_since_start()
-        console.print(f"[bold]Service:[/bold]            {self._telemetry.service_name or 'N/A'}")
-        console.print(f"[bold]Start Time (UNIX):[/bold]  {self._telemetry.start_unix:.3f}")
+        elapsed = self.sdk.telemetry.elapsed_since_start()
+        console.print(f"[bold]Service:[/bold]            {self.sdk.telemetry.service_name or 'N/A'}")
+        console.print(f"[bold]Start Time (UNIX):[/bold]  {self.sdk.telemetry.start_unix:.3f}")
         console.print(f"[bold]Uptime:[/bold]             {self._tool_box.format_duration(elapsed)}")
 
         # Tracer state
-        console.print(f"[bold]Tracer initialized:[/bold] {self._bool_emoji(self._telemetry.tracer is not None)}")
-        console.print(f"[bold]Meter initialized:[/bold]  {self._bool_emoji(self._telemetry.meter is not None)}")
+        console.print(f"[bold]Tracer initialized:[/bold] {self._bool_emoji(self.sdk.telemetry.tracer is not None)}")
+        console.print(f"[bold]Meter initialized:[/bold]  {self._bool_emoji(self.sdk.telemetry.meter is not None)}")
 
         # Show boot events (module start time since epoch)
-        if self._telemetry.registered_boot_events:
+        if self.sdk.telemetry.registered_boot_events:
             boot_table = Table(title="Module Boot Times", box=box.ROUNDED, title_justify="left")
             boot_table.add_column("Module", style="cyan")
             boot_table.add_column("Boot Offset From Epoch", style="green")
 
-            for name, delay in sorted(self._telemetry.registered_boot_events.items(), key=lambda x: x[1]):
+            for name, delay in sorted(self.sdk.telemetry.registered_boot_events.items(), key=lambda x: x[1]):
                 boot_table.add_row(name, f"{delay:.3f} sec")
 
             print()
             console.print(boot_table)
 
         # If counters exist, list them
-        if self._telemetry.meter:
+        if self.sdk.telemetry.meter:
             table = Table(title="Registered Counters", box=box.ROUNDED, title_justify="left")
             table.add_column("Name", style="cyan", no_wrap=True)
             table.add_column("Unit", style="magenta")
@@ -187,7 +174,7 @@ class SolutionCommand(CommandInterface):
             table.add_column("Value", style="green", justify="right")
 
             try:
-                for counter in self._telemetry.registered_counters:
+                for counter in self.sdk.telemetry.registered_counters:
                     name = getattr(counter, "name", "unknown")
                     unit = getattr(counter, "unit", "-")
                     desc = getattr(counter, "description", "-")
@@ -234,10 +221,10 @@ class SolutionCommand(CommandInterface):
 
         try:
             # Full solution data for the main JSON tree
-            solution_data = self._solution.get_loaded_solution(name_only=False)
+            solution_data = self.sdk.solution.get_loaded_solution(name_only=False)
 
             # Just the name for summary
-            solution_name = self._solution.get_loaded_solution(name_only=True)
+            solution_name = self.sdk.solution.get_loaded_solution(name_only=True)
 
             # Build structured solution summary
             solution_summary = {
@@ -245,11 +232,11 @@ class SolutionCommand(CommandInterface):
                 "Projects": []
             }
 
-            for project in self._solution.query_projects():
+            for project in self.sdk.solution.query_projects():
                 project_name = project.get("name")
                 toolchain = project.get("tool_chain", {}).get("name", "unknown")
 
-                configurations = self._solution.query_configurations(project_name=project_name)
+                configurations = self.sdk.solution.query_configurations(project_name=project_name)
                 config_names = [conf.get("name") for conf in configurations]
 
                 solution_summary["Projects"].append({

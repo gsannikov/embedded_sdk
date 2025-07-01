@@ -27,7 +27,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CoreVariables, CommandInterface, CoreSystemInfo, CoreSolution)
+from auto_forge import (CommandInterface)
 
 AUTO_FORGE_MODULE_NAME = "edit"
 AUTO_FORGE_MODULE_DESCRIPTION = "Invokes the preferred editor to open files or directories"
@@ -45,14 +45,6 @@ class EditCommand(CommandInterface):
         Args:
             **_kwargs (Any): Optional keyword arguments, such as:
         """
-
-        self._variables = CoreVariables.get_instance()
-        self._system_info = CoreSystemInfo.get_instance()
-        self._solution: CoreSolution = CoreSolution.get_instance()
-
-        # Dependencies check
-        if None in (self._variables, self._system_info, self._solution):
-            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._detected_editors: Optional[list[dict[str, Any]]] = []
         self._selected_editor_index: Optional[int] = None
@@ -101,17 +93,17 @@ class EditCommand(CommandInterface):
         Injects relevant WSL environment variables into the package runtime,
         such as the user's home path and the Windows C: drive mount path.
         """
-        wsl_home = self._system_info.wsl_home
+        wsl_home = self.sdk.system_info.wsl_home
         if isinstance(wsl_home, str):
             # noinspection SpellCheckingInspection
-            self._variables.add(key='WSL_HOMEPATH', value=wsl_home, is_path=True, path_must_exist=True,
-                                description='WSL user home path')
+            self.sdk.variables.add(key='WSL_HOMEPATH', value=wsl_home, is_path=True, path_must_exist=True,
+                                   description='WSL user home path')
 
-        wsl_c_mount = self._system_info.wsl_c_mount
+        wsl_c_mount = self.sdk.system_info.wsl_c_mount
         if isinstance(wsl_c_mount, str):
             # noinspection SpellCheckingInspection
-            self._variables.add(key='WSL_C_MOUNT', value=wsl_c_mount, is_path=True, path_must_exist=True,
-                                description='WSL C mount path')
+            self.sdk.variables.add(key='WSL_C_MOUNT', value=wsl_c_mount, is_path=True, path_must_exist=True,
+                                   description='WSL C mount path')
 
     def _search_in_fallback_dirs(self, aliases: list, fallback_search_path: list, max_depth: int) -> Optional[str]:
         """
@@ -139,10 +131,10 @@ class EditCommand(CommandInterface):
                 continue
 
             # Expand variables and normalize slashes
-            path = self._variables.expand(key=raw_path, quiet=True).replace("\\", "/").rstrip("/")
+            path = self.sdk.variables.expand(key=raw_path, quiet=True).replace("\\", "/").rstrip("/")
 
             # Skip Windows paths if we're not in WSL or not targeting .exe
-            if is_wsl_path and (not self._system_info.is_wsl or not is_windows_target):
+            if is_wsl_path and (not self.sdk.system_info.is_wsl or not is_windows_target):
                 continue
 
             if os.path.isdir(path):
@@ -337,7 +329,7 @@ class EditCommand(CommandInterface):
                 continue
             path = entry.get("path")
             if isinstance(path, str):
-                abs_path = self._variables.expand(key=path, quiet=True)
+                abs_path = self.sdk.variables.expand(key=path, quiet=True)
                 if os.path.exists(abs_path):
                     new_entry = dict(entry)  # shallow copy
                     new_entry["path"] = abs_path
@@ -363,7 +355,7 @@ class EditCommand(CommandInterface):
             folder_uri = "file://" + pathname2url(trusted_path)
 
             # Detect WSL environment
-            is_wsl = self._system_info.is_wsl
+            is_wsl = self.sdk.system_info.is_wsl
 
             if is_wsl:
                 # noinspection SpellCheckingInspection
@@ -409,7 +401,7 @@ class EditCommand(CommandInterface):
         if not isinstance(editor_index, int) or (editor_index > len(self._detected_editors)):
             raise RuntimeError("invalid editor index specified, run 'edit -l' to list available editors")
 
-        path = self._variables.expand(key=path, quiet=True)
+        path = self.sdk.variables.expand(key=path, quiet=True)
         if os.path.basename(path) == path:
             # Note: When it's just a base name (e.g., "foo.txt"), prepend current working directory
             path = os.path.abspath(os.path.join(os.getcwd(), path))
@@ -473,7 +465,7 @@ class EditCommand(CommandInterface):
                 self._selected_editor_index = self._resolve_editor_identifier(args.editor_identifier)
             else:
                 # Get the identifier from the solution
-                editor_identifier = self._solution.get_arbitrary_item(key="default_editor")
+                editor_identifier = self.sdk.solution.get_arbitrary_item(key="default_editor")
                 if isinstance(editor_identifier, str):
                     self._selected_editor_index = self._resolve_editor_identifier(editor_identifier)
 

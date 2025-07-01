@@ -18,7 +18,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CoreAI, CoreSystemInfo, CommandInterface, TerminalSpinner, CoreXRayDB)
+from auto_forge import (CommandInterface, TerminalSpinner)
 
 AUTO_FORGE_MODULE_NAME = "ai_chat"
 AUTO_FORGE_MODULE_DESCRIPTION = "Chat with an AI"
@@ -37,16 +37,8 @@ class AICommand(CommandInterface):
             **_kwargs (Any): Optional keyword arguments, such as:
         """
 
-        self._ai_bridge = CoreAI.get_instance()
-        self._system_info = CoreSystemInfo.get_instance()
-        self._xray_db = CoreXRayDB.get_instance()
         self._console = Console(force_terminal=True)
-
-        # Dependencies check
-        if None in (self._ai_bridge, self._xray_db, self._system_info):
-            raise RuntimeError("failed to instantiate critical dependencies")
-
-        self._system_info_data = self._system_info.get_data
+        self._system_info_data = self.sdk.system_info.get_data
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
@@ -117,7 +109,7 @@ class AICommand(CommandInterface):
         spin_task = asyncio.create_task(TerminalSpinner.run("Thinking..."))
 
         try:
-            sql_query = await self._ai_bridge.query(
+            sql_query = await  self.sdk.ai_bridge.query(
                 prompt=ai_prompt, context="You are an assistant for querying a SQLite database.", max_tokens=400,
                 timeout=30,
             )
@@ -137,7 +129,7 @@ class AICommand(CommandInterface):
         self._console.print(sql_syntax)
         print()
 
-        self._xray_db.query_raw(query=sql_query, print_table=True)
+        self.sdk.xray.query_raw(query=sql_query, print_table=True)
 
     async def _async_ask_ai(self, user_prompt: str, response_width: int = 100):
         """
@@ -152,7 +144,7 @@ class AICommand(CommandInterface):
         spin_task = asyncio.create_task(TerminalSpinner.run("Thinking..."))
 
         try:
-            response = await self._ai_bridge.query(
+            response = await  self.sdk.ai_bridge.query(
                 prompt=user_prompt, max_tokens=400, timeout=30,
             )
         finally:

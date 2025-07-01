@@ -20,8 +20,7 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType,
-                        CorePlatform, CoreToolBox)
+from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType)
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
@@ -44,16 +43,7 @@ class MakeBuilder(BuilderRunnerInterface):
             **_kwargs (Any): Optional keyword arguments for future extensibility.
                              Currently unused but accepted for interface compatibility.
         """
-
-        self._tool_box = CoreToolBox.get_instance()
-        self._platform: Optional[CorePlatform] = None  # Late blooming module
-
-        # Dependencies check
-        if self._tool_box is None:
-            raise RuntimeError("failed to instantiate critical dependencies")
-
         self._toolchain: Optional[BuilderToolChain] = None
-
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
     def _execute_build(  # noqa: C901
@@ -126,10 +116,10 @@ class MakeBuilder(BuilderRunnerInterface):
         # Execute
         try:
             self.print_message(message=f"Executing build in '{execute_from}'")
-            results = self._platform.execute_shell_command(command_and_args=command_line,
-                                                           echo_type=TerminalEchoType.SINGLE_LINE,
-                                                           cwd=str(execute_from),
-                                                           leading_text=build_profile.terminal_leading_text)
+            results = self.sdk.platform.execute_shell_command(command_and_args=command_line,
+                                                              echo_type=TerminalEchoType.SINGLE_LINE,
+                                                              cwd=str(execute_from),
+                                                              leading_text=build_profile.terminal_leading_text)
 
         except Exception as execution_error:
             raise RuntimeError(f"build process failed to start: {execution_error}") from execution_error
@@ -182,8 +172,8 @@ class MakeBuilder(BuilderRunnerInterface):
             if command.startswith("!"):
                 command_line = command[1:].lstrip()
                 try:
-                    self._platform.execute_shell_command(command_and_args=command_line,
-                                                         echo_type=TerminalEchoType.SINGLE_LINE)
+                    self.sdk.platform.execute_shell_command(command_and_args=command_line,
+                                                            echo_type=TerminalEchoType.SINGLE_LINE)
                 except Exception as execution_error:
                     self.print_message(message=f"Failed to execute '{step_name}': {execution_error}",
                                        log_level=logging.ERROR)
@@ -200,13 +190,6 @@ class MakeBuilder(BuilderRunnerInterface):
             Optional[int]: The return code from the build process, or None if not applicable.
         """
         try:
-
-            # Late instantiation of the CorePlatform class.
-            # This is necessary because when this plugin is dynamically loaded, the CorePlatform class has not yet been created.
-            if self._platform is None:
-                self._platform = CorePlatform.get_instance()
-            if self._platform is None:
-                raise RuntimeError("failed to instantiate critical dependencies")
 
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)

@@ -15,16 +15,18 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 
 # Third-party
 from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
-                        CommandResultType, VersionCompare, CoreToolBoxProtocol, CoreLoggerProtocol)
-# Lazy internal imports to avoid circular dependencies
-from auto_forge.core.registry import CoreRegistry
+                        CommandResultType, VersionCompare)
+
+# Lasy import SDK class instance
+if TYPE_CHECKING:
+    from auto_forge import SDKType
 
 # Module identification
 AUTO_FORGE_MODULE_NAME = "BuilderInterface"
@@ -47,13 +49,9 @@ class BuilderToolChain:
         self._toolchain = toolchain
         self._resolved_tools: dict[str, str] = {}
         self._builder_instance = builder_instance
+        self._registry = self._builder_instance.sdk.registry
+        self._tool_box = self._builder_instance.sdk.toolbox
 
-        self._registry = CoreRegistry.get_instance()
-
-        # Retrieve a Toolbox instance and its protocol interface via the registry.
-        # This lazy access pattern minimizes startup import overhead and avoids cross-dependency issues.
-        self._tool_box: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
-            "CoreToolBox", return_protocol=True)
         if self._tool_box is None:
             raise RuntimeError("unable to instantiate dependent core module")
 
@@ -216,6 +214,8 @@ class BuilderRunnerInterface(ABC):
             build_label (str, optional): The unique name of the builder instance build label to use.
         """
 
+        self._registry = self.sdk.registry
+
         # Probe caller globals for command description and name
         caller_frame = inspect.stack()[1].frame
         caller_globals = caller_frame.f_globals
@@ -231,7 +231,6 @@ class BuilderRunnerInterface(ABC):
         self._build_label: str = build_label if build_label is not None else "AutoForge"
 
         # Register this builder instance in the global registry for centralized access
-        self._registry = CoreRegistry.get_instance()
         self._module_info: ModuleInfoType = (
             self._registry.register_module(name=self._build_system, description=caller_module_description,
                                            version=caller_module_version,
@@ -239,23 +238,13 @@ class BuilderRunnerInterface(ABC):
 
         # Get configuration from the root auto_forge class through context provider
         self._configuration = CoreContext.get_config_provider().configuration
-
-        # Lazily retrieve the core logger using the registry and a protocol interface.
-        # This pattern minimizes startup import overhead and avoids circular dependencies.
-        core_logger: Optional[CoreLoggerProtocol] = self._registry.get_instance_by_class_name(
-            "CoreLogger", return_protocol=True)
-
-        if core_logger is not None:
-            self._logger = core_logger.get_logger(name=self._build_system.capitalize())
-
-        # Lazily retrieve the CoreToolBox instance via the registry using its protocol interface.
-        # This access pattern reduces startup import overhead and avoids circular dependencies.
-        self._tool_box: Optional[CoreToolBoxProtocol] = self._registry.get_instance_by_class_name(
-            "CoreToolBox", return_protocol=True)
+        self._core_logger = self.sdk.logger
+        self._logger = self.sdk.logger.get_logger(name=self._build_system.capitalize())
+        self._tool_box = self.sdk.toolbox
 
         # Dependencies check
         if None in (self._logger, self._tool_box):
-            raise RuntimeError("unable to instantiate dependent core module")
+            raise RuntimeError("unable to instantiate dependent core")
 
     @abstractmethod
     def build(self, build_profile: BuildProfileType) -> Optional[int]:
@@ -335,3 +324,15 @@ class BuilderRunnerInterface(ABC):
         Updates information about the implemented builder.
         """
         self._module_info = command_info
+
+    @property
+    def sdk(self) -> Optional["SDKType"]:
+        """
+        Returns the global SDK singleton instance, which holds references
+        to all registered core module instances.
+        This property provides convenient access to the centralized SDKType
+        container, after all core modules have registered themselves during
+        initialization.
+        """
+        from auto_forge import SDKType
+        return SDKType.get_instance()

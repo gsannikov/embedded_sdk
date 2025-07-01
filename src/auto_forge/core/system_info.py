@@ -124,7 +124,7 @@ class CoreSystemInfo(CoreModuleInterface):
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
-                                 auto_forge_module_type=AutoForgeModuleType.CORE)
+                                       auto_forge_module_type=AutoForgeModuleType.CORE)
 
         # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)

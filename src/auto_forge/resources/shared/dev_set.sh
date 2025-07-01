@@ -3,7 +3,9 @@
 # ------------------------------------------------------------------------------
 #
 # Script Name:    dev_set.sh
-# Description:    AutoForge developer helper.
+# Description:    Developer helper script for AutoForge.
+#                 Installs AutoForge as an editable (writable) package,
+#                 enabling local development and debugging.
 # Version:        1.3
 #
 # ------------------------------------------------------------------------------

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional, Union, Any
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreSystemInfo)
+from auto_forge import (CommandInterface)
 
 AUTO_FORGE_MODULE_NAME = "start"
 AUTO_FORGE_MODULE_DESCRIPTION = "Windows start command"
@@ -36,7 +36,6 @@ class StartCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        self._system_info = CoreSystemInfo.get_instance()
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
@@ -54,7 +53,7 @@ class StartCommand(CommandInterface):
             target_path = Path(path).resolve()  # Resolve to an absolute path
 
         # Handle Windows
-        if os.name == 'nt' and not self._system_info.is_wsl:
+        if os.name == 'nt' and not self.sdk.system_info.is_wsl:
             try:
                 # Regular Windows
                 subprocess.run(['explorer', str(target_path)], check=True)
@@ -65,7 +64,7 @@ class StartCommand(CommandInterface):
                 raise RuntimeError(f"opening file manager on Windows: {process_error}")
 
         # Handle WSL
-        elif self._system_info.is_wsl:
+        elif self.sdk.system_info.is_wsl:
             try:
                 # Check if running inside WSL
                 if os.getenv("WSL_DISTRO_NAME"):
