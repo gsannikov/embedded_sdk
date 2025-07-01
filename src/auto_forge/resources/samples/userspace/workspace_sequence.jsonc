@@ -136,7 +136,7 @@
             "action_on_error": "resume",
             "arguments": {
                 "venv_path": ".venv",
-                "package_or_requirements": "git+https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge.git"
+                "package_or_requirements": "git+$PACKAGE_REPO"
             }
         },
         {
