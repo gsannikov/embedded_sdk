@@ -121,7 +121,7 @@ main() {
                 verbose=true
                 shift
                 ;;
-            -r | --run-command | --run_command)
+            -r | --run_command)
                 shift
                 parsing=false
                 continue # Let next iteration collect command args

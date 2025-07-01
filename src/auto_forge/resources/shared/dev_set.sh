@@ -4,7 +4,7 @@
 #
 # Script Name:    dev_set.sh
 # Description:    AutoForge developer helper.
-# Version:        1.2
+# Version:        1.3
 #
 # ------------------------------------------------------------------------------
 
@@ -69,9 +69,11 @@ print_help() {
     echo "Usage: source $(basename "$0") [OPTION]"
     echo ""
     echo "Options:"
-    echo "  -i, --install       Install developer dependencies and the AutoForge package as needed."
-    echo "  -p, --project_name  Project name to use."
-    echo "  -?, --help          Show this help message."
+    echo "  -i, --install           Install developer dependencies and the AutoForge package as needed."
+    echo "  -v, --venv_path         Path to a Python virtual environment which was created durin install."
+    echo "  -a, --auto_forge_path   Path to the auto forge local cloned project."
+    echo "  -p  --pydev_ver         Optional 'pydev' specific version, default is '$pydev_ver'."
+    echo "  -?, --help              Show this help message."
     echo ""
     echo "When no option is provided, only the virtual environment is activated."
 }
@@ -84,7 +86,11 @@ print_help() {
 main() {
 
     local mode="activate"
-    local project_name=""
+    local venv_path=""
+    local auto_forge_path=""
+    local pydev_ver="251.25410.122"
+    local original_dir="$PWD"
+    printf "\n"
 
     # Show help if no arguments were passed
     if [[ "$#" -eq 0 ]]; then
@@ -95,12 +101,24 @@ main() {
     # Parse command-line arguments
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
-        -p | --project_name)
+        -v | --venv_path)
             if [[ -z "$2" ]]; then
-                echo "Error: --project_name requires an argument."
+                echo "Error: --venv_path requires an argument."
                 return 1
             fi
-            project_name="$2"
+            venv_path="$2"
+            shift 2
+            ;;
+        -a | --auto_forge_path)
+            if [[ -z "$2" ]]; then
+                echo "Error: --auto_forge_path requires an argument."
+                return 1
+            fi
+            auto_forge_path="$2"
+            shift 2
+            ;;
+        -p | --pydev_ver)
+            pydev_ver="$2"
             shift 2
             ;;
         -i | --install)
@@ -112,26 +130,20 @@ main() {
             return 0
             ;;
         *)
-            printf "\nError: Unknown option: %s\n\n" "$1"
+            printf "Error: Unknown option: %s\n\n" "$1"
             print_help
             return 1
             ;;
         esac
     done
 
-    # We should have been executed from the test zone root path.
-    local af_project_base="$PWD"
-
-    # Construct paths based on arguments and current path
-    local package_path="$af_project_base/auto_forge"
-    local project_path="$af_project_base/$project_name"
-    local venv_path="$project_path/ws/.venv"
+    # Construct paths based on arguments
     local activation_script="$venv_path/bin/activate"
-    local requirements_file="$package_path/requirements-dev.txt" # Optional addition requirements
+    local requirements_file="$auto_forge_path/requirements-dev.txt" # Optional addition requirements
 
     # Verifying project paths
-    if [ ! -d "$project_path" ]; then
-        printf "Error: Project path '%s' not found.\n" "$project_path"
+    if [ ! -d "$auto_forge_path" ]; then
+        printf "Error: auto forge project clone path '%s' not found.\n" "$auto_forge_path"
         return 1
     fi
 
@@ -145,6 +157,8 @@ main() {
         printf "Error: Activate script '%s' not found.\n", "$activation_script"
         return 1
     fi
+
+    printf "Activating '%s'.\n" "$activation_script"
 
     # Activate Python venv
     # shellcheck disable=SC1090
@@ -164,22 +178,23 @@ main() {
         return 0
     fi
 
-    printf "\nRunning development steps for project '%s'..\n" "$project_name"
+    printf "Running development steps in '%s'..\n" "$auto_forge_path"
+    cd "$auto_forge_path" || return 1
 
     # Clone AutoForge if package path is missing
-    if [ ! -d "$package_path" ]; then
-        printf "AutoForge package not found at '%s', cloning silently..." "$package_path"
-        git clone --quiet "$AUTO_FORGE_URL" "$package_path" || {
-            printf "Error: Failed to clone AutoForge repository into '%s'." "$package_path"
+    if [ ! -d "$auto_forge_path" ]; then
+        printf "AutoForge package not found at '%s', cloning silently..." "$auto_forge_path"
+        git clone --quiet "$AUTO_FORGE_URL" "$auto_forge_path" || {
+            printf "Error: Failed to clone AutoForge repository into '%s'." "$auto_forge_path"
             return 1
         }
     fi
 
-    printf "Installing requirements and 'pydev' support.\n"
+    printf "Installing requirements and 'pydev' version %s support.\n" "$pydev_ver"
 
     # Attempting to install fresh 'pydev' at a specific revision to our venv.
     pip uninstall pydevd-pycharm -y &>/dev/null
-    pip install pydevd-pycharm~=251.25410.122 &>/dev/null || {
+    pip install pydevd-pycharm~="$pydev_ver" &>/dev/null || {
         printf "Warning: 'pydev' was not installed successfully.\n"
     }
 
@@ -190,10 +205,10 @@ main() {
         printf "Requirements file '%s' not found, skipping step\n" "$requirements_file"
     fi
 
-    printf "Switching venv to writable auto-forge '%s'\n" "$package_path"
+    printf "Switching to writable package in '%s'\n" "$auto_forge_path"
 
-    cd "$package_path" || {
-        print "Error: Could not switch to auto-forge local clone in: '%s'\n" "$package_path"
+    cd "$auto_forge_path" || {
+        print "Error: Could not switch to auto-forge clone path in: '%s'\n" "$auto_forge_path"
         return 1
     }
 
@@ -204,6 +219,9 @@ main() {
 
     # Last validation that auto-forge is installed locally and it is readable
     show_auto_forge || return 1
+
+    # Restore original directory
+    cd "$original_dir" || return 1
 
     printf "\nAll done, development environment installed.\n\n"
     return 0
