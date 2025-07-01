@@ -37,15 +37,16 @@ install_autoforge_package() {
     fi
 
     # Upgrade pip
-    python3 -m pip install --upgrade pip >/dev/null 2>&1 || {
-        _log_line "Warning: Python 'pip' could not be upgraded."
+    python3 -m pip install --upgrade pip --break-system-packages --no-warn-script-location >/dev/null 2>&1 || {
+        _log_line "Error: Python 'pip' could not be upgraded."
+        return 1
     }
 
     # Quietly uninstall auto_forge if it exists
     pip3 uninstall -y auto_forge &>/dev/null
 
     # Install auto_forge from the provided URL, without any output
-    if pip3 install git+"$package_url" -q --force-reinstall >/dev/null 2>&1; then
+    if pip3 install git+"$package_url" -q --force-reinstall --break-system-packages --no-warn-script-location >/dev/null 2>&1; then
         # Check if installation was successful
         if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
             return 0
