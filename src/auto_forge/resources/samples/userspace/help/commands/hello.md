@@ -32,6 +32,7 @@ All commands must inherit from the abstract base class `CommandInterface`:
 # AutoForge imports
 from auto_forge import (CommandInterface)
 
+
 class HelloCommand(CommandInterface):
 ```
 
