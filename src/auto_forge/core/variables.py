@@ -307,8 +307,8 @@ class CoreVariables(CoreModuleInterface):
             self.add(key="SOLUTION_NAME", value=self._solution_name, description="Solution name", is_path=False)
             self.add(key="PROJ_WORKSPACE", value=self._workspace_path, description="Workspace path",
                      create_path_if_not_exist=False)
-            create_path_if_not_exist:bool = True
-            path_must_exist:bool = True
+            create_path_if_not_exist: bool = True
+            path_must_exist: bool = True
 
             # Add all the package constants
             for key, value in PackageGlobals.to_dict().items():
@@ -325,7 +325,7 @@ class CoreVariables(CoreModuleInterface):
                 else:
                     folder_type = AutoForgFolderType.UNKNOWN
 
-                self.add(key=f"PACKAGE_{key}", value=value, description="Package constant",
+                self.add(key=f"PACKAGE_{key}", value=value, description="Package builtins",
                          path_must_exist=path_must_exist,
                          create_path_if_not_exist=create_path_if_not_exist, folder_type=folder_type)
 

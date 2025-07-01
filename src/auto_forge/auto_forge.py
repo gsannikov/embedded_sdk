@@ -208,6 +208,11 @@ class AutoForge(CoreModuleInterface):
         # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
 
+        # Start SQLite based background indexing service
+        self._xray = CoreXRayDB()
+
+        # Enumerate paths tagged as potentially containing modules that can be dynamically discovered and loaded.
+        # This call should be the last step in the early initialization sequence.
         self._loader.probe()
 
         # Set the events-loop thread, without starting it yet.
@@ -669,8 +674,7 @@ class AutoForge(CoreModuleInterface):
                 self._gui: CoreGUI = CoreGUI()
                 self._build_shell = CoreBuildShell()
 
-                # Initializes XRay SQLite background indexing service.
-                self._xray = CoreXRayDB()
+                # Start XRay SQLite background indexing service.
                 self._xray.start()
 
                 # Start user prompt loop

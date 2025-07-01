@@ -34,7 +34,6 @@ class SigToolCommand(CommandInterface):
         """
 
         self._toolbox = CoreToolBox.get_instance()  # AutoForge swissknife handy class
-
         self._sig_tool: Optional[CoreSignatures] = None
         self._descriptor_file: Optional[str] = None
         self._signature_id: int = -1

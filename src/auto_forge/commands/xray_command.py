@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreVariables, CoreXRayDB, CoreSolution, XRayStateType)
+from auto_forge import (CommandInterface, CoreVariables, CoreXRayDB, CoreSolution)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -43,8 +43,12 @@ class XRayCommand(CommandInterface):
         """
 
         self._variables = CoreVariables.get_instance()
-        self._xray_db: Optional[CoreXRayDB] = None  # Late bloomer
+        self._xray_db = CoreXRayDB.get_instance()
         self._console = Console(force_terminal=True)
+
+        # Dependencies check
+        if None in (self._variables, self._xray_db):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
@@ -428,12 +432,6 @@ class XRayCommand(CommandInterface):
         Returns:
             int: 0 on success, non-zero on failure.
         """
-
-        # Instantiate XRayDB needed
-        if not isinstance(self._xray_db, CoreXRayDB):
-            self._xray_db = CoreXRayDB.get_instance()
-        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.IDLE:
-            raise RuntimeError("XRay is not running or unavailable")
 
         limit: int = args.limit if args.limit else 500
         extensions: list = args.ext if args.ext else ["c", "h"]

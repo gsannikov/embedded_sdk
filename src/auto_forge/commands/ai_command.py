@@ -18,7 +18,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CoreAI, CoreSystemInfo, CommandInterface, TerminalSpinner, CoreXRayDB, XRayStateType)
+from auto_forge import (CoreAI, CoreSystemInfo, CommandInterface, TerminalSpinner, CoreXRayDB)
 
 AUTO_FORGE_MODULE_NAME = "ai_chat"
 AUTO_FORGE_MODULE_DESCRIPTION = "Chat with an AI"
@@ -38,9 +38,15 @@ class AICommand(CommandInterface):
         """
 
         self._ai_bridge = CoreAI.get_instance()
-        self._system_info_data = CoreSystemInfo.get_instance().get_data
-        self._xray_db: Optional[CoreXRayDB] = None  # Late bloomer
+        self._system_info = CoreSystemInfo.get_instance()
+        self._xray_db = CoreXRayDB.get_instance()
         self._console = Console(force_terminal=True)
+
+        # Dependencies check
+        if None in (self._ai_bridge, self._xray_db, self._system_info):
+            raise RuntimeError("failed to instantiate critical dependencies")
+
+        self._system_info_data = self._system_info.get_data
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
@@ -217,12 +223,6 @@ class AICommand(CommandInterface):
         Returns:
             int: Exit status (0 for success, non-zero for failure).
         """
-
-        # Instantiate XRayDB needed
-        if not isinstance(self._xray_db, CoreXRayDB):
-            self._xray_db = CoreXRayDB.get_instance()
-        if not isinstance(self._xray_db, CoreXRayDB) or self._xray_db.state != XRayStateType.IDLE:
-            raise RuntimeError("XRay is not running or unavailable")
 
         if args.message:
             row_message = " ".join(args.message).strip()

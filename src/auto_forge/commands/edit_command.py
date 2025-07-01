@@ -48,10 +48,10 @@ class EditCommand(CommandInterface):
 
         self._variables = CoreVariables.get_instance()
         self._system_info = CoreSystemInfo.get_instance()
-        self._solution: Optional[CoreSolution] = None  # Lazy import
+        self._solution: CoreSolution = CoreSolution.get_instance()
 
         # Dependencies check
-        if None in (self._variables, self._system_info):
+        if None in (self._variables, self._system_info, self._solution):
             raise RuntimeError("failed to instantiate critical dependencies")
 
         self._detected_editors: Optional[list[dict[str, Any]]] = []
@@ -466,7 +466,6 @@ class EditCommand(CommandInterface):
         """
 
         return_code = 0
-        self._solution: CoreSolution = CoreSolution.get_instance()
 
         # Resolve the editor identifier (from arguments or config) to an index in the detected editors list.
         if self._selected_editor_index is None:

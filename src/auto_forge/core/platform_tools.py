@@ -1622,17 +1622,17 @@ class CorePlatform(CoreModuleInterface):
             # Copy project resources to the destination workspace path
             if self._tool_box.copy_files(source=solution_package_path,
                                          destination=solution_destination_path,
-                                         pattern=["*.json*", "*.zip", "*.py"], descend=True) is None:
+                                         pattern=["*.json*", "*.zip", "*.py", "*.md"], descend=True) is None:
                 raise RuntimeError(f"Failed to copy resources files to '{solution_destination_path}'")
 
             # Copy the initiator shell script rom the package resources to the workspace
             shutil.copy(src=env_starter_file, dst=self._workspace_path)
 
-            # Create logs path and copy the sequence log file to the newly created workspace
+            # Create path for logs and copy the sequence log file to the newly created workspace
             if sequence_log_file is not None:
                 logs_path = Path(logs_path)
                 logs_path.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src=sequence_log_file, dst=logs_path)
+                shutil.move(src=sequence_log_file, dst=logs_path)
 
             # Finally, create a hidden '.config' file in the solution directory with essential metadata.
             _create_config_file(_solution_name=solution_name, _create_path=self._workspace_path)

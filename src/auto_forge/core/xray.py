@@ -106,7 +106,7 @@ class CoreXRayDB(CoreModuleInterface):
         """
 
         self._core_logger = CoreLogger.get_instance()
-        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)  # Get a logger instance
+        self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
         self._variables = CoreVariables.get_instance()
         self._solution = CoreSolution.get_instance()
         self._tool_box = CoreToolBox.get_instance()
@@ -115,10 +115,15 @@ class CoreXRayDB(CoreModuleInterface):
 
         try:
 
+            # Dependencies check
+            if None in (self._core_logger, self._logger, self._variables, self._telemetry, self._solution,
+                        self._tool_box, self._telemetry, self._registry, self.auto_forge.configuration):
+                raise RuntimeError("failed to instantiate critical dependencies")
+
             self._get_and_validate_paths()
 
             # Retrieve AutoForge package configuration
-            self._configuration = self.auto_forge.get_instance().configuration
+            self._configuration = self.auto_forge.configuration
             if self._configuration is None:
                 raise RuntimeError("package configuration data not available")
 

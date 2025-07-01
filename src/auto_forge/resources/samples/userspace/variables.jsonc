@@ -37,6 +37,14 @@
             "path_must_exist": true,
             "create_path_if_not_exist": false,
             "folder_type": "COMMANDS"
+        },
+        {
+            "name": "USERSPACE_HELP",
+            "value": "$SCRIPTS_SOLUTION/help",
+            "description": "Userspace Help Files",
+            "path_must_exist": true,
+            "create_path_if_not_exist": false,
+            "folder_type": "HELP"
         }
     ]
 }

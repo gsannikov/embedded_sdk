@@ -59,8 +59,6 @@ class LSDCommand(CommandInterface):
             **kwargs (Any): Optional keyword arguments.
         """
 
-        self._tool_box: Optional[CoreToolBox] = None
-
         # Variables fwe should populate from configuration
         self._ansi_codes: Optional[dict[str, Any]] = None
         self._terminal_icons: Optional[dict[str, Any]] = None
@@ -73,8 +71,8 @@ class LSDCommand(CommandInterface):
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def initialize(self, **_kwargs: Any) -> bool:
-        """ Late initialization, we should now have access to the project configuration """
-        self._tool_box = CoreToolBox.get_instance()  # Toolbox class instance
+
+        self._tool_box = CoreToolBox.get_instance()
 
         # Dependencies check
         if None in (self._tool_box, self._configuration):

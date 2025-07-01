@@ -48,7 +48,7 @@ class SolutionCommand(CommandInterface):
         self._variables = CoreVariables.get_instance()
         self._tool_box = CoreToolBox.get_instance()
         self._processor = CoreJSONCProcessor.get_instance()
-        self._solution: Optional[CoreSolution] = None  # Lazy import
+        self._solution: CoreSolution = CoreSolution.get_instance()
 
         # Dependencies check
         if None in (self._telemetry, self._variables, self._tool_box, self._processor):
@@ -302,8 +302,6 @@ class SolutionCommand(CommandInterface):
         Returns:
             int: 0 on success, non-zero on failure.
         """
-
-        self._solution: CoreSolution = CoreSolution.get_instance()
 
         if args.show_solution:
             # Show the expanded solution using the JSON viewer
