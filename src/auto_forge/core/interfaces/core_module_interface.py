@@ -53,7 +53,6 @@ class _SingletonABCMeta(ABCMeta):
         This metaclass is intended only for internal use by `CoreModuleInterface` and its subclasses.
         It should not be reused or subclassed directly outside the framework core.
     """
-
     _instances: ClassVar[dict[type, Any]] = {}
     _init_args: ClassVar[dict[type, tuple[tuple[Any, ...], dict[str, Any]]]] = {}
     _ready_event: ClassVar[dict[type, threading.Event]] = {}

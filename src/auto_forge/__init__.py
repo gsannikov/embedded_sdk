@@ -24,7 +24,8 @@ import pyperclip
 
 try:
 
-    # Disable clipboard access to prevent pyperclip/cmd2 errors in WSL or headless environments
+    # Disable clipboard access to prevent pyperclip/cmd2 errors
+    # in WSL or headless environments
     pyperclip.determine_clipboard()
     pyperclip.set_clipboard("no")
 
@@ -32,14 +33,15 @@ try:
 
     # Common types
     from auto_forge.common.local_types import (
-        AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgCommandType, AutoForgeWorkModeType,
-        BuildProfileType, CommandResultType, CommandFailedException,
-        DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
-        FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType, LogHandlersType,
-        LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType, SDKType,
-        SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
-        SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru, TerminalSpinner,
-        TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType
+        AddressInfoType, AutoForgCommandType, AutoForgFolderType, AutoForgeModuleType,
+        AutoForgeWorkModeType, BuildProfileType, CommandFailedException, CommandResultType,
+        DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType,
+        ExpectedVersionInfoType, FieldColorType, InputBoxButtonType, InputBoxLineType,
+        InputBoxTextType, LinuxShellType, LogHandlersType, MessageBoxType,
+        MethodLocationType, ModuleInfoType, PromptStatusType, SDKType, SequenceErrorActionType,
+        SignatureFieldType, SignatureSchemaType, StatusNotifType, SysInfoLinuxDistroType,
+        SysInfoPackageManagerType, TerminalAnsiGuru, TerminalEchoType, TerminalSpinner,
+        TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType
     )
 
     # Common modules
@@ -57,14 +59,14 @@ try:
 
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import (CoreModuleInterface)
-    from auto_forge.core.interfaces.command_interface import CommandInterface
-    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuildLogAnalyzerInterface,
-                                                              BuilderToolChain)
+    from auto_forge.core.interfaces.command_interface import (CommandInterface)
+    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface,
+                                                              BuildLogAnalyzerInterface, BuilderToolChain)
 
     # Build output analyzers
     from auto_forge.builders.analyzers.gcc_log_analyzer import GCCLogAnalyzer
 
-    # Core / common modules
+    # WARNING: Core modules — import order is critical. Do not reorder.
     from auto_forge.core.registry import (CoreRegistry)
     from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
     from auto_forge.core.logger import (CoreLogger)
@@ -86,7 +88,6 @@ try:
     # Last, AutoForg main class
     if TYPE_CHECKING:
         from auto_forge.auto_forge import AutoForge
-
 
 except ImportError as import_error:
     print(f"Critical Startup Exception: failed to import: {import_error.name}")

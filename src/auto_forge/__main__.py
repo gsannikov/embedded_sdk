@@ -16,7 +16,7 @@ from colorama import init
 
 # AutoForge imports
 from auto_forge import PackageGlobals
-from auto_forge.auto_forge import auto_forge_start as start
+from auto_forge.auto_forge import auto_forge_start as _start
 
 
 def arguments_process() -> Optional[argparse.Namespace]:
@@ -96,17 +96,15 @@ def main() -> int:
     The main entry point for the AutoForge package.
     The following will provide you with all you need to know about this method:
     https://en.wikipedia.org/wiki/Entry_point
-
     Returns:
         Shell status, 0 success, else failure.
-    
     """
     # Package command line starter.
     init(autoreset=True, strip=False)  # Required by colorama
 
     arguments = arguments_process()
     if arguments is not None:
-        return start(arguments)
+        return _start(arguments)
     else:
         return 1  # Arguments processing error
 

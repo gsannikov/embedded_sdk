@@ -20,7 +20,6 @@ class PackageGlobals:
     """
     Singleton-style global container for package metadata and paths constants.
     """
-
     _instance = None  # Singleton enforcement
     NAME: Optional[str] = None  # Pascal case: 'AutoForge'
     PROJ_NAME: Optional[str] = None  # Snake case: 'auto_forge'
@@ -95,8 +94,8 @@ class PackageGlobals:
             cls.SCHEMAS_PATH = cls.CONFIG_PATH / "schemas"
             return True
 
-        except Exception as e:
-            print(f"Failed to populate project globals : {str(e)}", file=sys.stderr)
+        except Exception as exception:
+            print(f"Failed to populate project globals : {str(exception)}", file=sys.stderr)
 
     @classmethod
     def _export(cls) -> None:
