@@ -252,7 +252,7 @@ class BuilderRunnerInterface(ABC):
         try:
             # Create the logs path if fits missing
             self.build_logs_path = self._tool_box.get_valid_path(self.sdk.variables.get("BUILD_LOGS"),
-                                                                 create_if_missing=True)
+                                                                 create_if_missing=False)
             context_file: str = self._configuration.get("build_context_file", "build_context.json")
             self._build_context_file = self.build_logs_path / context_file
             self._build_context_file.unlink(missing_ok=True)
