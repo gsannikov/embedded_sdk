@@ -22,7 +22,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
-                        CommandResultType, VersionCompare)
+                        CommandResultType, SDKType, VersionCompare)
 
 # Lasy import SDK class instance
 if TYPE_CHECKING:
@@ -326,7 +326,7 @@ class BuilderRunnerInterface(ABC):
         self._module_info = command_info
 
     @property
-    def sdk(self) -> Optional["SDKType"]:
+    def sdk(self) -> SDKType:
         """
         Returns the global SDK singleton instance, which holds references
         to all registered core module instances.
@@ -334,5 +334,4 @@ class BuilderRunnerInterface(ABC):
         container, after all core modules have registered themselves during
         initialization.
         """
-        from auto_forge import SDKType
         return SDKType.get_instance()

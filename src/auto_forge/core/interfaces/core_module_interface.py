@@ -24,11 +24,10 @@ Developer Guidelines:
 import threading
 import time
 from abc import ABCMeta
-from contextlib import suppress
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, cast
 
 # AutoForge imports
-from auto_forge import (ExceptionGuru)
+from auto_forge import (ExceptionGuru, SDKType)
 
 # Lazy internal imports to avoid circular dependencies
 if TYPE_CHECKING:
@@ -141,19 +140,22 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         # Register AutoForge root once during its own construction
         self._core_module_name: str = type(self).__name__
         self._is_initialized: bool = False
+        self.sdk = SDKType.get_instance()
 
         try:
             if self._core_module_name == "AutoForge":
                 _CORE_AUTO_FORGE_ROOT = cast("AutoForge", self)
+                # Register this class with the SDK global
+                self.sdk.auto_forge = cast("AutoForge", self)
             else:
+                # Register this class with the SDK global
+                SDKType.get_instance().register(self)
                 if _CORE_AUTO_FORGE_ROOT is None:
                     raise RuntimeError("AutoForge must be instantiated before any core module.")
 
             # Preform core specific initialization
             self._initialize(*args, **kwargs)
             self.mark_ready()
-
-            self._self_register()
             self._is_initialized = True
 
         except Exception as core_exception:
@@ -172,18 +174,6 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
         Override this method in subclasses to perform custom init using arguments passed on first instantiation.
         """
         pass
-
-    def _self_register(self):
-        """
-        Registers this instance with the global SDKType singleton,
-        creating it if needed.
-        """
-        with suppress(Exception):
-            from auto_forge import SDKType
-            if self._core_module_name == "AutoForge":
-                SDKType.get_instance().auto_forge = cast("AutoForge", self)
-            else:
-                SDKType.get_instance().register(self)
 
     @property
     def auto_forge(self) -> "AutoForge":

@@ -23,7 +23,7 @@ from contextlib import suppress
 from typing import IO, Any, Optional, TYPE_CHECKING
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, ModuleInfoType, AutoForgCommandType, CoreContext)
+from auto_forge import (AutoForgeModuleType, AutoForgCommandType, CoreContext, ModuleInfoType, SDKType)
 
 # Lasy import SDK class instance
 if TYPE_CHECKING:
@@ -418,7 +418,7 @@ class CommandInterface(ABC):
         raise NotImplementedError("must implement 'run'")
 
     @property
-    def sdk(self) -> Optional["SDKType"]:
+    def sdk(self) -> SDKType:
         """
         Returns the global SDK singleton instance, which holds references
         to all registered core module instances.
@@ -426,5 +426,4 @@ class CommandInterface(ABC):
         container, after all core modules have registered themselves during
         initialization.
         """
-        from auto_forge import SDKType
         return SDKType.get_instance()

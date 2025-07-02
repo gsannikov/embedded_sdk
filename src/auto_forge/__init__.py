@@ -16,9 +16,8 @@ Note:
 --------------------------------------------------------------------------------
 
 """
-import re
 import traceback
-from typing import TYPE_CHECKING, Any, ClassVar, Optional
+from typing import TYPE_CHECKING
 
 # Third-party
 import pyperclip
@@ -37,7 +36,7 @@ try:
         BuildProfileType, CommandResultType, CommandFailedException,
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType, LogHandlersType,
-        LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType,
+        LinuxShellType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType, SDKType,
         SignatureFieldType, SignatureSchemaType, SequenceErrorActionType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru, TerminalSpinner,
         TerminalEchoType, TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType
@@ -87,74 +86,6 @@ try:
     # Last, AutoForg main class
     if TYPE_CHECKING:
         from auto_forge.auto_forge import AutoForge
-
-
-    class SDKType:
-        """
-        Singleton container for all dynamically registered core modules in the AutoForge SDK.
-        This class acts as a runtime service locator, allowing core modules (such as telemetry,
-        logging, toolchains, and platform tools) to self-register and expose themselves through
-        a centralized global instance.
-
-        Unlike traditional dataclasses, this implementation does **not** declare fixed attributes.
-        Instead, it dynamically injects fields based on core module class names, which are converted
-        to standardized `snake_case` identifiers (e.g., `CoreXRayDB` → `xray_db`). This avoids static
-        annotation boilerplate and keeps the class extensible.
-
-        Registration:
-            Each core module should inherit from `CoreModuleInterface`, which invokes `SDKType.get_instance().register(self)`
-            automatically during its initialization. This mechanism ensures the module becomes accessible
-            via the global SDK instance.
-        """
-
-        _instance: ClassVar[Optional["SDKType"]] = None
-
-        def __new__(cls):
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-            return cls._instance
-
-        def __getattr__(self, name: str) -> Any:
-            """
-            Escape hatch for IDEs to prevent 'Cannot find reference' warnings.
-            All dynamically injected core modules go through here if not declared.
-            """
-            raise AttributeError(f"{name!r} is not defined in SDKType")
-
-        @classmethod
-        def get_instance(cls) -> "SDKType":
-            return cls()
-
-        def register(self, instance: object) -> None:
-            """
-            Registers a core module instance into the SDK singleton under a snake_case name
-            derived from its class name (e.g., CoreTelemetry → telemetry).
-            """
-
-            _ACRONYMS = {"AI", "JSONC", "XRay", "DB", "SDK"}
-
-            def _camel_to_snake(_name: str) -> str:
-                """
-                Converts CamelCase to snake_case, correctly preserving known acronyms
-                and inserting underscores between consecutive acronym groups.
-                """
-                _name = re.sub(r'^Core', '', _name)
-                acr_pattern = '|'.join(sorted(_ACRONYMS, key=len, reverse=True))
-                pattern = rf'(?:{acr_pattern})|[A-Z][a-z]*|\d+'
-                parts = re.findall(pattern, _name)
-                return '_'.join(part.lower() for part in parts)
-
-            if not isinstance(instance, CoreModuleInterface):
-                raise TypeError(f"Instance {instance} must inherit from CoreModuleInterface")
-
-            class_name = instance.__class__.__name__
-            stripped = class_name[4:] if class_name.startswith("Core") else class_name
-            snake_name = _camel_to_snake(stripped)
-
-            if hasattr(self, snake_name):
-                raise ValueError(f"SDKType already has a registered core instance named '{snake_name}'")
-
-            setattr(self, snake_name, instance)
 
 
 except ImportError as import_error:
