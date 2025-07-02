@@ -676,6 +676,34 @@ class CoreToolBox(CoreModuleInterface):
         return expanded_path
 
     @staticmethod
+    def get_valid_path(raw_value: Any, create_if_missing: bool = False) -> Optional[Path]:
+        """
+        Validates and resolves a raw value into a `Path` object.
+        Args:
+            raw_value (Any): The raw input to be interpreted as a filesystem path.
+                             Can be a string or `pathlib.Path` object.
+            create_if_missing (bool, optional): If True, creates the path if it doesn't exist. Defaults to False.
+        Returns:
+            Optional[Path]: A resolved `Path` object if the input is valid and exists or was created.
+        """
+        if not raw_value or not isinstance(raw_value, (str, Path)):
+            raise ValueError(f"Invalid path value: {raw_value!r}")
+        try:
+            path = Path(raw_value).expanduser().resolve(strict=False)
+        except Exception as e:
+            raise ValueError(f"Cannot resolve path from value '{raw_value}': {e}")
+
+        if not path.exists():
+            if create_if_missing:
+                try:
+                    path.mkdir(parents=True, exist_ok=True)
+                except Exception as os_error:
+                    raise OSError(f"Could not create missing directory at {path}: {os_error}")
+            else:
+                raise FileNotFoundError(f"Path does not exist: {path}")
+        return path
+
+    @staticmethod
     def set_terminal_title(title: Optional[str] = None):
         """
         Sets the terminal title
@@ -1790,7 +1818,7 @@ class CoreToolBox(CoreModuleInterface):
             raise RuntimeError("required viewer could not be found")
 
         # Resolve the file path
-        help_file_path:Optional[Path] = self.resolve_help_file(relative_path)
+        help_file_path: Optional[Path] = self.resolve_help_file(relative_path)
         if help_file_path is None or not help_file_path.exists():
             raise RuntimeError(f"markdown file '{str(relative_path)}'could not be found")
 

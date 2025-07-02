@@ -79,6 +79,11 @@
                             "version": ">=14.2",
                             "help": "builder/arm_cross_gcc.md"
                         },
+                        "nm": {
+                            "path": "<$ref_tool_bins_path>/<$ref_tool_prefix>nm",
+                            "version": ">=2.43.1",
+                            "help": "builder/arm_cross_gcc.md"
+                        },
                         "ninja": {
                             "path": "ninja",
                             "version": ">=1.10",

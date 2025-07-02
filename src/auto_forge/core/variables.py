@@ -384,7 +384,6 @@ class CoreVariables(CoreModuleInterface):
         Returns:
             Optional[str]: The variable value as a string, or the default if not found.
         """
-
         if quiet is None:
             quiet = default is not None
 

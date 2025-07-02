@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 
@@ -215,6 +216,8 @@ class BuilderRunnerInterface(ABC):
         """
 
         self._registry = self.sdk.registry
+        self._build_context_file: Optional[Path] = None
+        self.build_logs_path: Optional[Path] = None
 
         # Probe caller globals for command description and name
         caller_frame = inspect.stack()[1].frame
@@ -245,6 +248,17 @@ class BuilderRunnerInterface(ABC):
         # Dependencies check
         if None in (self._logger, self._tool_box):
             raise RuntimeError("unable to instantiate dependent core")
+
+        try:
+            # Create the logs path if fits missing
+            self.build_logs_path = self._tool_box.get_valid_path(self.sdk.variables.get("BUILD_LOGS"),
+                                                                 create_if_missing=True)
+            context_file: str = self._configuration.get("build_context_file", "build_context.json")
+            self._build_context_file = self.build_logs_path / context_file
+            self._build_context_file.unlink(missing_ok=True)
+
+        except Exception as path_prep_error:
+            raise RuntimeError(f"failed to prepare build paths {path_prep_error}")
 
     @abstractmethod
     def build(self, build_profile: BuildProfileType) -> Optional[int]:
@@ -291,6 +305,62 @@ class BuilderRunnerInterface(ABC):
                 raise RuntimeError(f"Build failed with return code: {results.return_code}")
 
         return results.return_code
+
+    def analyze_so_exports(self, path: str, nm_tool_name: str = "nm", max_libs: int = 50) -> dict[str, list[str]]:
+        """
+        Analyze exported symbols from .so files in the given directory.
+        Args:
+            path (str): Root path to search.
+            nm_tool_name (str): Tool to extract symbols ('nm', 'readelf', etc.).
+            max_libs (int): Maximum number of .so files to process.
+        Returns:
+            Dict[str, List[str]]: Mapping from .so file path to list of exported function names.
+        """
+        so_exports = {}
+        seen_symbols = defaultdict(list)
+        processed = 0
+
+        for root, _, files in os.walk(path):
+            for file in files:
+                if file.endswith(".so"):
+                    full_path = os.path.join(root, file)
+                    try:
+                        result = subprocess.run(
+                            [nm_tool_name, '-D', '--defined-only', full_path],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL,
+                            text=True,
+                            check=True,
+                        )
+                        symbols = []
+                        for line in result.stdout.splitlines():
+                            parts = line.strip().split()
+                            if len(parts) >= 3 and parts[-2] in ('T', 't'):  # 'T' = text (function)
+                                symbol = parts[-1]
+                                symbols.append(symbol)
+                                seen_symbols[symbol].append(full_path)
+
+                        so_exports[full_path] = symbols
+                        processed += 1
+                        if processed >= max_libs:
+                            break
+                    except subprocess.CalledProcessError:
+                        self.print_message(message=f"Warning: Failed to analyze {full_path}", log_level=logging.WARNING)
+            if processed >= max_libs:
+                break
+
+        # Conflict report
+        conflicts = {sym: paths for sym, paths in seen_symbols.items() if len(paths) > 1}
+        if conflicts:
+            for sym, libs in conflicts.items():
+                self.print_message(message=f"Symbol '{sym}' found in:")
+                for lib in libs:
+                    self.print_message(message=f"  - {lib}", bare_text=True)
+        else:
+            self.print_message(message=f"No duplicate symbols found across {processed} libraries.",
+                               log_level=logging.INFO)
+
+        return so_exports
 
     def print_message(self, message: str, bare_text: bool = False, log_level: Optional[int] = logging.DEBUG) -> None:
         """

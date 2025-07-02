@@ -28,7 +28,6 @@ from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileTy
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
 AUTO_FORGE_MODULE_VERSION = "1.0"
-AUTO_FORGE_MODULE_CONTEXT_FILE_NAME = "gcc_build_log.json"
 
 
 class _CMakeBuildStep(Enum):
@@ -107,13 +106,15 @@ class CMakeBuilder(BuilderRunnerInterface):
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
 
-        config = build_profile.config_data
-
+        config: dict = build_profile.config_data
         if not isinstance(config, dict):
             raise ValueError("build profile contain invalid configuration")
 
         # Those are essential properties we must get
-        mandatory_required_fields = ["build_path", "compiler_options", "artifacts"]
+        mandatory_required_fields: list = ["build_path", "compiler_options", "artifacts"]
+
+        # Erase context file
+        self._build_context_file.unlink(missing_ok=True)
 
         # Validate required fields
         for field in mandatory_required_fields:
@@ -223,7 +224,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             finally:
                 if results is not None:
                     self._gcc_analyzer.analyze(log_source=results.response,
-                                               export_file_name=AUTO_FORGE_MODULE_CONTEXT_FILE_NAME)
+                                               export_file_name=str(self._build_context_file))
 
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)
@@ -256,6 +257,11 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Update step and optionally handle extra arguments based on the current state
         self._set_state(build_state=_CMakeBuildStep.DONE_BUILD, extra_args=build_profile.extra_args, config=config)
+
+        # Libraries analysis
+        nm_command = self._toolchain.get_tool('nm')
+        self.analyze_so_exports(path=str(build_path), nm_tool_name=nm_command, max_libs=100)
+
         return results.return_code
 
     def _set_state(self, build_state: _CMakeBuildStep,

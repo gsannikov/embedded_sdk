@@ -19,9 +19,7 @@
     "subprocess_execution_timout": 120.0,                   // Default timeout (in seconds) for sub-process execution.
     "watchdog_timeout": 10.0,                               // Default timeout (in seconds) for sub-process execution.
     "productivity_assist": true,                            // Productivity assist flag
-
-    // Demo API Key
-    "api_key": "set your key in here",
+    "build_context_file": "build_context.json",             // Auto generated context json file name
 
     "keywords_mapping": [
 
@@ -639,6 +637,7 @@
         { "url": "http://speedtest.tokyo2.linode.com/100MB-tokyo.bin",  "size": 100000,    "name": "Linode"            },
         { "url": "http://proof.ovh.net/files/100Mb.dat",                "size": 100000,    "name": "OVH Speed Test"    }
     ]
+
 
 }
 
