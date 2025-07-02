@@ -174,7 +174,7 @@ class RefactorCommand(CommandInterface):
                 recipe_file = self.sdk.variables.expand(key=alternative_path)
 
             # Preprocess the JSON file (e.g., strip comments)
-            self._recipe_data = self.sdk.processor.render(file_name=recipe_file)
+            self._recipe_data = self.sdk.jsonc_processor.render(file_name=recipe_file)
 
             # Validate and parse 'defaults' section
             if "defaults" not in self._recipe_data:

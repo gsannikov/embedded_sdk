@@ -129,7 +129,7 @@ class AICommand(CommandInterface):
         self._console.print(sql_syntax)
         print()
 
-        self.sdk.xray.query_raw(query=sql_query, print_table=True)
+        self.sdk.xray_db.query_raw(query=sql_query, print_table=True)
 
     async def _async_ask_ai(self, user_prompt: str, response_width: int = 100):
         """

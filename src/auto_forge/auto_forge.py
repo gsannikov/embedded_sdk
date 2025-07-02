@@ -35,7 +35,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
     CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, Crypto,
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, CoreAI, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
+    CoreVariables, CoreXRayDB, CoreAIBridge, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
     PackageGlobals, CoreContext)
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
@@ -66,7 +66,7 @@ class AutoForge(CoreModuleInterface):
         self._loader: Optional[CoreDynamicLoader] = None
         self._build_shell: Optional[CoreBuildShell] = None
         self._xray: Optional[CoreXRayDB] = None
-        self._ai_bridge: Optional[CoreAI] = None
+        self._ai_bridge: Optional[CoreAIBridge] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
         self._core_logger: Optional[CoreLogger] = None
         self._log_file_name: Optional[str] = None
@@ -187,7 +187,7 @@ class AutoForge(CoreModuleInterface):
         # This step flushes all temporarily buffered logs into the finalized logger instance,
         # which will be used from this point onward.
         self._init_logger()
-        self._ai_bridge = CoreAI()
+        self._ai_bridge = CoreAIBridge()
 
         # Load all supported dynamic modules — currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader()

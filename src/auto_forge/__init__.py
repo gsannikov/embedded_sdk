@@ -16,14 +16,9 @@ Note:
 --------------------------------------------------------------------------------
 
 """
-import sys
+import re
 import traceback
-from contextlib import suppress
-from dataclasses import dataclass
-from dataclasses import fields
-from typing import ClassVar, TYPE_CHECKING, Union
-from typing import Optional
-from typing import get_origin, get_args, Any, ForwardRef
+from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 # Third-party
 import pyperclip
@@ -79,7 +74,7 @@ try:
     from auto_forge.core.jsonc_processor import (CoreJSONCProcessor)
     from auto_forge.core.toolbox import CoreToolBox
     from auto_forge.core.variables import (CoreVariables)
-    from auto_forge.core.ai_bridge import (CoreAI)
+    from auto_forge.core.ai_bridge import (CoreAIBridge)
     from auto_forge.core.gui import (CoreGUI)
     from auto_forge.core.signatures import (CoreSignatures, SignatureFileHandler, Signature)
     from auto_forge.core.solution import (CoreSolution)
@@ -94,92 +89,72 @@ try:
         from auto_forge.auto_forge import AutoForge
 
 
-    @dataclass(init=False)
     class SDKType:
         """
-        Singleton class that holds all the core service instances of the AutoForge SDK.
-        This container provides centralized, type-safe access to shared core components,
-        allowing modules to retrieve services like telemetry, logging, toolchains, and
-        variable management from a single global instance.
-        Each field represents a distinct core module or system service. Instances of these
-        services are expected to register themselves via the `auto_register()` method,
-        which matches the instance to a field based on its annotated type.
+        Singleton container for all dynamically registered core modules in the AutoForge SDK.
+        This class acts as a runtime service locator, allowing core modules (such as telemetry,
+        logging, toolchains, and platform tools) to self-register and expose themselves through
+        a centralized global instance.
 
-        Notes:
-            - Type annotations are written as strings to support forward references.
-            - Optional[...] and Union[...] annotations are fully supported and resolved dynamically.
-            - Unmatched or unresolved instances are silently ignored.
-            - All core modules should inherit from `CoreModuleInterface`, which handles
-              calling `sdk.auto_register(self)` automatically during initialization.
+        Unlike traditional dataclasses, this implementation does **not** declare fixed attributes.
+        Instead, it dynamically injects fields based on core module class names, which are converted
+        to standardized `snake_case` identifiers (e.g., `CoreXRayDB` → `xray_db`). This avoids static
+        annotation boilerplate and keeps the class extensible.
+
+        Registration:
+            Each core module should inherit from `CoreModuleInterface`, which invokes `SDKType.get_instance().register(self)`
+            automatically during its initialization. This mechanism ensures the module becomes accessible
+            via the global SDK instance.
         """
-
-        registry: Optional["CoreRegistry"] = None
-        telemetry: Optional["CoreTelemetry"] = None
-        logger: Optional["CoreLogger"] = None
-        watchdog: Optional["CoreWatchdog"] = None
-        system_info: Optional["CoreSystemInfo"] = None
-        processor: Optional["CoreJSONCProcessor"] = None
-        toolbox: Optional["CoreToolBox"] = None
-        variables: Optional["CoreVariables"] = None
-        ai_bridge: Optional["CoreAI"] = None
-        signatures: Optional["CoreSignatures"] = None
-        solution: Optional["CoreSolution"] = None
-        loader: Optional["CoreDynamicLoader"] = None
-        linux_aliases: Optional["CoreLinuxAliases"] = None
-        platform: Optional["CorePlatform"] = None
-        build_shell: Optional["CoreBuildShell"] = None
-        xray: Optional["CoreXRayDB"] = None
-        gui: Optional["CoreGUI"] = None
-        auto_forge: Optional["AutoForge"] = None
 
         _instance: ClassVar[Optional["SDKType"]] = None
 
-        def __new__(cls, *args, **kwargs):
+        def __new__(cls):
             if cls._instance is None:
-                cls._instance = super(SDKType, cls).__new__(cls)
+                cls._instance = super().__new__(cls)
             return cls._instance
+
+        def __getattr__(self, name: str) -> Any:
+            """
+            Escape hatch for IDEs to prevent 'Cannot find reference' warnings.
+            All dynamically injected core modules go through here if not declared.
+            """
+            raise AttributeError(f"{name!r} is not defined in SDKType")
 
         @classmethod
         def get_instance(cls) -> "SDKType":
             return cls()
 
-        def auto_register(self, instance: object) -> None:
+        def register(self, instance: object) -> None:
             """
-            Automatically registers a core instance into the appropriate field of the SDK singleton.
-            Handles Optional[...] and forward references like "CoreRegistry".
-            Skips fields it cannot resolve safely.
-            Args:
-                instance: The service instance to register (e.g., CoreRegistry).
+            Registers a core module instance into the SDK singleton under a snake_case name
+            derived from its class name (e.g., CoreTelemetry → telemetry).
             """
-            cls = self.__class__
-            module_globals = sys.modules[cls.__module__].__dict__
 
-            for field in fields(self):
-                field_type = field.type
+            _ACRONYMS = {"AI", "JSONC", "XRay", "DB", "SDK"}
 
-                # Step 1: Resolve string-based annotations like "CoreRegistry"
-                if isinstance(field_type, str):
-                    with suppress(Exception):
-                        field_type = eval(field_type, module_globals)
-                if field_type is None:
-                    continue
+            def _camel_to_snake(_name: str) -> str:
+                """
+                Converts CamelCase to snake_case, correctly preserving known acronyms
+                and inserting underscores between consecutive acronym groups.
+                """
+                _name = re.sub(r'^Core', '', _name)
+                acr_pattern = '|'.join(sorted(_ACRONYMS, key=len, reverse=True))
+                pattern = rf'(?:{acr_pattern})|[A-Z][a-z]*|\d+'
+                parts = re.findall(pattern, _name)
+                return '_'.join(part.lower() for part in parts)
 
-                # Step 2: Handle Union/Optional
-                origin = get_origin(field_type)
-                if origin is Union:
-                    type_list = [t for t in get_args(field_type) if t is not type(None)]
-                else:
-                    type_list = [field_type]
+            if not isinstance(instance, CoreModuleInterface):
+                raise TypeError(f"Instance {instance} must inherit from CoreModuleInterface")
 
-                for typ in type_list:
-                    # Step 3: Resolve ForwardRef objects
-                    if isinstance(typ, ForwardRef):
-                        with suppress(Exception):
-                            typ = eval(typ.__forward_arg__, module_globals)
+            class_name = instance.__class__.__name__
+            stripped = class_name[4:] if class_name.startswith("Core") else class_name
+            snake_name = _camel_to_snake(stripped)
 
-                    if typ is Any or (isinstance(typ, type) and isinstance(instance, typ)):
-                        setattr(self, field.name, instance)
-                        return
+            if hasattr(self, snake_name):
+                raise ValueError(f"SDKType already has a registered core instance named '{snake_name}'")
+
+            setattr(self, snake_name, instance)
 
 
 except ImportError as import_error:
@@ -193,19 +168,19 @@ except Exception as exception:
 # Exported symbols
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType",
-    "AutoForgeWorkModeType", "SDKType",
-    "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface", "BuilderToolChain",
-    "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
-    "CoreAI", "CoreBuildShell", "CoreContext", "CoreDynamicLoader", "CoreGUI", "CoreJSONCProcessor",
-    "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreLogger", "CoreLoggerProtocol",
-    "CoreModuleInterface", "CorePlatform", "CoreRegistry", "CoreSignatures", "CoreSolution", "CoreSystemInfo",
-    "CoreTelemetry", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog",
-    "CoreXRayDB", "Crypto", "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType",
-    "ExpectedVersionInfoType", "FieldColorType", "GCCLogAnalyzer", "HasConfigurationProtocol", "InputBoxButtonType",
-    "InputBoxLineType", "InputBoxTextType", "LinuxShellType", "LogHandlersType", "MessageBoxType",
-    "MethodLocationType", "ModuleInfoType", "PackageGlobals", "ProgressTracker", "PromptStatusType",
-    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType",
-    "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "TelemetryTrackedCounter",
-    "TerminalAnsiGuru", "TerminalEchoType", "TerminalSpinner", "TerminalTeeStream", "ValidationMethodType",
-    "VariableFieldType", "VariableType", "VersionCompare", "XRayStateType"
+    "AutoForgeWorkModeType", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface",
+    "BuilderToolChain", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
+    "CommandResultType", "CoreAIBridge", "CoreBuildShell", "CoreContext", "CoreDynamicLoader", "CoreGUI",
+    "CoreJSONCProcessor", "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",
+    "CoreLogger", "CoreLoggerProtocol", "CoreModuleInterface", "CorePlatform", "CoreRegistry", "CoreSignatures",
+    "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox", "CoreToolBoxProtocol", "CoreVariables",
+    "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB", "Crypto", "DataSizeFormatter", "EventManager",
+    "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType", "FieldColorType", "GCCLogAnalyzer",
+    "HasConfigurationProtocol", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
+    "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PackageGlobals",
+    "ProgressTracker", "PromptStatusType", "SDKType", "SequenceErrorActionType", "Signature",
+    "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "StatusNotifType",
+    "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "TelemetryTrackedCounter", "TerminalAnsiGuru",
+    "TerminalEchoType", "TerminalSpinner", "TerminalTeeStream", "ValidationMethodType", "VariableFieldType",
+    "VariableType", "VersionCompare", "XRayStateType"
 ]

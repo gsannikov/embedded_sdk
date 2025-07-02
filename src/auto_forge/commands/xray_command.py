@@ -257,7 +257,7 @@ class XRayCommand(CommandInterface):
             query += " ORDER BY path LIMIT ?"
             params.append(str(limit or 500))
 
-            rows = self.sdk.xray.query_raw(query, tuple(params))
+            rows = self.sdk.xray_db.query_raw(query, tuple(params))
             if not rows:
                 print("No matching files found.")
                 return 1
@@ -304,7 +304,7 @@ class XRayCommand(CommandInterface):
         Print sets of files that have identical purified content, grouped by checksum.
         """
         try:
-            rows = self.sdk.xray.query_raw(f"""
+            rows = self.sdk.xray_db.query_raw(f"""
                 SELECT checksum, GROUP_CONCAT(path, '|') 
                 FROM file_meta
                 WHERE checksum IS NOT NULL
@@ -347,7 +347,7 @@ class XRayCommand(CommandInterface):
             limit (int): Maximum number of candidate files to scan. Default is 500.
         """
         try:
-            rows = self.sdk.xray.query_raw(f"""
+            rows = self.sdk.xray_db.query_raw(f"""
                 SELECT files.path, files.content
                 FROM files
                 JOIN file_meta ON files.path = file_meta.path
@@ -431,7 +431,7 @@ class XRayCommand(CommandInterface):
         extensions: list = args.ext if args.ext else ["c", "h"]
 
         if args.refresh_indexes:
-            return self.sdk.xray.refresh()
+            return self.sdk.xray_db.refresh()
 
         elif args.find_mains:
             return_code = self._find_all_mains(limit=limit)

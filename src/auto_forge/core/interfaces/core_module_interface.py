@@ -183,7 +183,7 @@ class CoreModuleInterface(metaclass=_SingletonABCMeta):
             if self._core_module_name == "AutoForge":
                 SDKType.get_instance().auto_forge = cast("AutoForge", self)
             else:
-                SDKType.get_instance().auto_register(self)
+                SDKType.get_instance().register(self)
 
     @property
     def auto_forge(self) -> "AutoForge":

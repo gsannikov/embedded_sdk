@@ -1,5 +1,5 @@
 """
-Script:         ai_prompt.py
+Script:         ai_bridge.py
 Author:         AutoForge Team
 
 Description:
@@ -19,7 +19,7 @@ AUTO_FORGE_MODULE_NAME = "AIBridge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AI Services Bridge"
 
 
-class CoreAI(CoreModuleInterface):
+class CoreAIBridge(CoreModuleInterface):
 
     def __init__(self, *args, **kwargs):
         """

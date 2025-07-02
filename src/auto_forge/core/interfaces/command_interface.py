@@ -123,7 +123,7 @@ class _CapturingArgumentParser(argparse.ArgumentParser):
         final_help = "\n".join(final_lines)
         final_help = final_help.replace("optional arguments:", "Optional Arguments:")
         final_help = final_help.replace("show this help message and exit", "Show this help message and exit.")
-        print('\n' + final_help + '\n')
+        print('\n' + final_help)
 
     def print_usage(self, _file: Optional[IO[str]] = None) -> None:
         """
@@ -184,7 +184,7 @@ class CommandInterface(ABC):
         self._configuration = CoreContext.get_config_provider().configuration
         self._core_logger = self.sdk.logger
         self._logger = self.sdk.logger.get_logger(name=command_name.capitalize())
-        self._tool_box = self.sdk.toolbox
+        self._tool_box = self.sdk.tool_box
 
         # Dependencies check
         if None in (self._logger, self._tool_box):
@@ -351,7 +351,6 @@ class CommandInterface(ABC):
 
             else:
                 args = self._args_parser.parse_args(args_list)
-
                 # Handle verbosity
                 if "-vv" in args_list or "--verbose" in args_list:
                     self._core_logger.set_output_enabled(logger=self._logger, state=True)
@@ -365,8 +364,9 @@ class CommandInterface(ABC):
                 return_value = 1
 
         except SystemExit:
-            self._last_error_message = _normalize_error(self._args_parser.get_error_message())
+            # Suppress any attempt to exit
             self._last_exception = None
+            return_value = 0
         except Exception as execution_exception:
             self._last_error_message = _normalize_error(str(execution_exception))
             self._last_exception = execution_exception

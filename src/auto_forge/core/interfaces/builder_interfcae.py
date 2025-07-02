@@ -50,7 +50,7 @@ class BuilderToolChain:
         self._resolved_tools: dict[str, str] = {}
         self._builder_instance = builder_instance
         self._registry = self._builder_instance.sdk.registry
-        self._tool_box = self._builder_instance.sdk.toolbox
+        self._tool_box = self._builder_instance.sdk.tool_box
 
         if self._tool_box is None:
             raise RuntimeError("unable to instantiate dependent core module")
@@ -240,7 +240,7 @@ class BuilderRunnerInterface(ABC):
         self._configuration = CoreContext.get_config_provider().configuration
         self._core_logger = self.sdk.logger
         self._logger = self.sdk.logger.get_logger(name=self._build_system.capitalize())
-        self._tool_box = self.sdk.toolbox
+        self._tool_box = self.sdk.tool_box
 
         # Dependencies check
         if None in (self._logger, self._tool_box):

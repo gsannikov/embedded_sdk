@@ -590,13 +590,13 @@
         { "name": "vscode",       "aliases": ["code", "code-insiders", "Code.exe"],       "type": "gui",      "executable": "code",         "args": ["--reuse-window"] },
         { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] },
         { "name": "notepad",      "aliases": ["notepad.exe"],                             "type": "gui",      "executable": "notepad",      "args": [] }
-  ],
+    ],
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------------
     //
     // General application schema for encrypted information
     //
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------------
 
     "secrets_schema": {
         // General application metadata or global secrets
@@ -613,6 +613,34 @@
             "aws_access_key_id": null,
             "aws_secret_access_key":  null
         }
-    }
+    },
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
+    // Proxy servers.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
+    "proxy_timout":  10,    // Max time in seconds we allow for getting a dummy resource
+    "proxy_auto_update": false,   // Update environment with the best proxy
+
+    "proxy_servers": [
+        // List of proxy server
+        { "host": "51.158.105.94",           "port": 31826, "https":  false  },
+        { "host": "43.198.151.41",           "port": 31005, "https":  false  },
+        { "host": "123.141.181.8",           "port": 5031,  "https":  false },
+        { "host": "209.135.168.41",          "port": 80,    "https":  false }
+    ],
+
+    "proxy_dummy_files": [
+        // Downloadable resources
+        { "url": "http://speed.hetzner.de/100MB.bin",                   "size": 100000,    "name": "Hetzner Online"    },
+        { "url": "http://ipv4.download.thinkbroadband.com/100MB.zip",   "size": 100000,    "name": "ThinkBroadband"    },
+        { "url": "http://speedtest.tokyo2.linode.com/100MB-tokyo.bin",  "size": 100000,    "name": "Linode"            },
+        { "url": "http://proof.ovh.net/files/100Mb.dat",                "size": 100000,    "name": "OVH Speed Test"    }
+    ]
+
 }
+
+
 

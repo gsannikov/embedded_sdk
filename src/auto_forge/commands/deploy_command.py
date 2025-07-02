@@ -293,7 +293,7 @@ class DeployCommand(CommandInterface):
             self._logger.debug(f"Using recipe from: {recipe_file}")
 
             # Load and preprocess the recipe JSONC/JSON file
-            recipe_raw: Optional[dict] = self.sdk.processor.render(file_name=recipe_file)
+            recipe_raw: Optional[dict] = self.sdk.jsonc_processor.render(file_name=recipe_file)
             if not isinstance(recipe_raw, dict):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
 
