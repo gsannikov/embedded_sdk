@@ -7,7 +7,7 @@ Description:
     Each builder implementation is registered at startup with a unique name, and can be invoked as needed based on the
     solution branch configuration, which specifies the registered name of the builder.
 """
-
+import glob
 import inspect
 import logging
 import os
@@ -32,6 +32,103 @@ if TYPE_CHECKING:
 # Module identification
 AUTO_FORGE_MODULE_NAME = "BuilderInterface"
 AUTO_FORGE_MODULE_DESCRIPTION = "Dynamic loadable builder interface"
+
+
+class BuilderArtifactsValidator:
+    """
+    Handles validation and resolution of build artifact descriptors.
+
+    Each artifact descriptor must include:
+        - 'name': Arbitrary identifier for the artifact group.
+        - 'path': Absolute or relative path (can include wildcards).
+        - Optional 'recursive': bool (default True for wildcards) — controls glob recursion.
+
+    After validation, exposes a mapping of 'name' to a list of resolved file paths.
+    """
+
+    def __init__(self, artifact_list: list[dict]):
+        self._artifact_list = artifact_list
+        self._resolved: dict[str, list[Path]] = {}
+        self._validate_and_resolve()
+
+    def _validate_and_resolve(self):
+        for i, artifact in enumerate(self._artifact_list):
+            if not isinstance(artifact, dict):
+                raise TypeError(f"Artifact entry at index {i} must be a dictionary.")
+
+            name = artifact.get("name")
+            path_str = artifact.get("path")
+            recursive = artifact.get("recursive", True)
+            copy_to_path = artifact.get("copy_to")
+
+            if not name or not path_str:
+                raise ValueError(f"Artifact entry {artifact} must include 'name' and 'path'.")
+
+            path_obj = Path(path_str)
+
+            if "*" in path_str or "?" in path_str or "[" in path_str:
+                matched_files = [
+                    Path(p).resolve() for p in glob.glob(path_str, recursive=recursive)
+                ]
+                if not matched_files:
+                    raise FileNotFoundError(f"No files matched wildcard path: {path_str}")
+                self._resolved[name] = matched_files
+            else:
+                resolved_file = path_obj.resolve()
+                if not resolved_file.exists():
+                    raise FileNotFoundError(f"Expected file not found: {resolved_file}")
+                self._resolved[name] = [resolved_file]
+
+            # If copy_to is specified, perform immediate copy
+            if copy_to_path:
+                self._copy_to(name, copy_to_path)
+
+    def _copy_to(self, group_name: str, destination: str, preserve_structure: bool = True):
+        """
+        Copy all files from the specified group to the destination directory.
+        Args:
+            group_name (str): The artifact group name.
+            destination (str): Destination directory path.
+            preserve_structure (bool): If True, recreate folder structure from the
+                                       common root down. If False, flatten all files.
+        """
+        if group_name not in self._resolved:
+            raise KeyError(f"Group '{group_name}' not found in resolved artifacts.")
+
+        files = self._resolved[group_name]
+        if not files:
+            raise ValueError(f"No files found in group '{group_name}'.")
+
+        destination_path = Path(destination).resolve()
+        destination_path.mkdir(parents=True, exist_ok=True)
+        common_base_path: Optional[Path] = None
+
+        if preserve_structure:
+            try:
+                # Extract common parent of all file *directories*
+                common_base = os.path.commonpath([str(p.parent) for p in files])
+                common_base_path = Path(common_base).resolve()
+            except Exception as e:
+                raise RuntimeError(f"Failed to compute common base path: {e}")
+        for src in files:
+            if preserve_structure:
+                try:
+                    relative_subpath = src.parent.relative_to(common_base_path)
+                except ValueError:
+                    raise ValueError(f"File {src} is not under common base path {common_base_path}")
+                dest_dir = destination_path / relative_subpath
+            else:
+                dest_dir = destination_path
+
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest_dir / src.name)
+
+    def get_resolved_artifacts(self) -> dict[str, list[Path]]:
+        """
+        Returns:
+            dict[str, list[Path]]: Mapping of artifact name to resolved file paths.
+        """
+        return self._resolved
 
 
 class BuilderToolChain:

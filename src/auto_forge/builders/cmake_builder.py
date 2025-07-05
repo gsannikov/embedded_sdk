@@ -12,7 +12,6 @@ Classes:
 """
 
 import logging
-import os
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any
@@ -23,7 +22,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        TerminalEchoType, CommandResultType, GCCLogAnalyzer)
+                        BuilderArtifactsValidator, TerminalEchoType, CommandResultType, GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -143,7 +142,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         self.print_message(f"Build of '{build_target_string}' for {architecture} starting...")
 
         # Process pre-build steps if specified
-        steps_data: Optional[dict[str, str]] = config.get("pre_build_steps", {})
+        steps_data: Optional[list[dict[str, Any]]] = config.get("pre_build_steps", [])
         if steps_data:
             self._process_build_steps(steps=steps_data, is_pre=True)
 
@@ -166,7 +165,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         )
 
         compiler_options = config.get("compiler_options")
-        artifacts: Optional[list[str]] = config.get("artifacts", None)
+        artifacts: Optional[list] = config.get("artifacts", None)
 
         # Merge cmake specific options from the tool chain with the build configuration options into  single list
         if cmake_options and compiler_options:
@@ -233,25 +232,12 @@ class CMakeBuilder(BuilderRunnerInterface):
             self._set_state(build_state=_CMakeBuildStep.POST_BUILD, extra_args=build_profile.extra_args, config=config)
 
         # Process post build steps if specified
-        steps_data: Optional[dict[str, str]] = config.get("post_build_steps", {})
+        steps_data: Optional[list[dict[str, Any]]] = config.get("post_build_steps", [])
         if steps_data:
             self._process_build_steps(steps=steps_data, is_pre=False)
 
-        # Check for all expected artifacts
-        missing_artifacts = []
-
-        for artifact_path in artifacts:
-            artifact_file = Path(artifact_path).expanduser().resolve()
-            if not artifact_file.exists():
-                missing_artifacts.append(str(artifact_file))
-            else:
-                base_artifact_file_name: str = os.path.basename(artifact_file)
-                formated_size: str = self._tool_box.get_formatted_size(artifact_file.stat().st_size)
-                self.print_message(message=f"Artifact '{base_artifact_file_name}' created, size: "
-                                           f"{Fore.LIGHTYELLOW_EX}{formated_size}{Style.RESET_ALL}")
-
-        if missing_artifacts:
-            raise ValueError("missing expected build artifacts:" + "\n".join(missing_artifacts))
+        # Validate / process artifacts
+        BuilderArtifactsValidator(artifact_list=artifacts)
 
         self.print_message(message=f"Building of '{build_target_string}' was successful", log_level=logging.INFO)
 
@@ -308,21 +294,21 @@ class CMakeBuilder(BuilderRunnerInterface):
             self.print_message(message=f"Failed to execute '{name}': {execution_error}", log_level=logging.ERROR)
             return 1
 
-    def _process_build_steps(self, steps: dict[str, str], is_pre: bool = True) -> None:
+    def _process_build_steps(self, steps: list[dict[str, Any]], is_pre: bool = True) -> None:
         """
-        Execute a dictionary of build steps where values prefixed with '!' are run as cmd2 shell commands.
+        Execute a list of build steps where values prefixed with '!' are run as cmd2 shell commands.
         Args:
             steps (dict[str, str]): A dictionary of named build steps to execute.
             is_pre (bool): Specifies if those are pre- or post-build steps.
         """
-        for step_name, command in steps.items():
+        for step in steps:
+            step_name = step.get("name", "Unknown")
+            step_command = step.get("command", "").lstrip()
             prefix = "pre" if is_pre else "post"
 
             self.print_message(message=f"Running {prefix}-build step: '{step_name}'")
-            command = command.strip()
-
-            if command.startswith("!"):
-                self._execute_single_step(command=command, name=step_name)
+            if step_command.startswith("!"):
+                self._execute_single_step(command=step_command, name=step_name)
             else:
                 self.print_message(message=f"Step '{step_name}' ignored: no '!' prefix", log_level=logging.WARNING)
 

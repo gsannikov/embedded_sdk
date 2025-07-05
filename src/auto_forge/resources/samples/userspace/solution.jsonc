@@ -122,10 +122,30 @@
                                 "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
                             ],
                             "artifacts": [
-                                "<$ref_build_path>/n_libs/logger/liblogger.a"
+                                {
+                                    "name": "static_libs",
+                                    "path": "<$ref_build_path>/**/*.a",
+                                    "copy_to": "$BUILD_IMAGES/static_libs"
+
+                                },
+                                {
+                                    "name": "shared_libs",
+                                    "path": "<$ref_build_path>/**/*.a",
+                                    "copy_to": "$BUILD_IMAGES/shared_libs"
+                                }
                             ],
-                            "pre_build_steps": {
-                            }
+                            "pre_build_steps": [
+                            ],
+                            "post_build_steps": [
+                                {
+                                    "name": "purge static libraries",
+                                    "command": "!rm -rf $BUILD_IMAGES/static_libs"
+                                },
+                                {
+                                    "name": "purge shared libraries",
+                                    "command": "!rm -rf $BUILD_IMAGES/shared_libs"
+                                }
+                            ]
                         },
                         {
                             "name": "release",

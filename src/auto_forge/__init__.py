@@ -60,7 +60,7 @@ try:
     # Interfaces
     from auto_forge.core.interfaces.core_module_interface import (CoreModuleInterface)
     from auto_forge.core.interfaces.command_interface import (CommandInterface)
-    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface,
+    from auto_forge.core.interfaces.builder_interfcae import (BuilderRunnerInterface, BuilderArtifactsValidator,
                                                               BuildLogAnalyzerInterface, BuilderToolChain)
 
     # Build output analyzers
@@ -101,7 +101,8 @@ except Exception as exception:
 __all__ = [
     "AddressInfoType", "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType",
     "AutoForgeWorkModeType", "BuildLogAnalyzerInterface", "BuildProfileType", "BuilderRunnerInterface",
-    "BuilderToolChain", "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol",
+    "BuilderArtifactsValidator", "BuilderToolChain", "CommandFailedException", "CommandInterface",
+    "CommandInterfaceProtocol",
     "CommandResultType", "CoreAIBridge", "CoreBuildShell", "CoreContext", "CoreDynamicLoader", "CoreGUI",
     "CoreJSONCProcessor", "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol",
     "CoreLogger", "CoreLoggerProtocol", "CoreModuleInterface", "CorePlatform", "CoreRegistry", "CoreSignatures",
