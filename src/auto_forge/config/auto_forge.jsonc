@@ -217,6 +217,7 @@
         { "name": "ga",           "command": "git add .",                               "cmd_type": "GIT",          "description": "Git add all"                                                },
         { "name": "gc",           "command": "git commit -m",                           "cmd_type": "GIT",          "description": "Git commit"                                                 },
         { "name": "gob",          "command": "cd $BUILD_OUT",                           "cmd_type": "NAVIGATE",     "description": "Go to build output directory"                               },
+        { "name": "goi",          "command": "cd $BUILD_IMAGES",                        "cmd_type": "NAVIGATE",     "description": "Go to build products directory"                             },
         { "name": "gologs",       "command": "cd $BUILD_LOGS",                          "cmd_type": "NAVIGATE",     "description": "Go to the build logs path",                 "hidden": true  },
         { "name": "gop",          "command": "cd $PROJ_WORKSPACE/$SOLUTION_NAME",       "cmd_type": "NAVIGATE",     "description": "Go to project root path"                                    },
         { "name": "goss",         "command": "cd $SCRIPTS_SOLUTION",                    "cmd_type": "NAVIGATE",     "description": "Go to the solution JSONs path"                              },

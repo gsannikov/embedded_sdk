@@ -25,7 +25,7 @@ from typing import IO, Any, Optional, TYPE_CHECKING
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, AutoForgCommandType, CoreContext, ModuleInfoType, SDKType)
 
-# Lasy import SDK class instance
+# Lazy import SDK class instance
 if TYPE_CHECKING:
     from auto_forge import SDKType
 

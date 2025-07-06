@@ -25,7 +25,7 @@ from colorama import Fore, Style
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
                         CommandResultType, SDKType, VersionCompare)
 
-# Lasy import SDK class instance
+# Lazy import SDK class instance
 if TYPE_CHECKING:
     from auto_forge import SDKType
 
@@ -81,7 +81,7 @@ class BuilderArtifactsValidator:
 
             # If copy_to is specified, perform immediate copy
             if copy_to_path:
-                self._copy_to(name, copy_to_path)
+                self._copy_to(group_name=name, destination=copy_to_path, preserve_structure=False)
 
     def _copy_to(self, group_name: str, destination: str, preserve_structure: bool = True):
         """
@@ -102,6 +102,7 @@ class BuilderArtifactsValidator:
         destination_path = Path(destination).resolve()
         destination_path.mkdir(parents=True, exist_ok=True)
         common_base_path: Optional[Path] = None
+        files_copied:int = 0
 
         if preserve_structure:
             try:
@@ -122,6 +123,7 @@ class BuilderArtifactsValidator:
 
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dest_dir / src.name)
+            files_copied += 1
 
     def get_resolved_artifacts(self) -> dict[str, list[Path]]:
         """
@@ -133,7 +135,7 @@ class BuilderArtifactsValidator:
 
 class BuilderToolChain:
     """
-    Tool chaim validation auxiliary cass.
+    Toolchain validation auxiliary class
     """
 
     def __init__(self, toolchain: dict[str, object], builder_instance: Optional["BuilderRunnerInterface"]) -> None:
@@ -328,7 +330,7 @@ class BuilderRunnerInterface(ABC):
             raise RuntimeError("build_system properties cannot be None")
 
         # Set optional build label
-        self._build_label: str = build_label if build_label is not None else "AutoForge"
+        self._build_label: str = build_label if build_label is not None else None
 
         # Register this builder instance in the global registry for centralized access
         self._module_info: ModuleInfoType = (
@@ -474,7 +476,7 @@ class BuilderRunnerInterface(ABC):
                                logging.WARNING: Fore.YELLOW, logging.INFO: Fore.CYAN,
                                logging.DEBUG: Fore.LIGHTGREEN_EX, }
             color = level_color_map.get(log_level, Fore.WHITE)
-            leading_text = f"{color}-- {self._build_label}:{Style.RESET_ALL} "
+            leading_text = f"{color}-- {self._build_label}:{Style.RESET_ALL} " if self._build_label else "-- "
 
         else:
             leading_text = f"-- {self._build_label}: "

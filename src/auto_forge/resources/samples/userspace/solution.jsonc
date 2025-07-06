@@ -130,7 +130,7 @@
                                 },
                                 {
                                     "name": "shared_libs",
-                                    "path": "<$ref_build_path>/**/*.a",
+                                    "path": "<$ref_build_path>/**/*.so",
                                     "copy_to": "$BUILD_IMAGES/shared_libs"
                                 }
                             ],
@@ -138,11 +138,11 @@
                             ],
                             "post_build_steps": [
                                 {
-                                    "name": "purge static libraries",
+                                    "name": "Clean Static Libraries",
                                     "command": "!rm -rf $BUILD_IMAGES/static_libs"
                                 },
                                 {
-                                    "name": "purge shared libraries",
+                                    "name": "Clean Shared Libraries",
                                     "command": "!rm -rf $BUILD_IMAGES/shared_libs"
                                 }
                             ]
