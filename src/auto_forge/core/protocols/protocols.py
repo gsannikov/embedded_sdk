@@ -22,10 +22,12 @@ AUTO_FORGE_MODULE_DESCRIPTION: str = "Interfaces Protocols"
 
 class HasConfigurationProtocol(Protocol):
     """ Generic for an object that exposes 'configuration' property """
+
     @property
     def configuration(self) -> Optional[dict[str, Any]]:
         """Must return the configuration as a dictionary (or None)."""
         ...
+
 
 @runtime_checkable
 class CoreLoggerProtocol(Protocol):
@@ -59,7 +61,7 @@ class CoreVariablesProtocol(Protocol):
 
     def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]: ...
 
-    def get_by_folder_type(self, folder_type: Union[AutoForgFolderType, str]) -> Optional[Union[list[str], str]]:...
+    def get_by_folder_type(self, folder_type: Union[AutoForgFolderType, str]) -> Optional[Union[list[str], str]]: ...
 
 
 @runtime_checkable

@@ -37,8 +37,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union, Tuple
 
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreLogger, CommandFailedException, CommandResultType,
@@ -46,6 +44,7 @@ from auto_forge import (
     CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog,
     ProgressTracker, PackageGlobals,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Platform"
 AUTO_FORGE_MODULE_DESCRIPTION = "Platform Services"

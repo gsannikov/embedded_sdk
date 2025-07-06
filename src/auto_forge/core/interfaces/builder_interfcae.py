@@ -18,12 +18,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 
-# Third-party
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
                         CommandResultType, SDKType, VersionCompare)
+# Third-party
+from colorama import Fore, Style
 
 # Lazy import SDK class instance
 if TYPE_CHECKING:
@@ -102,7 +101,7 @@ class BuilderArtifactsValidator:
         destination_path = Path(destination).resolve()
         destination_path.mkdir(parents=True, exist_ok=True)
         common_base_path: Optional[Path] = None
-        files_copied:int = 0
+        files_copied: int = 0
 
         if preserve_structure:
             try:

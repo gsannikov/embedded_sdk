@@ -28,6 +28,13 @@ from typing import Optional, Any, Union, Callable
 
 # Third-party
 import cmd2
+# AutoForge imports
+from auto_forge import (
+    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
+    CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
+    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
+    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PackageGlobals
+)
 from cmd2 import Statement, ansi
 from cmd2 import with_argument_list
 # Telemetry
@@ -45,14 +52,6 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.styles import Style
 # Rich
 from rich.console import Console
-
-# AutoForge imports
-from auto_forge import (
-    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
-    CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
-    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
-    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PackageGlobals
-)
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Shell"

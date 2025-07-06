@@ -39,18 +39,17 @@ from typing import Any, Optional, SupportsInt, Union, Callable
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
-# Third-party
-from pyfiglet import Figlet
-from rich.console import Console
-from rich.text import Text
-from wcwidth import wcswidth
-
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgFolderType, AutoForgeModuleType, CoreJSONCProcessor, CoreLogger,
     CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, CoreVariablesProtocol,
     MethodLocationType, PackageGlobals, PromptStatusType
 )
+# Third-party
+from pyfiglet import Figlet
+from rich.console import Console
+from rich.text import Text
+from wcwidth import wcswidth
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
 UTC = timezone.utc
@@ -686,6 +685,7 @@ class CoreToolBox(CoreModuleInterface):
         with the value of the environment variable $VAR_NAME,
         but only if it exists. Leaves the placeholder untouched otherwise.
         """
+
         def _replacer(match):
             var_name = match.group(1)
             return os.environ.get(var_name, f"<{var_name}>")

@@ -25,12 +25,11 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import psutil
-from git import GitConfigParser
-
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, CoreLogger, DataSizeFormatter,
     SysInfoLinuxDistroType, SysInfoPackageManagerType)
+from git import GitConfigParser
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
 AUTO_FORGE_MODULE_DESCRIPTION = "System information collector"

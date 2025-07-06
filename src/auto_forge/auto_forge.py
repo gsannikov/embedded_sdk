@@ -27,9 +27,6 @@ from pathlib import Path
 from typing import Optional, Any
 
 import psutil
-# Third-party
-from colorama import Fore, Style
-
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
@@ -37,6 +34,8 @@ from auto_forge import (
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, CoreAIBridge, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
     PackageGlobals, CoreContext)
+# Third-party
+from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
