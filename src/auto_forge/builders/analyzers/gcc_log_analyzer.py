@@ -8,17 +8,26 @@ Description:
     handling multi-line messages and various diagnostic details. It also includes an interface for extending log
     analysis to different build systems or compilers.
 """
+import asyncio
+import io
 import json
 import re
 import textwrap
+import threading
 from contextlib import suppress
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import IO
 from typing import Union, Optional
 
+# Third-party
+from rich.console import Console
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.text import Text
+
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, BuildLogAnalyzerInterface)
+from auto_forge import (AutoForgeModuleType, BuildLogAnalyzerInterface, PromptStatusType)
 # Direct internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
 
@@ -42,6 +51,17 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
     def __init__(self):
         super().__init__()
+        self._last_json: Optional[str] = None
+        self._last_rendered_ai_response: Optional[str] = None
+        self._console = Console(force_terminal=True)
+
+        self._ai_context_info: str = (
+            "The following is a list of structured diagnostic entries from a C codebase, each containing a GCC error or warning message and its corresponding source-level context.\n"
+            "- The file name, line, column, and error/warning message from GCC.\n"
+            "- An optional `ai` field with the full function source where the error occurred, compressed to reduce size while preserving line numbers.\n"
+            "Use this information to assist in identifying the root cause of the error or suggest a potential fix.\n"
+        )
+
         self._registry = CoreRegistry.get_instance()  # Assuming CoreRegistry and AutoForgeModuleType are external
         self._module_info = self._registry.register_module(  # and these lines are handled by the user's setup
             name=AUTO_FORGE_MODULE_NAME,
@@ -156,6 +176,81 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         return '\n'.join(compressed_lines)
 
+    @staticmethod
+    def _render_ai_response(response: Optional[str], width: int = 100) -> Optional[str]:
+        """
+        Render AI response using rich panels into a string buffer.
+        """
+        if not isinstance(response, str) or not response.strip():
+            return "⚠️ No response received."
+
+        buffer = io.StringIO()
+        console = Console(file=buffer, force_terminal=True, width=width, record=True)
+
+        # Match outermost code blocks
+        code_block_pattern = re.compile(r"```c?\s*\n(.*?)```", re.DOTALL)
+        code_blocks = code_block_pattern.findall(response)
+        response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
+
+        paragraphs = [p.strip() for p in response_body.strip().split("\n\n") if p.strip()]
+        before_code, after_code = [], []
+        code_inserted = False
+
+        for para in paragraphs:
+            if para == "[[CODE_BLOCK]]" and code_blocks:
+                if before_code:
+                    combined = "\n\n".join(before_code)
+                    console.print(Panel(Text(combined, justify="left"), border_style="cyan", width=width))
+                    before_code.clear()
+
+                code = code_blocks.pop(0).strip()
+                console.print(Panel(
+                    Syntax(code, "c", line_numbers=True, word_wrap=True),
+                    border_style="green", title="Suggested Fix"
+                ))
+                code_inserted = True
+            elif not code_inserted:
+                before_code.append(para)
+            else:
+                after_code.append(para)
+
+        if after_code:
+            combined = "\n\n".join(after_code)
+            console.print(Panel(Text(combined, justify="left"), border_style="cyan", width=width))
+
+        for leftover in code_blocks:
+            console.print(Panel(
+                Syntax(leftover.strip(), "c", line_numbers=True, word_wrap=True),
+                border_style="green", title="Additional Code"
+            ))
+
+        return buffer.getvalue()
+
+    def _get_ai_advise_background(self, prompt: str, context: str):
+        """
+        Executes the AI query in a background thread, updates self._last_rendered_ai_response.
+        """
+
+        def _runner():
+            self._last_rendered_ai_response = None
+
+            async def _inner():
+                response = await self.sdk.ai_bridge.query(
+                    prompt=prompt, context=context, max_tokens=400, timeout=30,
+                )
+                self._last_rendered_ai_response = self._render_ai_response(response=response)
+
+            try:
+                asyncio.run(_inner())
+            except Exception as ai_exception:
+                self.sdk.tool_box.show_status(message=f"❌ AI query failed: {ai_exception}", expire_after=2,
+                                              status_type=PromptStatusType.ERROR, erase_after=True)
+
+            if isinstance(self._last_rendered_ai_response, str):
+                self.sdk.tool_box.show_status(message="🤖 AI Advise available", expire_after=2, erase_after=True)
+
+        threading.Thread(target=_runner, daemon=True).start()
+
     def _get_ai_context(self, file_path: Union[Path, str], line_number: int, lines_range: int = 10) -> Optional[
         _AIContext]:
         """
@@ -220,8 +315,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             function_line_number=target_idx - context_start
         )
 
-    @staticmethod
-    def _serialize(parsed_entries: list[dict], output_path: Union[str, Path]) -> bool:
+    def _serialize(self, parsed_entries: list[dict], output_path: Union[str, Path]) -> bool:
         """
         Saves the list of parsed diagnostic entries to a JSON file.
         Args:
@@ -262,19 +356,30 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             unique_entries = _clear_duplicated_entries(cleaned_entries)
             unique_entries.sort(key=lambda e: (e['gcc']['file'], e['gcc']['line']))
 
-            with output_path.open("w", encoding="utf-8") as f:
-                json.dump(unique_entries, f, indent=4, ensure_ascii=False)
-            return True
+            # Serialize to JSON string and store in instance
+            json_str = json.dumps(unique_entries, indent=4, ensure_ascii=False)
+            self._last_json = json_str
 
+            # Save to file
+            with output_path.open("w", encoding="utf-8") as f:
+                f.write(json_str)
+
+            return True
         return False
 
+    def show_last_advise(self):
+        """ Print the last stored rendered AI asynchronous response """
+        if isinstance(self._last_json, str):
+            print(self._last_rendered_ai_response, end="")
+
     def analyze(self, log_source: Union[Path, str],
-                export_file_name: Optional[str] = None) -> Optional[list[dict]]:
+                export_file_name: Optional[str] = None, ask_ai_for_help: bool = False) -> Optional[list[dict]]:
         """
         Analyzes a GCC compilation log, extracting structured error/warning diagnostics.
         Args:
             log_source: Path to the log file or a raw log string.
             export_file_name: If provided, stores the result in a JSON file.
+            ask_ai_for_help: If true, a background asynchronous request to an AI will be made.
         Returns:
             list of diagnostic dictionaries or None if none found.
         """
@@ -285,6 +390,9 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         log_lines_iterable: Union[IO, list[str]] = []
         log_source_name: str = ""
+
+        # Purge last analysis results
+        self._last_json = None
 
         try:
 
@@ -318,7 +426,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     file_name = diag_match.group('file')
                     line_number = int(diag_match.group('line'))
                     context = self._get_ai_context(file_path=file_name, line_number=line_number)
-
                     current_diagnostic = {
                         'gcc': {
                             'file': file_name.strip(),
@@ -367,6 +474,10 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             if parsed_entries and export_file_name is not None:
                 self._serialize(parsed_entries=parsed_entries, output_path=export_file_name)
 
+            # Auto trigger AI request
+            if isinstance(self._last_json, str) and ask_ai_for_help:
+                self._get_ai_advise_background(prompt=self._last_json, context=self.ai_context)
+
             return parsed_entries if parsed_entries else None
 
         except (FileNotFoundError, PermissionError) as file_error:
@@ -377,3 +488,13 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         finally:
             if isinstance(log_lines_iterable, IO):
                 log_lines_iterable.close()
+
+    @property
+    def ai_context(self) -> str:
+        """Get the AI context for this log source."""
+        return self._ai_context_info
+
+    @property
+    def last_json(self) -> Optional[str]:
+        """Get the last context as JSON string."""
+        return self._last_json

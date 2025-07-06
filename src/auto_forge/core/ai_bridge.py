@@ -9,10 +9,11 @@ from typing import Optional
 
 # from openai.lib.azure import AzureOpenAI
 import httpx
+from httpx import TimeoutException, RequestError, HTTPStatusError
+
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry,
                         CoreVariables, CoreTelemetry, CoreLogger)
-from httpx import TimeoutException, RequestError, HTTPStatusError
 
 AUTO_FORGE_MODULE_NAME = "AIBridge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AI Services Bridge"

@@ -299,6 +299,17 @@ class BuildLogAnalyzerInterface(ABC):
         """
         raise NotImplementedError("Subclasses must implement the 'analyze' method.")
 
+    @property
+    def sdk(self) -> SDKType:
+        """
+        Returns the global SDK singleton instance, which holds references
+        to all registered core module instances.
+        This property provides convenient access to the centralized SDKType
+        container, after all core modules have registered themselves during
+        initialization.
+        """
+        return SDKType.get_instance()
+
 
 class BuilderRunnerInterface(ABC):
     """
@@ -355,7 +366,8 @@ class BuilderRunnerInterface(ABC):
             self.build_logs_path = self._tool_box.get_valid_path(self.sdk.variables.get("BUILD_LOGS"),
                                                                  create_if_missing=False)
             context_file: str = self._configuration.get("build_context_file", "build_context.json")
-            duplicate_symbols_file: str = self._configuration.get("build_duplicate_symbols_file", "build_duplicate_symbols.json")
+            duplicate_symbols_file: str = self._configuration.get("build_duplicate_symbols_file",
+                                                                  "build_duplicate_symbols.json")
 
             self._build_context_file = self.build_logs_path / context_file
             self._build_context_file.unlink(missing_ok=True)
@@ -583,7 +595,7 @@ class BuilderRunnerInterface(ABC):
         if log_level is not None:
             self._logger.log(log_level, message)
 
-        sys.stdout.write("\r\033[K") # Clear the current line
+        sys.stdout.write("\r\033[K")  # Clear the current line
         print(leading_text + message)
 
     def update_info(self, command_info: ModuleInfoType):

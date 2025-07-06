@@ -453,12 +453,15 @@ class AutoForge(CoreModuleInterface):
             # Start remote debugging if enabled.
             self._logger.debug(f"Remote debugging enabled using {host}:{port}")
 
+            import sys
+            sys.path.append('/opt/pycharm/pycharm-2025.1.1/plugins/python-ce/helpers/pydev')
             # noinspection PyUnresolvedReferences
-            import pydevd_pycharm
+            import pydevd
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
-                pydevd_pycharm.settrace(host=host, port=port, suspend=False,
-                                        trace_only_current_thread=False)
+                pydevd.settrace('localhost', port=5678, suspend=False)
+                #pydevd_pycharm.settrace(host=host, port=port, suspend=False,
+                #                        trace_only_current_thread=False)
                 # Dogs not allowed in debug
                 self._watchdog.stop()
 
