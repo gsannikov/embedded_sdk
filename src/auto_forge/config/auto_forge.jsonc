@@ -21,15 +21,6 @@
     "productivity_assist": true,                            // Productivity assist flag
     "build_context_file": "build_context.json",             // Auto generated context json file name
 
-    "keywords_mapping": [
-
-        // Defines placeholder-to-value mappings used for runtime substitution.
-        // Placeholders in the form <keyword> will be replaced by their mapped values, if defined.
-        // Each entry is a pair: [keyword (without angle brackets), replacement string].
-
-        ["samples", "$SAMPLES_PATH"]
-    ],
-
     // -----------------------------------------------------------------------------------------------------------------
     //
     // Mandatory environment variables.

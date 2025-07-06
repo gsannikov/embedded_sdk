@@ -548,8 +548,12 @@ class CoreToolBox(CoreModuleInterface):
                 current_path = f"{path}.{key}" if path else key  # Construct a full nested key path
 
                 if isinstance(value, dict):
-                    # Recursively search nested dictionaries
-                    _search_and_assign(value, current_path)
+                    if key in sig.parameters:
+                        # Don't descend — assign entire dict as-is
+                        _assign_value(key, value, current_path)
+                    else:
+                        # Not a top-level param — recurse
+                        _search_and_assign(value, current_path)
                 else:
                     # Assign values directly, handle flat structure
                     _assign_value(key, value, current_path)
@@ -2028,37 +2032,6 @@ class CoreToolBox(CoreModuleInterface):
                 if not require_non_empty_lists or len(value) > 0:
                     return True
         return False
-
-    @staticmethod
-    def substitute_keywords(text: Optional[str] = None, keywords: Optional[list] = None,
-                            allow_spaces: bool = True) -> str:
-        """
-        Perform keyword substitution on a string using a list of keyword mappings.
-        Args:
-            text (str, optional): The input string potentially containing <keyword> placeholders.
-            keywords (list, optional): A list of pairs like ["keyword", "replacement"].
-            allow_spaces (bool): If True, allows whitespace within < and > (e.g., '<  key  >').
-
-        Returns:
-            str: The modified string with substitutions applied, or the original if substitution fails.
-        """
-        if not isinstance(text, str) or not isinstance(keywords, list):
-            return text
-
-        with suppress(Exception):
-            mapping = {key.strip(): val for item in keywords if
-                       isinstance(item, list) and len(item) == 2 and all(isinstance(i, str) for i in item) for key, val
-                       in [item]}
-
-            pattern = r"<\s*([^<>]+?)\s*>" if allow_spaces else r"<([^<>]+)>"
-
-            def _replacer(_match: re.Match) -> str:
-                key = _match.group(1).strip()
-                return mapping.get(key, _match.group())
-
-            return re.sub(pattern, _replacer, text)
-
-        return text
 
     @staticmethod
     def set_timer(timer: Optional[threading.Timer], interval: Optional[float],

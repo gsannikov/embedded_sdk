@@ -513,6 +513,11 @@ class CoreSystemInfo(CoreModuleInterface):
         return self._info_data
 
     @property
+    def distro(self) -> Optional[str]:
+        """ Return the Linux distro name. """
+        return self._linux_distro
+
+    @property
     def is_wsl(self) -> Optional[bool]:
         """ Return true if we're running under WSL """
         return self._is_wsl

@@ -23,7 +23,7 @@
             // Recommended: use 'break' or omit this field in production
             "arguments": {
                 "command": "dt",
-                "arguments": "version",
+                "cli_args": "version",
                 "cwd": "$HOME/bin"
             }
         },
@@ -33,7 +33,7 @@
             "status_on_error": "\nPython 3.9 or newer is required.\nRun 'sudo dnf install python3' to install the latest and try again.",
             "arguments": {
                 "command": "python3",
-                "arguments": "--version",
+                "cli_args": "--version",
                 "version": ">=3.9.0"
             }
         },
@@ -43,7 +43,7 @@
             "status_on_error": "\nPackage 'git' not found.\nRun 'sudo dnf install gt' and try again.",
             "arguments": {
                 "command": "git",
-                "arguments": "--version",
+                "cli_args": "--version",
                 "version": ">=2.0"
             }
         },
@@ -53,7 +53,7 @@
             "status_on_error": "\nPackage 'cmake' not found.\nRun 'sudo dnf install cmake' and try again.",
             "arguments": {
                 "command": "cmake",
-                "arguments": "--version",
+                "cli_args": "--version",
                 "version": ">=3.0.0"
             }
         },
@@ -63,18 +63,35 @@
             "status_on_error": "\nPackage 'ninja' not found.\nRun 'sudo dnf install ninja-build' and try again.",
             "arguments": {
                 "command": "ninja",
-                "arguments": "--version",
+                "cli_args": "--version",
                 "version": ">=1.0.0"
             }
         },
         {
-            "description": "Looking for 'glib2-devel' (via pkg-config 'glib-2.0')",
+            "description": "Looking for 'glib2' (development)",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'glib2-devel' not found.\nRun 'sudo dnf install glib2-devel' and try again.",
+            "status_on_error": {
+                "fedora": "Run 'sudo dnf install glib2-devel'",
+                "ubuntu": "Run 'sudo apt install libglib2.0-dev'",
+                "arch": "Run 'sudo pacman -S glib2'",
+                "default": "Missing 'glib2-devel' or equivalent"
+            },
             "arguments": {
-                "command": "pkg-config",
-                "arguments": "--modversion glib-2.0",
-                "version": ">=2.0.0"
+                "default": {
+                    "command": "pkg-config",
+                    "cli_args": "--modversion glib-2.0",
+                    "version": ">=2.0.0"
+                },
+                "ubuntu": {
+                    "command": "pkg-config",
+                    "cli_args": "--modversion glib-2.0",
+                    "version": ">=2.0.0"
+                },
+                "arch": {
+                    "command": "pkgconf",
+                    "cli_args": "--modversion glib-2.0",
+                    "version": ">=2.0.0"
+                }
             }
         },
         {

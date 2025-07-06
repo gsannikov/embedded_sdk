@@ -462,38 +462,61 @@ class CorePlatform(CoreModuleInterface):
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
         """
-        # Convert JSON string to dictionary if necessary
+        # Step 1: Decode arguments if passed as a JSON string
         if isinstance(arguments, str):
             try:
                 arguments = json.loads(arguments)
             except json.JSONDecodeError as json_error:
-                raise ValueError("invalid JSON string provided for arguments") from json_error
+                raise ValueError("Invalid JSON string provided for arguments") from json_error
 
-        # Default to empty dict if no arguments provided
+        # Step 2: Default to empty dict if still None
         if arguments is None:
             arguments = {}
 
-        # Retrieve the method from the class based on method_name
+        # Step 3: Retrieve the method
         method = getattr(self, method_name, None)
         if not callable(method):
-            raise ValueError(f"method '{method_name}' not found in '{self.__class__.__name__}'")
+            raise ValueError(f"Method '{method_name}' not found in '{self.__class__.__name__}'")
 
-        # Finetune the arguments to the executed method based on its signature
+        # Step 4: Analyze method signature
         method_signature = inspect.signature(method)
-        method_kwargs, extra_kwargs = self._tool_box.filter_kwargs_for_method(kwargs=arguments, sig=method_signature)
+        params = list(method_signature.parameters.values())
+
+        # Step 5: Wrap if method expects single 'arguments' param
+        is_wrapped_style = len(params) >= 1 and params[0].name == "arguments"
+        if is_wrapped_style and not isinstance(arguments, dict):
+            raise TypeError(f"Expected arguments to be a dict, got {type(arguments).__name__}")
+
+        if is_wrapped_style and "arguments" not in arguments:
+            self._logger.debug(f"Wrapping arguments for method '{method_name}'")
+            arguments = {"arguments": arguments}
+
+        # Step 6: Filter valid keyword args for the method
+        method_kwargs, extra_kwargs = self._tool_box.filter_kwargs_for_method(
+            kwargs=arguments, sig=method_signature
+        )
 
         self._logger.debug(f"Executing Python method: '{method.__name__}'")
 
-        # Execute the method with the arguments
+        # Step 7: Call the method and handle return types
         try:
             results = method(**method_kwargs)
-            # Type check or conversion if needed
             if isinstance(results, CommandResultType):
                 return results
             elif isinstance(results, str):
                 return CommandResultType(response=results, return_code=0)
             else:
-                return None  # Method did not return an expected return value
+                return None
+
+        # Expected exception when using 'execute_shell_command'
+        except CommandFailedException as execution_error:
+            results = execution_error.results
+
+            if isinstance(results, CommandResultType):
+                exception_message = f"Command '{results.command}' returned {results.return_code}"
+            else:
+                exception_message = f"caught execution exception with no data"
+            raise RuntimeError(exception_message) from execution_error
 
         except Exception as exception:
             raise exception
@@ -892,9 +915,97 @@ class CorePlatform(CoreModuleInterface):
 
         return CommandResultType(response='', return_code=return_code)
 
-    def validate_prerequisite(self, command: str, arguments: Optional[str] = None, cwd: Optional[str] = None,
-                              validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
-                              expected_response: Optional[str] = None, version: Optional[str] = None) -> Optional[
+    def validate_prerequisite(
+            self,
+            arguments: dict,
+            *,
+            validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
+            cwd: Optional[str] = None) -> Optional[CommandResultType]:
+
+        try:
+            def _resolve_args(_args: dict) -> dict:
+                # If it's a flat dict: contains 'command'
+                if "command" in _args:
+                    return _args  # Flat/default format
+
+                # Otherwise: per-distro format
+                distro = self._system_info.distro
+                return _args.get(distro, _args.get("default", {}))
+
+            # Ensure arguments is a dict
+            if not isinstance(arguments, dict):
+                raise TypeError(f"'arguments' must be a dict, got {type(arguments).__name__}")
+
+            args_block = _resolve_args(arguments)
+
+            # Force schema field names
+            command = args_block.get("command")
+            cmd_args = args_block.get("cli_args")  # formerly 'arguments'
+            version = args_block.get("version")
+            expected_response = args_block.get("expected_response")
+
+            if validation_method == ValidationMethodType.EXECUTE_PROCESS:
+                if expected_response and version:
+                    raise ValueError("Specify either 'expected_response' or 'version', not both")
+
+                results = self.execute_shell_command(
+                    command_and_args=self._flatten_command(command=command, arguments=cmd_args),
+                    cwd=cwd)
+
+                if results.response is None:
+                    raise RuntimeError(f"'{command}' returned no output")
+
+                if version:
+                    version_ok, detected_version = VersionCompare().compare(results.response, version)
+                    if not version_ok:
+                        raise Exception(
+                            f"Command '{command}' version mismatch: expected {version}, got {detected_version}")
+                elif expected_response:
+                    if expected_response.lower() not in results.response.lower():
+                        raise Exception(f"Expected response '{expected_response}' not found in output")
+
+            # Read a text line from a file and compare its content
+            elif validation_method == ValidationMethodType.READ_FILE:
+
+                parts = command.split(':')
+                if len(parts) < 2:
+                    raise ValueError("READ_FILE command must be in the form '<file_path>:<line_number>[:<line_count>]'")
+
+                file_path = parts[0]
+                line_number = int(parts[1])
+                line_count = int(parts[2]) if len(parts) > 2 else 1
+
+                if not expected_response:
+                    raise ValueError("expected response must be provided for READ_FILE validation")
+
+                with open(file_path) as f:
+                    lines = f.readlines()
+                    start = max(0, line_number - 1)
+                    end = start + line_count
+                    selected_lines = lines[start:end]
+                    found = any(expected_response.lower() in line.lower() for line in selected_lines)
+
+                    if not found:
+                        raise Exception(f"expected response '{expected_response}' "
+                                        f"not found in {file_path}:{line_number}")
+
+                    results = CommandResultType(response=None, return_code=0)
+
+            # Check if a system package is installed
+            elif validation_method == ValidationMethodType.SYS_PACKAGE:
+                results = self._validate_sys_package(package_name=command)
+
+            else:
+                raise ValueError(f"Unsupported validation method: {validation_method}")
+
+            return results
+
+        except Exception:  # Propagate the exception
+            raise
+
+    def validate_prerequisite_ex(self, command: str, arguments: Optional[str] = None, cwd: Optional[str] = None,
+                                 validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
+                                 expected_response: Optional[str] = None, version: Optional[str] = None) -> Optional[
         CommandResultType]:
         """
         Validates that a system-level prerequisite is met using a specified method.
@@ -909,7 +1020,6 @@ class CorePlatform(CoreModuleInterface):
                 or file content (for READ_FILE).
             version (Optional[str]): The expected version of the system package or executed binary, would be fixed
                 (e.g., "10.76"), or an expression (e.g., ">=10.0", "==1.2.3").
-
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
@@ -1658,7 +1768,7 @@ class CorePlatform(CoreModuleInterface):
         start_time: float = time.perf_counter()
         last_step_results: Optional[CommandResultType] = None
         original_path = os.path.abspath(os.getcwd())  # Store entry path
-        status_on_error: Optional[str] = None
+        status_on_error: Optional[Union[dict, str]] = None
 
         if not self._tool_box.has_nested_list(sequence_data, require_non_empty_lists=True):
             raise ValueError(
@@ -1711,9 +1821,14 @@ class CorePlatform(CoreModuleInterface):
                 action_on_error: SequenceErrorActionType = SequenceErrorActionType.from_label(
                     step.get("action_on_error"))
                 status_on_error = step.get("status_on_error")
+                # Resolve status_on_error per distro if it's a dict
+                if isinstance(status_on_error, dict):
+                    distro = self._system_info.distro
+                    status_on_error = status_on_error.get(distro, status_on_error.get("default", None))
+                else:
+                    status_on_error = status_on_error  # already a string or None
 
                 self._tracker.set_pre(text=step.get("description"), new_line=status_new_line)
-
                 try:
                     last_step_results = self.execute_python_method(method_name=step.get("method"),
                                                                    arguments=step.get("arguments"))
