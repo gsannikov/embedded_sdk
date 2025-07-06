@@ -43,8 +43,8 @@ class HelloCommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
-        parser.add_argument("-t", "--text", type=str,
-                            help="Optional text to print in the console greeting.")
+        parser.add_argument("-m", "--message", type=str,
+                            help="Optional message to print.")
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -56,8 +56,8 @@ class HelloCommand(CommandInterface):
         """
         return_code: int = 0
 
-        if args.text:
-            print(f"Hello '{args.text}' 😎")
+        if args.message:
+            print(f"You wrote: '{args.message}' 😎")
         else:
             # Error: no arguments
             return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
