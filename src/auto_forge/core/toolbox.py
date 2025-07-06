@@ -680,6 +680,19 @@ class CoreToolBox(CoreModuleInterface):
         return expanded_path
 
     @staticmethod
+    def get_expanded_placeholders(var: str) -> str:
+        """
+        Replaces placeholders like <VAR_NAME> in the input string
+        with the value of the environment variable $VAR_NAME,
+        but only if it exists. Leaves the placeholder untouched otherwise.
+        """
+        def _replacer(match):
+            var_name = match.group(1)
+            return os.environ.get(var_name, f"<{var_name}>")
+
+        return re.sub(r"<([A-Za-z_][A-Za-z0-9_]*)>", _replacer, var)
+
+    @staticmethod
     def get_valid_path(raw_value: Any, create_if_missing: bool = False) -> Optional[Path]:
         """
         Validates and resolves a raw value into a `Path` object.

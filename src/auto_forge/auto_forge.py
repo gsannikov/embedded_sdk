@@ -336,6 +336,7 @@ class AutoForge(CoreModuleInterface):
                 return
 
             # Expand as needed and check if we have a system path or a URL
+            solution_package = self._tool_box.get_expanded_placeholders(var=solution_package)
             solution_package = self._tool_box.get_expanded_path(path=solution_package)
 
             if self._tool_box.is_url(solution_package):
