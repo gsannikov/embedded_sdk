@@ -209,7 +209,7 @@ install_auto_forge() {
     # AutoForge will try to resolve it to a built-in sample directory.
     if [[ -z "$solution_package" ]]; then
         _verbose_print "No solution package specified, attempting to load a built-in sample..."
-        solution_package="<samples>/$solution_name"
+        solution_package="<SAMPLES_PATH>/$solution_name"
     fi
 
     # Attempt to acquire Git token using 'dt'
