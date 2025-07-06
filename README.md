@@ -120,7 +120,7 @@ Copy and paste the following into your terminal.
 #
 # ⚠ No 'sudo' is required, and no files are deleted without consent.
 
-GITHUB_REPO="intel-innersource/firmware.ethernet.devops.auto_forge"
+GITHUB_REPO="emichael72/auto_forge"
 GITHUB_TOKEN=$(dt github print-token https://github.com/${GITHUB_REPO})
 
 curl -sSL \
