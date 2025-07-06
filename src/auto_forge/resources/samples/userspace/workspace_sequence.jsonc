@@ -68,6 +68,16 @@
             }
         },
         {
+            "description": "Looking for 'glib2-devel' (via pkg-config 'glib-2.0')",
+            "method": "validate_prerequisite",
+            "status_on_error": "\nPackage 'glib2-devel' not found.\nRun 'sudo dnf install glib2-devel' and try again.",
+            "arguments": {
+                "command": "pkg-config",
+                "arguments": "--modversion glib-2.0",
+                "version": ">=2.0.0"
+            }
+        },
+        {
             "description": "Getting GitHub access token using 'dt'",
             "method": "execute_shell_command",
             "status_on_error": "\nFailed to retrieve Git token using 'dt'.\nPlease ensure it is installed correctly.",
