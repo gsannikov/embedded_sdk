@@ -93,7 +93,7 @@ Before we continue, make sure the following tools are installed:
 
 - Usually preinstalled — if not, just add them manually:
   > 📦 Install via package manager:  
-  `sudo dnf install cmake ninja-build`
+  `sudo dnf install cmake ninja-build glib2-devel`
 
 ### Setup Instructions
 
@@ -110,9 +110,9 @@ Copy and paste the following into your terminal.
 #
 # 3. Installs the latest AutoForge package into the user scope (via pip).
 # 4. Loads the built-in 'userspace' sample.
-# 5. Uses the solution also named 'userspace' from that sample.
+# 5. Uses a solution also named 'userspace' from this sample.
 # 6. Creates a new workspace in a local folder named 'ws'.
-# 7. Runs the 'create_environment_sequence' defined by the solution, which:
+# 7. Runs the 'workspace_sequence ' defined by the solution, which:
 #    - Verifies required tools are installed,
 #    - Creates a dedicated Python virtual environment,
 #    - Installs required Python packages,
