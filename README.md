@@ -130,8 +130,8 @@ curl -sSL \
   | bash -s -- \
       -n userspace \
       -w ws \
-      -s create_environment_sequence \
-      -p "<samples>/userspace"
+      -s workspace_sequence \
+      -p "<SAMPLES_PATH>/userspace"
 ```
 
 <div style="text-align: center;">
