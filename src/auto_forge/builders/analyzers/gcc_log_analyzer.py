@@ -29,8 +29,8 @@ AUTO_FORGE_MODULE_DESCRIPTION = "GCC Output Analyzer"
 @dataclass
 class _AIContext:
     function_name: Optional[str] = None  # Name if inside a function
-    text: Optional[str] = None  # Snippet text (function or sliced range)
-    line_number: int = 0  # Adjusted line index in 'text' (0-based)
+    function_body: Optional[str] = None  # Snippet text (function or sliced range)
+    function_line_number: int = 0  # Adjusted line index in 'text' (0-based)
 
 
 # noinspection GrazieInspection
@@ -87,7 +87,77 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         )
 
     @staticmethod
-    def _get_ai_context(file_path: Union[Path, str], line_number: int, lines_range: int = 10) -> Optional[_AIContext]:
+    def _compress_function_body(function_body: str) -> str:
+        """
+        Compresses a C-like function body while preserving line count and semantic relevance.
+        - Keeps empty lines (as '\n')
+        - Removes tabs
+        - Trims leading/trailing spaces
+        - Collapses multiple spaces outside of string literals
+        - Removes all comments (// and /* */), preserving line count
+        """
+
+        def _collapse_spaces_outside_strings(_line: str) -> str:
+            result = []
+            in_string = False
+            last_char = ''
+            i = 0
+            while i < len(_line):
+                c = _line[i]
+                if c == '"' and last_char != '\\':
+                    in_string = not in_string
+                if not in_string:
+                    if c == ' ':
+                        result.append(' ')
+                        while i + 1 < len(_line) and _line[i + 1] == ' ':
+                            i += 1
+                    else:
+                        result.append(c)
+                else:
+                    result.append(c)
+                last_char = c
+                i += 1
+            return ''.join(result)
+
+        def _remove_block_comments_preserve_lines(_text: str) -> str:
+            # Replace block comment content with whitespace/newlines only
+            def _replacer(_match):
+                return re.sub(r'[^\n]', '', _match.group())  # keep \n, strip everything else
+
+            return re.sub(r'/\*.*?\*/', _replacer, _text, flags=re.DOTALL)
+
+        def _remove_inline_comment(_line: str) -> str:
+            _in_string = False
+            _result = []
+            _i = 0
+            while _i < len(_line):
+                if _line[_i] == '"' and (_i == 0 or _line[_i - 1] != '\\'):
+                    _in_string = not _in_string
+                if not _in_string and _line[_i:_i + 2] == '//':
+                    break  # start of comment outside string
+                _result.append(_line[_i])
+                _i += 1
+            return ''.join(_result)
+
+        # Remove block comments but preserve line count
+        function_body = _remove_block_comments_preserve_lines(function_body)
+
+        # Process line by line
+        compressed_lines = []
+        for line in function_body.splitlines():
+            line = line.replace('\t', '')  # Remove tabs
+            line = _remove_inline_comment(line)
+            line = line.strip()
+            if line == '':
+                compressed_lines.append('')  # Preserve blank line
+            else:
+                line = _collapse_spaces_outside_strings(line)
+                compressed_lines.append(line)
+
+        return '\n'.join(compressed_lines)
+
+    def _get_ai_context(self, file_path: Union[Path, str], line_number: int, lines_range: int = 10) -> Optional[
+        _AIContext]:
         """
         Generates minimal, AI-optimized context from a source file.
         Returns function if line is inside one, otherwise a range of lines.
@@ -130,10 +200,11 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             if end is not None and start <= target_idx <= end:
                 raw = lines[start:end + 1]
                 text = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()
+                compressed = self._compress_function_body(text)
                 return _AIContext(
                     function_name=func_name,
-                    text=text,
-                    line_number=target_idx - start
+                    function_body=compressed,
+                    function_line_number=target_idx - start
                 )
 
         # Fallback range (outside any function)
@@ -141,11 +212,12 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         context_end = min(len(lines), target_idx + lines_range + 1)
         raw = lines[context_start:context_end]
         text = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()
+        compressed = self._compress_function_body(text)
 
         return _AIContext(
             function_name=None,
-            text=text,
-            line_number=target_idx - context_start
+            function_body=compressed,
+            function_line_number=target_idx - context_start
         )
 
     @staticmethod
@@ -156,12 +228,42 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             parsed_entries: List of structured diagnostic dictionaries.
             output_path: Destination file path (str or Path).
         """
+
+        def _clear_duplicated_entries(_entries: list[dict]) -> list[dict]:
+            """
+            Removes exact duplicate context entries based on their JSON structure.
+            This helps eliminate repeated errors/warnings (e.g., from static/shared builds).
+            """
+            _seen = set()
+            _unique = []
+            for _entry in _entries:
+                key = json.dumps(_entry, sort_keys=True)
+                if key not in _seen:
+                    _seen.add(key)
+                    _unique.append(_entry)
+            return _unique
+
+        def _remove_none_recursive(_obj):
+            """Recursively remove keys with None values from dicts/lists."""
+            if isinstance(_obj, dict):
+                return {k: _remove_none_recursive(v) for k, v in _obj.items() if v is not None}
+            elif isinstance(_obj, list):
+                return [_remove_none_recursive(item) for item in _obj]
+            else:
+                return _obj
+
         with suppress(Exception):
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
+            # Clean 'null' entries recursively
+            cleaned_entries = _remove_none_recursive(parsed_entries)
+            # Remove duplicates and sort the remaining entries
+            unique_entries = _clear_duplicated_entries(cleaned_entries)
+            unique_entries.sort(key=lambda e: (e['gcc']['file'], e['gcc']['line']))
+
             with output_path.open("w", encoding="utf-8") as f:
-                json.dump(parsed_entries, f, indent=2, ensure_ascii=False)
+                json.dump(unique_entries, f, indent=4, ensure_ascii=False)
             return True
 
         return False
@@ -224,7 +326,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                             'column': int(diag_match.group('column')) if diag_match.group('column') else None,
                             'type': diag_match.group('type'),
                             'message': diag_match.group('message').strip(),
-                            'function': pending_function
+                            'function_name': pending_function
                         },
                         'ai': {
                             **asdict(context)

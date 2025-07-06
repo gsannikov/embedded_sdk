@@ -9,20 +9,23 @@ Description:
 """
 import glob
 import inspect
+import json
 import logging
 import os
 import shutil
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
 from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 
+# Third-party
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
                         CommandResultType, SDKType, VersionCompare)
-# Third-party
-from colorama import Fore, Style
 
 # Lazy import SDK class instance
 if TYPE_CHECKING:
@@ -348,12 +351,17 @@ class BuilderRunnerInterface(ABC):
             raise RuntimeError("unable to instantiate dependent core")
 
         try:
-            # Create the logs path if fits missing
+            # Construct optional intermediate file names we might generate
             self.build_logs_path = self._tool_box.get_valid_path(self.sdk.variables.get("BUILD_LOGS"),
                                                                  create_if_missing=False)
             context_file: str = self._configuration.get("build_context_file", "build_context.json")
+            duplicate_symbols_file: str = self._configuration.get("build_duplicate_symbols_file", "build_duplicate_symbols.json")
+
             self._build_context_file = self.build_logs_path / context_file
             self._build_context_file.unlink(missing_ok=True)
+            self._duplicate_symbols_file = self.build_logs_path / duplicate_symbols_file
+            self._duplicate_symbols_file.unlink(missing_ok=True)
+
 
         except Exception as path_prep_error:
             raise RuntimeError(f"failed to prepare build paths {path_prep_error}")
@@ -404,61 +412,151 @@ class BuilderRunnerInterface(ABC):
 
         return results.return_code
 
-    def analyze_so_exports(self, path: str, nm_tool_name: str = "nm", max_libs: int = 50) -> dict[str, list[str]]:
+    def analyze_library_exports(self,
+                                path: str,
+                                nm_tool_name: str = "nm",
+                                max_libs: int = 50,
+                                json_report_path: Optional[str] = None) -> dict[str, list[str]]:
         """
-        Analyze exported symbols from .so files in the given directory.
+        Analyzes exported symbols from .so files in the given directory and optionally
+        exports a JSON report of the analysis.
+
         Args:
-            path (str): Root path to search.
-            nm_tool_name (str): Tool to extract symbols ('nm', 'readelf', etc.).
-            max_libs (int): Maximum number of .so files to process.
+            path (str): The root path to search for .so files.
+            nm_tool_name (str): The tool to use for extracting symbols (e.g., 'nm', 'readelf').
+                                Defaults to 'nm'.
+            max_libs (int): The maximum number of .so files to process. Defaults to 50.
+            json_report_path (Optional[str]): If provided, the path where the JSON report
+                                             of the analysis results will be saved.
+                                             Defaults to None (no JSON report).
+
         Returns:
-            Dict[str, List[str]]: Mapping from .so file path to list of exported function names.
+            dict[str, list[str]]: A dictionary mapping .so file paths to a list of their exported
+                                 function names.
         """
-        so_exports = {}
-        seen_symbols = defaultdict(list)
-        processed = 0
+        if not os.path.isdir(path):
+            self.print_message(message=f"Error: Provided path '{path}' is not a valid directory.",
+                               log_level=logging.ERROR)
+            return {}
+
+        try:
+            subprocess.run([nm_tool_name, '--version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            self.print_message(
+                message=f"Error: The tool '{nm_tool_name}' was not found or is not executable. "
+                        "Please ensure it's installed and in your system's PATH.",
+                log_level=logging.ERROR
+            )
+            return {}
+
+        so_exports: dict[str, list[str]] = {}
+        seen_symbols: dict[str, list[str]] = defaultdict(list)
+        processed_libs = 0
 
         for root, _, files in os.walk(path):
-            for file in files:
-                if file.endswith(".so"):
-                    full_path = os.path.join(root, file)
+            for file_name in files:
+                if file_name.endswith(".so"):
+                    full_path = os.path.join(root, file_name)
+                    if processed_libs >= max_libs:
+                        self.print_message(
+                            message=f"Reached maximum limit of {max_libs} libraries. Stopping scan.",
+                            log_level=logging.INFO
+                        )
+                        break
+
                     try:
                         result = subprocess.run(
-                            [nm_tool_name, '-D', '--defined-only', full_path],
+                            [nm_tool_name, '-D', '-g', '--defined-only', full_path],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL,
                             text=True,
                             check=True,
+                            timeout=30
                         )
-                        symbols = []
+                        symbols: list[str] = []
                         for line in result.stdout.splitlines():
                             parts = line.strip().split()
-                            if len(parts) >= 3 and parts[-2] in ('T', 't'):  # 'T' = text (function)
-                                symbol = parts[-1]
-                                symbols.append(symbol)
-                                seen_symbols[symbol].append(full_path)
+                            if len(parts) >= 3 and parts[-2] in ('T', 't'):
+                                symbol_name = parts[-1]
+                                symbols.append(symbol_name)
+                                seen_symbols[symbol_name].append(full_path)
 
                         so_exports[full_path] = symbols
-                        processed += 1
-                        if processed >= max_libs:
-                            break
-                    except subprocess.CalledProcessError:
-                        self.print_message(message=f"Warning: Failed to analyze {full_path}", log_level=logging.WARNING)
-            if processed >= max_libs:
+                        processed_libs += 1
+
+                    except subprocess.CalledProcessError as e:
+                        self.print_message(
+                            message=f"Warning: Failed to analyze '{full_path}'. Error: {e}",
+                            log_level=logging.WARNING
+                        )
+                    except subprocess.TimeoutExpired:
+                        self.print_message(
+                            message=f"Warning: Analysis of '{full_path}' timed out.",
+                            log_level=logging.WARNING
+                        )
+                    except Exception as e:
+                        self.print_message(
+                            message=f"An unexpected error occurred while processing '{full_path}': {e}",
+                            log_level=logging.ERROR
+                        )
+            if processed_libs >= max_libs:
                 break
 
-        # Conflict report
-        conflicts = {sym: paths for sym, paths in seen_symbols.items() if len(paths) > 1}
-        if conflicts:
-            for sym, libs in conflicts.items():
-                self.print_message(message=f"Symbol '{sym}' found in:")
-                for lib in libs:
-                    self.print_message(message=f"  - {lib}", bare_text=True)
-        else:
-            self.print_message(message=f"No duplicate symbols found across {processed} libraries.",
-                               log_level=logging.INFO)
+        # Generate and save JSON report if json_report_path is provided
+        if json_report_path:
+            self._export_symbol_conflicts_report(so_exports, seen_symbols, processed_libs, json_report_path)
 
+        self._report_symbol_conflicts(seen_symbols, processed_libs)
         return so_exports
+
+    def _report_symbol_conflicts(self, seen_symbols: dict[str, list[str]], processed_libs: int):
+        """
+        Reports any duplicate symbols found across libraries.
+        """
+        conflicts = {sym: paths for sym, paths in seen_symbols.items() if len(paths) > 1}
+
+        if conflicts:
+            self.print_message(message="Duplicate Symbols Detected", log_level=logging.WARNING)
+            for sym, libs in conflicts.items():
+                self.print_message(message=f"Symbol '{sym}' found in multiple libraries", log_level=logging.WARNING)
+                for lib_full_path in libs:
+                    self.print_message(message=f"> {os.path.basename(lib_full_path)}", log_level=logging.WARNING)
+        else:
+            self.print_message(
+                message=f"✅ No duplicate symbols found across {processed_libs} libraries.",
+                log_level=logging.INFO
+            )
+
+    def _export_symbol_conflicts_report(self,
+                                        so_exports: dict[str, list[str]],
+                                        seen_symbols: dict[str, list[str]],
+                                        processed_libs: int,
+                                        report_path: str):
+        """
+        Generates and saves a JSON report of the library analysis.
+        """
+        conflicts = {sym: paths for sym, paths in seen_symbols.items() if len(paths) > 1}
+
+        report_data = {
+            "analysis_summary": {
+                "total_libraries_processed": processed_libs,
+                "duplicate_symbols_found": bool(conflicts)
+            },
+            "exported_symbols_by_library": so_exports,
+            "symbol_conflicts": conflicts
+        }
+
+        try:
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(report_data, f, indent=4, ensure_ascii=False)
+            self.print_message(message=f"JSON report successfully exported to: {report_path}",
+                               log_level=logging.INFO)
+        except IOError as e:
+            self.print_message(message=f"Error: Could not write JSON report to '{report_path}'. Error: {e}",
+                               log_level=logging.ERROR)
+        except Exception as e:
+            self.print_message(message=f"An unexpected error occurred while generating JSON report: {e}",
+                               log_level=logging.ERROR)
 
     def print_message(self, message: str, bare_text: bool = False, log_level: Optional[int] = logging.DEBUG) -> None:
         """
@@ -485,6 +583,7 @@ class BuilderRunnerInterface(ABC):
         if log_level is not None:
             self._logger.log(log_level, message)
 
+        sys.stdout.write("\r\033[K") # Clear the current line
         print(leading_text + message)
 
     def update_info(self, command_info: ModuleInfoType):
