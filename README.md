@@ -121,10 +121,8 @@ Copy and paste the following into your terminal.
 # ⚠ No 'sudo' is required, and no files are deleted without consent.
 
 GITHUB_REPO="emichael72/auto_forge"
-GITHUB_TOKEN=$(dt github print-token https://github.com/${GITHUB_REPO})
 
 curl -sSL \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Cache-Control: no-store" \
   "https://raw.githubusercontent.com/${GITHUB_REPO}/main/src/auto_forge/resources/shared/bootstrap.sh" \
   | bash -s -- \
