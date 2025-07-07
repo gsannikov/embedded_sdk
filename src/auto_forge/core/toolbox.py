@@ -795,6 +795,30 @@ class CoreToolBox(CoreModuleInterface):
         return None
 
     @staticmethod
+    def get_wsl_unc_path(linux_path: str) -> Optional[str]:
+        r"""
+        Convert a WSL Linux path to its UNC Windows path.
+        For example: /home/user -> \\wsl.localhost\IMCv2\home\user
+        Args:
+            linux_path (str): Absolute Linux path inside WSL.
+        Returns:
+            Optional[str]: UNC path usable from Windows, or None on failure.
+        """
+        if not os.path.isabs(linux_path):
+            return None
+
+        with suppress(Exception):
+            result = subprocess.run(['wslpath', '-m', '/'], capture_output=True, text=True, check=True)
+            root_unc_path = result.stdout.strip()
+            parts = root_unc_path.strip('\\').split('\\')
+            if len(parts) >= 2 and parts[0].lower() == 'wsl.localhost':
+                distro = parts[1]
+                relative_path = linux_path.lstrip('/')
+                return f"\\\\wsl.localhost\\{distro}\\{relative_path.replace('/', '\\')}"
+
+        return None
+
+    @staticmethod
     def validate_path(text: str, raise_exception: Optional[bool] = True) -> Optional[bool]:
         """
         Check whether the given text represents an existing directory.

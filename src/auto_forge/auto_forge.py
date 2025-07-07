@@ -27,6 +27,9 @@ from pathlib import Path
 from typing import Optional, Any
 
 import psutil
+# Third-party
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
@@ -34,8 +37,6 @@ from auto_forge import (
     CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, CoreAIBridge, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
     PackageGlobals, CoreContext)
-# Third-party
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
@@ -441,36 +442,93 @@ class AutoForge(CoreModuleInterface):
         _validate_solution_package()
         _validate_network_options()
 
-    def _init_debugger(self, host: str = 'localhost', port: int = 5678, abort_execution: bool = True) -> None:
+    def _init_debugger(self, host: str = 'localhost', port: int = 5678) -> bool:
         """
         Attempt to attach to a remote PyCharm debugger.
+        Tries `pydevd_pycharm` first, falls back to searching the PyCharm installation on disk.
         Args:
             host (str, optional): The debugger host to connect to. Defaults to 'localhost'.
             port (int, optional): The debugger port to connect to. Defaults to 5678.
-            abort_execution (bool, optional): If True, raise the exception on failure. If False, log and continue.
+        Returns:
+            bool: True if debugger successfully attached, False otherwise.
         """
+
+        attached: bool = False
+
+        def _find_pydev_helper() -> str | None:
+            env_path = os.environ.get("PYCHARM_DEBUG_PATH")
+            if env_path and (Path(env_path) / "pydevd.py").exists():
+                return env_path
+
+            search_paths = [
+                path for path in [
+                    "/opt/pycharm",
+                    "/usr/share/pycharm",
+                    os.path.expanduser("~/pycharm"),
+                ] if path is not None
+            ]
+
+            self._logger.debug(f"Search path {search_paths}")
+
+            for base in search_paths:
+                base_path = Path(base)
+                if not base_path.exists():
+                    continue
+                for p in base_path.rglob("helpers/pydev"):
+                    if (p / "pydevd.py").exists():
+                        self._logger.debug(f"Found pydevd at: {p}")
+                        return str(p)
+            return None
+
         try:
             # Start remote debugging if enabled.
             self._logger.debug(f"Remote debugging enabled using {host}:{port}")
 
-            import sys
-            sys.path.append('/opt/pycharm/pycharm-2025.1.1/plugins/python-ce/helpers/pydev')
+            # Attempt 1: Try pydevd_pycharm if available
+
             # noinspection PyUnresolvedReferences
-            import pydevd
+            import pydevd_pycharm
             # Redirect stderr temporarily to suppress pydevd's traceback
             with contextlib.redirect_stderr(io.StringIO()):
-                pydevd.settrace('localhost', port=5678, suspend=False)
-                #pydevd_pycharm.settrace(host=host, port=port, suspend=False,
-                #                        trace_only_current_thread=False)
+                pydevd_pycharm.settrace(host=host, port=port, suspend=False,
+                                        trace_only_current_thread=False)
                 # Dogs not allowed in debug
                 self._watchdog.stop()
-
-        except ImportError:
-            self._logger.warning("'pydevd_pycharm' is not installed; skipping remote debugging")
-
+                attached = True
+        except ImportError as import_error:
+            self._logger.warning(f"Debugger not available, import error: {import_error}")
         except Exception as exception:
-            if abort_execution:
-                raise exception
+            self._logger.warning(f"Debugger connection failed: {exception}")
+
+        if attached:
+            return True
+
+        # Attempt 2: Try pydevd from PyCharm helper path
+        try:
+            pydev_path = _find_pydev_helper()
+            if not pydev_path:
+                raise ImportError("Could not locate pydevd debugger helper path.")
+
+            sys.path.append(pydev_path)
+
+            with contextlib.suppress(Exception):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    # noinspection PyUnresolvedReferences
+                    import pydevd
+                    pydevd.settrace(host=host, port=port, suspend=False)
+                    attached = True
+
+            if attached:
+                self._watchdog.stop()
+                self._logger.debug(f"Debugger attached using pydevd from: {pydev_path}")
+                return True
+
+        except ImportError as import_error:
+            self._logger.warning(f"Fallback debugger import error: {import_error}")
+        except Exception as exception:
+            self._logger.warning(f"Debugger connection via pydevd failed: {exception}")
+
+        return False
 
     def _init_secrets(self, demo_mode: bool = True) -> Optional[dict]:
         """
@@ -521,12 +579,12 @@ class AutoForge(CoreModuleInterface):
             # Return the updated secrets dictionary for further use
             return secrets
 
-        except (ValueError, FileNotFoundError, RuntimeError) as e:
+        except (ValueError, FileNotFoundError, RuntimeError) as exception:
             # Catch specific errors from Crypto methods or custom checks
-            raise RuntimeError(f"failed to initialize secrets container: {e}") from e
-        except Exception as e:
+            raise RuntimeError(f"failed to initialize secrets container: {exception}") from exception
+        except Exception as exception:
             # Catch any other unexpected errors during the process
-            raise RuntimeError(f"unexpected error occurred during secrets initialization: {e}") from e
+            raise RuntimeError(f"unexpected error occurred during secrets initialization: {exception}") from exception
 
     def _timer_expired(self, timer_name: str):
         """

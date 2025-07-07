@@ -114,7 +114,8 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Erase intermediate generated files
         self._build_context_file.unlink(missing_ok=True)
-        self._duplicate_symbols_file.unlink(missing_ok=True)
+        self._build_duplicate_symbols_file.unlink(missing_ok=True)
+        self._build_ai_response_file.unlink(missing_ok=True)
 
         # Validate required fields
         for field in mandatory_required_fields:
@@ -196,7 +197,8 @@ class CMakeBuilder(BuilderRunnerInterface):
                 f"CMake execution error {results.message if results else 'unknown'}") from execution_error
         finally:
             if results is not None:
-                self._gcc_analyzer.analyze(log_source=results.response, export_file_name=str(self._build_context_file))
+                self._gcc_analyzer.analyze(log_source=results.response, context_file_name=str(self._build_context_file),
+                                           ai_response_file_name=str(self._build_ai_response_file))
 
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
@@ -222,7 +224,8 @@ class CMakeBuilder(BuilderRunnerInterface):
             finally:
                 if results is not None:
                     self._gcc_analyzer.analyze(log_source=results.response,
-                                               export_file_name=str(self._build_context_file), ask_ai_for_help=True)
+                                               context_file_name=str(self._build_context_file),
+                                               ai_response_file_name=str(self._build_ai_response_file))
 
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)
@@ -246,7 +249,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         # Libraries analysis
         nm_command = self._toolchain.get_tool('nm')
         self.analyze_library_exports(path=str(build_path), nm_tool_name=nm_command, max_libs=100,
-                                     json_report_path=str(self._duplicate_symbols_file))
+                                     json_report_path=str(self._build_duplicate_symbols_file))
 
         return results.return_code
 
