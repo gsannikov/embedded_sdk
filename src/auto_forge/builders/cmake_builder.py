@@ -181,7 +181,6 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Execute CMake, note that pending on the compilation options this could be a single
         # run or the first out of 2 when building with Ninja.
-        results: Optional[CommandResultType] = None
         try:
             # Update step and optionally handle extra arguments based on the current state
             self._set_state(build_state=_CMakeBuildStep.PRE_CONFIGURE, extra_args=build_profile.extra_args,
@@ -204,7 +203,6 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Check if the previous step was configuration and if so verify that we have Ninja
         if is_config_step and ninja_build_command is not None:
-            results: Optional[CommandResultType] = None
             try:
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
@@ -215,16 +213,15 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                                   leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
-                
+
                 # Ninja build error - start GCC log analyzer
                 self.print_message(message="Submitting AI request in the background...")
                 self._gcc_analyzer.analyze(log_source=results.response,
-                                               context_file_name=str(self._build_context_file),
-                                               ai_response_file_name=str(self._build_ai_response_file))
+                                           context_file_name=str(self._build_context_file),
+                                           ai_response_file_name=str(self._build_ai_response_file))
 
                 raise RuntimeError(
                     f"Ninja execution error {results.message if results else 'unknown'}") from execution_error
-                    
 
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)
