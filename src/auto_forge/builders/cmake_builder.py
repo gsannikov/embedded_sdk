@@ -195,10 +195,6 @@ class CMakeBuilder(BuilderRunnerInterface):
             results = execution_error.results
             raise RuntimeError(
                 f"CMake execution error {results.message if results else 'unknown'}") from execution_error
-        finally:
-            if results is not None:
-                self._gcc_analyzer.analyze(log_source=results.response, context_file_name=str(self._build_context_file),
-                                           ai_response_file_name=str(self._build_ai_response_file))
 
         # Validate CMake results
         self.print_build_results(results=results, raise_exception=True)
@@ -219,13 +215,16 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                                   leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
-                raise RuntimeError(
-                    f"Ninja execution error {results.message if results else 'unknown'}") from execution_error
-            finally:
-                if results is not None:
-                    self._gcc_analyzer.analyze(log_source=results.response,
+                
+                # Ninja build error - start GCC log analyzer
+                self.print_message(message="Submitting AI request in the background...")
+                self._gcc_analyzer.analyze(log_source=results.response,
                                                context_file_name=str(self._build_context_file),
                                                ai_response_file_name=str(self._build_ai_response_file))
+
+                raise RuntimeError(
+                    f"Ninja execution error {results.message if results else 'unknown'}") from execution_error
+                    
 
             # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)

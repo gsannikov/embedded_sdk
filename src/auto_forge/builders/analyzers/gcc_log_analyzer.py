@@ -49,7 +49,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         self._last_error_context: Optional[str] = None
         self._ai_prompt_context: str = (
-            "The following is a list of structured diagnostic entries from a C codebase, each containing a GCC error or "
+            "The following is a list of structured diagnostic entries from a C code-base, each containing a GCC error or "
             "warning message and its corresponding source-level context.\n"
             "- The file name, line, column, and error/warning message from GCC.\n"
             "- An optional `ai` field with the full function source where the error occurred, compressed to reduce size "
@@ -88,7 +88,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         self._failed_line_re = re.compile(r'^FAILED:')  # Ninja/Make FAILED line
         self._compiler_invocation_re = re.compile(r'^\s*/.+gcc\b.*-c\s+')  # Compiler command line
         self._ninja_summary_re = re.compile(
-            r'^ninja:.*stopped:.*$')  # Ninja summary (e.g., "ninja: build stopped: subcommand failed.")
+            r'^ninja:.*stopped:.*$')  # Ninja summary (e.g., "ninja: build stopped: sub-command failed.")
 
         # Visual context lines (caret hints, source echoes) - explicitly EXCLUDED from messages
         # Updated to be more comprehensive for various forms of visual context.
@@ -135,7 +135,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             return ''.join(result)
 
         def _remove_block_comments_preserve_lines(_text: str) -> str:
-            # Replace block comment content with whitespace/newlines only
+            # Replace block comment content with white-spaces/newlines only
             def _replacer(_match):
                 return re.sub(r'[^\n]', '', _match.group())  # keep \n, strip everything else
 
@@ -171,58 +171,76 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         return '\n'.join(compressed_lines)
 
-    def _render_ai_response(self, response: Optional[str], export_markdown_file: Union[str, Path]) -> bool:
+    def _render_ai_response(self, response: Optional[str], export_markdown_file: Union[str, Path], debug: bool =False) -> bool:
         """
         Render the AI response as a Markdown file for later inspection using a textual viewer.
+
         Args:
             response (Optional[str]): The AI-generated response.
             export_markdown_file (str | Path): The file path where the Markdown output should be written.
+            debug (bool): Store the raw AI response to a test file
+
         Returns:
             bool: True if the file was successfully written, False otherwise.
         """
         if not isinstance(response, str) or not response.strip():
+            self._logger.debug("Failed to export AI response, invalid input")
             return False
 
         try:
             export_markdown_file = Path(export_markdown_file).expanduser().resolve()
+            raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
+
+            # Dump raw response for debugging
+            if debug:
+                raw_txt_file.write_text(response.strip(), encoding="utf-8")
+                self._logger.debug(f"Saved raw AI response to: {raw_txt_file}")
+
             md_lines: list[str] = []
 
-            # Match outermost code blocks
-            code_block_pattern = re.compile(r"```c?\s*\n(.*?)```", re.DOTALL)
+            code_block_pattern = re.compile(r"```(?:[a-zA-Z]*)\n(.*?)```", re.DOTALL)
             code_blocks = code_block_pattern.findall(response)
             response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
 
-            paragraphs = [p.strip() for p in response_body.strip().split("\n\n") if p.strip()]
-            before_code, after_code = [], []
+            if debug:
+                self._logger.debug(f"Code blocks found: {len(code_blocks)}")
+                self._logger.debug(f"Response body after substitution: {repr(response_body)}")
+
+            parts = re.split(r"\n\s*\n", response_body.strip())
+            parts = [p.strip() for p in parts if p.strip()]
+
             code_inserted = False
-
-            for para in paragraphs:
-                if para == "[[CODE_BLOCK]]" and code_blocks:
-                    if before_code:
-                        md_lines.extend(f"> {line}" for block in before_code for line in block.splitlines())
-                        md_lines.append("")  # Paragraph break
-                        before_code.clear()
-
-                    code = code_blocks.pop(0).strip()
-                    md_lines.append("```c")
-                    md_lines.append(code)
-                    md_lines.append("```")
-                    md_lines.append("")
-                    code_inserted = True
-                elif not code_inserted:
-                    before_code.append(para)
+            for part in parts:
+                if "[[CODE_BLOCK]]" in part:
+                    segments = part.split("[[CODE_BLOCK]]")
+                    for i, seg in enumerate(segments):
+                        if seg.strip():
+                            for line in seg.strip().splitlines():
+                                md_lines.append(f"> {line.strip()}")
+                            md_lines.append("")
+                        if i < len(segments) - 1 and code_blocks:
+                            code = code_blocks.pop(0).strip()
+                            md_lines.append("```c")
+                            md_lines.append(code)
+                            md_lines.append("```")
+                            md_lines.append("")
                 else:
-                    after_code.append(para)
+                    for line in part.splitlines():
+                        md_lines.append(f"> {line.strip()}")
+                    md_lines.append("")
 
-            if after_code:
-                md_lines.extend(f"> {line}" for block in after_code for line in block.splitlines())
-                md_lines.append("")
-
+            # Add any remaining code blocks as fallback
             for leftover in code_blocks:
                 md_lines.append("```c")
                 md_lines.append(leftover.strip())
                 md_lines.append("```")
                 md_lines.append("")
+
+            if not md_lines:
+                self._logger.debug("No structured content detected; exporting as plain block.")
+                md_lines.append("```text")
+                md_lines.append(response.strip())
+                md_lines.append("```")
 
             export_markdown_file.write_text("\n".join(md_lines), encoding="utf-8")
             return True
@@ -243,7 +261,9 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     prompt=prompt, context=context, max_tokens=400, timeout=30,
                 )
                 if self._render_ai_response(response=response, export_markdown_file=export_markdown_file):
-                    self.sdk.tool_box.show_status(message="🤖 AI Advise available", expire_after=2, erase_after=True)
+                    self.sdk.tool_box.show_status(message="🤖 AI response available", expire_after=2, erase_after=True)
+                else:
+                    raise RuntimeError('AI response could not be retrieved')
 
             try:
                 asyncio.run(_inner())
@@ -372,7 +392,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     def analyze(self, log_source: Union[Path, str],
                 context_file_name: Optional[str] = None,
                 ai_response_file_name: Optional[str] = None,
-                ai_request: bool = False) -> Optional[list[dict]]:
+                ai_request: bool = True) -> Optional[list[dict]]:
         """
         Analyzes a GCC compilation log, extracting structured error/warning diagnostics.
         Args:
@@ -391,6 +411,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         log_lines_iterable: Union[IO, list[str]] = []
         log_source_name: str = ""
 
+        self._logger.debug(f"Context will be stored in '{context_file_name}'")
         # Purge last analysis results
         self._last_error_context = None
 
