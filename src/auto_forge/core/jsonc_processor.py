@@ -354,15 +354,15 @@ class CoreJSONCProcessor(CoreModuleInterface):
 
         try:
             # Expand and normalize
-            config_file = os.path.expanduser(os.path.expandvars(file_name))
-            if not config_file.endswith(os.sep + '.'):
-                config_file = os.path.abspath(config_file)
+            json_file = os.path.expanduser(os.path.expandvars(file_name))
+            if not json_file.endswith(os.sep + '.'):
+                json_file = os.path.abspath(json_file)
 
-            if not os.path.exists(config_file):
-                raise FileNotFoundError(f"JSONC file '{config_file}' does not exist.")
+            if not os.path.exists(json_file):
+                raise FileNotFoundError(f"JSON/C file '{json_file}' does not exist.")
 
             # Load the file as text
-            with open(config_file) as text_file:
+            with open(json_file) as text_file:
                 dirty_json = text_file.read()
 
             # Comments cleanup

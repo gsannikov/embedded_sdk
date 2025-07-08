@@ -53,10 +53,6 @@ class AICommand(CommandInterface):
 
         # Escape backslashes and quotes to avoid breaking string parsing if needed downstream
         text = text.replace('\\', '\\\\').replace('"', '\\"')
-
-        # Optionally escape HTML if the model receives HTML-sensitive inputs
-        # text = html.escape(text)
-
         return text.strip()
 
     async def _async_query_from_nl(self, user_prompt: str):

@@ -171,10 +171,10 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         return '\n'.join(compressed_lines)
 
-    def _render_ai_response(self, response: Optional[str], export_markdown_file: Union[str, Path], debug: bool =False) -> bool:
+    def _render_ai_response(self, response: Optional[str], export_markdown_file: Union[str, Path],
+                            debug: bool = False) -> bool:
         """
         Render the AI response as a Markdown file for later inspection using a textual viewer.
-
         Args:
             response (Optional[str]): The AI-generated response.
             export_markdown_file (str | Path): The file path where the Markdown output should be written.
@@ -198,7 +198,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
             md_lines: list[str] = []
 
-            code_block_pattern = re.compile(r"```(?:[a-zA-Z]*)\n(.*?)```", re.DOTALL)
+            code_block_pattern = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
             code_blocks = code_block_pattern.findall(response)
             response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
 
@@ -209,7 +209,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             parts = re.split(r"\n\s*\n", response_body.strip())
             parts = [p.strip() for p in parts if p.strip()]
 
-            code_inserted = False
             for part in parts:
                 if "[[CODE_BLOCK]]" in part:
                     segments = part.split("[[CODE_BLOCK]]")
@@ -251,7 +250,14 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
     def _get_ai_response_background(self, prompt: str, context: str, export_markdown_file: Union[str, Path]):
         """
-        Executes the AI query in a background thread.
+        Sends an AI query in a background thread and processes the result.
+        Args:
+            prompt (str): The user prompt sent to the AI.
+            context (str): Additional context to guide the AI response.
+            export_markdown_file (Union[str, Path]): Path to save the AI response in Markdown format.
+
+        Raises:
+            RuntimeError: If the AI response could not be rendered or exported.
         """
 
         def _runner():

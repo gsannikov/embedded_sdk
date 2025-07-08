@@ -1765,18 +1765,15 @@ class CoreToolBox(CoreModuleInterface):
 
                 # Since we need to use classes from modules that may not be directly imported at startup,
                 # we retrieve their instances dynamically from the registry.
-                variables_class: Optional[CoreVariablesProtocol] = self._registry.get_instance_by_class_name(
-                    "CoreVariables", return_protocol=True)
-
-                if not variables_class:
+                if not self.sdk.variables:
                     raise RuntimeError("required component instances could not be retrieved for this operation")
 
-                json_file_path: Optional[str] = variables_class.expand(key=json_path_or_data, quiet=True)
+                json_file_path: Optional[str] = self.sdk.variables.expand(key=json_path_or_data, quiet=True)
                 if json_file_path and os.path.exists(json_file_path):
                     json_file_path = os.path.abspath(json_file_path)
-                    json_path_or_data = self._preprocessor.render(file_name=json_file_path)
+                    json_path_or_data = self.sdk.jsonc_processor.render(file_name=json_file_path)
 
-            if isinstance(json_path_or_data, dict):
+            if isinstance(json_path_or_data, (dict, list)):
                 # Pretty print the dictionary to a JSON string
                 json_string = json.dumps(json_path_or_data, indent=4, ensure_ascii=False)
                 # Create a temporary file
@@ -1847,11 +1844,11 @@ class CoreToolBox(CoreModuleInterface):
 
         return None
 
-    def show_help_file(self, relative_path: Union[str, Path]) -> Optional[int]:
+    def show_help_file(self, path: Union[str, Path]) -> Optional[int]:
         """
         Displays a markdown help file using the textual markdown viewer.
         Args:
-            relative_path (str): Relative path to the help file under PROJECT_HELP_PATH.
+            path (str): file path or relative path to the help file under registered help paths.
         Returns:
             int: 0 on success, else error or exception
         """
@@ -1859,10 +1856,12 @@ class CoreToolBox(CoreModuleInterface):
         if not help_viewer_tool.exists():
             raise RuntimeError("required viewer could not be found")
 
-        # Resolve the file path
-        help_file_path: Optional[Path] = self.resolve_help_file(relative_path)
-        if help_file_path is None or not help_file_path.exists():
-            raise RuntimeError(f"markdown file '{str(relative_path)}'could not be found")
+        help_file_path: Optional[Path] = Path(path)
+        if not help_file_path.exists():
+            # Resolve the file path
+            help_file_path: Optional[Path] = self.resolve_help_file(path)
+            if help_file_path is None or not help_file_path.exists():
+                raise RuntimeError(f"markdown file '{str(path)}'could not be found")
 
         if help_file_path.stat().st_size > 64 * 1024:
             raise RuntimeError("markdown file size too large")

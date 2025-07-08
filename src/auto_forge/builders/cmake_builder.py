@@ -22,7 +22,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        BuilderArtifactsValidator, TerminalEchoType, CommandResultType, GCCLogAnalyzer)
+                        BuilderArtifactsValidator, TerminalEchoType, GCCLogAnalyzer)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
