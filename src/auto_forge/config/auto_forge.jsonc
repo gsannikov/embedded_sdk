@@ -214,6 +214,7 @@
         { "name": "ai",           "command": "ai_chat",                                                 "cmd_type": "AI",           "description": "Send request to an AI"                                      },
         { "name": "cls",          "command": "clear",                                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true  },
         { "name": "cln",          "command": "clear",                                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true  },
+        { "name": "ctx",          "command": "sln --show-json $BUILD_LOGS/build_error_context.json",    "cmd_type": "BUILD",        "description": "Show build analyzed context"                                },
         { "name": "e",            "command": "edit -p",                                                 "cmd_type": "UTILITY",      "description": "📝 Open file or path in default editor"                     },
         { "name": "exit",         "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                            "hidden": true  },
         { "name": "xfind",        "command": "xray -c -l",                                              "cmd_type": "UTILITY",      "description": "Files finding utility"                                      },

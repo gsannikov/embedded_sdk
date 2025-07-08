@@ -221,7 +221,7 @@ class CMakeBuilder(BuilderRunnerInterface):
                 if None not in (results, results.response):
                     if tool_error or "warning" in results.response:
                         # Ninja build error - start GCC log analyzer
-                        self.print_message(message="🤖 Submitting AI request in the background...")
+                        self.print_message(message="🤖 AI request submitted in the background. You'll be notified once the response is ready.")
                         self._gcc_analyzer.analyze(log_source=results.response,
                                                    context_file_name=str(self._build_context_file),
                                                    ai_response_file_name=str(self._build_ai_response_file),
