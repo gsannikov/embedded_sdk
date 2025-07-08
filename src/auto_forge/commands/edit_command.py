@@ -8,7 +8,7 @@ Features:
     - Editor discovery and listing.
     - Wildcard and numeric selection of editor.
     - Safe invocation of terminal and GUI editors.
-    - Automatic trust registration for Visual Studio Code workspaces.
+    - Automatic trust registration for Visual Studio Code workspace.
 """
 
 import argparse
@@ -116,7 +116,7 @@ class EditCommand(CommandInterface):
         Args:
             aliases (list): List of potential executable names.
             fallback_search_path (list): List of dicts with "path" and optional "wsl_path".
-            max_depth (int): How deep to search subdirectories (0 = top level only).
+            max_depth (int): How deep to search sub-directories (0 = top level only).
 
         Returns:
             str | None: Absolute path of the first found executable, or None.

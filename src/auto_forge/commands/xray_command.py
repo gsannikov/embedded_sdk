@@ -4,7 +4,7 @@ Author: AutoForge Team
 
 Description:
     The XRay command allows for source analysis and duplicate detection.
-    It leverages the CoreXRayDB backend to index files under solution 'Source' paths into a
+    It leverages the CoreXRayDB back-end to index files under solution 'Source' paths into a
     SQLite database. Users can perform structured or wildcard-based file searches, detect
     duplicate content, or execute arbitrary SQL-style queries on the indexed metadata.
 """

@@ -3,7 +3,11 @@ Module: proxy_race_command.py
 Author: AutoForge Team
 
 Description:
-    Interact with an AI.
+    Experimental tool for conducting "proxy drag racing," where multiple proxy servers
+    are tested simultaneously. The module collects performance statistics to help
+    dynamically select the best available proxy during a session.
+    
+    Note: This command is currently inactive and may serve as a placeholder for future tools.
 """
 
 import argparse
@@ -118,7 +122,7 @@ class ProxyRaceCommand(CommandInterface):
             passed = 0
             last_url = ""
 
-            try:
+            with suppress(Exception):
                 async with httpx.AsyncClient(proxy=proxy_url, timeout=timeout) as client:
                     progress[proxy_key]["status"] = "testing"
 
@@ -147,10 +151,7 @@ class ProxyRaceCommand(CommandInterface):
                                 progress[proxy_key]["speed"] = round(total_speed / passed, 1)
                                 progress[proxy_key]["status"] = f"{passed}/{len(_test_files)}"
                         except Exception as e:
-                            progress[proxy_key]["status"] = f"failed"
-
-            except Exception as e:
-                print(f"failed {e}")
+                            progress[proxy_key]["status"] = f"failed: {e}"
 
             if passed == 0:
                 progress[proxy_key]["status"] = "[red]failed"

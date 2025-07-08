@@ -6,6 +6,7 @@ Description:
     Binary signing operations, leveraging the internal `Signatures` class for implementation.
     Supports signing, padding (expansion), CRC insertion, Git property embedding, and additional related features.
 
+    Note: This command is currently inactive and may serve as a placeholder for future tools.
 """
 
 import argparse

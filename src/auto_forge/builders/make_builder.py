@@ -7,7 +7,7 @@ Description:
     It provides the `_MakeToolChain` class, a concrete implementation of the `BuilderToolChainInterface`,
     which validates and resolves tools required for Make-driven workflows.
 Classes:
-    - _MakeToolChain: Validates and resolves required tools for Make-based toolchains.
+    - _MakeToolChain: Validates and resolves required tools for Make-based tool-chains.
 """
 
 import logging

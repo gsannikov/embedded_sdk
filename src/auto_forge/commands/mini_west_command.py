@@ -6,6 +6,8 @@ Description:
     Process a typical west.yml file and cloning the specified projects in parallel.
     Unlike Zephyr's 'west', which performs sequential cloning, this command significantly reduces overall clone time
     by leveraging concurrent operations.
+    
+    Note: This command is currently inactive and may serve as a placeholder for future tools.
 """
 
 import argparse

@@ -3,7 +3,9 @@ Module: ai_command.py
 Author: AutoForge Team
 
 Description:
-    Interact with an AI.
+    This module defines commands that enable free-form user interaction with the system's registered AI model and engine.
+    It utilizes the core 'CoreAIBridge' module, which abstracts the underlying communication and supports 
+    asynchronous AI requests.
 """
 
 import argparse
@@ -48,7 +50,7 @@ class AICommand(CommandInterface):
         # Replace smart quotes with regular quotes
         text = text.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
 
-        # Normalize whitespace
+        # Normalize white-spaces
         text = re.sub(r'\s+', ' ', text)
 
         # Escape backslashes and quotes to avoid breaking string parsing if needed downstream

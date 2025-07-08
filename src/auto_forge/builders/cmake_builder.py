@@ -8,7 +8,7 @@ Description:
     which validates and resolves tools required for Make-driven workflows.
 
 Classes:
-    - _CMakeToolChain: Validates and resolves required tools for Make-based toolchains.
+    - _CMakeToolChain: Validates and resolves required tools for Make-based tool-chains.
 """
 
 import logging

@@ -3,9 +3,11 @@ Script:         zephyr_tools_command.py
 Author:         AutoForge Team
 
 Description:
-    A placeholder module for various utilities related to the Zephyr build system.
-    Currently, it provides:
-    - SDK detection: Locates a Zephyr SDK installation and returns its path and version.
+    Utility module for tools related to the Zephyr build system.
+    Currently includes:
+    - SDK detection: Locates the Zephyr SDK installation and returns its path and version.
+
+    Note: This command is currently inactive and may serve as a placeholder for future tools.
 """
 
 import argparse

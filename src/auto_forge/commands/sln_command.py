@@ -4,9 +4,9 @@ Author:         AutoForge Team
 
 Description:
     General-purpose solution management utilities and viewers, including:
-    - Log viewer
+    - Logs, JSON and Markdown viewers
     - Environment variables viewer
-    - Expanded solution JSON viewer
+    - Expanded solution viewer
     - Real-time counters and other dynamically monitored data views
 """
 
@@ -188,7 +188,6 @@ class SolutionCommand(CommandInterface):
         else:
             console.print("[dim]No 'meter' available — counters not tracked.[/dim]")
 
-        console.rule(style="cyan")
         print()
 
         return 0

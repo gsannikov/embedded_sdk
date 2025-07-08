@@ -3,7 +3,7 @@ Script:         build_shell.py
 Author:         AutoForge Team
 
 Description:
-    Core module that defines and manages the BuildShell class, which integrates the cmd2
+    Core module that defines and manages the BuildShell class, which integrates the 'cmd2'
     interactive shell with prompt_toolkit to provide a rich command-line interface for the
     AutoForge build system.
 """
@@ -28,13 +28,6 @@ from typing import Optional, Any, Union, Callable
 
 # Third-party
 import cmd2
-# AutoForge imports
-from auto_forge import (
-    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
-    CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
-    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
-    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PackageGlobals
-)
 from cmd2 import Statement, ansi
 from cmd2 import with_argument_list
 # Telemetry
@@ -52,6 +45,14 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.styles import Style
 # Rich
 from rich.console import Console
+
+# AutoForge imports
+from auto_forge import (
+    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
+    CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
+    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
+    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PackageGlobals
+)
 
 # Basic types
 AUTO_FORGE_MODULE_NAME = "Shell"
@@ -142,7 +143,8 @@ class _CoreCompleter(Completer):
 
         self._build_shell = build_shell
         self._logger = logger
-        self._loader: Optional[CoreDynamicLoader] = CoreDynamicLoader.get_instance()
+        self._loader = CoreDynamicLoader.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
 
     def _should_fallback_to_path_completion(self, cmd: str, arg_text: str, completer_func: Optional[callable]) -> bool:
         """
@@ -183,6 +185,22 @@ class _CoreCompleter(Completer):
             It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
+
+        def _trim_long_text(_text: str, _length: int = 60) -> str:
+            """
+            Trim the input string to a maximum length, appending '...' if truncated.
+            Args:
+                _text: The string to trim.
+                _length: The maximum allowed length of the result, including ellipsis if added.
+            Returns:
+                A string no longer than _length, with '...' appended if truncation occurred.
+            """
+            if len(_text) <= _length:
+                return _text
+            if _length <= 3:
+                return '.' * _length  # Not enough room for any text, just dots
+            return _text[:_length - 3] + '...'
+
         try:
             text = document.text_before_cursor
             buffer_ends_with_space = text.endswith(" ")
@@ -203,8 +221,16 @@ class _CoreCompleter(Completer):
 
                 # Registered dynamic commands
                 for cmd in self._build_shell.commands_metadata:
+
+                    # Retrieve the command description from the metadata, flatten the text, and trim it to 80 characters.
+                    # This ensures it fits nicely in the small completion popup box.
+                    cmd_description = self._build_shell.commands_metadata[cmd].get("description",
+                                                                                   "Description not provided")
+                    doc = _trim_long_text(_text=self._tool_box.flatten_text(cmd_description), _length=80)
+
                     if cmd.startswith(partial):
                         matches.append(Completion(cmd, start_position=-len(partial),
+                                                  display_meta=doc,
                                                   style=self._build_shell.get_safe_style('commands')))
 
                 # Built-in do_* methods
@@ -265,20 +291,30 @@ class _CoreCompleter(Completer):
                                arg.startswith(arg_text)]
 
             # Final filtering: ensure no duplicate completions and max results count are yielded
-            seen = set()
-            deduplicated = []
-            # Deduplicate
+            seen = {}
             for match in matches:
-                key = match.text if isinstance(match, Completion) else str(match)
+                if isinstance(match, Completion):
+                    key = match.text
+                else:
+                    key = str(match)
+                    match = Completion(key, start_position=-len(arg_text))  # wrap plain string
+
+                # Keep the richer Completion data if possible
                 if key not in seen:
-                    seen.add(key)
-                    deduplicated.append(
-                        match if isinstance(match, Completion) else Completion(key, start_position=-len(arg_text))
-                    )
-                    if len(deduplicated) >= self._build_shell.max_completion_results:
-                        break
+                    seen[key] = match
+                else:
+                    old = seen[key]
+                    # Prefer the one with display_meta or more attributes
+                    if (not isinstance(old, Completion)) or (
+                            not old.display_meta and match.display_meta
+                    ):
+                        seen[key] = match
+
+                if len(seen) >= self._build_shell.max_completion_results:
+                    break
 
             # Sort: hidden entries (text starts with ".") appear last
+            deduplicated = list(seen.values())
             deduplicated.sort(key=lambda comp: comp.text.lstrip().startswith("."))
 
             # Yield final completions
@@ -295,7 +331,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
     """
     Interactive shell for with shell-like behavior.
     Provides dynamic prompt updates, path-aware tab completion,
-    and passthrough execution of unknown commands via the system shell.
+    and pass-through execution of unknown commands via the system shell.
     """
 
     def __init__(self, *args, **kwargs):
@@ -681,7 +717,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         """
         added_aliases_count: int = 0
 
-        # We allow anonymous list of dictionaries or named list, either way we weill flattened the input to a bew list.
+        # We allow anonymous list of dictionaries or named list, either way will flattened converted to a proper list.
         aliases: Optional[list] = self._tool_box.extract_bare_list(aliases, "aliases")
 
         # Aliases must be a list of dictionaries
@@ -826,7 +862,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                         if (entry.is_file() and os.access(entry.path,
                                                           os.X_OK) and entry.name not in self._executables_metadata):
 
-                            # Optional: filter out Windows executables when on Linux
+                            # Optional: filter out Windows executables when running on Linux
                             if not entry.name.endswith('.exe') or os.name == 'nt':
                                 self._executables_metadata[entry.name] = entry.path
             except OSError:
@@ -900,9 +936,9 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         """
         Return an HTML-formatted prompt string for prompt_toolkit.
         Emulates zsh-style prompt with:
-        - virtualenv or project name
-        - home-relative or workspace-relative path
-        - git branch (if present)
+        - Payton virtual environment or project name
+        - Home-relative or workspace-relative path
+        - Git branch (if present)
         """
         func = type(self)._get_colored_prompt_toolkit
         if not hasattr(func, "_last_cwd"):
@@ -1133,7 +1169,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                 f.write(f"- Solution: {self._solution.solution_name}\n")
                 f.write(self._system_info.to_markdown(as_table=False, heading_level=3))
 
-            self._logger.debug(f"Dynamic help file generated in {output_path.name}")
+            self._logger.debug(f"Dynamic help file generated in '{output_path.name}'")
             return str(output_path)
 
         except Exception as export_error:
@@ -1259,7 +1295,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
     def complete_cd(self, _text: str, line: str, _begin_idx: int, end_idx: int) -> list[Completion]:
         """
-        Autocompletion handler for the `cd` command.
+        Auto-completion handler for the `cd` command.
         1. Environment-like variable completions: If the argument contains a `$` character,
            it will suggest variable names from the internal variable registry (not system env).
            Matching is done based on prefix (e.g., typing `$AF_` will suggest `$AF_BASE`, etc.).
@@ -1407,7 +1443,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
     def do_help(self, arg: Any) -> None:
         """
-        Show the autogenerated menu markdown through textual when not args provided,
+        Show the auto-generated menu markdown through textual when not args provided,
         else, format and display help for the specified command
         Args:
             arg (str): The command to for which we should show help.
@@ -1647,7 +1683,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
     def cmdloop(self, intro: Optional[str] = None) -> None:
         """
-        Custom command loop using prompt_toolkit for colored prompt, autocompletion,
+        Custom command loop using prompt_toolkit for colored prompt, auto-completion,
         and key-triggered path completions (e.g., on '/' and '.'),
         with full cmd2 command history integration.
         """
