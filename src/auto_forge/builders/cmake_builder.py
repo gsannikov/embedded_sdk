@@ -168,6 +168,7 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         compiler_options = config.get("compiler_options")
         artifacts: Optional[list] = config.get("artifacts", None)
+        max_cores: int = int(config.get("max_cores", 16))
 
         # Merge cmake specific options from the tool chain with the build configuration options into  single list
         if cmake_options and compiler_options:
@@ -203,27 +204,33 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         # Check if the previous step was configuration and if so verify that we have Ninja
         if is_config_step and ninja_build_command is not None:
+            tool_error = False
             try:
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
-                ninja_command_line = f"{ninja_build_command} -C {str(build_path)}"
+                ninja_command_line = f"{ninja_build_command} -j{max_cores} -C {str(build_path)}"
                 results = self.sdk.platform.execute_shell_command(command_and_args=ninja_command_line,
                                                                   echo_type=TerminalEchoType.CLEAR_LINE,
                                                                   cwd=str(execute_from),
                                                                   leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
+                tool_error = True
 
-                # Ninja build error - start GCC log analyzer
-                self.print_message(message="🤖 Submitting AI request in the background...")
-                self._gcc_analyzer.analyze(log_source=results.response,
-                                           context_file_name=str(self._build_context_file),
-                                           ai_response_file_name=str(self._build_ai_response_file))
+            finally:
+                if None not in (results, results.response):
+                    if tool_error or "warning" in results.response:
+                        # Ninja build error - start GCC log analyzer
+                        self.print_message(message="🤖 Submitting AI request in the background...")
+                        self._gcc_analyzer.analyze(log_source=results.response,
+                                                   context_file_name=str(self._build_context_file),
+                                                   ai_response_file_name=str(self._build_ai_response_file),
+                                                   toolchain=self._toolchain.tools)
+                if tool_error:
+                    raise RuntimeError(
+                        f"Ninja execution error {results.message if results else 'unknown'}")
 
-                raise RuntimeError(
-                    f"Ninja execution error {results.message if results else 'unknown'}") from execution_error
-
-            # Validate CMaKE results
+                    # Validate CMaKE results
             self.print_build_results(results=results, raise_exception=True)
 
             # Update step and optionally handle extra arguments based on the current state

@@ -16,13 +16,11 @@ import threading
 from contextlib import suppress
 from pathlib import Path
 from typing import IO
-from typing import Union, Optional
+from typing import Union, Optional, Any
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, BuildLogAnalyzerInterface, PromptStatusType, BuildAnalyzedEventType,
                         BuildAnalyzedContextType)
-# Direct internal imports to avoid circular dependencies
-from auto_forge.core.registry import CoreRegistry
 
 # Third-party
 
@@ -40,18 +38,21 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     def __init__(self):
         super().__init__()
 
-        self._analyzed_context: Optional[BuildAnalyzedContextType] = None
+        self._last_error_context: Optional[str] = None
+
         self._ai_prompt_context: str = (
-            "The following is a list of structured diagnostic entries from a C code-base, each containing a GCC error or "
-            "warning message and its corresponding source-level context.\n"
-            "- The file name, line, column, and error/warning message from GCC.\n"
-            "- An optional `ai` field with the full function source where the error occurred, compressed to reduce size "
-            "while preserving line numbers.\n"
-            "Use this information to assist in identifying the root cause of the error or suggest a potential fix.\n"
+            "The following is a structured diagnostic report from a C code-base. Each entry includes:\n"
+            "- File name, line number, column, and diagnostic type (e.g., 'warning', 'error').\n"
+            "- A concise GCC message (with the type prefix removed).\n"
+            "- The name of the function where the issue occurred.\n"
+            "- A compressed source snippet of the full function, preserving line numbers.\n"
+            "- (Optional) Toolchain metadata indicating which compilers and tools were used.\n\n"
+            "Use this information to identify root causes or propose precise fixes. Be technical and concise  "
+            "focus on what a human developer would need to inspect or modify to resolve the issue."
+            "Provide fixed code suggestions whenever possible."
         )
 
-        self._registry = CoreRegistry.get_instance()  # Assuming CoreRegistry and AutoForgeModuleType are external
-        self._module_info = self._registry.register_module(  # and these lines are handled by the user's setup
+        self._module_info = self.sdk.registry.register_module(  # and these lines are handled by the user's setup
             name=AUTO_FORGE_MODULE_NAME,
             description=AUTO_FORGE_MODULE_DESCRIPTION,
             auto_forge_module_type=AutoForgeModuleType.ANALYZER
@@ -68,12 +69,12 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         )
 
         # "In function" line: restored to a working base, adapted for smart quotes.
-        # Examples: "/path/to/file.c: In function ‘my_func’:"
+        # Examples: "/path/to/file.c: In function my_func:"
         # Matches a file path and then "In function 'function_name'".
         # The key is to match the initial file part and allow for the trailing colon on the line
         # not necessarily as part of the captured group.
         self._function_regex = re.compile(
-            r'^(?P<file>.*?):\s+In function[ \'‘"](?P<function>[^\'’"]+)'  # Restored working regex, added smart quotes
+            r'^(?P<file>.*?):\s+In function[ \'"](?P<function>[^\'"]+)'  # Restored working regex, added smart quotes
         )
 
         # Build system chatter patterns to ignore
@@ -171,11 +172,36 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         Args:
             response (Optional[str]): The AI-generated response.
             export_markdown_file (str | Path): The file path where the Markdown output should be written.
-            debug (bool): Store the raw AI response to a test file
+            debug (bool): Store the raw AI response to a text file
 
         Returns:
             bool: True if the file was successfully written, False otherwise.
         """
+
+        def _clean_snippet(_code: str) -> str:
+            """
+            Clean and format a C/C++ snippet using the SDK formatter.
+            """
+            _lines = [_line.rstrip() for _line in _code.strip().splitlines()]
+            if not any(_line.strip() for _line in _lines):
+                return "// (snippet content was omitted or removed for brevity)"
+
+            compacted = []
+            blank_count = 0
+            for _line in _lines:
+                if line.strip():
+                    compacted.append(_line)
+                    blank_count = 0
+                else:
+                    blank_count += 1
+                    if blank_count <= 1:
+                        compacted.append("")
+            try:
+                return self.sdk.tool_box.clang_formatter("\n".join(compacted))
+            except Exception as formatter_error:
+                self._logger.warning(f"Failed to format snippet {formatter_error}")
+                return "\n".join(compacted)
+
         if not isinstance(response, str) or not response.strip():
             self._logger.debug("Failed to export AI response, invalid input")
             return False
@@ -184,13 +210,69 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             export_markdown_file = Path(export_markdown_file).expanduser().resolve()
             raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
 
-            # Dump raw response for debugging
             if debug:
                 raw_txt_file.write_text(response.strip(), encoding="utf-8")
-                self._logger.debug(f"Saved raw AI response to: {raw_txt_file}")
+                self._logger.debug(f"AI raw response saved to: {raw_txt_file}")
 
-            md_lines: list[str] = []
+            md_lines: list[str] = ["# AI Analysis Report", ""]
 
+            # Context Section
+            try:
+                context_obj = json.loads(self.context) if isinstance(self.context, str) else self.context
+
+                if context_obj:
+                    md_lines.append("## 🐞 Analyzed Context")
+                    md_lines.append("")
+
+                    events = context_obj.get("events") if isinstance(context_obj, dict) else context_obj
+                    if not isinstance(events, list):
+                        raise TypeError("Expected 'events' to be a list in context")
+
+                    md_lines.append("| Type | File | Function | Line:Col | Message |")
+                    md_lines.append("|------|------|----------|----------|---------|")
+
+                    for entry in events:
+                        file = Path(entry.get("file", "None")).name
+                        function = entry.get("function", "-")
+                        typ = entry.get("type", "")
+                        line = entry.get("line", "?")
+                        col = entry.get("column", "?")
+                        msg = entry.get("message", "None")
+                        md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
+
+                    md_lines.append("")
+
+                    # Optional toolchain info
+                    if isinstance(context_obj, dict) and "toolchain" in context_obj:
+                        md_lines.append("### 🛠️ Toolchain Info")
+                        md_lines.append("")
+                        for k, v in context_obj["toolchain"].items():
+                            md_lines.append(f"- **{k}**: {v}")
+                        md_lines.append("")
+
+                    for entry in events:
+                        snippet = entry.get("snippet", "")
+                        if snippet:
+                            file = entry.get("file", "")
+                            line = entry.get("line", "?")
+                            cleaned_snippet = _clean_snippet(snippet)
+                            md_lines.append(f"## 🧾 Snippet: {Path(file).name} at line {line}")
+                            md_lines.append("")
+                            md_lines.append("```c")
+                            md_lines.append(f"// From file: {file} at line {line}")
+                            md_lines.append(cleaned_snippet)
+                            md_lines.append("```")
+                            md_lines.append("")
+
+            except Exception as format_error:
+                self._logger.warning(f"Failed to format context: {format_error}")
+
+            # AI Prompt Section
+            md_lines.append("## ❓ AI Prompt")
+            md_lines.append("")
+            md_lines.append(self._ai_prompt_context)
+
+            # AI Response Section
             code_block_pattern = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
             code_blocks = code_block_pattern.findall(response)
             response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
@@ -201,6 +283,9 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
             parts = re.split(r"\n\s*\n", response_body.strip())
             parts = [p.strip() for p in parts if p.strip()]
+
+            md_lines.append("## 🤖 AI Response")
+            md_lines.append("")
 
             for part in parts:
                 if "[[CODE_BLOCK]]" in part:
@@ -221,7 +306,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                         md_lines.append(f"> {line.strip()}")
                     md_lines.append("")
 
-            # Add any remaining code blocks as fallback
+            # Fallback for any remaining code blocks
             for leftover in code_blocks:
                 md_lines.append("```c")
                 md_lines.append(leftover.strip())
@@ -238,7 +323,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             return True
 
         except Exception as export_error:
-            self._logger.debug(f"Failed to export AI response to Markdown: {export_error}")
+            self._logger.error(f"Failed to write AI response to Markdown: {export_error}")
             return False
 
     def _get_ai_response_background(self, prompt: str, context: str, export_markdown_file: Union[str, Path]):
@@ -248,9 +333,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             prompt (str): The user prompt sent to the AI.
             context (str): Additional context to guide the AI response.
             export_markdown_file (Union[str, Path]): Path to save the AI response in Markdown format.
-
-        Raises:
-            RuntimeError: If the AI response could not be rendered or exported.
         """
 
         def _runner():
@@ -260,14 +342,15 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     prompt=prompt, context=context, max_tokens=400, timeout=30,
                 )
                 if self._render_ai_response(response=response, export_markdown_file=export_markdown_file):
-                    self.sdk.tool_box.show_status(message="🤖 AI response available", expire_after=2, erase_after=True)
+                    self.sdk.tool_box.show_status(message="🤖 AI response available, type 'rep' to view", expire_after=3,
+                                                  erase_after=True)
                 else:
                     raise RuntimeError('AI response could not be retrieved')
 
             try:
                 asyncio.run(_inner())
             except Exception as ai_exception:
-                self.sdk.tool_box.show_status(message=f"❌ AI query failed: {ai_exception}", expire_after=2,
+                self.sdk.tool_box.show_status(message=f"🤖 AI query failed: {ai_exception}", expire_after=2,
                                               status_type=PromptStatusType.ERROR, erase_after=True)
 
         threading.Thread(target=_runner, daemon=True).start()
@@ -284,7 +367,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
         if not (1 <= line_number <= len(lines)):
-            raise ValueError(f"Line number {line_number} is out of bounds (1–{len(lines)}).")
+            raise ValueError(f"Line number {line_number} is out of bounds (1{len(lines)}).")
 
         target_idx = line_number - 1
         sig_pattern = re.compile(r'^\s*(\w[\w\s*]*?\**)\s+(\w+)\s*\([^)]*\)\s*(\{)?\s*$')
@@ -336,19 +419,22 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             snippet_line=target_idx - context_start
         )
 
-    def _serialize(self, parsed_entries: list[dict], output_path: Union[str, Path]) -> bool:
+    def _serialize(self, context_data: Union[list[dict[str, Any]], dict[str, Any]],
+                   output_path: Union[str, Path]) -> bool:
         """
-        Saves the list of parsed diagnostic entries to a JSON file.
+        Saves parsed diagnostic entries to a JSON file.
         Args:
-            parsed_entries: List of structured diagnostic dictionaries.
+            context_data: Either:
+                - a list of structured diagnostic dictionaries, or
+                - a dictionary containing additional metadata (e.g., {"toolchain": ..., "events": [...]})
             output_path: Destination file path (str or Path).
+
+        Returns:
+            True if successfully written, False otherwise.
         """
 
         def _clear_duplicated_entries(_entries: list[dict]) -> list[dict]:
-            """
-            Removes exact duplicate context entries based on their JSON structure.
-            This helps eliminate repeated errors/warnings (e.g., from static/shared builds).
-            """
+            """Removes exact duplicates based on canonicalized JSON keys."""
             _seen = set()
             _unique = []
             for _entry in _entries:
@@ -371,17 +457,22 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Clean 'null' entries recursively
-            cleaned_entries = _remove_none_recursive(parsed_entries)
-            # Remove duplicates and sort the remaining entries
-            unique_entries = _clear_duplicated_entries(cleaned_entries)
-            unique_entries.sort(key=lambda e: (e['gcc']['file'], e['gcc']['line']))
+            # Clean 'None' entries
+            cleaned = _remove_none_recursive(context_data)
 
-            # Serialize to JSON string and store in instance
-            json_str = json.dumps(unique_entries, indent=4, ensure_ascii=False)
+            # Handle structured dict format: {"toolchain": ..., "events": [...]}
+            if isinstance(cleaned, dict) and "events" in cleaned:
+                cleaned["events"] = _clear_duplicated_entries(cleaned["events"])
+                cleaned["events"].sort(key=lambda e: (e.get("file", ""), e.get("line", 0)))
+                json_str = json.dumps(cleaned, indent=4, ensure_ascii=False)
+            else:
+                # List-only case
+                cleaned = _clear_duplicated_entries(cleaned)
+                cleaned.sort(key=lambda e: (e.get("file", ""), e.get("line", 0)))
+                json_str = json.dumps(cleaned, indent=4, ensure_ascii=False)
+
             self._last_error_context = json_str
 
-            # Save to file
             with output_path.open("w", encoding="utf-8") as f:
                 f.write(json_str)
 
@@ -391,36 +482,55 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     def analyze(self, log_source: Union[Path, str],
                 context_file_name: Optional[str] = None,
                 ai_response_file_name: Optional[str] = None,
-                ai_request: bool = True) -> Optional[list[dict]]:
+                toolchain: Optional[dict[str, Any]] = None) -> Optional[list[dict]]:
         """
-        Analyzes a GCC compilation log, extracting structured error/warning diagnostics.
+        Analyzes a GCC-based compilation log and extracts structured diagnostic events.
+
+        A parser that identifies and collects warnings, errors, and notes emitted by GCC or Clang,
+        grouping them into structured event entries that include source file, line, column,
+        type, function context, and a cleaned message string. It handles multi-line diagnostics
+        (including caret and source lines), removes duplicated prefixes like "warning:", and
+        associates diagnostics with detected function names where available.
         Args:
-            log_source: Path to the log file or a raw log string.
-            context_file_name: If provided, stores the result in a JSON file.
-            ai_response_file_name: Used to store AI response (rendered into markdown).
-            ai_request: If true, a background asynchronous request to an AI will be made.
+            log_source: Path to a file or raw log string containing compiler output.
+            context_file_name: Path to store structured diagnostics (JSON).
+            ai_response_file_name: Path for AI response Markdown (optional).
+            toolchain: The tool-chain dictionary used to during this build.
+.
         Returns:
-            list of diagnostic dictionaries or None if none found.
+            List of structured diagnostic dictionaries, or None if no diagnostics found.
         """
         parsed_entries: Optional[list[dict]] = None
         event_info: Optional[BuildAnalyzedEventType] = None
+        analyzed_context = BuildAnalyzedContextType(toolchain=toolchain)
         pending_function = None
         current_message_lines = []
-
         log_lines_iterable: Union[IO, list[str]] = []
         log_source_name: str = ""
 
         self._logger.debug(f"Context will be stored in '{context_file_name}'")
-        # Purge last analysis results
-        self._analyzed_context = BuildAnalyzedContextType()
+        self._last_error_context = None
+
+        # Nested helper to finalize and store a diagnostic event
+        def _finalize_event():
+            nonlocal event_info, current_message_lines
+            if event_info is not None:
+                # Extract first line and strip type prefix like "warning:"
+                full_message = "\n".join(current_message_lines).strip().split('\n', 1)[0]
+                type_prefix = f"{event_info.type.lower()}:" if event_info.type else ""
+                if full_message.lower().startswith(type_prefix):
+                    full_message = full_message[len(type_prefix):].strip()
+                event_info.message = full_message or None
+                analyzed_context.add_event(event_info)
+                event_info = None
+                current_message_lines = []
 
         try:
-
-            # Remove current exported file if exists.
+            # Remove existing context file if present
             if isinstance(context_file_name, str):
                 Path(context_file_name).unlink(missing_ok=True)
 
-            # Open log source
+            # Read input lines from file or string
             if isinstance(log_source, Path):
                 log_source_name = str(log_source)
                 if not log_source.is_file():
@@ -432,82 +542,93 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             else:
                 raise TypeError("log_source must be a Path or a string.")
 
+            # Main parsing loop
             for line in log_lines_iterable:
                 stripped_line = line.strip()
 
+                # Match diagnostic entry (file:line:col: warning|error|note: ...)
                 diag_match = self._diag_regex.match(stripped_line)
                 if diag_match:
-                    # Finalize current diagnostic
-                    if event_info is not None:
-                        event_info.message = "\n".join(current_message_lines).strip()
-                        current_message_lines = []
+                    _finalize_event()  # Close previous event if open
 
+                    # Extract components
                     file_name = diag_match.group('file')
                     line_number = int(diag_match.group('line'))
 
-                    # Get basic event properties and then populate the other fields with GCC parsed info
+                    # Create new structured diagnostic
                     event_info = self._generate_error_context(file_path=file_name, line_number=line_number)
                     event_info.file = file_name.strip()
                     event_info.line = line_number
                     event_info.column = int(diag_match.group('column')) if diag_match.group('column') else None
-                    event_info.type = diag_match.group('type')
-                    event_info.message = diag_match.group('message').strip()
-                    event_info.function = pending_function if pending_function is None else event_info.function
-
+                    event_info.type = diag_match.group('type').strip()
+                    event_info.function = pending_function if pending_function else event_info.function
                     pending_function = None
+
+                    # Extract and append message portion (e.g., "warning: something")
+                    try:
+                        msg_index = stripped_line.find(f"{event_info.type}:")
+                        message_text = stripped_line[msg_index:].strip() if msg_index != -1 else stripped_line
+                    except Exception as e:
+                        self._logger.warning(f"Failed to clean diagnostic line: {e}")
+                        message_text = stripped_line
+
+                    current_message_lines.append(message_text)
                     continue
 
+                # Match "In function 'foo':"
                 func_match = self._function_regex.match(stripped_line)
                 if func_match:
                     pending_function = func_match.group('function').strip().rstrip(':')
                     continue
 
-                if (not stripped_line or
-                        self._build_prefix_re.match(stripped_line) or
-                        self._failed_line_re.match(stripped_line) or
-                        self._compiler_invocation_re.match(stripped_line) or
-                        self._ninja_summary_re.match(stripped_line) or
-                        self._visual_line_re.match(line)):
+                # Match build system lines (not part of diagnostics)
+                is_non_diagnostic_line = any((
+                    self._build_prefix_re.match(stripped_line),
+                    self._failed_line_re.match(stripped_line),
+                    self._compiler_invocation_re.match(stripped_line),
+                    self._ninja_summary_re.match(stripped_line),
+                    "[ninja" in stripped_line.lower(),
+                ))
 
-                    if event_info is not None:
-                        event_info.message = "\n".join(current_message_lines).strip()
-                        # Add the event to the context
-                        self._analyzed_context.add_event(event_info)
-                        event_info = None
-                        current_message_lines = []
+                if is_non_diagnostic_line:
+                    _finalize_event()
                     continue
 
+                # Accumulate message body
                 if event_info is not None:
                     current_message_lines.append(stripped_line)
 
-            if event_info is not None:
-                event_info.message = "\n".join(current_message_lines).strip()
-                # Add the event to the context
-                self._analyzed_context.add_event(event_info)
+            # Finalize last diagnostic
+            _finalize_event()
 
-            # Export the error context to JSON
-            if self._analyzed_context.count > 0 and context_file_name is not None:
-                parsed_entries = self._analyzed_context.export_to_list()
-                self._serialize(parsed_entries=parsed_entries, output_path=context_file_name)
+            # Export parsed diagnostics to JSON
+            if analyzed_context.count > 0 and context_file_name is not None:
+                context_data = analyzed_context.export_data()
+                if not self._serialize(context_data=context_data, output_path=context_file_name):
+                    self._logger.error(
+                        f"Could not serialize {analyzed_context.count} events into '{context_file_name}'")
 
-            # Auto trigger AI request based ib the exported error context
-            if isinstance(self._last_error_context, str) and ai_request:
+            # Trigger background AI analysis
+            if isinstance(self._last_error_context, str):
                 self._logger.debug("Starting background AI request")
-                self._get_ai_response_background(prompt=self._last_error_context, context=self._ai_prompt_context,
-                                                 export_markdown_file=ai_response_file_name)
+                self._get_ai_response_background(
+                    prompt=self._last_error_context,
+                    context=self._ai_prompt_context,
+                    export_markdown_file=ai_response_file_name
+                )
 
             return parsed_entries if parsed_entries else None
 
         except (FileNotFoundError, PermissionError) as file_error:
             raise file_error
         except Exception as exception:
-            raise IOError(f"unexpected error while processing log source "
-                          f"'{log_source_name}': {exception}") from exception
+            raise IOError(
+                f"Unexpected error while processing log source '{log_source_name}': {exception}") from exception
         finally:
             if isinstance(log_lines_iterable, IO):
                 log_lines_iterable.close()
 
     @property
-    def error_context(self) -> Optional[str]:
-        """Get the last context as JSON string."""
+    def context(self) -> Optional[str]:
+        """Get the last context which was exported to JSON as string."""
         return self._last_error_context

@@ -206,15 +206,15 @@
         // - "description": A user-friendly description (supports Unicode symbols).
         // - "cmd_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
 
-        { "name": "$",            "command": "cd $PROJ_WORKSPACE",                                      "cmd_type": "NAVIGATE",     "description": "Go to workspace directory",                 "hidden": true },
-        { "name": ".",            "command": "start -p .",                                              "cmd_type": "NAVIGATE",     "description": "📂 Open current folder in file manager"                      },
+        { "name": "$",            "command": "cd $PROJ_WORKSPACE",                                      "cmd_type": "NAVIGATE",     "description": "Go to workspace directory",                 "hidden": true  },
+        { "name": ".",            "command": "start -p .",                                              "cmd_type": "NAVIGATE",     "description": "📂 Open current folder in file manager"                     },
         { "name": "..",           "command": "cd ..",                                                   "cmd_type": "NAVIGATE",     "description": "Go up one directory"                                        },
         { "name": "...",          "command": "cd ../../",                                               "cmd_type": "NAVIGATE",     "description": "Go up two directories"                                      },
         { "name": "....",         "command": "cd ../../../",                                            "cmd_type": "NAVIGATE",     "description": "Go up three directories"                                    },
         { "name": "ai",           "command": "ai_chat",                                                 "cmd_type": "AI",           "description": "Send request to an AI"                                      },
         { "name": "cls",          "command": "clear",                                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true  },
         { "name": "cln",          "command": "clear",                                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true  },
-        { "name": "e",            "command": "edit -p",                                                 "cmd_type": "UTILITY",      "description": "📝 Open file or path in default editor"                      },
+        { "name": "e",            "command": "edit -p",                                                 "cmd_type": "UTILITY",      "description": "📝 Open file or path in default editor"                     },
         { "name": "exit",         "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                            "hidden": true  },
         { "name": "xfind",        "command": "xray -c -l",                                              "cmd_type": "UTILITY",      "description": "Files finding utility"                                      },
         { "name": "aifind",       "command": "ai_chat --db",                                            "cmd_type": "AI",           "description": "Natural language files search"                              },
@@ -236,7 +236,7 @@
         { "name": "log",          "command": "sln --show-log",                                          "cmd_type": "UTILITY",      "description": "Show recent logs"                                           },
         { "name": "ls",           "command": "/bin/ls --color=auto -F",                                 "cmd_type": "SYSTEM",       "description": "List (short) using built-in 'ls"                            },
         { "name": "q",            "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                             "hidden": true },
-        { "name": "aierr",        "command": "sln --show-mark-down $BUILD_LOGS/build_ai_response.md",   "cmd_type": "AI",           "description": "Show AI error advise"                                       },
+        { "name": "rep",          "command": "sln --show-mark-down $BUILD_LOGS/build_ai_response.md",   "cmd_type": "AI",           "description": "Show AI error report"                                       },
         { "name": "showeditors",  "command": "edit -l",                                                 "cmd_type": "UTILITY",      "description": "Show all detected editors"                                  },
         { "name": "showenv",      "command": "sln --show-environment-variables",                        "cmd_type": "UTILITY",      "description": "Show managed variables tables"                              },
         { "name": "showsln",      "command": "sln --show-solution",                                     "cmd_type": "UTILITY",      "description": "Show resolved solution JSON"                                },
@@ -636,8 +636,6 @@
         { "url": "http://speedtest.tokyo2.linode.com/100MB-tokyo.bin",  "size": 100000,    "name": "Linode"            },
         { "url": "http://proof.ovh.net/files/100Mb.dat",                "size": 100000,    "name": "OVH Speed Test"    }
     ]
-
-
 }
 
 

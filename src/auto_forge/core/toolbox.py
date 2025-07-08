@@ -2113,6 +2113,74 @@ class CoreToolBox(CoreModuleInterface):
         return timer
 
     @staticmethod
+    def clang_formatter(code: str, indent: int = 4, use_tabs: bool = False) -> str:
+        """
+        Basic C/C++ formatter:
+        - Indents after '{' and dedents after '}'
+        - Handles multi-line definitions and statements
+        - Supports switch/case indentation
+        - Keeps pre-processor lines and block comments aligned
+        - Handles 'else', 'else if', 'while (...)' after closing brace properly
+        - Compacts excessive blank lines
+        """
+        indent_str = "\t" if use_tabs else " " * indent
+        lines = code.strip().splitlines()
+        formatted_lines = []
+        level = 0
+        hanging_paren = 0
+        blank_count = 0
+
+        for line in lines:
+            line = line.rstrip()
+            stripped = line.strip()
+
+            # Compact multiple blank lines to 1
+            if not stripped:
+                blank_count += 1
+                if blank_count > 1:
+                    continue
+                formatted_lines.append("")
+                continue
+            else:
+                blank_count = 0
+
+            # Keep pre-processor lines at column 0
+            if stripped.startswith("#"):
+                formatted_lines.append(stripped)
+                continue
+
+            # Dedent before a closing brace
+            if stripped.startswith("}"):
+                level = max(level - 1, 0)
+
+            # Check for special keywords that should not be indented further after '}'
+            if (formatted_lines and
+                    formatted_lines[-1].strip().endswith("}") and
+                    stripped.startswith(("else", "else if", "while"))):
+                level = max(level - 1, 0)
+
+            # Determine indent level for current line
+            current_indent = level
+
+            # Special case: 'case:' and 'default:' should be one level deeper inside switch
+            if stripped.startswith("case ") or stripped.startswith("default:"):
+                current_indent += 1
+
+            # Add indented line
+            formatted_lines.append(f"{indent_str * current_indent}{stripped}")
+
+            # Track parentheses for multi-line declarations
+            open_parens = stripped.count("(")
+            close_parens = stripped.count(")")
+            hanging_paren += open_parens - close_parens
+
+            # Increase indent after opening brace (unless in a hanging paren block)
+            if stripped.endswith("{") and hanging_paren == 0:
+                level += 1
+
+        return "\n".join(formatted_lines)
+
+    @staticmethod
     def extract_bare_list(data: Any, name: Optional[str] = None) -> Optional[Any]:
         """
         Best-effort extraction of a bare list from input data.

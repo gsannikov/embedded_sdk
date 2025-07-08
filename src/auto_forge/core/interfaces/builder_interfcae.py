@@ -271,6 +271,11 @@ class BuilderToolChain:
         except Exception as version_verify_error:
             raise version_verify_error from version_verify_error
 
+    @property
+    def tools(self) -> dict[str, str]:
+        """ Gets the the resolved tools dictionary """
+        return self._resolved_tools
+
 
 class BuildLogAnalyzerInterface(ABC):
     """

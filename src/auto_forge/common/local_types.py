@@ -695,7 +695,6 @@ class BuildAnalyzedEventType:
     function: Optional[str] = None  # Function or method name, if applicable
     snippet: Optional[str] = None  # Code snippet relevant to the issue (full function or surrounding lines)
     snippet_line: int = 0  # Line offset of the 'line' field relative to the snippet (0-based)
-    tool_chain: Optional[list[dict[str, Any]]] = None  # Metadata about the toolchain used (e.g., compiler version)
 
 
 class BuildAnalyzedContextType:
@@ -703,34 +702,60 @@ class BuildAnalyzedContextType:
     Container for build events, allowing structured accumulation and export to JSON.
     """
 
-    def __init__(self):
+    def __init__(self, toolchain: Optional[dict[str, Any]] = None):
+        """
+        Initializes a build analyzer context.
+        Args:
+            toolchain: Optional metadata about the toolchain used (e.g., compiler version, flags).
+                      Absolute paths will be truncated to their base-names for clarity.
+        """
         self._events: list[BuildAnalyzedEventType] = []
 
+        def _basename_only(val):
+            return Path(val).name if isinstance(val, str) and ("/" in val or "\\" in val) else val
+
+        self._toolchain: Optional[dict[str, Any]] = (
+            {k: _basename_only(v) for k, v in toolchain.items()} if isinstance(toolchain, dict) else None
+        )
+
     def add_event(self, event: BuildAnalyzedEventType) -> None:
-        """Add a parsed build event to the log."""
+        """Add a parsed build event to the context."""
         self._events.append(event)
 
-    def export_to_json(self, output_path: Path, indent: int = 2) -> None:
+    def export_data(self) -> Union[list[dict[str, Any]], dict[str, Any]]:
         """
-        Export all collected events to a JSON file.
-        Args:
-            output_path: Path where the JSON file will be saved.
-            indent: Indentation level for pretty-printing the JSON output.
-        """
-        serialized = [asdict(event) for event in self._events]
-        output_path.write_text(json.dumps(serialized, indent=indent), encoding='utf-8')
-
-    def export_to_list(self) -> list[dict[str, Any]]:
-        """
-        Export all collected events to a list of dictionaries.
+        Export the collected events as either a raw list or a dictionary containing toolchain info.
         Returns:
-            A list where each item is a dictionary representing a build event.
+            - A list of event dictionaries if no toolchain metadata is present.
+            - A dictionary containing:
+                {
+                    "toolchain": { ... },
+                    "events": [ ... ]
+                }
         """
-        return [asdict(event) for event in self._events]
+        events_data = [asdict(event) for event in self._events]
+
+        if self._toolchain is not None:
+            return {
+                "toolchain": self._toolchain,
+                "events": events_data
+            }
+
+        return events_data
+
+    def export_json(self, output_path: Path, indent: int = 2) -> None:
+        """
+        Export the collected data (events or toolchain + events) to a JSON file.
+        Args:
+            output_path: Path to the output file.
+            indent: Indentation for pretty-printing.
+        """
+        data = self.export_data()
+        output_path.write_text(json.dumps(data, indent=indent), encoding='utf-8')
 
     @property
     def count(self) -> int:
-        """ Return stored events count """
+        """Returns the number of collected events."""
         return len(self._events)
 
 
