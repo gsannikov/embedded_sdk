@@ -7,13 +7,15 @@ Description:
     shared across multiple components of the project.
 """
 import asyncio
+import json
 import os
 import re
 import sys
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from enum import Enum, auto, IntFlag
 from itertools import cycle
+from pathlib import Path
 from types import ModuleType
 from typing import Any, NamedTuple, Optional, TextIO, Union, ClassVar
 
@@ -676,6 +678,60 @@ class BuildProfileType:
     build_dot_notation: Optional[str] = None
     config_data: Optional[dict[str, Any]] = None
     tool_chain_data: Optional[dict[str, Any]] = None
+
+
+@dataclass
+class BuildAnalyzedEventType:
+    """
+    Represents a normalized build event captured by any registered build analyzer.
+    Designed to support a wide range of tools including GCC, Python, CMake, and others.
+    A sequence of such events can be compressed and optionally sent to an AI for analysis.
+    """
+    file: Optional[str] = None  # File where the issue (error/warning/etc.) occurred
+    line: Optional[int] = None  # Line number in the file where the issue was reported
+    column: Optional[int] = None  # Column number within the line, if available
+    type: Optional[str] = None  # Event type (e.g., 'error', 'warning', 'note')
+    message: Optional[str] = None  # Diagnostic message or explanation
+    function: Optional[str] = None  # Function or method name, if applicable
+    snippet: Optional[str] = None  # Code snippet relevant to the issue (full function or surrounding lines)
+    snippet_line: int = 0  # Line offset of the 'line' field relative to the snippet (0-based)
+    tool_chain: Optional[list[dict[str, Any]]] = None  # Metadata about the toolchain used (e.g., compiler version)
+
+
+class BuildAnalyzedContextType:
+    """
+    Container for build events, allowing structured accumulation and export to JSON.
+    """
+
+    def __init__(self):
+        self._events: list[BuildAnalyzedEventType] = []
+
+    def add_event(self, event: BuildAnalyzedEventType) -> None:
+        """Add a parsed build event to the log."""
+        self._events.append(event)
+
+    def export_to_json(self, output_path: Path, indent: int = 2) -> None:
+        """
+        Export all collected events to a JSON file.
+        Args:
+            output_path: Path where the JSON file will be saved.
+            indent: Indentation level for pretty-printing the JSON output.
+        """
+        serialized = [asdict(event) for event in self._events]
+        output_path.write_text(json.dumps(serialized, indent=indent), encoding='utf-8')
+
+    def export_to_list(self) -> list[dict[str, Any]]:
+        """
+        Export all collected events to a list of dictionaries.
+        Returns:
+            A list where each item is a dictionary representing a build event.
+        """
+        return [asdict(event) for event in self._events]
+
+    @property
+    def count(self) -> int:
+        """ Return stored events count """
+        return len(self._events)
 
 
 class StatusNotifType(Enum):

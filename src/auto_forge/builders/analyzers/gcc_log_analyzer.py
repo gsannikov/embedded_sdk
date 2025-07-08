@@ -14,13 +14,13 @@ import re
 import textwrap
 import threading
 from contextlib import suppress
-from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import IO
 from typing import Union, Optional
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, BuildLogAnalyzerInterface, PromptStatusType)
+from auto_forge import (AutoForgeModuleType, BuildLogAnalyzerInterface, PromptStatusType, BuildAnalyzedEventType,
+                        BuildAnalyzedContextType)
 # Direct internal imports to avoid circular dependencies
 from auto_forge.core.registry import CoreRegistry
 
@@ -28,13 +28,6 @@ from auto_forge.core.registry import CoreRegistry
 
 AUTO_FORGE_MODULE_NAME = "GCCLogAnalyzer"
 AUTO_FORGE_MODULE_DESCRIPTION = "GCC Output Analyzer"
-
-
-@dataclass
-class _AIContext:
-    function_name: Optional[str] = None  # Name if inside a function
-    function_body: Optional[str] = None  # Snippet text (function or sliced range)
-    function_line_number: int = 0  # Adjusted line index in 'text' (0-based)
 
 
 # noinspection GrazieInspection
@@ -47,7 +40,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     def __init__(self):
         super().__init__()
 
-        self._last_error_context: Optional[str] = None
+        self._analyzed_context: Optional[BuildAnalyzedContextType] = None
         self._ai_prompt_context: str = (
             "The following is a list of structured diagnostic entries from a C code-base, each containing a GCC error or "
             "warning message and its corresponding source-level context.\n"
@@ -280,7 +273,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         threading.Thread(target=_runner, daemon=True).start()
 
     def _generate_error_context(self, file_path: Union[Path, str], line_number: int, lines_range: int = 10) -> Optional[
-        _AIContext]:
+        BuildAnalyzedEventType]:
         """
         Generates minimal, AI-optimized context from a source file.
         Returns function if line is inside one, otherwise a range of lines.
@@ -322,25 +315,25 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             # Confirm line falls inside function (not after it)
             if end is not None and start <= target_idx <= end:
                 raw = lines[start:end + 1]
-                text = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()
-                compressed = self._compress_function_body(text)
-                return _AIContext(
-                    function_name=func_name,
-                    function_body=compressed,
-                    function_line_number=target_idx - start
+                snippet = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()
+                compressed_snippet = self._compress_function_body(snippet)
+                return BuildAnalyzedEventType(
+                    function=func_name,
+                    snippet=compressed_snippet,
+                    snippet_line=target_idx - start
                 )
 
         # Fallback range (outside any function)
         context_start = max(0, target_idx - lines_range)
         context_end = min(len(lines), target_idx + lines_range + 1)
         raw = lines[context_start:context_end]
-        text = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()
-        compressed = self._compress_function_body(text)
+        snippet = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()
+        compressed_snippet = self._compress_function_body(snippet)
 
-        return _AIContext(
-            function_name=None,
-            function_body=compressed,
-            function_line_number=target_idx - context_start
+        return BuildAnalyzedEventType(
+            function=None,
+            snippet=compressed_snippet,
+            snippet_line=target_idx - context_start
         )
 
     def _serialize(self, parsed_entries: list[dict], output_path: Union[str, Path]) -> bool:
@@ -409,8 +402,8 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         Returns:
             list of diagnostic dictionaries or None if none found.
         """
-        parsed_entries = []
-        current_diagnostic = None
+        parsed_entries: Optional[list[dict]] = None
+        event_info: Optional[BuildAnalyzedEventType] = None
         pending_function = None
         current_message_lines = []
 
@@ -419,7 +412,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         self._logger.debug(f"Context will be stored in '{context_file_name}'")
         # Purge last analysis results
-        self._last_error_context = None
+        self._analyzed_context = BuildAnalyzedContextType()
 
         try:
 
@@ -445,29 +438,22 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 diag_match = self._diag_regex.match(stripped_line)
                 if diag_match:
                     # Finalize current diagnostic
-                    if current_diagnostic:
-                        current_diagnostic['gcc']['message'] = "\n".join(current_message_lines).strip()
-                        parsed_entries.append(current_diagnostic)
+                    if event_info is not None:
+                        event_info.message = "\n".join(current_message_lines).strip()
                         current_message_lines = []
 
                     file_name = diag_match.group('file')
                     line_number = int(diag_match.group('line'))
-                    context = self._generate_error_context(file_path=file_name, line_number=line_number)
-                    current_diagnostic = {
-                        'gcc': {
-                            'file': file_name.strip(),
-                            'line': line_number,
-                            'column': int(diag_match.group('column')) if diag_match.group('column') else None,
-                            'type': diag_match.group('type'),
-                            'message': diag_match.group('message').strip(),
-                            'function_name': pending_function
-                        },
-                        'ai': {
-                            **asdict(context)
-                        }
-                    }
 
-                    current_message_lines.append(diag_match.group('message').strip())
+                    # Get basic event properties and then populate the other fields with GCC parsed info
+                    event_info = self._generate_error_context(file_path=file_name, line_number=line_number)
+                    event_info.file = file_name.strip()
+                    event_info.line = line_number
+                    event_info.column = int(diag_match.group('column')) if diag_match.group('column') else None
+                    event_info.type = diag_match.group('type')
+                    event_info.message = diag_match.group('message').strip()
+                    event_info.function = pending_function if pending_function is None else event_info.function
+
                     pending_function = None
                     continue
 
@@ -483,22 +469,25 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                         self._ninja_summary_re.match(stripped_line) or
                         self._visual_line_re.match(line)):
 
-                    if current_diagnostic:
-                        current_diagnostic['gcc']['message'] = "\n".join(current_message_lines).strip()
-                        parsed_entries.append(current_diagnostic)
-                        current_diagnostic = None
+                    if event_info is not None:
+                        event_info.message = "\n".join(current_message_lines).strip()
+                        # Add the event to the context
+                        self._analyzed_context.add_event(event_info)
+                        event_info = None
                         current_message_lines = []
                     continue
 
-                if current_diagnostic:
+                if event_info is not None:
                     current_message_lines.append(stripped_line)
 
-            if current_diagnostic:
-                current_diagnostic['gcc']['message'] = "\n".join(current_message_lines).strip()
-                parsed_entries.append(current_diagnostic)
+            if event_info is not None:
+                event_info.message = "\n".join(current_message_lines).strip()
+                # Add the event to the context
+                self._analyzed_context.add_event(event_info)
 
             # Export the error context to JSON
-            if parsed_entries and context_file_name is not None:
+            if self._analyzed_context.count > 0 and context_file_name is not None:
+                parsed_entries = self._analyzed_context.export_to_list()
                 self._serialize(parsed_entries=parsed_entries, output_path=context_file_name)
 
             # Auto trigger AI request based ib the exported error context
