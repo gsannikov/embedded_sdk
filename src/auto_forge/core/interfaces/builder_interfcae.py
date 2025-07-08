@@ -194,7 +194,7 @@ class BuilderToolChain:
                 # If we have to auto show help
                 if show_help_on_error:
                     if help_path:
-                        if self._tool_box.show_help_file(help_path) != 0:
+                        if self._tool_box.show_markdown_file(help_path) != 0:
                             self._builder_instance.print_message(
                                 message=f"Error displaying help file '{help_path}' see log for details",
                                 log_level=logging.WARNING)

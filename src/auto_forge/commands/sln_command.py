@@ -308,11 +308,11 @@ class SolutionCommand(CommandInterface):
 
         elif args.show_guide:
             # Show tutorials for the solution JSON file structure
-            return self._tool_box.show_help_file(path='solution/guide.md')
+            return self._tool_box.show_markdown_file(path='solution/guide.md')
 
         elif args.show_mark_down:
             # View Markdown file
-            return self._tool_box.show_help_file(path=f'{args.show_mark_down}')
+            return self._tool_box.show_markdown_file(path=f'{args.show_mark_down}')
 
         elif args.show_json:
             # View JSON/C file.

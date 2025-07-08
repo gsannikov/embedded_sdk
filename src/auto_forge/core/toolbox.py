@@ -48,8 +48,8 @@ from wcwidth import wcswidth
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgFolderType, AutoForgeModuleType, CoreJSONCProcessor, CoreLogger,
-    CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, CoreVariablesProtocol,
-    MethodLocationType, PackageGlobals, PromptStatusType
+    CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, MethodLocationType, PackageGlobals,
+    PromptStatusType
 )
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
@@ -1807,9 +1807,10 @@ class CoreToolBox(CoreModuleInterface):
 
     def resolve_help_file(self, relative_path: Union[str, Path]) -> Optional[Path]:
         """
-        Returns the path to a help markdown file based on its relative name if that the file was found.
+        Returns the path to a help (markdown) file based on its relative name if that the file was found.
         Args:
             relative_path (str, Path): Relative path to the help file.
+            e.g. If we got 'commands/tool
         Returns:
             str: The resolved path to the .md help file if the file exists, else None.
         """
@@ -1823,15 +1824,13 @@ class CoreToolBox(CoreModuleInterface):
             return [Path(p) for p in _v]
 
         # Since we need to use classes from modules that may not be directly imported at startup,
-        # we retrieve their instances dynamically from the registry.
-        variables_class: Optional[CoreVariablesProtocol] = self._registry.get_instance_by_class_name(
-            "CoreVariables", return_protocol=True)
+        # we get their instance through centralized 'sdk' object.
 
-        if not variables_class:
+        if not self.sdk.variables:
             raise RuntimeError("required component instances could not be retrieved for this operation")
 
         # Get a list of all path which ware tagged as 'help'
-        help_paths = _to_path_list(variables_class.get_by_folder_type(AutoForgFolderType.HELP))
+        help_paths = _to_path_list(self.sdk.variables.get_by_folder_type(AutoForgFolderType.HELP))
 
         for help_path in help_paths:
             help_file_path = help_path / Path(relative_path)
@@ -1844,29 +1843,36 @@ class CoreToolBox(CoreModuleInterface):
 
         return None
 
-    def show_help_file(self, path: Union[str, Path]) -> Optional[int]:
+    def show_markdown_file(self, path: Union[str, Path]) -> Optional[int]:
         """
-        Displays a markdown help file using the textual markdown viewer.
+        Displays a markdown file by spawning a separate python that execute textual markdown viewer.
         Args:
-            path (str): file path or relative path to the help file under registered help paths.
+            path (str): file path or relative path to the md file under registered help paths.
         Returns:
             int: 0 on success, else error or exception
         """
-        help_viewer_tool = PackageGlobals.VIEWERS_PATH / "help_viewer.py"
-        if not help_viewer_tool.exists():
+        markdown_viewer_tool = PackageGlobals.VIEWERS_PATH / "md_viewer.py"
+        if not markdown_viewer_tool.exists():
             raise RuntimeError("required viewer could not be found")
 
-        help_file_path: Optional[Path] = Path(path)
-        if not help_file_path.exists():
-            # Resolve the file path
-            help_file_path: Optional[Path] = self.resolve_help_file(path)
-            if help_file_path is None or not help_file_path.exists():
-                raise RuntimeError(f"markdown file '{str(path)}'could not be found")
+        # Expand and convert to 'Path' object'
+        resource_path: Optional[str] = self.sdk.variables.expand(key=str(path), quiet=True)
+        markdown_file_path: Optional[Path] = Path(resource_path)  # Convert to Path
 
-        if help_file_path.stat().st_size > 64 * 1024:
+        if not markdown_file_path.exists():
+            # Resolve the file path
+            markdown_file_path = self.resolve_help_file(markdown_file_path)
+            if markdown_file_path is None or not markdown_file_path.exists():
+                raise RuntimeError(f"markdown file '{resource_path}' could not be found")
+
+        # Make sure we're dealing with something that looks like a markdown
+        if not (markdown_file_path.is_file() and markdown_file_path.suffix.lower() == '.md'):
+            raise RuntimeError(f"Input file '{markdown_file_path}' is not a valid Markdown file.")
+
+        if markdown_file_path.stat().st_size > 64 * 1024:
             raise RuntimeError("markdown file size too large")
 
-        status = subprocess.run(["python3", str(help_viewer_tool), "--markdown", str(help_file_path)],
+        status = subprocess.run(["python3", str(markdown_viewer_tool), "--markdown", str(markdown_file_path)],
                                 env=os.environ.copy())
         return_code = status.returncode
 

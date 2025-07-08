@@ -345,7 +345,7 @@ class CommandInterface(ABC):
             # Handle tutorials request
             elif "-t" in args_list or "--tutorials" in args_list:
                 if self._tutorials_relative_path:
-                    return_value = self._tool_box.show_help_file(path=self._tutorials_relative_path)
+                    return_value = self._tool_box.show_markdown_file(path=self._tutorials_relative_path)
                 else:
                     raise RuntimeError('tutorials ware not found for this command')
 

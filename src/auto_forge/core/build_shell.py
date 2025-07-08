@@ -1403,7 +1403,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         This is the equivalent of a classic "message of the day" - a friendly introduction
         for developers and CI engineers.
         """
-        self._tool_box.show_help_file("motd/motd.md")
+        self._tool_box.show_markdown_file("motd/motd.md")
 
     def do_help(self, arg: Any) -> None:
         """
@@ -1419,7 +1419,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         if not arg:
             # No arguments, try to show the package commands menu using the textual app.
             if self._help_md_file:
-                self._tool_box.show_help_file(self._help_md_file)
+                self._tool_box.show_markdown_file(self._help_md_file)
             return None
 
         # Normal flow, showing help for a  specific command.
