@@ -28,7 +28,7 @@ from typing import Optional, Any, Union, Callable
 
 # Third-party
 import cmd2
-from cmd2 import Statement, ansi
+from cmd2 import Statement, ansi, Settable
 from cmd2 import with_argument_list
 # Telemetry
 from opentelemetry.sdk.metrics import Meter
@@ -202,13 +202,35 @@ class _CoreCompleter(Completer):
             return _text[:_length - 3] + '...'
 
         try:
+
             text = document.text_before_cursor
             buffer_ends_with_space = text.endswith(" ")
             tokens = text.strip().split()
             matches = []
             arg_text = ""  # Ensures it's always defined
 
-            # Case 1: Completing the first word (a command)
+            # Case 1: Suggest all settable names on `set <space><TAB>`
+            if tokens and tokens[0] == "set" and (
+                    len(tokens) == 1 or (len(tokens) == 2 and not buffer_ends_with_space)
+            ):
+
+                # Get the current partial word being typed
+                partial = document.get_word_before_cursor()
+
+                completions = self._build_shell.get_settable_param(include_doc=True)
+
+                for name, (value, doc) in completions.items():
+                    if not partial or name.startswith(partial):
+                        yield Completion(
+                            text=name,
+                            start_position=-len(partial),
+                            display=name,
+                            display_meta=_trim_long_text(doc)
+                        )
+
+                return  # early exit
+
+            # Case 2: Completing the first word (a command)
             if not tokens or (len(tokens) == 1 and not buffer_ends_with_space):
                 partial = tokens[0] if tokens else ""
 
@@ -227,7 +249,6 @@ class _CoreCompleter(Completer):
                     cmd_description = self._build_shell.commands_metadata[cmd].get("description",
                                                                                    "Description not provided")
                     doc = _trim_long_text(_text=self._tool_box.flatten_text(cmd_description), _length=80)
-
                     if cmd.startswith(partial):
                         matches.append(Completion(cmd, start_position=-len(partial),
                                                   display_meta=doc,
@@ -254,7 +275,7 @@ class _CoreCompleter(Completer):
                 matches += [Completion(sys_binary, start_position=-len(partial), style=sys_bin_style) for
                             sys_binary in self._build_shell.executables_metadata if sys_binary.startswith(partial)]
 
-            # Case 2: Completing arguments for a command
+            # Case 3: Completing arguments for a command
             elif len(tokens) >= 1:
 
                 cmd = tokens[0]
@@ -428,9 +449,11 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         # Initialize cmd2 bas class
         cmd2.Cmd.__init__(self, persistent_history_file=self._history_file_name)
 
+        # ----------------------------------------------------------------------
         #
         # Post 'cmd2' instantiation setup
         #
+        # ----------------------------------------------------------------------
 
         # Greetings, earthlings!
         # Show the solution banner unless explicitly disabled with 'show_banner': false.
@@ -454,6 +477,9 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
         # Adding dynamically registered commands.
         self._add_dynamic_commands()
+
+        # Add various common settable parameters
+        self._add_common_settable_params()
 
         # Adding built-in aliases based on a dictionary from the package configuration file, and then
         # solution proprietary aliases.
@@ -536,6 +562,30 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
         except Exception as telemetry_error:
             raise RuntimeError(f"Failed to initialize module counters: {telemetry_error}")
+
+    def _add_common_settable_params(self):
+        """
+        Initialize general-purpose settable parameters.
+
+        This method defines default parameters that control core behavior.
+        Other commands or modules may extend this list as needed.
+        """
+        # Add a custom user-defined parameter
+        self.add_settable_param(
+            name="cheerful_logger",
+            default=True,
+            doc="Enable ANSI color output when displaying logs"
+        )
+
+        # Attempt to update the built-in 'editor' parameter by querying the 'edit' module.
+        cmd_record = self._registry.get_module_record_by_name("edit")
+        cls_instance = cmd_record.get("class_instance") if isinstance(cmd_record, dict) else None
+        if cls_instance is not None:
+            editor_path: Optional[Path] = cls_instance.get_editor_path()
+            if isinstance(editor_path, Path) and editor_path.is_file():
+                # Set the 'editor' parameter in cmd2
+                self.set_settable_param("editor", str(editor_path))
+                self._logger.debug(f"Editor settable parameter set to: {editor_path}")
 
     def _get_command_metadata(self, name: str) -> Optional[dict]:
         """
@@ -1381,6 +1431,90 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
             import traceback
             self._logger.debug(f"Auto-completion error in complete_build(): {completer_error}")
             return []
+
+    def add_settable_param(self, name: str, default: Any, doc: str, quiet: bool = True):
+        """
+        Register a new settable parameter with cmd2.
+        This method creates a user-modifiable parameter that is exposed to the
+        built-in `set` and `show` commands. The value is stored directly as an
+        attribute on `self`, and the Settable is registered using positional
+        arguments (required by older cmd2 versions).
+
+        Args:
+            name (str): The name of the parameter (must be a valid attribute name).
+            default (Any): The default value to assign and expose.
+            doc (str): A brief description shown in `show` and `help set`.
+            quiet (bool): If True, silently skip if the parameter already exists;
+                          if False, raise ValueError on conflict.
+        """
+        # Check if parameter already exists using unified method
+        if name in self.get_settable_param():
+            if quiet:
+                return
+            raise ValueError(f"Settable parameter '{name}' already exists.")
+
+        setattr(self, name, default)
+
+        self.add_settable(Settable(
+            name,
+            type(default),
+            doc,
+            self
+        ))
+
+    def get_settable_param(
+            self,
+            name: Optional[str] = None,
+            default: Optional[Any] = None,
+            include_doc: bool = False) -> Union[dict[str, Any], dict[str, tuple[Any, str]], Any, None]:
+        """
+        Retrieve the value or definition of a settable parameter.
+        Args:
+            name (str, optional): The name of the parameter to retrieve.
+                                  If None, returns a dict of all settable parameters.
+            default (Any, optional): Value to return if the parameter is not found. Ignored when name is None.
+            include_doc (bool): If True and name is None, returns (value, doc) tuples instead of just values.
+        Returns:
+            - Any: Value of the requested parameter, or `default` if not found.
+            - dict[str, Any]: All settable parameters and their values if `name is None` and `include_doc=False`.
+            - dict[str, tuple[Any, str]]: If `include_doc=True`, returns value + doc string pairs.
+            - None: If the parameter is not found and no default is provided.
+        """
+
+        def _get_all_settable_params():
+            # noinspection SpellCheckingInspection
+            if hasattr(self, "settable"):
+                return self.settable  # cmd2 >= 2.4
+            elif hasattr(self, "_settables"):
+                return list(self._settables.values())  # cmd2 <= 2.3.x
+            return []
+
+        if name is None:
+            settable_params = sorted(_get_all_settable_params(), key=lambda s: s.name.lower())
+            if include_doc:
+                return {
+                    s.name: (getattr(self, s.name, None), s.description)
+                    for s in settable_params
+                }
+            else:
+                return {
+                    s.name: getattr(self, s.name, None)
+                    for s in settable_params
+                }
+
+        return getattr(self, name, default)
+
+    def set_settable_param(self, name: str, value: Any):
+        """
+        Safely assign a value to a previously registered settable parameter.
+        Args:
+            name (str): The name of the settable parameter to update.
+            value (Any): The new value to assign to the parameter.
+        """
+        all_params = self.get_settable_param()
+        if name not in all_params:
+            raise KeyError(f"Unknown settable parameter: {name}")
+        setattr(self, name, value)
 
     # noinspection PyMethodMayBeStatic
     def do_version(self, _arg: str):

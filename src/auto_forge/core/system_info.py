@@ -25,11 +25,12 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import psutil
+from git import GitConfigParser
+
 # AutoForge imports
 from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreTelemetry, CoreLogger, DataSizeFormatter,
     SysInfoLinuxDistroType, SysInfoPackageManagerType)
-from git import GitConfigParser
 
 AUTO_FORGE_MODULE_NAME = "SystemInfo"
 AUTO_FORGE_MODULE_DESCRIPTION = "System information collector"
@@ -71,6 +72,7 @@ class CoreSystemInfo(CoreModuleInterface):
         self._ip_address: Optional[str] = self._get_ip_address()
         self._is_admin: bool = self._is_admin()
         self._uptime: Optional[float] = self._get_uptime()
+        self._cpu_count: Optional[int] = self._get_cpu_count()
         self._username: str = getpass.getuser()
         self._package_manager: Optional[SysInfoPackageManagerType] = self._detect_package_manager()
         self._linux_distro: Optional[SysInfoLinuxDistroType] = None
@@ -99,24 +101,26 @@ class CoreSystemInfo(CoreModuleInterface):
             self._available_memory = DataSizeFormatter(available_kb * 1024)
 
         # Pack into a dictionary
-        self._info_data = {"system_type": self._system_type, "is_wsl": self._is_wsl,
+        self._info_data = {"system_type": self._system_type.title(), "is_wsl": self._is_wsl,
+                           "cpu_count": self._cpu_count or -1,
                            "wsl_home": self._wsl_home if self._wsl_home else None,
                            "wsl_c_mount": self._wsl_c_mount if self._wsl_c_mount else None,
                            "is_docker": self._is_docker,
                            "work_path": os.getcwd(), "pid": os.getpid(),
                            "disk_usage": self._get_disk_usage(),
                            "architecture": self._architecture, "python_version": self._python_version,
-                           "python venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
+                           "python_venv": self._python_venv if self._python_venv else None, "hostname": self._hostname,
                            "ip_address": self._ip_address if self._ip_address else None, "is_admin": self._is_admin,
                            "username": self._username,
                            "package_manager": self._package_manager.name if self._package_manager else None,
-                           "linux_distro": self._linux_distro.name if self._linux_distro else None,
+                           "linux_distro": self._linux_distro.name.title() if self._linux_distro else None,
                            "distro_version": self._linux_version,
                            "total_memory_mb": self._total_memory if self._total_memory else None,
                            "available_memory_mb": self._available_memory if self._available_memory else None,
                            "linux_kernel_version": self._linux_kernel_version,
                            "linux_shell": self._linux_shell if self._linux_shell else None,
-                           "virtualization": self._virtualization, "launch_arguments": self._launch_arguments,
+                           "virtualization": self._virtualization or "Unknown",
+                           "launch_arguments": self._launch_arguments,
                            "full_name": self._git_name if self._git_name else None,
                            "email_address": self._git_email if self._git_email else None,
                            "gfx": self._gfx, "uptime": self._uptime}
@@ -292,12 +296,10 @@ class CoreSystemInfo(CoreModuleInterface):
     def _detect_login_shell() -> Optional[str]:
         """
         Detects the user's default login shell using the most reliable methods available.
-
         Tries, in order:
         1. The SHELL environment variable.
         2. The current shell path via /proc/self/exe (Linux-specific).
         3. The user's login shell from /etc/passwd.
-
         Returns:
             Optional[str]: The absolute path to the shell binary, or None if detection failed.
         """
@@ -405,14 +407,17 @@ class CoreSystemInfo(CoreModuleInterface):
     @staticmethod
     def _detect_virtualization() -> Optional[str]:
         """
-        Detect if the system is running in a virtualized environment.
+        Detect if the system is running in a virtualized or containerized environment.
         Returns:
-            str: Virtualization type (e.g., 'kvm', 'vmware') if detected, else None.
+            str: Virtualization/container type (e.g., 'kvm', 'vmware', 'lxc', 'docker'), or None if undetectable.
         """
         with suppress(Exception):
             if shutil.which("systemd-detect-virt"):
-                output = subprocess.check_output(["systemd-detect-virt", "--quiet", "--vm"]).decode().strip()
-                return output if output else None
+                result = subprocess.run(["systemd-detect-virt"], capture_output=True, text=True)
+                virt_type = result.stdout.strip().title()
+                if virt_type and virt_type != "none":
+                    return virt_type
+
         return None
 
     @staticmethod
@@ -426,6 +431,34 @@ class CoreSystemInfo(CoreModuleInterface):
             with open("/proc/1/cgroup", "rt") as f:
                 return any("docker" in line for line in f)
         return False
+
+    @staticmethod
+    def _get_cpu_count() -> Optional[int]:
+        """
+        Return the number of logical CPUs available to the current process.
+        This reflects any cgroup restrictions (e.g. in containers) and falls back
+        to the total visible CPU count if no limits are in place.
+
+        Returns:
+            int: The number of usable logical CPUs, or None if detection fails.
+        """
+        # Check cgroup v2 cpu.max first
+        with suppress(Exception):
+            if os.path.exists("/sys/fs/cgroup/cpu.max"):
+                quota_str, period_str = open("/sys/fs/cgroup/cpu.max").read().strip().split()
+                if quota_str != "max":
+                    quota = int(quota_str)
+                    period = int(period_str)
+                    if quota > 0 and period > 0:
+                        return max(1, round(quota / period))
+
+        # Fallback to total logical CPUs
+        with suppress(Exception):
+            count = psutil.cpu_count(logical=True)
+            if isinstance(count, int) and count > 0:
+                return count
+
+        return None
 
     @staticmethod
     def _get_linux_kernel_version() -> Optional[str]:
@@ -535,3 +568,11 @@ class CoreSystemInfo(CoreModuleInterface):
     def linux_shell(self) -> None:
         """ Returns the detected Linux user default shell """
         return CoreSystemInfo._detect_login_shell()
+
+    @property
+    def cpu_count(self) -> Optional[int]:
+        """ 
+        Returns the detected number of logical CPUs available to this process. 
+        This may reflect cgroup restrictions (e.g. in containers or LXC) if applicable. 
+        """
+        return self._cpu_count

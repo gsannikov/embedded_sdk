@@ -168,7 +168,6 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         compiler_options = config.get("compiler_options")
         artifacts: Optional[list] = config.get("artifacts", None)
-        max_cores: int = int(config.get("max_cores", 16))
 
         # Merge cmake specific options from the tool chain with the build configuration options into  single list
         if cmake_options and compiler_options:
@@ -208,8 +207,16 @@ class CMakeBuilder(BuilderRunnerInterface):
             try:
                 # Update step and optionally handle extra arguments based on the current state
                 self._set_state(build_state=_CMakeBuildStep.BUILD, extra_args=build_profile.extra_args, config=config)
-                ninja_command_line = f"{ninja_build_command} -j{max_cores} -C {str(build_path)}"
-                results = self.sdk.platform.execute_shell_command(command_and_args=ninja_command_line,
+
+                ninja_verbose = self.sdk.build_shell.get_settable_param(name="ninja_verbose", default=False)
+                ninja_max_cores = self.sdk.build_shell.get_settable_param(name="ninja_max_cores", default=16)
+
+                # Construct Ninja command using optional settable parameters
+                ninja_cmd = f"{ninja_build_command} -j{ninja_max_cores} -C {build_path}"
+                if ninja_verbose:
+                    ninja_cmd += " -v"
+
+                results = self.sdk.platform.execute_shell_command(command_and_args=ninja_cmd,
                                                                   echo_type=TerminalEchoType.CLEAR_LINE,
                                                                   cwd=str(execute_from),
                                                                   leading_text=build_profile.terminal_leading_text)
@@ -221,7 +228,8 @@ class CMakeBuilder(BuilderRunnerInterface):
                 if None not in (results, results.response):
                     if tool_error or "warning" in results.response:
                         # Ninja build error - start GCC log analyzer
-                        self.print_message(message="🤖 AI request submitted in the background. You'll be notified once the response is ready.")
+                        self.print_message(
+                            message="🤖 AI request submitted in the background. You'll be notified once the response is ready.")
                         self._gcc_analyzer.analyze(log_source=results.response,
                                                    context_file_name=str(self._build_context_file),
                                                    ai_response_file_name=str(self._build_ai_response_file),
@@ -336,6 +344,14 @@ class CMakeBuilder(BuilderRunnerInterface):
             return _s if _s.endswith('.') else _s + '.'
 
         try:
+
+            # Add shell optional settable parameters specifically for CMake and Ninja
+            self.sdk.build_shell.add_settable_param(
+                name="ninja_verbose", default=False, doc="Enable verbose output when running Ninja builds")
+            self.sdk.build_shell.add_settable_param(
+                name="ninja_max_cores", default=self.sdk.system_info.cpu_count,
+                doc="Maximum number of CPU cores Ninja is allowed to use")
+
             self._tool_box.set_cursor(visible=False)
             self._toolchain = BuilderToolChain(toolchain=build_profile.tool_chain_data, builder_instance=self)
 

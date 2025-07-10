@@ -156,7 +156,7 @@ class CoreRegistry(CoreModuleInterface):
         """
         module_name = module_name.strip()
         if not module_name:
-            raise ValueError("module name cannot be empty or whitespace")
+            raise ValueError("module name cannot be empty or white-spaces")
 
         if case_insensitive:
             # Normalize keys and compare case-insensitively

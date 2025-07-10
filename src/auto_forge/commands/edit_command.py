@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import threading
+from pathlib import Path
 from contextlib import suppress
 from nturl2path import pathname2url
 from typing import Optional, Any, Iterable
@@ -437,6 +438,49 @@ class EditCommand(CommandInterface):
         except Exception as execution_error:
             raise execution_error from execution_error
 
+
+    def _refresh_identifier(self, editor_identifier: Optional[str] = None):
+        """
+        Resolve the editor identifier (from arguments or config) to an index in the detected editors list
+        and update class locals.
+        """
+       
+        if self._selected_editor_index is None:
+            if editor_identifier is not None:
+                self._selected_editor_index = self._resolve_editor_identifier(args.editor_identifier)
+            else:
+                # Get the identifier from the solution
+                editor_identifier = self.sdk.solution.get_arbitrary_item(key="default_editor")
+                if isinstance(editor_identifier, str):
+                    self._selected_editor_index = self._resolve_editor_identifier(editor_identifier)
+
+    
+    def get_editor_path(self) -> Optional[Path]:
+        """
+        Gets the currently selected editor as a Path object, if valid.
+        Returns:
+            Path: Path to the selected editor, or None if not set or invalid.
+        """
+        self._refresh_identifier()
+
+        if (
+            not self._detected_editors
+            or not isinstance(self._selected_editor_index, int)
+            or self._selected_editor_index < 0
+            or self._selected_editor_index >= len(self._detected_editors)
+        ):
+            return None
+
+        editor_data = self._detected_editors[self._selected_editor_index]
+        editor_path_str = editor_data.get("path")
+
+        if not editor_path_str:
+            return None
+
+        editor_path = Path(editor_path_str)
+        return editor_path if editor_path.is_file() else None
+
+
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds command-line arguments.
@@ -459,18 +503,10 @@ class EditCommand(CommandInterface):
 
         return_code = 0
 
-        # Resolve the editor identifier (from arguments or config) to an index in the detected editors list.
-        if self._selected_editor_index is None:
-            if args.editor_identifier is not None:
-                self._selected_editor_index = self._resolve_editor_identifier(args.editor_identifier)
-            else:
-                # Get the identifier from the solution
-                editor_identifier = self.sdk.solution.get_arbitrary_item(key="default_editor")
-                if isinstance(editor_identifier, str):
-                    self._selected_editor_index = self._resolve_editor_identifier(editor_identifier)
-
+        # Refresh class locals based on specified identifier 
+        self._refresh_identifier(args.editor_identifier)
+       
         # Handle arguments
-
         if args.path is not None:
             # Execute the selected editor to edit a specified file
             return_code = self._edit_file(path=args.path, editor_index=self._selected_editor_index)
