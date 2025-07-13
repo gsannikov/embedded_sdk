@@ -291,17 +291,28 @@ class BuildLogAnalyzerInterface(ABC):
         self._logger = self.sdk.logger.get_logger(name="GCCAnalyzer")
 
     @abstractmethod
-    def analyze(self, log_source: Union[Path, str], json_name: Optional[str] = None) -> Optional[list[dict[str, Any]]]:
+    def analyze(self, log_source: Union[Path, str],
+                context_file_name: Optional[str] = None,
+                ai_response_file_name: Optional[str] = None,
+                ai_auto_advise: Optional[bool] = False,
+                toolchain: Optional[dict[str, Any]] = None) -> Optional[list[dict]]:
         """
-        Analyzes a log source, which can be a file path or a string,
-        and extracts structured information.
+        Analyzes a compilation log and extracts structured diagnostic events.
+
+        A parser that identifies and collects warnings, errors, and notes emitted by the build tool,
+        grouping them into structured event entries that include source file, line, column,
+        type, function context, and a cleaned message string. It handles multi-line diagnostics
+        (including caret and source lines), removes duplicated prefixes like "warning:", and
+        associates diagnostics with detected function names where available.
         Args:
-            log_source: The source of the log data, either a Path object
-                        to a log file or a string containing the log content.
-            json_name: Optional JSON export file path.
+            log_source: Path to a file or raw log string containing compiler output.
+            context_file_name: Path to store structured diagnostics (JSON).
+            ai_response_file_name: Path for AI response Markdown (optional).
+            ai_auto_advise: Auto forward the error context to an AI
+            toolchain: The tool-chain dictionary used to during this build.
+.
         Returns:
-            A list of dictionaries, where each dictionary represents a parsed entry,
-            or None if no relevant entries are found.
+            List of structured diagnostic dictionaries, or None if no diagnostics found.
         """
         raise NotImplementedError("Subclasses must implement the 'analyze' method.")
 

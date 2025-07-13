@@ -1,7 +1,7 @@
 /*
     AutoForge solution configuration file
     -------------------------------------
-    Use sln -t to view a full tutorial on this file structure.
+    Use sln -t to view a full tutorial regarding the solution file structure.
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
     This allows for improved readability and documentation which are not valid standard JSON.
@@ -18,13 +18,16 @@
             "aliases": "<$include>aliases.jsonc",
             // Include additional project specific commands
             "default_editor": "*code*",
-            // Editor selector: index (1-based) or name pattern with wildcards (e.g., "*sublime*"
+            // Editor selector: index (1-based) or name pattern with wildcards (e.g., "*sublime*")
             "variables": "<$include>variables.jsonc",
             "schema": "1.0",
-            "show_banner": true,
+            "banner": "Userspace",
+            // Optional: ASCII banner displayed in prompt mode. Remove to disable.
+            "ai_auto_advise": true,
+            // Optional: Enables AI-based build advice. Remove or set to false to disable.
             "build_path": "$BUILD_OUT",
             "workspace": "$PROJ_WORKSPACE",
-            "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
+            "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
 
             "xray_excluded_path": [
                 "*kernel/[0-9]*",                   // Versioned kernel trees like kernel/6.6.4
@@ -42,7 +45,7 @@
             ],
             "format_on": "# @formatter:off", // Instruct PyCharm not to format this file.
 
-            // Toolchains used by this solution
+            // Tool-chains used by this solution
             "tool_chains": [
                 {
                     "name": "Arm GNU AArch64 Cross Toolchain",

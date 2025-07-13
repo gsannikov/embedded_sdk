@@ -1909,15 +1909,19 @@ class CoreToolBox(CoreModuleInterface):
                 sys.stdout.flush()
                 return
 
+            # Truncate message to fit terminal width (with 1-char margin)
+            truncated = (message[:term_width - 1] + "") if len(message) > term_width else message
+            padded = truncated.ljust(term_width)
+
             # Style map per status type
             style_map = {
-                PromptStatusType.INFO: "bold blue on white",
+                PromptStatusType.INFO: "bold white on blue",
                 PromptStatusType.DEBUG: "black on yellow",
                 PromptStatusType.ERROR: "bold white on red",
             }
 
             style = style_map.get(status_type, "bold blue on white")
-            status_line = Text(message.ljust(term_width), style=style)
+            status_line = Text(padded, style=style)
 
             console.print(status_line, end="")  # Write styled line
             sys.stdout.write("\0338")  # Restore cursor

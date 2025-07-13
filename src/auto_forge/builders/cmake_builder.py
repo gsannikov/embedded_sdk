@@ -117,6 +117,10 @@ class CMakeBuilder(BuilderRunnerInterface):
         self._build_duplicate_symbols_file.unlink(missing_ok=True)
         self._build_ai_response_file.unlink(missing_ok=True)
 
+        # Check if we should auto send build errors to the registered AI
+        ai_auto_advise_config: Optional[bool] = self.sdk.solution.get_arbitrary_item(key="ai_auto_advise")
+        ai_auto_advise = ai_auto_advise_config if isinstance(ai_auto_advise_config, bool) else False
+
         # Validate required fields
         for field in mandatory_required_fields:
             if field not in config:
@@ -228,12 +232,17 @@ class CMakeBuilder(BuilderRunnerInterface):
                 if None not in (results, results.response):
                     if tool_error or "warning" in results.response:
                         # Ninja build error - start GCC log analyzer
-                        self.print_message(
-                            message="🤖 AI request submitted in the background. You'll be notified once the response is ready.")
-                        self._gcc_analyzer.analyze(log_source=results.response,
-                                                   context_file_name=str(self._build_context_file),
-                                                   ai_response_file_name=str(self._build_ai_response_file),
-                                                   toolchain=self._toolchain.tools)
+                        if ai_auto_advise:
+                            self.print_message(
+                                message="🤖 AI request submitted in the background. You'll be notified once the response is ready.")
+                            self._gcc_analyzer.analyze(log_source=results.response,
+                                                       context_file_name=str(self._build_context_file),
+                                                       ai_response_file_name=str(self._build_ai_response_file),
+                                                       ai_auto_advise=ai_auto_advise,
+                                                       toolchain=self._toolchain.tools)
+                        else:
+                            self.print_message(message="🤖 AI Advise disabled.")
+
                 if tool_error:
                     raise RuntimeError(
                         f"Ninja execution error {results.message if results else 'unknown'}")

@@ -75,10 +75,13 @@
         { "archive": "n_us_infra/lib_ipumgmtd/cmake/mev1.cmake",           "host": "n_us_infra/lib_ipumgmtd/cmake/mev1.cmake"                   },
         { "archive": "n_us_infra/lib_ipumgmtd/cmake/mev_ts.cmake",         "host": "n_us_infra/lib_ipumgmtd/cmake/mev_ts.cmake"                 },
         { "archive": "n_us_infra/lib_ipumgmtd/cmake/mmg.cmake",            "host": "n_us_infra/lib_ipumgmtd/cmake/mmg.cmake"                    },
+        { "archive": "n_us_infra/vfio/CMakeLists.txt",                     "host": "n_us_infra/vfio/CMakeLists.txt"                             },
 
         // n_datapath
         { "archive": "n_datapath/CMakeLists.txt",                          "host": "n_datapath/CMakeLists.txt"                                  },
         { "archive": "n_datapath/lib_elastic_handler/CMakeLists.txt",      "host": "n_datapath/lib_elastic_handler/CMakeLists.txt"              },
+        { "archive": "n_datapath/lib_cp_pim/CMakeLists.txt",               "host": "n_datapath/lib_cp_pim/CMakeLists.txt"                       },
+        { "archive": "n_datapath/dpcp_init/CMakeLists.txt",                "host": "n_datapath/dpcp_init/CMakeLists.txt"                        },
 
         // Minor code adjustments
         { "archive": "n_platform/dfx_unlock/src/dfx_unlock_smc.c",         "host": "n_platform/dfx_unlock/src/dfx_unlock_smc.c"                 }

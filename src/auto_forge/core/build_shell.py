@@ -455,13 +455,13 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         #
         # ----------------------------------------------------------------------
 
-        # Greetings, earthlings!
-        # Show the solution banner unless explicitly disabled with 'show_banner': false.
+        # Greetings, earthlings!'
+        # Show the solution banner when the solution specified 'banner' in its json.
         if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
-            show_banner = self._solution.get_arbitrary_item(key="show_banner")
-            show_banner = show_banner if isinstance(show_banner, bool) else True
-            if show_banner:
-                self._tool_box.print_banner(text=f"{self._loaded_solution_name.title()}", clear_screen=True,
+            banner = self._solution.get_arbitrary_item(key="banner")
+            banner_text = banner if isinstance(banner, str) and banner else None
+            if banner_text is not None:
+                self._tool_box.print_banner(text=f"{banner_text.title()}", clear_screen=True,
                                             terminal_title=f"AutoForge: {self._loaded_solution_name}")
 
         self.default_to_shell = True

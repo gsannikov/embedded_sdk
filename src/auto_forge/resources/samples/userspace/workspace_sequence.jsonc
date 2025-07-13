@@ -95,6 +95,33 @@
             }
         },
         {
+            "description": "Looking for 'libconfig' (development)",
+            "method": "validate_prerequisite",
+            "status_on_error": {
+                "fedora": "Run 'sudo dnf install libconfig-devel'",
+                "ubuntu": "Run 'sudo apt install libconfig-dev'",
+                "arch": "Run 'sudo pacman -S libconfig'",
+                "default": "Missing 'libconfig-devel' or equivalent"
+            },
+            "arguments": {
+                "default": {
+                    "command": "pkg-config",
+                    "cli_args": "--modversion libconfig",
+                    "version": ">=1.4.0"
+                },
+                "ubuntu": {
+                    "command": "pkg-config",
+                    "cli_args": "--modversion libconfig",
+                    "version": ">=1.4.0"
+                },
+                "arch": {
+                    "command": "pkgconf",
+                    "cli_args": "--modversion libconfig",
+                    "version": ">=1.4.0"
+                }
+            }
+        },
+        {
             "description": "Getting GitHub access token using 'dt'",
             "method": "execute_shell_command",
             "status_on_error": "\nFailed to retrieve Git token using 'dt'.\nPlease ensure it is installed correctly.",

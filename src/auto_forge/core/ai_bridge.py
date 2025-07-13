@@ -5,6 +5,7 @@ Author:         AutoForge Team
 Description:
     Bridge the build system with an AI model.
 """
+import json
 from typing import Optional
 
 # from openai.lib.azure import AzureOpenAI
@@ -104,6 +105,23 @@ class CoreAIBridge(CoreModuleInterface):
         Returns:
             Optional[str]: The AI-generated response, or None if an error occurred.
         """
+
+        def _format_ai_error(_response_text: str) -> str:
+            """Parse OpenAI-style error JSON and return a compact one-line error message."""
+            try:
+                _data = json.loads(_response_text)
+                if isinstance(_data, dict) and "error" in _data:
+                    err = _data["error"]
+                    code = err.get("code", "UNKNOWN")
+                    msg = err.get("message", "No message").replace("\n", " ").strip()
+                    err_type = err.get("type", "")
+                    param = err.get("param", "")
+                    return f"[AI Error] type={err_type} code={code} param={param} msg='{msg}'"
+            except json.JSONDecodeError:
+                pass  # fall through
+
+            return _response_text.strip()
+
         if not self._enabled:
             raise RuntimeError(f"AI bridge was misconfigured, cannot execute query")
 
@@ -134,14 +152,12 @@ class CoreAIBridge(CoreModuleInterface):
                 return data["choices"][0]["message"]["content"].strip()
 
         except TimeoutException as e:
-            print(f"Request timed out after {request_timeout} seconds: {e}")
+            raise RuntimeError(f"Request timed out after {request_timeout} seconds: {e}")
         except HTTPStatusError as e:
-            print(f"HTTP error: {e.response.status_code} - {e.response.text}")
+            raise RuntimeError(f"HTTP error {e.response.status_code}: {_format_ai_error(e.response.text)}")
         except RequestError as e:
-            print(f"Network error: {e}")
+            raise RuntimeError(f"Network error: {e}")
         except (KeyError, IndexError):
-            print("Unexpected response format")
+            raise RuntimeError("Unexpected response format")
         except Exception as exception:
-            print(f"Unexpected exception: {exception}")
-
-        return None
+            raise RuntimeError(f"Unexpected exception: {exception}")

@@ -482,6 +482,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     def analyze(self, log_source: Union[Path, str],
                 context_file_name: Optional[str] = None,
                 ai_response_file_name: Optional[str] = None,
+                ai_auto_advise: Optional[bool] = False,
                 toolchain: Optional[dict[str, Any]] = None) -> Optional[list[dict]]:
         """
         Analyzes a GCC-based compilation log and extracts structured diagnostic events.
@@ -495,6 +496,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             log_source: Path to a file or raw log string containing compiler output.
             context_file_name: Path to store structured diagnostics (JSON).
             ai_response_file_name: Path for AI response Markdown (optional).
+            ai_auto_advise: Auto forward the error context to an AI
             toolchain: The tool-chain dictionary used to during this build.
 .
         Returns:
@@ -609,7 +611,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                         f"Could not serialize {analyzed_context.count} events into '{context_file_name}'")
 
             # Trigger background AI analysis
-            if isinstance(self._last_error_context, str):
+            if isinstance(self._last_error_context, str) and ai_auto_advise:
                 self._logger.debug("Starting background AI request")
                 self._get_ai_response_background(
                     prompt=self._last_error_context,
