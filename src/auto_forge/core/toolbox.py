@@ -1768,6 +1768,8 @@ class CoreToolBox(CoreModuleInterface):
                 if not self.sdk.variables:
                     raise RuntimeError("required component instances could not be retrieved for this operation")
 
+                title = self.sdk.variables.expand(key=json_path_or_data,
+                                                  quiet=True) if title is not None else "JSON Viewer"
                 json_file_path: Optional[str] = self.sdk.variables.expand(key=json_path_or_data, quiet=True)
                 if json_file_path and os.path.exists(json_file_path):
                     json_file_path = os.path.abspath(json_file_path)

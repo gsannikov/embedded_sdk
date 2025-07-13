@@ -12,22 +12,26 @@
     // Solutions
     "solutions": [
         {
+            "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
             "name": "userspace",
             "description": "Userspace CMake port",
+
+            // Specify a sequence of setup operation required for initiating a new workspace
             "workspace_sequence": "<$include>workspace_sequence.jsonc",
-            "aliases": "<$include>aliases.jsonc",
+
             // Include additional project specific commands
-            "default_editor": "*code*",
-            // Editor selector: index (1-based) or name pattern with wildcards (e.g., "*sublime*")
+            "aliases": "<$include>aliases.jsonc",
+
+            // Include solution specific variables
             "variables": "<$include>variables.jsonc",
-            "schema": "1.0",
-            "banner": "Userspace",
-            // Optional: ASCII banner displayed in prompt mode. Remove to disable.
-            "ai_auto_advise": true,
-            // Optional: Enables AI-based build advice. Remove or set to false to disable.
-            "build_path": "$BUILD_OUT",
-            "workspace": "$PROJ_WORKSPACE",
-            "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
+
+            "workspace": "$PROJ_WORKSPACE",         // Base path from which all other path variables are derived.
+            "build_path": "$BUILD_OUT",             // Directory for compilation intermediates and output artifacts.
+            "default_editor": "*code*",             // Editor selector: 1-based index or name pattern with wildcards (e.g., "*sublime*").
+            "schema": "1.0",                        // Version used to validate this and other related JSON files.
+            "banner": "Userspace",                  // Optional: ASCII banner shown in prompt mode. Remove to disable.
+            "ai_auto_advise": true,                 // Optional: Enables AI-based build advice. Remove or set to false to disable.
+
 
             "xray_excluded_path": [
                 "*kernel/[0-9]*",                   // Versioned kernel trees like kernel/6.6.4
@@ -43,22 +47,23 @@
                 "*export/linux*",                   // Exported versions of kernel sources
                 "*source/kernels/*"                 // Centralized kernel storage paths
             ],
-            "format_on": "# @formatter:off", // Instruct PyCharm not to format this file.
 
-            // Tool-chains used by this solution
+            // Tool-chains list used by thi solution projects
             "tool_chains": [
                 {
                     "name": "Arm GNU AArch64 Cross Toolchain",
+
                     // The following assumes that the Arm GNU AArch64 toolchain is available under the
                     // AutoForge persistent path, typically located at '$HOME/.auto_forge'.
                     "platform": "linux",
                     "description": "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads",
                     "architecture": "aarch64",
-                    "build_system": "cmake",
+                    "build_system": "cmake",        // AutoForge must have a 'builder' register for this build system.
                     "tool_prefix": "aarch64-none-linux-gnu-",
                     "tool_base_path": "$AF_TOOL_CHAINS/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu",
                     "tool_bins_path": "<$ref_tool_base_path>/bin",
                     "tool_sysroot": "<$ref_tool_base_path>/aarch64-none-linux-gnu/libc",
+
                     // Sysroot is provided by Arm
                     "required_tools": {
                         "cmake": {
@@ -95,7 +100,7 @@
                     }
                 }
             ],
-            // Projects
+            // Projects list
             "projects": [
                 {
                     "name": "zephyr_build",
@@ -138,8 +143,6 @@
                                 }
                             ],
                             "pre_build_steps": [
-                            ],
-                            "post_build_steps": [
                                 {
                                     "name": "Clean Static Libraries",
                                     "command": "!rm -rf $BUILD_IMAGES/static_libs"
@@ -148,6 +151,8 @@
                                     "name": "Clean Shared Libraries",
                                     "command": "!rm -rf $BUILD_IMAGES/shared_libs"
                                 }
+                            ],
+                            "post_build_steps": [
                             ]
                         },
                         {

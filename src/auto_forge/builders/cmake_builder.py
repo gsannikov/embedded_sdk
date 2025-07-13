@@ -12,6 +12,7 @@ Classes:
 """
 
 import logging
+import time
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any
@@ -345,6 +346,8 @@ class CMakeBuilder(BuilderRunnerInterface):
             Optional[int]: The return code from the build process, or None if not applicable.
         """
 
+        build_start = 0
+
         def _normalize_message(_s: str) -> str:
             """ Make sure the error message is trimmed, capitalized and has dit at the end """
             if not isinstance(_s, str):
@@ -368,7 +371,9 @@ class CMakeBuilder(BuilderRunnerInterface):
                 self.print_message(message="Toolchain validation failed", log_level=logging.ERROR)
                 return 1
 
-            return self._execute_build(build_profile=build_profile)
+            build_start = time.perf_counter()
+            build_status = self._execute_build(build_profile=build_profile)
+            return build_status
 
         except ExitBuildEarly as exit_build:
             # Normal early build termination
@@ -386,4 +391,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             return 1
 
         finally:
+            if build_start > 0:
+                build_duration = time.perf_counter() - build_start
+                self.print_message(message=f"Build duration {build_duration:.2f} seconds'")
             self._tool_box.set_cursor(visible=True)
