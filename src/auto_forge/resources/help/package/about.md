@@ -2,7 +2,7 @@
 <!--suppress HtmlDeprecatedAttribute -->
 <br>
 <div align="center">
-  <img src="src/auto_forge/resources/package/clip_art/about_banner.png" alt="Logo" style="width: 300px;">
+  <img src="../../package/clip_art/about_banner.png" alt="Logo" style="width: 300px;">
 </div>
 <br>
 
