@@ -5,11 +5,12 @@ Author:         AutoForge Team
 Description:
     Bridge the build system with an AI model.
 """
+import contextlib
 import json
 import os
 from typing import Optional
+from urllib.parse import urlparse
 
-# from openai.lib.azure import AzureOpenAI
 import httpx
 from httpx import TimeoutException, RequestError, HTTPStatusError
 
@@ -54,12 +55,6 @@ class CoreAIBridge(CoreModuleInterface):
 
         # Load providers from secret storage
         if not self._load_providers(demo_mode=True):
-            return
-
-        # Get API key from the stored secrets
-        self._api_key = self._provider.get_key(name="subscription_key")
-        if self._api_key is None or not self._api_key:
-            self._logger.error("Failed to retrieve AI API key, AI bridge disabled")
             return
 
         if self._provider.proxy_allowed and self._provider.proxy_server:
@@ -178,8 +173,6 @@ class CoreAIBridge(CoreModuleInterface):
             temperature (Optional[float]): Sampling temperature for creativity. Ignored if the model doesn't support it.
             debug_output (bool): If True, print debug information including endpoint, headers, and payload.
 
-        Raises:
-            RuntimeError: If the configured provider is unsupported or misconfigured.
         """
         self._headers = None
         self._payload = None
@@ -193,8 +186,14 @@ class CoreAIBridge(CoreModuleInterface):
         # ----------------------------------------------------------------------
 
         if provider_name == "openai":
+
+            # Get API key from the stored secrets
+            api_key = self._provider.get_key(name="api_key")
+            if api_key is None or not api_key:
+                raise RuntimeError("Failed to retrieve AI API key, request aborted")
+
             self._headers = {
-                "Authorization": f"Bearer {self._api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             }
 
@@ -215,8 +214,14 @@ class CoreAIBridge(CoreModuleInterface):
         # ----------------------------------------------------------------------
 
         elif provider_name == "azure_openai":
+
+            # Get API key from the stored secrets
+            api_key = self._provider.get_key(name="subscription_key")
+            if api_key is None or not api_key:
+                raise RuntimeError("Failed to retrieve AI API key, request aborted")
+
             self._headers = {
-                "api-key": self._api_key,
+                "api-key": api_key,
                 "Content-Type": "application/json"
             }
 
@@ -245,11 +250,27 @@ class CoreAIBridge(CoreModuleInterface):
             print(f"Endpoint         : {self._provider.endpoint}")
             print(f"Deployment       : {self._provider.deployment}")
             print(f"API Version      : {self._provider.api_version}")
-            print(f"API Key (partial): {self._api_key[:5]}... [len={len(self._api_key)}]")
+            print(f"API Key (partial): {api_key[:5]}... [len={len(api_key)}]")
             print(f"Headers          : {self._headers}")
             print(f"Payload          : {self._payload}\n")
 
-    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 100000,
+    @staticmethod
+    @contextlib.contextmanager
+    def _disable_proxy_for_host(host: str):
+        """Temporarily disable proxies for a specific host using NO_PROXY."""
+        old_no_proxy = os.environ.get("NO_PROXY", "")
+        try:
+            if host not in old_no_proxy:
+                new_no_proxy = ",".join(filter(None, [old_no_proxy, host]))
+                os.environ["NO_PROXY"] = new_no_proxy
+            yield
+        finally:
+            if old_no_proxy:
+                os.environ["NO_PROXY"] = old_no_proxy
+            else:
+                os.environ.pop("NO_PROXY", None)
+
+    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 1000,
                     temperature: Optional[float] = 0.7, timeout: Optional[int] = None) -> Optional[str]:
         """
         Asynchronously sends a prompt to the AI service and retrieves the generated response.
@@ -259,11 +280,12 @@ class CoreAIBridge(CoreModuleInterface):
             max_tokens (int, optional): The maximum number of tokens to generate in the response. Defaults to 300.
             timeout (Optional[int], optional): Request timeout in seconds. If None, uses self._req_timeout.
             temperature (Optional[float], optional): The temperature to use. Defaults to 0.7.
-
         Returns:
             Optional[str]: The AI-generated response, or None if an error occurred.
         """
 
+        request_timeout = AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT
+        
         def _format_ai_error(_response_text: str) -> str:
             """Parse OpenAI-style error JSON and return a compact one-line error message."""
             try:
@@ -280,25 +302,37 @@ class CoreAIBridge(CoreModuleInterface):
 
             return _response_text.strip()
 
-        if not self._enabled or self._provider is None:
-            raise RuntimeError(f"AI bridge was misconfigured, cannot execute query")
-
-        # Use default request context when not specified
-        request_context = context or ("You are a helpful and technically skilled assistant "
-                                      "supporting software developers in their daily work.")
-
-        # Prefer external timeout value over the provider default
-        request_timeout = self._provider.request_time_out if timeout is None else timeout
-
-        # Prepare the request
-        self._prepare_request(prompt=prompt, request_context=request_context, max_tokens=max_tokens,
-                              temperature=temperature)
         try:
-            async with httpx.AsyncClient(timeout=request_timeout, proxy=self._proxy_config) as client:
-                response = await client.post(self._provider.endpoint, headers=self._headers, json=self._payload)
-                response.raise_for_status()
-                data = response.json()
-                return data["choices"][0]["message"]["content"].strip()
+
+            if not self._enabled or self._provider is None:
+                raise RuntimeError(f"AI bridge was misconfigured, cannot execute query")
+
+            # Use default request context when not specified
+            request_context = context or ("You are a helpful and technically skilled assistant "
+                                          "supporting software developers in their daily work.")
+
+            # Prefer external timeout value over the provider default
+            request_timeout = self._provider.request_time_out if timeout is None else timeout
+
+            # Prepare the request
+            self._prepare_request(prompt=prompt, request_context=request_context, max_tokens=max_tokens,
+                                  temperature=temperature)
+
+            # Parse host-name from endpoint
+            parsed = urlparse(self._provider.endpoint)
+            hostname = parsed.hostname
+
+            if not self._provider.proxy_allowed and hostname:
+                with self._disable_proxy_for_host(hostname):
+                    async with httpx.AsyncClient(timeout=request_timeout) as client:
+                        response = await client.post(self._provider.endpoint, headers=self._headers, json=self._payload)
+            else:
+                async with httpx.AsyncClient(timeout=request_timeout, proxy=self._proxy_config) as client:
+                    response = await client.post(self._provider.endpoint, headers=self._headers, json=self._payload)
+
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"].strip()
 
         except TimeoutException as e:
             raise RuntimeError(f"Request timed out after {request_timeout} seconds: {e}")
