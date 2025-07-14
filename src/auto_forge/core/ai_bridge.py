@@ -6,6 +6,7 @@ Description:
     Bridge the build system with an AI model.
 """
 import json
+import os
 from typing import Optional
 
 # from openai.lib.azure import AzureOpenAI
@@ -13,11 +14,12 @@ import httpx
 from httpx import TimeoutException, RequestError, HTTPStatusError
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry,
-                        CoreVariables, CoreTelemetry, CoreLogger)
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, AIProvidersType, PackageGlobals,
+                        Crypto, CoreVariables, CoreTelemetry, CoreLogger, AIProviderType)
 
 AUTO_FORGE_MODULE_NAME = "AIBridge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AI Services Bridge"
+AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT = 30
 
 
 class CoreAIBridge(CoreModuleInterface):
@@ -29,12 +31,18 @@ class CoreAIBridge(CoreModuleInterface):
         """
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, proxy: Optional[str] = None) -> None:
+    def _initialize(self) -> None:
         """
         Initialize CoreAI class.
         """
         self._core_logger = CoreLogger.get_instance()
         self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._providers = AIProvidersType()
+        self._proxy_config: Optional[str] = None
+        self._provider: Optional[AIProviderType] = None
+        self._payload: Optional[dict] = None
+        self._headers: Optional[dict] = None
+        self._end_point_patched: bool = False
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._variables = CoreVariables.get_instance()
         self._registry = CoreRegistry.get_instance()
@@ -44,30 +52,18 @@ class CoreAIBridge(CoreModuleInterface):
         if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry):
             raise RuntimeError("failed to instantiate critical dependencies")
 
-        # Get mandatory variables, any error will prevent the module for running correctly
-        self._model = self._variables.get("AI_MODEL", quiet=True)
-        if self._model is None:
-            self._logger.error("Failed to retrieve 'AI_MODEL', AI bridge disabled")
+        # Load providers from secret storage
+        if not self._load_providers(demo_mode=True):
             return
-
-        self._endpoint = self._variables.get("AI_ENDPOINT", quiet=True)
-        if self._endpoint is None:
-            self._logger.error("Failed to retrieve 'AI_ENDPOINT', AI bridge disabled")
-            return
-
-        self._req_timeout = int(self._variables.get("AI_REQ_TIMEOUT", quiet=True))
-        if not isinstance(self._req_timeout, (int, float)) or self._req_timeout == 0:
-            self._logger.warning("Failed to retrieve 'AI_REQ_TIMEOUT', setting demodulate 30 seconds")
-            self._req_timeout = 30
 
         # Get API key from the stored secrets
-        self._api_key = self._get_key_from_secrets('openai_api_key')
+        self._api_key = self._provider.get_key(name="subscription_key")
         if self._api_key is None or not self._api_key:
             self._logger.error("Failed to retrieve AI API key, AI bridge disabled")
             return
 
-        # Set proxy server
-        self._proxies = {"https://": proxy} if proxy else None
+        if self._provider.proxy_allowed and self._provider.proxy_server:
+            self._proxy_config = self._provider.proxy_server.url()
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -76,25 +72,187 @@ class CoreAIBridge(CoreModuleInterface):
         # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
-        self._logger.info(f"AI Bridge successfully initialized with mode '{self._model}'")
+        self._logger.info(f"AI Bridge successfully initialized with provider '{self._provider.name}'")
         self._enabled = True
 
-    def _get_key_from_secrets(self, key_name: str) -> Optional[str]:
-        """ Gets the API key from the secrets' dictionary. """
-        secrets = self.auto_forge.secrets
-        if secrets is not None:
-            api_keys = secrets.get('api_keys')  # This will be None
-            if isinstance(api_keys, dict):  # This condition will be False
-                google_ai_key = api_keys.get(key_name)
-                return google_ai_key.strip() if google_ai_key else None
+    def _load_providers(self, demo_mode: bool = True) -> bool:
+        """
+        Initialize the secrets container using the 'Crypto' module, update the metadata date field,
+        and get a fresh copy of the stored secrets.
+        """
+        try:
 
-        return None
+            if not demo_mode:
+                key_file_path = self._variables.get("AF_SOLUTION_KEY")
+                secrets_file_path = self._variables.get("AF_SOLUTION_SECRETS")
+            else:
+                key_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_1.bin")
+                secrets_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_2.bin")
 
-    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 300,
+            preferred_provider_name = self._variables.get("AI_PROVIDER")
+
+            # Initialize Crypto with the key file path, creating it if needed
+            crypto = Crypto(key_file=key_file_path, create_as_needed=True)
+
+            # default_providers = AIProvidersType().from_json(str(PackageGlobals.SAMPLES_PATH / "demo" / "res.json"))
+            # default_data = default_providers.to_dict()
+
+            # Read the secrets or create a fresh secrets data using the schema if the file doesn't exist
+            secrets_data = crypto.create_or_load_encrypted_dict(filename=secrets_file_path)
+            secrets_version: Optional[str] = secrets_data.get('version') if isinstance(secrets_data, dict) else None
+
+            if not isinstance(secrets_version, str) or secrets_version != self._providers.version:
+                self._logger.warning("Stored secrets version mismatch, generating new one")
+                os.unlink(secrets_file_path) if os.path.exists(secrets_file_path) else None
+                secrets_data = crypto.create_or_load_encrypted_dict(
+                    filename=secrets_file_path, default_data=self._providers.to_dict())
+                secrets_version = secrets_data.get('version') if isinstance(secrets_data, dict) else None
+
+            # Second time around after generating a fresh file with defaults
+            if not isinstance(secrets_version, str) or secrets_version != self._providers.version:
+                raise RuntimeError("Stored secrets version mismatch after new storage was created")
+
+            # Create providers instance based on the stored secret and locate the active in the list.
+            self._providers = AIProvidersType().from_dict(secrets_data)
+            if not isinstance(self._providers.providers, list) or not self._providers.providers:
+                raise RuntimeError("Stored secrets providers list invalid or empty")
+
+            # Look for the provider by name or fallback to the first one
+            self._provider = (
+                self._providers.get_provider(preferred_provider_name)
+                if preferred_provider_name
+                else (self._providers.providers[0] if self._providers.providers else None)
+            )
+
+            if self._provider is None:
+                raise RuntimeError("No AI providers configured.")
+
+            # Validate mandatory properties any provider should have
+            if not isinstance(self._provider.name, str) or not self._provider.name:
+                self._logger.error("'name' in the active provider is invalid")
+                return False
+
+            if not isinstance(self._provider.model, str) or not self._provider.model:
+                self._logger.error(f"'model' in provider {self._provider.name} is missing or invalid")
+                return False
+
+            if not isinstance(self._provider.endpoint, str) or not self._provider.endpoint:
+                self._logger.error(f"'endpoint' in provider {self._provider.name} is missing or invalid")
+                return False
+
+            if not isinstance(self._provider.keys, list) or not self._provider.keys:
+                self._logger.error(f"'keys' in provider {self._provider.name} are missing")
+                return False
+
+            if not isinstance(self._provider.request_time_out, (int, float)) or not self._provider.request_time_out:
+                self._logger.error(
+                    f"Specified 'request_time_out' in provider {self._provider.name} is invalid, setting default")
+                self._provider.request_time_out = AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT
+
+            # Looks like we got a valid provider
+            return True
+
+        except (ValueError, FileNotFoundError, RuntimeError) as exception:
+            # Catch specific errors from Crypto methods or custom checks
+            self._logger.error(f"Failed to initialize secrets: {exception}")
+        except Exception as exception:
+            # Catch any other unexpected errors during the process
+            self._logger.error(f"unexpected error occurred during secrets initialization: {exception}")
+
+        return False
+
+    def _prepare_request(self,
+                         prompt: str,
+                         request_context: str,
+                         max_tokens: int,
+                         temperature: Optional[float] = None,
+                         debug_output: bool = False
+                         ):
+        """
+        Prepares headers and payload for an AI chat completion request based on the current provider.
+        Construct the request for both OpenAI and Azure OpenAI providers.
+        Args:
+            prompt (str): The user's input prompt or query.
+            request_context (str): A system prompt defining the assistant's behavior.
+            max_tokens (int): The maximum number of tokens to be generated by the model.
+            temperature (Optional[float]): Sampling temperature for creativity. Ignored if the model doesn't support it.
+            debug_output (bool): If True, print debug information including endpoint, headers, and payload.
+
+        Raises:
+            RuntimeError: If the configured provider is unsupported or misconfigured.
+        """
+        self._headers = None
+        self._payload = None
+
+        provider_name = self._provider.name.strip().lower()
+
+        # ----------------------------------------------------------------------
+        #
+        # Open AI
+        #
+        # ----------------------------------------------------------------------
+
+        if provider_name == "openai":
+            self._headers = {
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json"
+            }
+
+            self._payload = {
+                "model": self._provider.model,
+                "messages": [
+                    {"role": "system", "content": request_context},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": max_tokens,
+                "temperature": temperature if temperature is not None else 0.7
+            }
+
+        # ----------------------------------------------------------------------
+        #
+        # Intel - AzureOpen AI
+        #
+        # ----------------------------------------------------------------------
+
+        elif provider_name == "azure_openai":
+            self._headers = {
+                "api-key": self._api_key,
+                "Content-Type": "application/json"
+            }
+
+            # Construct Azure-specific endpoint with deployment and version
+            if not self._end_point_patched:
+                self._provider.endpoint = (
+                    f"{self._provider.endpoint.rstrip('/')}/openai/deployments/"
+                    f"{self._provider.deployment}/chat/completions"
+                    f"?api-version={self._provider.api_version}"
+                )
+            self._end_point_patched = True
+
+            self._payload = {
+                "messages": [
+                    {"role": "system", "content": request_context},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_completion_tokens": max_tokens,
+            }
+
+        else:
+            raise RuntimeError(f"AI bridge does not currently support provider '{self._provider.name}'")
+
+        if debug_output:
+            print("\n[AI Debug 🔍]")
+            print(f"Endpoint         : {self._provider.endpoint}")
+            print(f"Deployment       : {self._provider.deployment}")
+            print(f"API Version      : {self._provider.api_version}")
+            print(f"API Key (partial): {self._api_key[:5]}... [len={len(self._api_key)}]")
+            print(f"Headers          : {self._headers}")
+            print(f"Payload          : {self._payload}\n")
+
+    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 100000,
                     temperature: Optional[float] = 0.7, timeout: Optional[int] = None) -> Optional[str]:
         """
         Asynchronously sends a prompt to the AI service and retrieves the generated response.
-
         Args:
             prompt (str): The user's input message or query.
             context (Optional[str]): System-level instruction or role description (e.g., "You are a helpful assistant").
@@ -118,35 +276,26 @@ class CoreAIBridge(CoreModuleInterface):
                     param = err.get("param", "")
                     return f"[AI Error] type={err_type} code={code} param={param} msg='{msg}'"
             except json.JSONDecodeError:
-                pass  # fall through
+                pass  # Fall through
 
             return _response_text.strip()
 
-        if not self._enabled:
+        if not self._enabled or self._provider is None:
             raise RuntimeError(f"AI bridge was misconfigured, cannot execute query")
 
-        request_timeout = timeout if timeout is not None else self._req_timeout
-        request_context = context or ("You are a helpful assistant specializing in "
-                                      "embedded firmware development using C and C++.")
+        # Use default request context when not specified
+        request_context = context or ("You are a helpful and technically skilled assistant "
+                                      "supporting software developers in their daily work.")
 
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json"
-        }
+        # Prefer external timeout value over the provider default
+        request_timeout = self._provider.request_time_out if timeout is None else timeout
 
-        payload = {
-            "model": self._model,
-            "messages": [
-                {"role": "system", "content": request_context},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
-
+        # Prepare the request
+        self._prepare_request(prompt=prompt, request_context=request_context, max_tokens=max_tokens,
+                              temperature=temperature)
         try:
-            async with httpx.AsyncClient(timeout=request_timeout) as client:
-                response = await client.post(self._endpoint, headers=headers, json=payload)
+            async with httpx.AsyncClient(timeout=request_timeout, proxy=self._proxy_config) as client:
+                response = await client.post(self._provider.endpoint, headers=self._headers, json=self._payload)
                 response.raise_for_status()
                 data = response.json()
                 return data["choices"][0]["message"]["content"].strip()

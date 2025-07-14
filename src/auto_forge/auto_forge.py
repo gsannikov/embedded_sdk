@@ -17,7 +17,6 @@ Description:
 
 import argparse
 import contextlib
-import datetime
 import io
 import logging
 import os
@@ -33,8 +32,8 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
-    CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, Crypto,
-    CoreRegistry, CoreLinuxAliases, CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
+    CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, CoreRegistry, CoreLinuxAliases,
+    CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
     CoreVariables, CoreXRayDB, CoreAIBridge, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
     PackageGlobals, CoreContext)
 
@@ -179,9 +178,6 @@ class AutoForge(CoreModuleInterface):
         # with a more powerful and extensible core-based system.
         self._variables = CoreVariables(workspace_path=self._workspace_path, solution_name=self._solution_name,
                                         work_mode=self._work_mode)
-
-        # Initialize secrets storage and load current data
-        self._secrets = self._init_secrets(demo_mode=True)
 
         # At this point, we have enough information to finalize logger initialization.
         # This step flushes all temporarily buffered logs into the finalized logger instance,
@@ -529,62 +525,6 @@ class AutoForge(CoreModuleInterface):
             self._logger.warning(f"Debugger connection via pydevd failed: {exception}")
 
         return False
-
-    def _init_secrets(self, demo_mode: bool = True) -> Optional[dict]:
-        """
-        Initialize the secrets container using the 'Crypto' module, update the metadata date field,
-        and get a fresh copy of the stored secrets.
-        """
-        try:
-
-            if not demo_mode:
-                key_file_path = self._variables.get("AF_SOLUTION_KEY")
-                secrets_file_path = self._variables.get("AF_SOLUTION_SECRETS")
-            else:
-                key_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_1.bin")
-                secrets_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_2.bin")
-
-            secrets_schema_data = self.configuration.get("secrets_schema")
-            if secrets_schema_data is None:
-                raise ValueError("'secrets_schema' is missing from configuration. Cannot initialize secrets.")
-
-            if key_file_path is None or secrets_file_path is None:
-                raise ValueError(
-                    "'AF_SOLUTION_KEY' or 'AF_SOLUTION_SECRETS' are not defined in variables. Cannot initialize Crypto.")
-
-            # Initialize Crypto with the key file path, creating it if needed
-            crypto = Crypto(key_file=key_file_path, create_as_needed=True)
-
-            # Read secrets or create a fresh secrets data using the schema if the file doesn't exist
-            secrets = crypto.create_or_load_encrypted_dict(
-                filename=secrets_file_path,
-                default_data=secrets_schema_data
-            )
-
-            secrets_metadata = secrets.get('metadata')
-            if secrets_metadata is None:
-                raise RuntimeError("'metadata' section is missing from the encrypted secrets file. "
-                                   "Ensure the schema includes it.")
-
-            # Update metadata timestamp (already correct for Python 3.9+ compatibility)
-            secrets_metadata['last_updated'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-            # Save the updated metadata back to the encrypted secrets file
-            crypto.modify_encrypted_dict(
-                filename=secrets_file_path,
-                key="metadata",
-                value=secrets_metadata
-            )
-
-            # Return the updated secrets dictionary for further use
-            return secrets
-
-        except (ValueError, FileNotFoundError, RuntimeError) as exception:
-            # Catch specific errors from Crypto methods or custom checks
-            raise RuntimeError(f"failed to initialize secrets container: {exception}") from exception
-        except Exception as exception:
-            # Catch any other unexpected errors during the process
-            raise RuntimeError(f"unexpected error occurred during secrets initialization: {exception}") from exception
 
     def _timer_expired(self, timer_name: str):
         """

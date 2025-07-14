@@ -12,12 +12,12 @@ import os
 import re
 import sys
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, is_dataclass
 from enum import Enum, auto, IntFlag
 from itertools import cycle
 from pathlib import Path
 from types import ModuleType
-from typing import Any, NamedTuple, Optional, TextIO, Union, ClassVar
+from typing import Any, NamedTuple, Optional, TextIO, Union, ClassVar, TypeVar, Type
 
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
@@ -249,6 +249,136 @@ class CommandResultType:
     extra_value: Optional[
         int] = None  # Optional additional return value, for ex. HTTP status from a method that handles downloads.
     extra_data: Optional[Any] = None  # Optional additional return data, could be anything.
+
+
+@dataclass
+class ProxyServerType:
+    """Generic type for storing proxy server configuration."""
+    scheme: Optional[str] = "http"  # 'http', 'https', 'socks5', etc.
+    host: Optional[str] = None  # e.g., 'proxy.company.com'
+    port: Optional[int] = None  # e.g., 8080
+    username: Optional[str] = None  # Optional authentication username
+    password: Optional[str] = None  # Optional authentication password
+    bypass: Optional[list[str]] = None  # List of hosts or domains to exclude (no_proxy)
+    enabled: bool = True  # Enable/disable without removing config
+    notes: Optional[str] = None  # Human-readable notes or source of proxy
+
+    def url(self) -> Optional[str]:
+        """Constructs the full proxy URL."""
+        if not self.host or not self.port:
+            return None
+        auth = f"{self.username}:{self.password}@" if self.username and self.password else ""
+        return f"{self.scheme}://{auth}{self.host}:{self.port}"
+
+
+@dataclass
+class AIKeyType:
+    """Generic type for storing a single credential key for an AI provider."""
+    name: Optional[str] = None  # e.g., 'api_key', 'access_token'
+    data: Optional[str] = None  # The actual secret/key content
+    id: Optional[str] = None  # Optional: used for key rotation, identification, etc.
+
+
+@dataclass
+class AIProviderType:
+    """Generic type for storing AI provider configuration."""
+    name: str  # Required: 'openai', 'azure_openai', 'anthropic', etc.
+    keys: list[AIKeyType] = field(default_factory=list)  # Required: one or more keys
+    endpoint: Optional[str] = None  # Required for most APIs
+    organization: Optional[str] = None  # OpenAI-style org ID
+    deployment: Optional[str] = None  # Azure-specific deployment ID
+    api_version: Optional[str] = None  # Azure-specific or versioned APIs
+    model: Optional[str] = None  # Optional: default model to use (e.g., 'gpt-4')
+    extra_field_1: Optional[str] = None  # Additional optional general purpose field
+    extra_field_2: Optional[str] = None  # Additional optional general purpose field
+    extra_field_3: Optional[str] = None  # Additional optional general purpose field
+    extra_field_4: Optional[str] = None  # Additional optional general purpose field
+    notes: Optional[str] = None  # Optional: free-text field for human-readable description
+    request_time_out: int = 30  # Default request timeout in seconds
+    proxy_server: Optional[
+        ProxyServerType] = None  # Optional proxy server which will be used when proxy_allowed is true
+    proxy_allowed: bool = False  # Allow the use of the configured proxy server when connecting to the AI
+    registration_date: Optional[str] = None  # Date (ISO format) when this AI was added
+
+    def get_key(self, name: str) -> Optional[str]:
+        """Return the key data for the given key name, or None if not found."""
+        for key in self.keys:
+            if key.name == name:
+                return key.data
+        return None
+
+
+T = TypeVar("T", bound="AIProvidersType")
+
+
+@dataclass
+class AIProvidersType:
+    """Container for AI provider configurations and associated metadata."""
+    version: str = "0.1"
+    last_updated: Optional[str] = None
+    description: Optional[str] = None
+    providers: list[AIProviderType] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        """Recursively convert dataclass object (including nested) to dict."""
+
+        def convert(obj):
+            if isinstance(obj, list):
+                return [convert(i) for i in obj]
+            elif isinstance(obj, dict):
+                return {k: convert(v) for k, v in obj.items()}
+            elif is_dataclass(obj):
+                return {k: convert(v) for k, v in asdict(obj).items()}
+            else:
+                return obj
+
+        return convert(self)
+
+    def to_json(self, path: Union[str, Path]) -> None:
+        """Serialize AIProvidersType to a JSON file."""
+        path = Path(path)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=4)
+
+    @classmethod
+    def from_dict(cls: Type[T], data: dict) -> T:
+        """Recursively create AIProvidersType from a dictionary."""
+
+        def build_ai_key(d):
+            return AIKeyType(**d)
+
+        def build_proxy(d):
+            return ProxyServerType(**d)
+
+        def build_provider(d):
+            d['keys'] = [build_ai_key(k) for k in d.get('keys', [])]
+            if 'proxy_server' in d and d['proxy_server'] is not None:
+                d['proxy_server'] = build_proxy(d['proxy_server'])
+            return AIProviderType(**d)
+
+        providers = [build_provider(p) for p in data.get('providers', [])]
+        return cls(
+            version=data.get('version', "0.1"),
+            last_updated=data.get('last_updated'),
+            description=data.get('description'),
+            providers=providers
+        )
+
+    @classmethod
+    def from_json(cls: Type[T], path: Union[str, Path]) -> T:
+        """Load AIProvidersType from a JSON file."""
+        path = Path(path)
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def get_provider(self, name: str) -> Optional[AIProviderType]:
+        """Return the AI provider by name, or None if not found."""
+        name = name.strip().lower()
+        for provider in self.providers:
+            if provider.name.strip().lower() == name:
+                return provider
+        return None
 
 
 class CommandFailedException(Exception):

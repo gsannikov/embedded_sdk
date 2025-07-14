@@ -41,7 +41,8 @@ try:
         MethodLocationType, ModuleInfoType, PromptStatusType, SDKType, SequenceErrorActionType,
         SignatureFieldType, SignatureSchemaType, StatusNotifType, SysInfoLinuxDistroType,
         SysInfoPackageManagerType, TerminalAnsiGuru, TerminalEchoType, TerminalSpinner,
-        TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType
+        TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType, XRayStateType,
+        ProxyServerType, AIProvidersType, AIProviderType, AIKeyType
     )
 
     # Common modules
@@ -112,8 +113,8 @@ __all__ = [
     "HasConfigurationProtocol", "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType", "LinuxShellType",
     "LogHandlersType", "MessageBoxType", "MethodLocationType", "ModuleInfoType", "PackageGlobals",
     "ProgressTracker", "PromptStatusType", "SDKType", "SequenceErrorActionType", "Signature",
-    "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "StatusNotifType",
+    "SignatureFieldType", "SignatureFileHandler", "SignatureSchemaType", "StatusNotifType", "ProxyServerType",
     "SysInfoLinuxDistroType", "SysInfoPackageManagerType", "TelemetryTrackedCounter", "TerminalAnsiGuru",
     "TerminalEchoType", "TerminalSpinner", "TerminalTeeStream", "ValidationMethodType", "VariableFieldType",
-    "VariableType", "VersionCompare", "XRayStateType"
+    "VariableType", "VersionCompare", "XRayStateType", "AIProviderType", "AIKeyType", "AIProvidersType"
 ]

@@ -108,9 +108,7 @@ class AICommand(CommandInterface):
 
         try:
             sql_query = await  self.sdk.ai_bridge.query(
-                prompt=ai_prompt, context="You are an assistant for querying a SQLite database.", max_tokens=400,
-                timeout=30,
-            )
+                prompt=ai_prompt, context="You are an assistant for querying a SQLite database.")
         finally:
             spin_task.cancel()
             try:
@@ -143,8 +141,7 @@ class AICommand(CommandInterface):
 
         try:
             response = await  self.sdk.ai_bridge.query(
-                prompt=user_prompt, max_tokens=400, timeout=30,
-            )
+                prompt=user_prompt)
         finally:
             spin_task.cancel()
             try:

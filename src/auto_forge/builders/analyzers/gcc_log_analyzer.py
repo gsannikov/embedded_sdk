@@ -338,9 +338,8 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         def _runner():
 
             async def _inner():
-                response = await self.sdk.ai_bridge.query(
-                    prompt=prompt, context=context, max_tokens=400, timeout=30,
-                )
+                response = await self.sdk.ai_bridge.query(prompt=prompt, context=context)
+
                 if self._render_ai_response(response=response, export_markdown_file=export_markdown_file):
                     self.sdk.tool_box.show_status(message="🤖 AI response available, type 'rep' to view", expire_after=3,
                                                   erase_after=True)

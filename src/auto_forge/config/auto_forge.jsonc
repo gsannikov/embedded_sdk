@@ -73,9 +73,7 @@
         ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                           "Project scripts",                             null,    null,   "SCRIPTS"           ],
         ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                       "Solution JSONs",                              null,    null,   "SCRIPTS"           ],
         ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ],
-        ["AI_ENDPOINT",         "https://api.openai.com/v1/chat/completions",   "AI Request URL",                              null,    null,   null                ],
-        ["AI_MODEL",            "gpt-4",                                        "AI Model",                                    null,    null,   null                ],
-        ["AI_REQ_TIMEOUT",      "10",                                           "AI Request timeout",                          null,    null,   null                ]
+        ["AI_PROVIDER",         "azure_openai",                                 "AI Preferred provider name",                  null,    null,   null                ]
     ],
 
 
@@ -589,29 +587,6 @@
         { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] },
         { "name": "notepad",      "aliases": ["notepad.exe"],                             "type": "gui",      "executable": "notepad",      "args": [] }
     ],
-
-    // -------------------------------------------------------------------------------------------------------------------
-    //
-    // General application schema for encrypted information
-    //
-    // -------------------------------------------------------------------------------------------------------------------
-
-    "secrets_schema": {
-        // General application metadata or global secrets
-        "metadata": {
-            "version": "1.0",
-            "last_updated": null,
-            "description": "Encrypted secrets for build pipelines and application runtime."
-        },
-
-        // API Keys for external services
-        "api_keys": {
-            "google_ai_studio_api_key": null,
-            "openai_api_key": null,
-            "aws_access_key_id": null,
-            "aws_secret_access_key":  null
-        }
-    },
 
     // -----------------------------------------------------------------------------------------------------------------
     //
