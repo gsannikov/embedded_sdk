@@ -59,8 +59,7 @@
         ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                      "Persistent solution resources",               null,    null,   null                ],
         ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",                    "Persistent solution indexes",                 null,    null,   "INDEX"             ],
         ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                        "Persistent solution binaries",                null,    null,   null                ],
-        ["AF_SOLUTION_SECRETS", "$AF_SOLUTION_BASE/.bits",                      "Persistent encrypted user dictionary",        false,   false,  null                ],
-        ["AF_SOLUTION_KEY",     "$AF_SOLUTION_BASE/.key",                       "Persistent encryption key file",              false,   false,  null                ],
+        ["AF_AI_PROVIDER",      "azure_openai",                                 "AI Preferred provider name",                  null,    null,   null                ],
         ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Solution root directory",                     null,    null,   null                ],
         ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                        "Base path for compilers outputs",             null,    null,   null                ],
         ["BUILD_OUT",           "$BUILD_BASE/out",                              "Compilation outputs",                         null,    null,   "BUILD"             ],
@@ -72,8 +71,7 @@
         ["DOCS_BASE",           "$PROJ_BASE/docs",                              "Project Documents",                           null,    null,   "DOCUMENTS"         ],
         ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                           "Project scripts",                             null,    null,   "SCRIPTS"           ],
         ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                       "Solution JSONs",                              null,    null,   "SCRIPTS"           ],
-        ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ],
-        ["AI_PROVIDER",         "azure_openai",                                 "AI Preferred provider name",                  null,    null,   null                ]
+        ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ]
     ],
 
 

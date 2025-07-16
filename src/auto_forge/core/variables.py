@@ -410,7 +410,8 @@ class CoreVariables(CoreModuleInterface):
                         raise RuntimeError(f"variable '{key}' not found")
                     return default
 
-            return self._to_string(self._variables[index].value)
+            stored_variable = self._to_string(self._variables[index].value)
+            return self.expand(stored_variable)  # Return the stored variable expanded
 
     def get_by_folder_type(self, folder_type: Union[AutoForgFolderType, str]) -> Optional[Union[list[str], str]]:
         """

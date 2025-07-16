@@ -123,9 +123,11 @@ curl -sSL \
 | `solution.jsonc`           | Main solution descriptor — defines workspace structure and targets                                              |
 | `variables.jsonc`          | User-defined and system-injected variables used throughout the flow                                             |
 | `workspace_sequence.jsonc` | Defines the initialization and command sequence for setting up the workspace                                    |
+| `storage`                  | Temporary path for AI related resources                                                                         |
 
 ---
 
 Enjoy your AutoForge journey.
-🙏 Contributions, ideas, and suggestions from any developer are always welcome, feel free to open a pull request or start
-a discussion!
+
+Contributions, ideas, and suggestions from any developer are always welcome 🙏 , feel free to open a pull request or
+start a discussion!

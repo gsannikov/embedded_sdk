@@ -1734,7 +1734,7 @@ class CorePlatform(CoreModuleInterface):
             # Copy project resources to the destination workspace path
             if self._tool_box.copy_files(source=solution_package_path,
                                          destination=solution_destination_path,
-                                         pattern=["*.json*", "*.zip", "*.py", "*.md"], descend=True) is None:
+                                         pattern=["*.json*", "*.zip", "*.py", "*.md","*.txt"], descend=True) is None:
                 raise RuntimeError(f"Failed to copy resources files to '{solution_destination_path}'")
 
             # Copy the initiator shell script rom the package resources to the workspace

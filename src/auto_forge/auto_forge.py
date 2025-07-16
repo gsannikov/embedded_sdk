@@ -14,7 +14,6 @@ Description:
     Simply put, this is the glue layer between user input, system configuration, and the dynamically
     loaded modular components that implement the build system's functionality.
 """
-
 import argparse
 import contextlib
 import io
@@ -183,7 +182,6 @@ class AutoForge(CoreModuleInterface):
         # This step flushes all temporarily buffered logs into the finalized logger instance,
         # which will be used from this point onward.
         self._init_logger()
-        self._ai_bridge = CoreAIBridge()
 
         # Load all supported dynamic modules — currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader()
@@ -201,6 +199,10 @@ class AutoForge(CoreModuleInterface):
         # preprocess them, and resolve all references, pointers, and variables into a clean, validated JSON.
         # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
+
+        # The next core modules are dependent on the solution module
+        # Start AI Bridge server
+        self._ai_bridge = CoreAIBridge()
 
         # Start SQLite based background indexing service
         self._xray = CoreXRayDB()

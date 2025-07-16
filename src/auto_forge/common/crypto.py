@@ -8,7 +8,7 @@ Description:
 """
 import json
 import os
-from typing import Dict, Any
+from typing import Any
 
 # Third-party
 from cryptography.fernet import Fernet, InvalidToken
@@ -96,11 +96,11 @@ class Crypto:
                 raise RuntimeError(f"Error storing key to file '{path}': {e}")
         return key
 
-    def _encrypt_dict(self, data: Dict[str, Any]) -> bytes:
+    def _encrypt_dict(self, data: dict[str, Any]) -> bytes:
         """
         Encrypts a Python dictionary into bytes. (Internal method)
         Args:
-            data (Dict[str, Any]): The dictionary to be encrypted.
+            data (dict[str, Any]): The dictionary to be encrypted.
         Returns:
             bytes: The encrypted data.
         """
@@ -113,13 +113,13 @@ class Crypto:
         except Exception as e:
             raise RuntimeError(f"Error encrypting dictionary: {e}")
 
-    def _decrypt_dict(self, encrypted_data: bytes) -> Dict[str, Any]:
+    def _decrypt_dict(self, encrypted_data: bytes) -> dict[str, Any]:
         """
         Decrypts bytes into a Python dictionary. (Internal method)
         Args:
             encrypted_data (bytes): The encrypted data to be decrypted.
         Returns:
-            Dict[str, Any]: The decrypted dictionary.
+            dict[str, Any]: The decrypted dictionary.
         """
         if not isinstance(encrypted_data, bytes):
             raise TypeError("Input encrypted_data must be bytes.")
@@ -134,13 +134,13 @@ class Crypto:
         except Exception as e:
             raise RuntimeError(f"Error decrypting dictionary: {e}")
 
-    def read_encrypted_file(self, filename: str) -> Dict[str, Any]:
+    def read_encrypted_file(self, filename: str) -> dict[str, Any]:
         """
         Reads encrypted data from a file, decrypts it, and returns the dictionary.
         Args:
             filename (str): The path to the encrypted file.
         Returns:
-            Dict[str, Any]: The decrypted dictionary.
+            dict[str, Any]: The decrypted dictionary.
         """
         if not os.path.exists(filename):
             raise FileNotFoundError(f"File not found: {filename}")
@@ -151,12 +151,12 @@ class Crypto:
         except Exception as e:
             raise RuntimeError(f"Error reading or decrypting file '{filename}': {e}")
 
-    def write_encrypted_file(self, filename: str, data: Dict[str, Any]):
+    def write_encrypted_file(self, filename: str, data: dict[str, Any]):
         """
         Encrypts a dictionary and writes it to a file.
         Args:
             filename (str): The path where the encrypted data will be saved.
-            data (Dict[str, Any]): The dictionary to be encrypted and saved.
+            data (dict[str, Any]): The dictionary to be encrypted and saved.
         """
         try:
             encrypted_data = self._encrypt_dict(data)
@@ -165,29 +165,30 @@ class Crypto:
         except Exception as e:
             raise RuntimeError(f"Error writing encrypted data to file '{filename}': {e}")
 
-    def create_or_load_encrypted_dict(self, filename: str, default_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    def create_or_load_encrypted_dict(self, filename: str, default_data: dict[str, Any] = None) -> dict[str, Any]:
         """
         Loads an encrypted dictionary from a file. If the file does not exist,
         it creates a new one with optional default data.
         Args:
             filename (str): The path to the encrypted file.
-            default_data (Dict[str, Any], optional): Initial data for a new file.
+            default_data (dict[str, Any], optional): Initial data for a new file.
                                                     Defaults to an empty dictionary.
         Returns:
-            Dict[str, Any]: The loaded or newly created dictionary.
+            dict[str, Any]: The loaded or newly created dictionary.
         """
-        if default_data is None:
-            default_data = {}
 
-        if os.path.exists(filename):
-            try:
-                return self.read_encrypted_file(filename)
-            except Exception as e:
-                raise RuntimeError(f"Could not load and decrypt existing file '{filename}'. "
-                                   f"Consider this an error or remove the corrupted file: {e}")
-        else:
-            self.write_encrypted_file(filename, default_data)
-            return default_data
+        try:
+            # If default data is valid, encrypt and and save it to file
+            if isinstance(default_data, dict):
+                self.write_encrypted_file(filename, default_data)
+                return default_data
+            else:
+                if os.path.exists(filename):
+                    return self.read_encrypted_file(filename)
+                else:
+                    raise RuntimeError(f"Could not load and decrypt existing file '{filename}'")
+        except Exception as exception:
+            raise exception from exception
 
     def modify_encrypted_dict(self, filename: str, key: str, value: Any):
         """

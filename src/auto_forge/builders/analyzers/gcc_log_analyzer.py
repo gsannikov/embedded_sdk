@@ -38,17 +38,17 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     def __init__(self):
         super().__init__()
 
-        self._last_error_context: Optional[str] = None
-
-        self._ai_prompt_context: str = (
+        self._last_error: Optional[str] = None
+        self._ai_context: str = (
             "The following is a structured diagnostic report from a C code-base. Each entry includes:\n"
             "- File name, line number, column, and diagnostic type (e.g., 'warning', 'error').\n"
             "- A concise GCC message (with the type prefix removed).\n"
             "- The name of the function where the issue occurred.\n"
-            "- A compressed source snippet of the full function, preserving line numbers.\n"
+            "- A compressed source snippet of the full function, preserving line numbers (only shown once per function).\n"
             "- (Optional) Toolchain metadata indicating which compilers and tools were used.\n\n"
+            "Note: If multiple diagnostics occur in the same function, only the first one may include the full snippet to avoid duplication.\n\n"
             "Use this information to identify root causes or propose precise fixes. Be technical and concise  "
-            "focus on what a human developer would need to inspect or modify to resolve the issue."
+            "focus on what a human developer would need to inspect or modify to resolve the issue. "
             "Provide fixed code suggestions whenever possible."
         )
 
@@ -293,6 +293,20 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             else:
                 return _obj
 
+        def _dedup_redundant_snippets(_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            """Removes duplicated snippets (same snippet & function), keeps only the first."""
+            seen_pairs = set()
+            for event in _events:
+                snippet = event.get("snippet")
+                function = event.get("function")
+                if snippet and function:
+                    key = (function.strip(), snippet.strip())
+                    if key in seen_pairs:
+                        del event["snippet"]  # Remove the snippet key entirely
+                    else:
+                        seen_pairs.add(key)
+            return _events
+
         with suppress(Exception):
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -302,8 +316,12 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
             # Handle structured dict format: {"toolchain": ..., "events": [...]}
             if isinstance(cleaned, dict) and "events" in cleaned:
-                cleaned["events"] = _clear_duplicated_entries(cleaned["events"])
-                cleaned["events"].sort(key=lambda e: (e.get("file", ""), e.get("line", 0)))
+                events = cleaned.get("events", [])
+                if isinstance(events, list):
+                    events = _clear_duplicated_entries(events)
+                    events = _dedup_redundant_snippets(events)
+                    events.sort(key=lambda e: (e.get("file", ""), e.get("line", 0)))
+                    cleaned["events"] = events
                 json_str = json.dumps(cleaned, indent=4, ensure_ascii=False)
             else:
                 # List-only case
@@ -311,7 +329,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 cleaned.sort(key=lambda e: (e.get("file", ""), e.get("line", 0)))
                 json_str = json.dumps(cleaned, indent=4, ensure_ascii=False)
 
-            self._last_error_context = json_str
+            self._last_error = json_str
 
             with output_path.open("w", encoding="utf-8") as f:
                 f.write(json_str)
@@ -351,7 +369,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         log_source_name: str = ""
 
         self._logger.debug(f"Context will be stored in '{context_file_name}'")
-        self._last_error_context = None
+        self._last_error = None
 
         # Nested helper to finalize and store a diagnostic event
         def _finalize_event():
@@ -451,11 +469,11 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                         f"Could not serialize {analyzed_context.count} events into '{context_file_name}'")
 
             # Trigger background AI analysis
-            if isinstance(self._last_error_context, str) and ai_auto_advise:
+            if isinstance(self._last_error, str) and ai_auto_advise:
                 self._logger.debug("Starting background AI request")
                 self._get_ai_response_background(
-                    prompt=self._last_error_context,
-                    context=self._ai_prompt_context,
+                    prompt=self._last_error,
+                    context=self._ai_context,
                     export_markdown_file=ai_response_file_name
                 )
 
@@ -473,4 +491,4 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
     @property
     def context(self) -> Optional[str]:
         """Get the last context which was exported to JSON as string."""
-        return self._last_error_context
+        return self._last_error

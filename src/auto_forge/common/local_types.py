@@ -118,6 +118,7 @@ class AutoForgFolderType(Enum):
     HELP = 11
     COMMANDS = 12
     BUILDERS = 13
+    MISFITS = 14
 
     @classmethod
     def from_str(cls, value: Optional[str],

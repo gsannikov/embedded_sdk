@@ -5,6 +5,7 @@ Author:         AutoForge Team
 Description:
     Bridge the build system with an AI model.
 """
+
 import ast
 import contextlib
 import json
@@ -18,7 +19,7 @@ import httpx
 from httpx import TimeoutException, RequestError, HTTPStatusError
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, AIProvidersType, PackageGlobals,
+from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, AIProvidersType,
                         Crypto, CoreVariables, CoreTelemetry, CoreLogger, CoreToolBox, AIProviderType)
 
 AUTO_FORGE_MODULE_NAME = "AIBridge"
@@ -41,28 +42,28 @@ class CoreAIBridge(CoreModuleInterface):
         """
         self._core_logger = CoreLogger.get_instance()
         self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
+        self._variables = CoreVariables.get_instance()
+        self._registry = CoreRegistry.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
+        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
         self._providers = AIProvidersType()
         self._proxy_config: Optional[str] = None
         self._provider: Optional[AIProviderType] = None
         self._payload: Optional[dict] = None
         self._headers: Optional[dict] = None
         self._end_point_patched: bool = False
-        self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
-        self._variables = CoreVariables.get_instance()
-        self._registry = CoreRegistry.get_instance()
-        self._tool_box = CoreToolBox.get_instance()
+        self._robin: Optional[str] = None
+        self._batman: Optional[str] = None
         self._enabled: bool = False
 
         # Dependencies check
         if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry, self._tool_box):
             raise RuntimeError("failed to instantiate critical dependencies")
 
-        # Load providers from secret storage
-        if not self._load_providers(demo_mode=True):
+        # Load providers from the storage
+        if not self._load_providers():
             return
-
-        if self._provider.proxy_allowed and self._provider.proxy_server:
-            self._proxy_config = self._provider.proxy_server.url()
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -71,50 +72,52 @@ class CoreAIBridge(CoreModuleInterface):
         # Inform telemetry that the module is up & running
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
-        self._logger.info(f"AI Bridge successfully initialized with provider '{self._provider.name}'")
+        self._logger.info(
+            f"AI Bridge successfully initialized with provider '{self._provider.name}', model: {self._provider.model}")
         self._enabled = True
 
-    def _load_providers(self, demo_mode: bool = True) -> bool:
+    def _load_providers(self, joker: Optional[str] = None) -> bool:
         """
-        Initialize the secrets container using the 'Crypto' module, update the metadata date field,
-        and get a fresh copy of the stored secrets.
+        Initialize the secured storage container using the 'Crypto' module, update the metadata date field,
+        and get a fresh copy of the storage stored data.
         """
         try:
 
-            if not demo_mode:
-                key_file_path = self._variables.get("AF_SOLUTION_KEY")
-                secrets_file_path = self._variables.get("AF_SOLUTION_SECRETS")
-            else:
-                key_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_1.bin")
-                secrets_file_path = str(PackageGlobals.SAMPLES_PATH / "demo" / "res_2.bin")
+            joker_data: Optional[dict] = None
+            self._batman = self._variables.get("AF_STORAGE_BATMAN")
+            self._robin = self._variables.get("AF_STORAGE_ROBIN")
+            preferred_provider_name = self._variables.get("AF_AI_PROVIDER")
 
-            preferred_provider_name = self._variables.get("AI_PROVIDER")
+            if None in (self._batman, self._robin):
+                raise RuntimeError("Required necessities ware missing")
 
-            # Initialize Crypto with the key file path, creating it if needed
-            crypto = Crypto(key_file=key_file_path, create_as_needed=True)
+            # Initialize Crypto with robin creating it if needed
+            crypto = Crypto(key_file=self._robin, create_as_needed=True)
 
-            # default_providers = AIProvidersType().from_json(str(PackageGlobals.SAMPLES_PATH / "demo" / "res.json"))
-            # default_data = default_providers.to_dict()
+            # When joker was specified, use it and try to get a dictionary out of it to initialize a fresh storage
+            if joker is not None:
+                joker_providers = AIProvidersType().from_json(joker)
+                joker_data = joker_providers.to_dict()
 
-            # Read the secrets or create a fresh secrets data using the schema if the file doesn't exist
-            secrets_data = crypto.create_or_load_encrypted_dict(filename=secrets_file_path)
-            secrets_version: Optional[str] = secrets_data.get('version') if isinstance(secrets_data, dict) else None
+            # Read the storage or create a fresh storage if we could not read it.
+            storage_data = crypto.create_or_load_encrypted_dict(filename=self._batman, default_data=joker_data)
+            storage_version: Optional[str] = storage_data.get('version') if isinstance(storage_data, dict) else None
 
-            if not isinstance(secrets_version, str) or secrets_version != self._providers.version:
-                self._logger.warning("Stored secrets version mismatch, generating new one")
-                os.unlink(secrets_file_path) if os.path.exists(secrets_file_path) else None
-                secrets_data = crypto.create_or_load_encrypted_dict(
-                    filename=secrets_file_path, default_data=self._providers.to_dict())
-                secrets_version = secrets_data.get('version') if isinstance(secrets_data, dict) else None
+            if not isinstance(storage_version, str) or storage_version != self._providers.version:
+                self._logger.warning("Storage version mismatch, generating new one")
+                os.unlink(self._batman) if os.path.exists(self._batman) else None
+                storage_data = crypto.create_or_load_encrypted_dict(
+                    filename=self._batman, default_data=self._providers.to_dict())
+                storage_version = storage_data.get('version') if isinstance(storage_data, dict) else None
 
-            # Second time around after generating a fresh file with defaults
-            if not isinstance(secrets_version, str) or secrets_version != self._providers.version:
-                raise RuntimeError("Stored secrets version mismatch after new storage was created")
+            # Second time around after generating a fresh data with defaults
+            if not isinstance(storage_version, str) or storage_version != self._providers.version:
+                raise RuntimeError("Stored version mismatch after new storage was created")
 
-            # Create providers instance based on the stored secret and locate the active in the list.
-            self._providers = AIProvidersType().from_dict(secrets_data)
+            # Create providers instance based on the stored data
+            self._providers = AIProvidersType().from_dict(storage_data)
             if not isinstance(self._providers.providers, list) or not self._providers.providers:
-                raise RuntimeError("Stored secrets providers list invalid or empty")
+                raise RuntimeError("Storage providers list invalid or empty")
 
             # Look for the provider by name or fallback to the first one
             self._provider = (
@@ -148,22 +151,26 @@ class CoreAIBridge(CoreModuleInterface):
                     f"Specified 'request_time_out' in provider {self._provider.name} is invalid, setting default")
                 self._provider.request_time_out = AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT
 
-            # Looks like we got a valid provider
+            # Some providers insists on no proxy be used when accessing theior host
+            if self._provider.proxy_allowed and self._provider.proxy_server:
+                self._proxy_config = self._provider.proxy_server.url()
+
+            # Hooray! looks like we got a valid provider
             return True
 
         except (ValueError, FileNotFoundError, RuntimeError) as exception:
             # Catch specific errors from Crypto methods or custom checks
-            self._logger.error(f"Failed to initialize secrets: {exception}")
+            self._logger.error(f"Failed to initialize the storage: {exception}")
         except Exception as exception:
             # Catch any other unexpected errors during the process
-            self._logger.error(f"unexpected error occurred during secrets initialization: {exception}")
+            self._logger.error(f"unexpected error occurred during storage initialization: {exception}")
 
         return False
 
     def _prepare_request(self,
                          prompt: str,
                          request_context: str,
-                         max_tokens: int,
+                         max_tokens: Optional[int] = None,
                          temperature: Optional[float] = None,
                          debug_output: bool = False
                          ):
@@ -178,8 +185,8 @@ class CoreAIBridge(CoreModuleInterface):
             debug_output (bool): If True, print debug information including endpoint, headers, and payload.
 
         """
-        self._headers = None
-        self._payload = None
+        self._headers = dict()
+        self._payload = dict()
 
         provider_name = self._provider.name.strip().lower()
 
@@ -191,7 +198,7 @@ class CoreAIBridge(CoreModuleInterface):
 
         if provider_name == "openai":
 
-            # Get API key from the stored secrets
+            # Get API key from the storage
             api_key = self._provider.get_key(name="api_key")
             if api_key is None or not api_key:
                 raise RuntimeError("Failed to retrieve AI API key, request aborted")
@@ -207,9 +214,12 @@ class CoreAIBridge(CoreModuleInterface):
                     {"role": "system", "content": request_context},
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": max_tokens,
                 "temperature": temperature if temperature is not None else 0.7
             }
+
+            # Only assign max_tokens if it is a valid int else use default
+            if isinstance(max_tokens, int):
+                self._payload["max_tokens"] = max_tokens
 
         # ----------------------------------------------------------------------
         #
@@ -219,7 +229,7 @@ class CoreAIBridge(CoreModuleInterface):
 
         elif provider_name == "azure_openai":
 
-            # Get API key from the stored secrets
+            # Get API key from the storage
             api_key = self._provider.get_key(name="subscription_key")
             if api_key is None or not api_key:
                 raise RuntimeError("Failed to retrieve AI API key, request aborted")
@@ -229,6 +239,14 @@ class CoreAIBridge(CoreModuleInterface):
                 "Content-Type": "application/json"
             }
 
+            self._payload = {
+                "messages": [
+                    {"role": "system", "content": request_context},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_completion_tokens": 10000  # Intel Azure- o3mini specific
+            }
+
             # Construct Azure-specific endpoint with deployment and version
             if not self._end_point_patched:
                 self._provider.endpoint = (
@@ -236,15 +254,11 @@ class CoreAIBridge(CoreModuleInterface):
                     f"{self._provider.deployment}/chat/completions"
                     f"?api-version={self._provider.api_version}"
                 )
-            self._end_point_patched = True
+                self._end_point_patched = True
 
-            self._payload = {
-                "messages": [
-                    {"role": "system", "content": request_context},
-                    {"role": "user", "content": prompt}
-                ],
-                "max_completion_tokens": max_tokens,
-            }
+            # Only assign max_tokens if it is a valid int else use default
+            if isinstance(max_tokens, int):
+                self._payload["max_completion_tokens"] = max_tokens
 
         else:
             raise RuntimeError(f"AI bridge does not currently support provider '{self._provider.name}'")
@@ -277,7 +291,7 @@ class CoreAIBridge(CoreModuleInterface):
     def response_to_markdown(self, response: Optional[str], export_markdown_file: Union[str, Path],
                              prompt: Optional[str] = None,
                              context: Optional[str] = None,
-                             debug: bool = False) -> bool:
+                             debug: bool = True) -> bool:
         """
         Render the AI response as a Markdown file for later inspection using a textual viewer.
         Args:
@@ -311,7 +325,7 @@ class CoreAIBridge(CoreModuleInterface):
             compacted = []
             blank_count = 0
             for _line in _lines:
-                if line.strip():
+                if _line.strip():
                     compacted.append(_line)
                     blank_count = 0
                 else:
@@ -329,6 +343,7 @@ class CoreAIBridge(CoreModuleInterface):
             return False
 
         try:
+            provider_name = self._provider.name.strip().lower()
             export_markdown_file = Path(export_markdown_file).expanduser().resolve()
             raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
 
@@ -336,89 +351,141 @@ class CoreAIBridge(CoreModuleInterface):
                 raw_txt_file.write_text(response.strip(), encoding="utf-8")
                 self._logger.debug(f"AI raw response saved to: {raw_txt_file}")
 
-            md_lines: list[str] = ["# AI Analysis Report", ""]
+            md_lines: list[str] = [f"# AI Report Provided By {provider_name.title()}", ""]
+
             try:
                 # Build error context Section
                 # If the request_prompt is essentially a dictionary try to decode it as build error context
-                error_ctx_data = _to_dict(prompt)
-                if error_ctx_data:
-                    md_lines.append("## 🐞 Analyzed Error Context")
-                    md_lines.append("")
+                if isinstance(prompt, str) and prompt:
 
-                    events = error_ctx_data.get("events") if isinstance(error_ctx_data, dict) else error_ctx_data
-                    if not isinstance(events, list):
-                        raise TypeError("Expected 'events' to be a list in context")
-
-                    md_lines.append("| Type | File | Function | Line:Col | Message |")
-                    md_lines.append("|------|------|----------|----------|---------|")
-
-                    for entry in events:
-                        file = Path(entry.get("file", "None")).name
-                        function = entry.get("function", "-")
-                        typ = entry.get("type", "")
-                        line = entry.get("line", "?")
-                        col = entry.get("column", "?")
-                        msg = entry.get("message", "None")
-                        md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
-
-                    md_lines.append("")
-
-                    # Optional toolchain info
-                    if isinstance(error_ctx_data, dict) and "toolchain" in error_ctx_data:
-                        md_lines.append("### 🛠️ Toolchain Info")
-                        md_lines.append("")
-                        for k, v in error_ctx_data["toolchain"].items():
-                            md_lines.append(f"- **{k}**: {v}")
+                    error_ctx_data = _to_dict(prompt)
+                    if isinstance(error_ctx_data, dict):
+                        md_lines.append("## 🛫 Outgoing Prompt (❌ Error Context)")
                         md_lines.append("")
 
-                    for entry in events:
-                        snippet = entry.get("snippet", "")
-                        if snippet:
-                            file = entry.get("file", "")
+                        events = error_ctx_data.get("events") if isinstance(error_ctx_data, dict) else error_ctx_data
+                        if not isinstance(events, list):
+                            raise TypeError("Expected 'events' to be a list in context")
+
+                        md_lines.append("| Type | File | Function | Line:Col | Message |")
+                        md_lines.append("|------|------|----------|----------|---------|")
+
+                        for entry in events:
+                            file = Path(entry.get("file", "None")).name
+                            function = entry.get("function", "-")
+                            typ = entry.get("type", "")
                             line = entry.get("line", "?")
-                            cleaned_snippet = _clean_snippet(snippet)
-                            md_lines.append(f"## 🧾 Snippet: {Path(file).name} at line {line}")
+                            col = entry.get("column", "?")
+                            msg = entry.get("message", "None")
+                            md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
+
+                        md_lines.append("")
+
+                        # Optional toolchain info
+                        if isinstance(error_ctx_data, dict) and "toolchain" in error_ctx_data:
+                            md_lines.append("### 🛠️ Toolchain Info")
                             md_lines.append("")
-                            md_lines.append("```c")
-                            md_lines.append(f"// From file: {file} at line {line}")
-                            md_lines.append(cleaned_snippet)
-                            md_lines.append("```")
+                            for k, v in error_ctx_data["toolchain"].items():
+                                md_lines.append(f"- **{k}**: {v}")
                             md_lines.append("")
+
+                        for entry in events:
+                            snippet = entry.get("snippet", "")
+                            if isinstance(snippet, str) and snippet.strip():
+                                file = entry.get("file", "")
+                                line = entry.get("line", "?")
+                                cleaned_snippet = _clean_snippet(snippet)
+                                md_lines.append(f"### ✂️ Snippet: {Path(file).name} at line {line}")
+                                md_lines.append("")
+                                md_lines.append("```c")
+                                md_lines.append(f"// From file: {file} at line {line}")
+                                md_lines.append(cleaned_snippet)
+                                md_lines.append("```")
+                                md_lines.append("")
+                    else:
+                        # Prompt is an ornery string
+                        md_lines.append("## 🛫 Outgoing Prompt")
+                        md_lines.append("")
+                        md_lines.append(prompt)
 
             except Exception as format_error:
                 self._logger.warning(f"Failed to format context: {format_error}")
 
-            # AI Print the the request context ("You are an amazing assistant") if we have it.
+            # Append the the AI request context ("You are an amazing assistant") if we have it.
             if isinstance(context, str) and context:
-                md_lines.append("## ❓ AI Request Context")
+                md_lines.append("## 🛫 Outgoing Context")
                 md_lines.append("")
                 md_lines.append(context)
 
-            # -------------------------------------------------------------------
+            # ------------------------------------------------------------------
             #
             # Rendering the actual AI response
             #
-            # -------------------------------------------------------------------
+            # ------------------------------------------------------------------
 
-            code_block_pattern = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
-            code_blocks = code_block_pattern.findall(response)
-            response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
+            # Define multiple patterns
+            markdown_pattern = re.compile(r"```(?:\w+)?\s*\n(.*?)```", re.DOTALL)
+            dashed_block_pattern = re.compile(r"-{10,}\n(.*?)\n-{10,}", re.DOTALL)
+            labeled_code_block_pattern = re.compile(
+                r"(?:Original code:|Revised code:)\s*-{10,}\s*\n(.*?)\n-{10,}", re.DOTALL)
+            response_body = response  # default
+
+            # ------------------------------------------------------------------
+            #
+            # Formatting AzureOpanAI
+            #
+            # ------------------------------------------------------------------
+
+            if provider_name == "azure_openai":
+                # Try markdown first
+                code_blocks = markdown_pattern.findall(response)
+                if code_blocks:
+                    response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
+                else:
+                    # Try dashed block
+                    code_blocks = dashed_block_pattern.findall(response)
+                    if code_blocks:
+                        response_body = dashed_block_pattern.sub("[[CODE_BLOCK]]", response)
+                    else:
+                        # Try labeled sections like 'Original code:' or 'Revised code:'
+                        code_blocks = labeled_code_block_pattern.findall(response)
+                        if code_blocks:
+                            response_body = labeled_code_block_pattern.sub("[[CODE_BLOCK]]", response)
+
+
+            # ------------------------------------------------------------------
+            #
+            # Formatting Open|AI
+            #
+            # ------------------------------------------------------------------
+
+            elif provider_name == "openai" or provider_name is None:
+                code_blocks = markdown_pattern.findall(response)
+                response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
+
+            else:
+                self._logger.warning(f"Unknown provider '{provider_name}'; using default markdown pattern")
+                code_blocks = markdown_pattern.findall(response)
+                response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
 
             if debug:
-                self._logger.debug(f"Code blocks found: {len(code_blocks)}")
+                if not code_blocks:
+                    self._logger.warning("No code blocks found or list is empty")
+                else:
+                    self._logger.debug(f"Code blocks found: {len(code_blocks)}")
                 self._logger.debug(f"Response body after substitution: {repr(response_body)}")
 
             parts = re.split(r"\n\s*\n", response_body.strip())
             parts = [p.strip() for p in parts if p.strip()]
 
-            md_lines.append("## 🤖 AI Response")
+            md_lines.append(f"## 🛬 Incoming Response")
             md_lines.append("")
 
             for part in parts:
                 if "[[CODE_BLOCK]]" in part:
                     segments = part.split("[[CODE_BLOCK]]")
                     for i, seg in enumerate(segments):
-                        if seg.strip():
+                        if isinstance(seg, str) and seg.strip():
                             for line in seg.strip().splitlines():
                                 md_lines.append(f"> {line.strip()}")
                             md_lines.append("")
@@ -430,7 +497,8 @@ class CoreAIBridge(CoreModuleInterface):
                             md_lines.append("")
                 else:
                     for line in part.splitlines():
-                        md_lines.append(f"> {line.strip()}")
+                        if isinstance(line, str) and line.strip():
+                            md_lines.append(f"> {line.strip()}")
                     md_lines.append("")
 
             # Fallback for any remaining code blocks
@@ -453,7 +521,23 @@ class CoreAIBridge(CoreModuleInterface):
             self._logger.error(f"Failed to write AI response to Markdown: {export_error}")
             return False
 
-    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 1000,
+    def export_providers(self, file_name: Union[str, Path]):
+        """
+        Export AI providers dictionary to JSON
+        """
+        if not self._enabled:
+            raise RuntimeError(f"AI bridge was misconfigured, can't proceed")
+        self._providers.to_json(file_name)
+
+    def import_providers(self, file_name: Union[str, Path]):
+        """
+        Import AI providers from a user provided JSON file
+        """
+        if not self._enabled:
+            raise RuntimeError(f"AI bridge was misconfigured, can't proceed")
+        self._load_providers(joker=file_name)
+
+    async def query(self, prompt: str, context: Optional[str] = None, max_tokens: Optional[int] = None,
                     temperature: Optional[float] = 0.7, timeout: Optional[int] = None) -> Optional[str]:
         """
         Asynchronously sends a prompt to the AI service and retrieves the generated response.
@@ -486,7 +570,6 @@ class CoreAIBridge(CoreModuleInterface):
             return _response_text.strip()
 
         try:
-
             if not self._enabled or self._provider is None:
                 raise RuntimeError(f"AI bridge was misconfigured, cannot execute query")
 
