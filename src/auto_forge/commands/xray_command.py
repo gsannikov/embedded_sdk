@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 # AutoForge imports
-from auto_forge import (CommandInterface, CoreSolution)
+from auto_forge import (CommandInterface, CoreSolution, AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "xray"
 AUTO_FORGE_MODULE_DESCRIPTION = "XRayDB Play Ground"
@@ -45,7 +45,7 @@ class XRayCommand(CommandInterface):
         self._console = Console(force_terminal=True)
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False, command_type=AutoForgCommandType.UTILITY)
 
     def initialize(self, **_kwargs: Any) -> Optional[bool]:
         """

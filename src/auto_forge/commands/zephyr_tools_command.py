@@ -74,7 +74,8 @@ class ZephyrToolsCommand(CommandInterface):
                 continue
 
             try:
-                with pkg_file.open("r", encoding="utf-8") as f:
+                _file = Path(pkg_file)
+                with _file.open("r", encoding="utf-8") as f:
                     first_line = f.readline().strip()
             except (OSError, UnicodeDecodeError):
                 continue

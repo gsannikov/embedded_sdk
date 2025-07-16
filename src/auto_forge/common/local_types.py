@@ -284,6 +284,7 @@ class AIKeyType:
 class AIProviderType:
     """Generic type for storing AI provider configuration."""
     name: str  # Required: 'openai', 'azure_openai', 'anthropic', etc.
+    pretty_name: Optional[str] = None  # Formated provider name e.g 'OpenAI'
     keys: list[AIKeyType] = field(default_factory=list)  # Required: one or more keys
     endpoint: Optional[str] = None  # Required for most APIs
     organization: Optional[str] = None  # OpenAI-style org ID
@@ -296,6 +297,7 @@ class AIProviderType:
     extra_field_4: Optional[str] = None  # Additional optional general purpose field
     notes: Optional[str] = None  # Optional: free-text field for human-readable description
     request_time_out: int = 30  # Default request timeout in seconds
+    max_tokens: Optional[int] = None  # Optional default value for max tokens to use
     proxy_server: Optional[
         ProxyServerType] = None  # Optional proxy server which will be used when proxy_allowed is true
     proxy_allowed: bool = False  # Allow the use of the configured proxy server when connecting to the AI

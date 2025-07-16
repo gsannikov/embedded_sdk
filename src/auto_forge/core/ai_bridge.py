@@ -3,9 +3,12 @@ Script:         ai_bridge.py
 Author:         AutoForge Team
 
 Description:
-    Bridge the build system with an AI model.
-"""
+    Bridges the build system with an AI model. This core module performs the following tasks:
 
+    1. Manages multiple AI connection profiles (referred to as AI providers) and stores their information securely.
+    2. Enables sending requests to any of the configured providers, both synchronously and asynchronously.
+    3. Provides a method to render AI responses into Markdown format.
+"""
 import ast
 import contextlib
 import json
@@ -38,7 +41,7 @@ class CoreAIBridge(CoreModuleInterface):
 
     def _initialize(self) -> None:
         """
-        Initialize CoreAI class.
+        Initializes the CoreAI class.
         """
         self._core_logger = CoreLogger.get_instance()
         self._logger = self._core_logger.get_logger(name=AUTO_FORGE_MODULE_NAME)
@@ -46,6 +49,10 @@ class CoreAIBridge(CoreModuleInterface):
         self._registry = CoreRegistry.get_instance()
         self._tool_box = CoreToolBox.get_instance()
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
+
+        # Dependencies check
+        if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry, self._tool_box):
+            raise RuntimeError("failed to instantiate critical dependencies")
 
         self._providers = AIProvidersType()
         self._proxy_config: Optional[str] = None
@@ -57,11 +64,7 @@ class CoreAIBridge(CoreModuleInterface):
         self._batman: Optional[str] = None
         self._enabled: bool = False
 
-        # Dependencies check
-        if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry, self._tool_box):
-            raise RuntimeError("failed to instantiate critical dependencies")
-
-        # Load providers from the storage
+        # Load AI providers from the secured storage
         if not self._load_providers():
             return
 
@@ -73,17 +76,30 @@ class CoreAIBridge(CoreModuleInterface):
         self._telemetry.mark_module_boot(module_name=AUTO_FORGE_MODULE_NAME)
 
         self._logger.info(
-            f"AI Bridge successfully initialized with provider '{self._provider.name}', model: {self._provider.model}")
+            f"AI Bridge successfully initialized with provider '{self._provider.pretty_name}', model: {self._provider.model}")
         self._enabled = True
 
     def _load_providers(self, joker: Optional[str] = None) -> bool:
         """
-        Initialize the secured storage container using the 'Crypto' module, update the metadata date field,
-        and get a fresh copy of the storage stored data.
+        Load and initialize the AI providers from encrypted storage.
+
+        Internally, this method:
+        - Uses 'robin' (a key file path) to initialize a secure Crypto container.
+        - Uses 'batman' (an encrypted data file path) to load or create secured provider data.
+        - Optionally, accepts 'joker' as a clear-text JSON file to reinitialize the storage.
+        - Validates the stored data version and structure.
+        - Activates the preferred provider if specified, or falls back to the first available one.
+        - Normalizes required provider fields and configures proxy settings if needed.
+        Parameters:
+            joker (Optional[str]): Optional path to a JSON file containing plain provider definitions.
+                                   If provided, this file is used to reset the encrypted storage.
+                                   It must exist, be a valid `.json`, and contain a dictionary of providers.
+        Returns:
+            bool: True if the storage was loaded successfully and a valid provider is available;
+                  False if validation failed or an error occurred during setup.
         """
         try:
 
-            joker_data: Optional[dict] = None
             self._batman = self._variables.get("AF_STORAGE_BATMAN")
             self._robin = self._variables.get("AF_STORAGE_ROBIN")
             preferred_provider_name = self._variables.get("AF_AI_PROVIDER")
@@ -95,12 +111,20 @@ class CoreAIBridge(CoreModuleInterface):
             crypto = Crypto(key_file=self._robin, create_as_needed=True)
 
             # When joker was specified, use it and try to get a dictionary out of it to initialize a fresh storage
-            if joker is not None:
+            if isinstance(joker, str) and joker:
+                joker = Path(self._variables.expand(joker))
+                if not joker.exists() or not joker.is_file() or joker.suffix.lower() != ".json":
+                    raise FileNotFoundError(f"Providers file '{joker}' not found or not a .json file")
+                self._logger.debug(f"Loading providers from '{str(joker)}'")
                 joker_providers = AIProvidersType().from_json(joker)
                 joker_data = joker_providers.to_dict()
+                if not isinstance(joker_data, dict):
+                    raise FileNotFoundError(f"Providers file '{joker}' cold be converted to a dictionary")
+                os.unlink(self._batman) if os.path.exists(self._batman) else None
+                crypto.create_or_load_encrypted_dict(filename=self._batman, default_data=joker_data)
 
             # Read the storage or create a fresh storage if we could not read it.
-            storage_data = crypto.create_or_load_encrypted_dict(filename=self._batman, default_data=joker_data)
+            storage_data = crypto.create_or_load_encrypted_dict(filename=self._batman)
             storage_version: Optional[str] = storage_data.get('version') if isinstance(storage_data, dict) else None
 
             if not isinstance(storage_version, str) or storage_version != self._providers.version:
@@ -133,10 +157,14 @@ class CoreAIBridge(CoreModuleInterface):
             if not isinstance(self._provider.name, str) or not self._provider.name:
                 self._logger.error("'name' in the active provider is invalid")
                 return False
+            # Normalize
+            self._provider.name = self._provider.name.strip().lower()
 
             if not isinstance(self._provider.model, str) or not self._provider.model:
                 self._logger.error(f"'model' in provider {self._provider.name} is missing or invalid")
                 return False
+            # Normalize
+            self._provider.model = self._provider.model.strip()
 
             if not isinstance(self._provider.endpoint, str) or not self._provider.endpoint:
                 self._logger.error(f"'endpoint' in provider {self._provider.name} is missing or invalid")
@@ -151,7 +179,7 @@ class CoreAIBridge(CoreModuleInterface):
                     f"Specified 'request_time_out' in provider {self._provider.name} is invalid, setting default")
                 self._provider.request_time_out = AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT
 
-            # Some providers insists on no proxy be used when accessing theior host
+            # Some providers insists on no proxy be used when accessing their host
             if self._provider.proxy_allowed and self._provider.proxy_server:
                 self._proxy_config = self._provider.proxy_server.url()
 
@@ -188,15 +216,13 @@ class CoreAIBridge(CoreModuleInterface):
         self._headers = dict()
         self._payload = dict()
 
-        provider_name = self._provider.name.strip().lower()
-
         # ----------------------------------------------------------------------
         #
         # Open AI
         #
         # ----------------------------------------------------------------------
 
-        if provider_name == "openai":
+        if self._provider.name == "openai":
 
             # Get API key from the storage
             api_key = self._provider.get_key(name="api_key")
@@ -227,7 +253,7 @@ class CoreAIBridge(CoreModuleInterface):
         #
         # ----------------------------------------------------------------------
 
-        elif provider_name == "azure_openai":
+        elif self._provider.name == "azure_openai":
 
             # Get API key from the storage
             api_key = self._provider.get_key(name="subscription_key")
@@ -244,7 +270,8 @@ class CoreAIBridge(CoreModuleInterface):
                     {"role": "system", "content": request_context},
                     {"role": "user", "content": prompt}
                 ],
-                "max_completion_tokens": 10000  # Intel Azure- o3mini specific
+                # Note: Current Intel AzureAI- o3mini model specific quirks.
+                "max_completion_tokens": self._provider.max_tokens if max_tokens is not None else 10000
             }
 
             # Construct Azure-specific endpoint with deployment and version
@@ -264,7 +291,7 @@ class CoreAIBridge(CoreModuleInterface):
             raise RuntimeError(f"AI bridge does not currently support provider '{self._provider.name}'")
 
         if debug_output:
-            print("\n[AI Debug 🔍]")
+            print(f"\n{self._provider.pretty_name} Debug 🔍")
             print(f"Endpoint         : {self._provider.endpoint}")
             print(f"Deployment       : {self._provider.deployment}")
             print(f"API Version      : {self._provider.api_version}")
@@ -343,7 +370,7 @@ class CoreAIBridge(CoreModuleInterface):
             return False
 
         try:
-            provider_name = self._provider.name.strip().lower()
+
             export_markdown_file = Path(export_markdown_file).expanduser().resolve()
             raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
 
@@ -351,7 +378,7 @@ class CoreAIBridge(CoreModuleInterface):
                 raw_txt_file.write_text(response.strip(), encoding="utf-8")
                 self._logger.debug(f"AI raw response saved to: {raw_txt_file}")
 
-            md_lines: list[str] = [f"# AI Report Provided By {provider_name.title()}", ""]
+            md_lines: list[str] = [f"# AI Report Provided By {self._provider.pretty_name}", ""]
 
             try:
                 # Build error context Section
@@ -436,7 +463,7 @@ class CoreAIBridge(CoreModuleInterface):
             #
             # ------------------------------------------------------------------
 
-            if provider_name == "azure_openai":
+            if self._provider.name == "azure_openai":
                 # Try markdown first
                 code_blocks = markdown_pattern.findall(response)
                 if code_blocks:
@@ -459,12 +486,12 @@ class CoreAIBridge(CoreModuleInterface):
             #
             # ------------------------------------------------------------------
 
-            elif provider_name == "openai" or provider_name is None:
+            elif self._provider.name == "openai" or self._provider.name is None:
                 code_blocks = markdown_pattern.findall(response)
                 response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
 
             else:
-                self._logger.warning(f"Unknown provider '{provider_name}'; using default markdown pattern")
+                self._logger.warning(f"Unknown provider '{self._provider.name}'; using default markdown pattern")
                 code_blocks = markdown_pattern.findall(response)
                 response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
 
@@ -521,21 +548,32 @@ class CoreAIBridge(CoreModuleInterface):
             self._logger.error(f"Failed to write AI response to Markdown: {export_error}")
             return False
 
-    def export_providers(self, file_name: Union[str, Path]):
+    def export_providers(self, file_name: Union[str, Path]) -> Optional[int]:
         """
-        Export AI providers dictionary to JSON
+        Export the AI providers dictionary to a JSON file.
         """
         if not self._enabled:
-            raise RuntimeError(f"AI bridge was misconfigured, can't proceed")
-        self._providers.to_json(file_name)
+            raise RuntimeError("AI bridge is misconfigured; export aborted.")
 
-    def import_providers(self, file_name: Union[str, Path]):
+        try:
+            self._providers.to_json(file_name)
+            return 0  # Shell standard success status
+        except Exception as e:
+            raise RuntimeError(f"Failed to export AI providers: {e}")
+
+    def import_providers(self, file_name: Union[str, Path]) -> Optional[int]:
         """
-        Import AI providers from a user provided JSON file
+        Import AI providers from a user-provided JSON file.
         """
         if not self._enabled:
-            raise RuntimeError(f"AI bridge was misconfigured, can't proceed")
-        self._load_providers(joker=file_name)
+            raise RuntimeError("AI bridge is misconfigured; import aborted.")
+
+        try:
+            if not self._load_providers(joker=file_name):
+                raise RuntimeError(f"Import failed: invalid or incompatible file: {file_name}")
+            return 0  # Shell standard success status
+        except Exception as e:
+            raise RuntimeError(f"Failed to import AI providers: {e}")
 
     async def query(self, prompt: str, context: Optional[str] = None, max_tokens: Optional[int] = None,
                     temperature: Optional[float] = 0.7, timeout: Optional[int] = None) -> Optional[str]:

@@ -3,9 +3,9 @@ Module: ai_command.py
 Author: AutoForge Team
 
 Description:
-    This module defines commands that enable free-form user interaction with the system's registered AI model and engine.
-    It utilizes the core 'CoreAIBridge' module, which abstracts the underlying communication and supports 
-    asynchronous AI requests.
+    This command defines miscellaneous AI-related commands for e.g:
+    - Chat: Enables free-form user interaction with the system's registered AI model and engine.
+    - Providers: Allows importing and exporting stored AI provider information.
 """
 
 import argparse
@@ -20,10 +20,10 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (CommandInterface, TerminalSpinner)
+from auto_forge import (CommandInterface, TerminalSpinner, AutoForgCommandType)
 
-AUTO_FORGE_MODULE_NAME = "ai_chat"
-AUTO_FORGE_MODULE_DESCRIPTION = "Chat with an AI"
+AUTO_FORGE_MODULE_NAME = "ai"
+AUTO_FORGE_MODULE_DESCRIPTION = "AI Playground"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 
@@ -43,7 +43,7 @@ class AICommand(CommandInterface):
         self._system_info_data = self.sdk.system_info.get_data
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False, command_type=AutoForgCommandType.AI)
 
     @staticmethod
     def _sanitize_prompt(text: str) -> str:
@@ -199,6 +199,11 @@ class AICommand(CommandInterface):
         Args:
             parser (argparse.ArgumentParser): The argument parser to extend.
         """
+
+        # AI providers export and import
+        parser.add_argument('-pe', '--providers-export', help='Export AI providers to a JSON file.')
+        parser.add_argument('-pi', '--providers-import', help='Import AI providers from a JSON file.')
+
         parser.add_argument("--db", action="store_true", help="Interpret message as a database search")
         parser.add_argument("message", nargs=argparse.REMAINDER, help="The message or query in natural language")
 
@@ -221,4 +226,18 @@ class AICommand(CommandInterface):
                 asyncio.run(self._async_ask_ai(user_prompt=message))
             return 0
 
-        return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS
+        # Export import providers stored information
+        elif args.providers_export:
+            exit_code = self.sdk.ai_bridge.export_providers(file_name=args.providers_export)
+            if exit_code == 0:
+                print(f"Successfully exported AI providers to '{args.providers_export}'\n")
+            return exit_code
+
+        elif args.providers_import:
+            exit_code = self.sdk.ai_bridge.import_providers(file_name=args.providers_import)
+            if exit_code == 0:
+                print(f"Successfully imported AI providers from '{args.providers_import}'\n")
+            return exit_code
+
+        else:
+            return CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

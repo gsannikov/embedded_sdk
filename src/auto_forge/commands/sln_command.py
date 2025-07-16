@@ -207,7 +207,7 @@ class SolutionCommand(CommandInterface):
                         FieldColorType(field_name="Platform", color=Fore.BLUE),
                         FieldColorType(field_name="Shell", color=Fore.LIGHTCYAN_EX),
                         FieldColorType(field_name="ToolBox", color=Fore.LIGHTYELLOW_EX),
-                        FieldColorType(field_name="AIBridge", color=Fore.LIGHTRED_EX), ]
+                        FieldColorType(field_name="AIBridge", color=Fore.LIGHTGREEN_EX), ]
         try:
             self._core_logger.show(cheerful=cheerful, field_colors=field_colors)
             return 0

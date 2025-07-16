@@ -6,7 +6,7 @@ Description:
     Experimental tool for conducting "proxy drag racing," where multiple proxy servers
     are tested simultaneously. The module collects performance statistics to help
     dynamically select the best available proxy during a session.
-    
+
     Note: This command is currently inactive and may serve as a placeholder for future tools.
 """
 
@@ -51,7 +51,7 @@ class ProxyRaceCommand(CommandInterface):
         self._configured: bool = False
 
         # Base class initialization
-        super().__init__(command_name=AUTO_FORGE_MODULE_NAME)
+        super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
 
     def initialize(self, **_kwargs: Any) -> bool:
         """Performs late initialization after the abstract base class has completed its setup."""
