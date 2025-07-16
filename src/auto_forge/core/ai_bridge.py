@@ -5,10 +5,13 @@ Author:         AutoForge Team
 Description:
     Bridge the build system with an AI model.
 """
+import ast
 import contextlib
 import json
 import os
-from typing import Optional
+import re
+from pathlib import Path
+from typing import Optional, Union, Any
 from urllib.parse import urlparse
 
 import httpx
@@ -16,7 +19,7 @@ from httpx import TimeoutException, RequestError, HTTPStatusError
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreModuleInterface, CoreRegistry, AIProvidersType, PackageGlobals,
-                        Crypto, CoreVariables, CoreTelemetry, CoreLogger, AIProviderType)
+                        Crypto, CoreVariables, CoreTelemetry, CoreLogger, CoreToolBox, AIProviderType)
 
 AUTO_FORGE_MODULE_NAME = "AIBridge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AI Services Bridge"
@@ -47,10 +50,11 @@ class CoreAIBridge(CoreModuleInterface):
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._variables = CoreVariables.get_instance()
         self._registry = CoreRegistry.get_instance()
+        self._tool_box = CoreToolBox.get_instance()
         self._enabled: bool = False
 
         # Dependencies check
-        if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry):
+        if None in (self._core_logger, self._logger, self._telemetry, self._variables, self._registry, self._tool_box):
             raise RuntimeError("failed to instantiate critical dependencies")
 
         # Load providers from secret storage
@@ -270,6 +274,185 @@ class CoreAIBridge(CoreModuleInterface):
             else:
                 os.environ.pop("NO_PROXY", None)
 
+    def response_to_markdown(self, response: Optional[str], export_markdown_file: Union[str, Path],
+                             prompt: Optional[str] = None,
+                             context: Optional[str] = None,
+                             debug: bool = False) -> bool:
+        """
+        Render the AI response as a Markdown file for later inspection using a textual viewer.
+        Args:
+            response (Optional[str]): The AI-generated response.
+            export_markdown_file (str | Path): The file path where the Markdown output should be written.
+            prompt(Optional[str]): The AI prompt used when the request was sent.
+            context (Optional[str]): The AI request context used when the request was sent (e.g.'You are a helpful assistant...')
+            debug (bool): Store the raw AI response to a text file
+        Returns:
+            bool: True if the file was successfully written, False otherwise.
+        """
+
+        def _to_dict(_a: Optional[Any] = None) -> Optional[dict]:
+            """Converts a string to a dictionary if safely possible; otherwise returns None."""
+            if not isinstance(_a, str) or not _a.strip():
+                return None
+            try:
+                _obj = ast.literal_eval(_a.strip())
+                return _obj if isinstance(_obj, dict) else None
+            except (ValueError, SyntaxError):
+                return None
+
+        def _clean_snippet(_code: str) -> str:
+            """
+            Clean and format a C/C++ snippet using the SDK formatter.
+            """
+            _lines = [_line.rstrip() for _line in _code.strip().splitlines()]
+            if not any(_line.strip() for _line in _lines):
+                return "// (snippet content was omitted or removed for brevity)"
+
+            compacted = []
+            blank_count = 0
+            for _line in _lines:
+                if line.strip():
+                    compacted.append(_line)
+                    blank_count = 0
+                else:
+                    blank_count += 1
+                    if blank_count <= 1:
+                        compacted.append("")
+            try:
+                return self._tool_box.clang_formatter("\n".join(compacted))
+            except Exception as formatter_error:
+                self._logger.warning(f"Failed to format snippet {formatter_error}")
+                return "\n".join(compacted)
+
+        if not isinstance(response, str) or not response.strip():
+            self._logger.debug("Failed to export AI response, invalid input")
+            return False
+
+        try:
+            export_markdown_file = Path(export_markdown_file).expanduser().resolve()
+            raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
+
+            if debug:
+                raw_txt_file.write_text(response.strip(), encoding="utf-8")
+                self._logger.debug(f"AI raw response saved to: {raw_txt_file}")
+
+            md_lines: list[str] = ["# AI Analysis Report", ""]
+            try:
+                # Build error context Section
+                # If the request_prompt is essentially a dictionary try to decode it as build error context
+                error_ctx_data = _to_dict(prompt)
+                if error_ctx_data:
+                    md_lines.append("## 🐞 Analyzed Error Context")
+                    md_lines.append("")
+
+                    events = error_ctx_data.get("events") if isinstance(error_ctx_data, dict) else error_ctx_data
+                    if not isinstance(events, list):
+                        raise TypeError("Expected 'events' to be a list in context")
+
+                    md_lines.append("| Type | File | Function | Line:Col | Message |")
+                    md_lines.append("|------|------|----------|----------|---------|")
+
+                    for entry in events:
+                        file = Path(entry.get("file", "None")).name
+                        function = entry.get("function", "-")
+                        typ = entry.get("type", "")
+                        line = entry.get("line", "?")
+                        col = entry.get("column", "?")
+                        msg = entry.get("message", "None")
+                        md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
+
+                    md_lines.append("")
+
+                    # Optional toolchain info
+                    if isinstance(error_ctx_data, dict) and "toolchain" in error_ctx_data:
+                        md_lines.append("### 🛠️ Toolchain Info")
+                        md_lines.append("")
+                        for k, v in error_ctx_data["toolchain"].items():
+                            md_lines.append(f"- **{k}**: {v}")
+                        md_lines.append("")
+
+                    for entry in events:
+                        snippet = entry.get("snippet", "")
+                        if snippet:
+                            file = entry.get("file", "")
+                            line = entry.get("line", "?")
+                            cleaned_snippet = _clean_snippet(snippet)
+                            md_lines.append(f"## 🧾 Snippet: {Path(file).name} at line {line}")
+                            md_lines.append("")
+                            md_lines.append("```c")
+                            md_lines.append(f"// From file: {file} at line {line}")
+                            md_lines.append(cleaned_snippet)
+                            md_lines.append("```")
+                            md_lines.append("")
+
+            except Exception as format_error:
+                self._logger.warning(f"Failed to format context: {format_error}")
+
+            # AI Print the the request context ("You are an amazing assistant") if we have it.
+            if isinstance(context, str) and context:
+                md_lines.append("## ❓ AI Request Context")
+                md_lines.append("")
+                md_lines.append(context)
+
+            # -------------------------------------------------------------------
+            #
+            # Rendering the actual AI response
+            #
+            # -------------------------------------------------------------------
+
+            code_block_pattern = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
+            code_blocks = code_block_pattern.findall(response)
+            response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
+
+            if debug:
+                self._logger.debug(f"Code blocks found: {len(code_blocks)}")
+                self._logger.debug(f"Response body after substitution: {repr(response_body)}")
+
+            parts = re.split(r"\n\s*\n", response_body.strip())
+            parts = [p.strip() for p in parts if p.strip()]
+
+            md_lines.append("## 🤖 AI Response")
+            md_lines.append("")
+
+            for part in parts:
+                if "[[CODE_BLOCK]]" in part:
+                    segments = part.split("[[CODE_BLOCK]]")
+                    for i, seg in enumerate(segments):
+                        if seg.strip():
+                            for line in seg.strip().splitlines():
+                                md_lines.append(f"> {line.strip()}")
+                            md_lines.append("")
+                        if i < len(segments) - 1 and code_blocks:
+                            code = code_blocks.pop(0).strip()
+                            md_lines.append("```c")
+                            md_lines.append(code)
+                            md_lines.append("```")
+                            md_lines.append("")
+                else:
+                    for line in part.splitlines():
+                        md_lines.append(f"> {line.strip()}")
+                    md_lines.append("")
+
+            # Fallback for any remaining code blocks
+            for leftover in code_blocks:
+                md_lines.append("```c")
+                md_lines.append(leftover.strip())
+                md_lines.append("```")
+                md_lines.append("")
+
+            if not md_lines:
+                self._logger.debug("No structured content detected; exporting as plain block.")
+                md_lines.append("```text")
+                md_lines.append(response.strip())
+                md_lines.append("```")
+
+            export_markdown_file.write_text("\n".join(md_lines), encoding="utf-8")
+            return True
+
+        except Exception as export_error:
+            self._logger.error(f"Failed to write AI response to Markdown: {export_error}")
+            return False
+
     async def query(self, prompt: str, context: Optional[str] = None, max_tokens: int = 1000,
                     temperature: Optional[float] = 0.7, timeout: Optional[int] = None) -> Optional[str]:
         """
@@ -285,7 +468,7 @@ class CoreAIBridge(CoreModuleInterface):
         """
 
         request_timeout = AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT
-        
+
         def _format_ai_error(_response_text: str) -> str:
             """Parse OpenAI-style error JSON and return a compact one-line error message."""
             try:

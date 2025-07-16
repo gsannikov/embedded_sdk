@@ -3,7 +3,7 @@ Script:         gcc_log_analyzer.py
 Author:         AutoForge Team
 
 Description:
-    Provides a flexible and robust framework for analyzing compilation logs, specifically designed to parse GCC output.
+    Provides a flexible framework for analyzing compilation logs, specifically designed to parse GCC output.
     Extract structured information about errors and warnings rom both file-based and string-based log sources,
     handling multi-line messages and various diagnostic details. It also includes an interface for extending log
     analysis to different build systems or compilers.
@@ -165,167 +165,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         return '\n'.join(compressed_lines)
 
-    def _render_ai_response(self, response: Optional[str], export_markdown_file: Union[str, Path],
-                            debug: bool = False) -> bool:
-        """
-        Render the AI response as a Markdown file for later inspection using a textual viewer.
-        Args:
-            response (Optional[str]): The AI-generated response.
-            export_markdown_file (str | Path): The file path where the Markdown output should be written.
-            debug (bool): Store the raw AI response to a text file
-
-        Returns:
-            bool: True if the file was successfully written, False otherwise.
-        """
-
-        def _clean_snippet(_code: str) -> str:
-            """
-            Clean and format a C/C++ snippet using the SDK formatter.
-            """
-            _lines = [_line.rstrip() for _line in _code.strip().splitlines()]
-            if not any(_line.strip() for _line in _lines):
-                return "// (snippet content was omitted or removed for brevity)"
-
-            compacted = []
-            blank_count = 0
-            for _line in _lines:
-                if line.strip():
-                    compacted.append(_line)
-                    blank_count = 0
-                else:
-                    blank_count += 1
-                    if blank_count <= 1:
-                        compacted.append("")
-            try:
-                return self.sdk.tool_box.clang_formatter("\n".join(compacted))
-            except Exception as formatter_error:
-                self._logger.warning(f"Failed to format snippet {formatter_error}")
-                return "\n".join(compacted)
-
-        if not isinstance(response, str) or not response.strip():
-            self._logger.debug("Failed to export AI response, invalid input")
-            return False
-
-        try:
-            export_markdown_file = Path(export_markdown_file).expanduser().resolve()
-            raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
-
-            if debug:
-                raw_txt_file.write_text(response.strip(), encoding="utf-8")
-                self._logger.debug(f"AI raw response saved to: {raw_txt_file}")
-
-            md_lines: list[str] = ["# AI Analysis Report", ""]
-
-            # Context Section
-            try:
-                context_obj = json.loads(self.context) if isinstance(self.context, str) else self.context
-
-                if context_obj:
-                    md_lines.append("## 🐞 Analyzed Context")
-                    md_lines.append("")
-
-                    events = context_obj.get("events") if isinstance(context_obj, dict) else context_obj
-                    if not isinstance(events, list):
-                        raise TypeError("Expected 'events' to be a list in context")
-
-                    md_lines.append("| Type | File | Function | Line:Col | Message |")
-                    md_lines.append("|------|------|----------|----------|---------|")
-
-                    for entry in events:
-                        file = Path(entry.get("file", "None")).name
-                        function = entry.get("function", "-")
-                        typ = entry.get("type", "")
-                        line = entry.get("line", "?")
-                        col = entry.get("column", "?")
-                        msg = entry.get("message", "None")
-                        md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
-
-                    md_lines.append("")
-
-                    # Optional toolchain info
-                    if isinstance(context_obj, dict) and "toolchain" in context_obj:
-                        md_lines.append("### 🛠️ Toolchain Info")
-                        md_lines.append("")
-                        for k, v in context_obj["toolchain"].items():
-                            md_lines.append(f"- **{k}**: {v}")
-                        md_lines.append("")
-
-                    for entry in events:
-                        snippet = entry.get("snippet", "")
-                        if snippet:
-                            file = entry.get("file", "")
-                            line = entry.get("line", "?")
-                            cleaned_snippet = _clean_snippet(snippet)
-                            md_lines.append(f"## 🧾 Snippet: {Path(file).name} at line {line}")
-                            md_lines.append("")
-                            md_lines.append("```c")
-                            md_lines.append(f"// From file: {file} at line {line}")
-                            md_lines.append(cleaned_snippet)
-                            md_lines.append("```")
-                            md_lines.append("")
-
-            except Exception as format_error:
-                self._logger.warning(f"Failed to format context: {format_error}")
-
-            # AI Prompt Section
-            md_lines.append("## ❓ AI Prompt")
-            md_lines.append("")
-            md_lines.append(self._ai_prompt_context)
-
-            # AI Response Section
-            code_block_pattern = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
-            code_blocks = code_block_pattern.findall(response)
-            response_body = code_block_pattern.sub("[[CODE_BLOCK]]", response)
-
-            if debug:
-                self._logger.debug(f"Code blocks found: {len(code_blocks)}")
-                self._logger.debug(f"Response body after substitution: {repr(response_body)}")
-
-            parts = re.split(r"\n\s*\n", response_body.strip())
-            parts = [p.strip() for p in parts if p.strip()]
-
-            md_lines.append("## 🤖 AI Response")
-            md_lines.append("")
-
-            for part in parts:
-                if "[[CODE_BLOCK]]" in part:
-                    segments = part.split("[[CODE_BLOCK]]")
-                    for i, seg in enumerate(segments):
-                        if seg.strip():
-                            for line in seg.strip().splitlines():
-                                md_lines.append(f"> {line.strip()}")
-                            md_lines.append("")
-                        if i < len(segments) - 1 and code_blocks:
-                            code = code_blocks.pop(0).strip()
-                            md_lines.append("```c")
-                            md_lines.append(code)
-                            md_lines.append("```")
-                            md_lines.append("")
-                else:
-                    for line in part.splitlines():
-                        md_lines.append(f"> {line.strip()}")
-                    md_lines.append("")
-
-            # Fallback for any remaining code blocks
-            for leftover in code_blocks:
-                md_lines.append("```c")
-                md_lines.append(leftover.strip())
-                md_lines.append("```")
-                md_lines.append("")
-
-            if not md_lines:
-                self._logger.debug("No structured content detected; exporting as plain block.")
-                md_lines.append("```text")
-                md_lines.append(response.strip())
-                md_lines.append("```")
-
-            export_markdown_file.write_text("\n".join(md_lines), encoding="utf-8")
-            return True
-
-        except Exception as export_error:
-            self._logger.error(f"Failed to write AI response to Markdown: {export_error}")
-            return False
-
     def _get_ai_response_background(self, prompt: str, context: str, export_markdown_file: Union[str, Path]):
         """
         Sends an AI query in a background thread and processes the result.
@@ -340,7 +179,9 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             async def _inner():
                 response = await self.sdk.ai_bridge.query(prompt=prompt, context=context)
 
-                if self._render_ai_response(response=response, export_markdown_file=export_markdown_file):
+                # Render the response to a Markdown file
+                if self.sdk.ai_bridge.response_to_markdown(response=response, export_markdown_file=export_markdown_file,
+                                                           prompt=prompt, context=context):
                     self.sdk.tool_box.show_status(message="🤖 AI response available, type 'rep' to view", expire_after=3,
                                                   erase_after=True)
                 else:
