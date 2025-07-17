@@ -51,7 +51,7 @@ While not specific to workspace creation, this ability to follow versatile, orde
 
 ---
 
-## AutoForge Execution Modes
+## Execution Modes
 
 The package is constructed so that it can handle several different flows. All share the following common attributes:
 
@@ -174,70 +174,6 @@ AutoForge exposes an SDK — a public set of Python classes providing access to:
 | `cmd2`              | Enhances standard cmd module with features like auto-completion, history, and scripting.     | MIT                |
 
 ---
-
-## Awesome! What's In It For Me?
-
-If you're tired of scattered shell scripts, fragile CI jobs, and inconsistent build behaviors **AutoForge** gives you a
-single, maintainable system for reproducible builds, insightful logs, and a consistent developer experience across the
-board.
-
-## The Demo Project
-
-The following link installs the `userspace` demo solution.
-Rather than replacing your existing `userspace` build flow, this demo is designed to overlay an
-already cloned repository. This approach lets you explore the tool in a realistic environment
-without disrupting your current working setup.
-
-### 🛠 Prerequisites
-
-Before we continue, make sure the following tools are installed:
-
-- `dt` Developer Tool:  
-  Intel-internal command-line tool used to link your private GitHub account with your Intel SSO, allowing access to
-  Intel’s private repositories.
-
-- Usually preinstalled — if not, just add them manually:
-  > 📦 Install via package manager:  
-  `sudo dnf install cmake ninja-build`
-
-### Setup Instructions
-
-Copy and paste the following into your terminal.
-
-```bash
-
-# The following command does quite a bit. Here's a breakdown:
-#
-# 1. Uses the 'dt' tool to retrieve a GitHub token for accessing Intel private repositories.
-# 2. Downloads the 'bootstrap' script from the package Git repo using 'curl' and executes it.
-#
-# The 'bootstrap' script then:
-#
-# 3. Installs the latest AutoForge package into the user scope (via pip).
-# 4. Loads the built-in 'userspace' sample.
-# 5. Uses the solution also named 'userspace' from that sample.
-# 6. Creates a new workspace in a local folder named 'ws'.
-# 7. Runs the 'create_environment_sequence' defined by the solution, which:
-#    - Verifies required tools are installed,
-#    - Creates a dedicated Python virtual environment,
-#    - Installs required Python packages,
-#    - Performs any additional setup defined by the solution.
-#
-# ⚠ No 'sudo' is required, and no files are deleted without consent.
-
-GITHUB_REPO="intel-innersource/firmware.ethernet.devops.auto_forge"
-GITHUB_TOKEN=$(dt github print-token https://github.com/${GITHUB_REPO})
-
-curl -sSL \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Cache-Control: no-store" \
-  "https://raw.githubusercontent.com/${GITHUB_REPO}/main/src/auto_forge/resources/shared/bootstrap.sh" \
-  | bash -s -- \
-      -n userspace \
-      -w ws \
-      -s create_environment_sequence \
-      -p "<samples>/userspace"
-```
 
 Got ideas or improvements?<br>Jump in and help make **AutoForge** even better - contributions are always welcome!
 
