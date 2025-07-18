@@ -6,6 +6,8 @@
 </div>
 <br>
 
+# About
+
 **AutoForge** is a modular build and automation framework designed to orchestrate complex software environments in a consistent, reproducible, and extensible way.
 
 It is **not** bound to any specific build system, toolchain, or technology stack. Instead, AutoForge operates through a **solution package** — a set of structured JSON files that define projects, configurations, commands, tools, environments, and automation sequences.
@@ -141,7 +143,6 @@ AutoForge exposes an SDK — a public set of Python classes providing access to:
 - Platform monitoring  
 - Telemetry  
 - And more
-
 
 ---
 
