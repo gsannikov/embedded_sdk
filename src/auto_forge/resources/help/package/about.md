@@ -169,8 +169,6 @@ AutoForge exposes an SDK — a public set of Python classes providing access to:
 | `prompt_toolkit`    | Powerful interactive command-line interface (CLI) toolkit.                                   | BSD 3-Clause       |
 | `jmespath`          | Query language for filtering JSON data (used by AWS tools).                                  | MIT                |
 | `textual`           | Terminal UI framework for building rich text user interfaces with layout, mouse, async, etc. | MIT                |
-| `whoosh`            | Pure-Python search engine library for indexing and querying text.                            | BSD                |
-| `watchdog`          | Monitor filesystem changes across platforms (used in hot reload, file triggers).             | Apache License 2.0 |
 | `pynput`            | Control and monitor keyboard/mouse input, used for productivity tracking.                    | GPLv3 (copyleft)   |
 | `cmd2`              | Enhances standard cmd module with features like auto-completion, history, and scripting.     | MIT                |
 
