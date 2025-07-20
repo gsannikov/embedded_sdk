@@ -42,18 +42,6 @@
             ],
             "description": "🔨 Clean all builds by batch-running all configurations with the `--clean` flag.",
             "cmd_type": "BUILD"
-        },
-        {
-            "name": "update",
-            "command": [
-                "cd $PROJ_WORKSPACE/../../auto_forge/",
-                "git add .",
-                "git commit -m \"Updates\"",
-                "git push"
-            ],
-            "restore_cwd": true,
-            "description": "Push latest updates",
-            "cmd_type": "GIT"
         }
     ]
 }
