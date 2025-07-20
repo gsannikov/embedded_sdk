@@ -47,9 +47,9 @@ from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreLogger,
-    CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, MethodLocationType, PackageGlobals,
-    PromptStatusType
+    AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor,
+    CoreLogger, CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, MethodLocationType,
+    PackageGlobals, PromptStatusType,
 )
 
 # Note: Compatibility bypass - no native "UTC" import in Python 3.9.
@@ -117,8 +117,7 @@ class CoreToolBox(CoreModuleInterface):
             output.append(' '.join(hex_values[i:i + bytes_per_line]))
         print("\n".join(output) + "\n")
 
-    @staticmethod
-    def print_lolcat(text: str, freq: float = None, spread: float = 1, seed: float = 64738):
+    def print_lolcat(self, text: str, freq: float = None, spread: float = 1, seed: float = 64738):
         """
         Print text to terminal with rainbow 24-bit color effect (like lolcat).
         Parameters:
@@ -127,6 +126,11 @@ class CoreToolBox(CoreModuleInterface):
             spread (float, optional): Spread factor controlling how quickly colors change across characters.
             seed (float, optional): Phase base offset (applied to all channels).
         """
+
+        # Only apply terminal effects in non automatic sessions
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            return
+
         if freq is None:
             freq = random.uniform(0.05, 0.25)
         if spread is None:
@@ -735,12 +739,16 @@ class CoreToolBox(CoreModuleInterface):
                 sys.stdout.write("\033]0;\007")
             sys.stdout.flush()
 
-    @staticmethod
-    def reset_terminal(use_shell: bool = True):
+    def reset_terminal(self, use_shell: bool = True):
         """
         Restores terminal to a sane state using term-ios.
         Equivalent to 'stty sane', but avoids shell calls.
         """
+
+        # Method not applicable when automating a command
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            return
+
         if use_shell:
             subprocess.run(["stty", "sane"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -996,13 +1004,21 @@ class CoreToolBox(CoreModuleInterface):
         except Exception as erase_error:
             raise erase_error from erase_error
 
-    @staticmethod
-    def set_cursor(visible: bool = False):
+    def print(self, *args, **kwargs):
+        """Prints only if not in NON_INTERACTIVE_ONE_COMMAND mode."""
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            print(*args, **kwargs)
+
+    def set_cursor(self, visible: bool = False):
         """
         Sets the visibility of the terminal cursor using ANSI escape codes.
         Args:
         visible (bool): If True, shows the cursor. If False, hide the cursor.
         """
+        # Method is not applicable when automating a command
+        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            return
+
         if visible:
             sys.stdout.write('\033[?25h')
         else:
@@ -1348,6 +1364,11 @@ class CoreToolBox(CoreModuleInterface):
             clear_screen (bool): If True, clears the screen before printing.
             terminal_title (Optional[str]): Optional terminal window title to set.
         """
+
+        # Only apply terminal effects in non automatic sessions
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            return
+
         if not text:
             return
 
@@ -1897,8 +1918,8 @@ class CoreToolBox(CoreModuleInterface):
             erase_after (bool): Whether to erase message after it wqs shown.
         """
 
-        # Only apply terminal effects in interactive sessions
-        if self.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:
+        # Only apply terminal effects in non automatic sessions
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
             return
 
         with self._show_status_lock:

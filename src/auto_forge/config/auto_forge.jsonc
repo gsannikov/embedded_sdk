@@ -214,7 +214,7 @@
         { "name": "e",            "command": "edit -p",                                                 "cmd_type": "UTILITY",      "description": "📝 Open file or path in default editor"                     },
         { "name": "exit",         "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                            "hidden": true  },
         { "name": "xfind",        "command": "xray -c -l",                                              "cmd_type": "UTILITY",      "description": "Files finding utility"                                      },
-        { "name": "aifind",       "command": "ai_chat --db",                                            "cmd_type": "AI",           "description": "Natural language files search"                              },
+        { "name": "aifind",       "command": "ai --db",                                                 "cmd_type": "AI",           "description": "Natural language files search"                              },
         { "name": "ga",           "command": "git add .",                                               "cmd_type": "GIT",          "description": "Git add all"                                                },
         { "name": "gc",           "command": "git commit -m",                                           "cmd_type": "GIT",          "description": "Git commit"                                                 },
         { "name": "gob",          "command": "cd $BUILD_OUT",                                           "cmd_type": "NAVIGATE",     "description": "Go to build output directory"                               },
@@ -611,6 +611,3 @@
         { "url": "http://proof.ovh.net/files/100Mb.dat",                "size": 100000,    "name": "OVH Speed Test"    }
     ]
 }
-
-
-

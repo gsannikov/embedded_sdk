@@ -24,8 +24,10 @@ from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, ModuleInfoType, BuildProfileType, CoreContext,
-                        CommandResultType, SDKType, VersionCompare)
+from auto_forge import (
+    BuildProfileType, CommandResultType, CoreContext, ModuleInfoType, SDKType,
+    AutoForgeModuleType, AutoForgeWorkModeType, VersionCompare,
+)
 
 # Lazy import SDK class instance
 if TYPE_CHECKING:
@@ -592,42 +594,38 @@ class BuilderRunnerInterface(ABC):
             self.print_message(message=f"An unexpected error occurred while generating JSON report: {e}",
                                log_level=logging.ERROR)
 
-    def print_message(self, message: str, bare_text: bool = False, log_level: Optional[int] = logging.DEBUG) -> None:
+    def print_message(self, message: str, log_level: Optional[int] = logging.DEBUG) -> None:
         """
         Prints a build-time message prefixed with an AutoForge label.
         Args:
             message (str): The text to print.
-            bare_text (bool, optional): If True, prints without ANSI color formatting.
             log_level (int, optional): Logging level to use (e.g., logging.INFO).
                                        If None, the message is not logged.
         """
 
-        # Disable colors when running in non-interactive mode
-        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:
-            bare_text = True
+        automation_mode: bool = False
 
-        if not bare_text:
+        # Disable colors when automating commands
+        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            automation_mode = True
+
+        if not automation_mode:
             # Map log levels to distinct label colors
             level_color_map = {logging.CRITICAL: Fore.LIGHTRED_EX, logging.ERROR: Fore.RED,
                                logging.WARNING: Fore.YELLOW, logging.INFO: Fore.CYAN,
                                logging.DEBUG: Fore.LIGHTGREEN_EX, }
             color = level_color_map.get(log_level, Fore.WHITE)
             leading_text = f"{color}-- {self._build_label}:{Style.RESET_ALL} " if self._build_label else "-- "
+            # Print the status
+            sys.stdout.write("\r\033[K")  # Clear the current line
+            print(leading_text + message)
 
         else:
-            leading_text = f"-- {self._build_label}: "
             message = self._tool_box.strip_ansi(text=message, bare_text=True)
 
         # Optionally log the message
         if log_level is not None:
             self._logger.log(log_level, message)
-
-        if not bare_text:
-            sys.stdout.write("\r\033[K")  # Clear the current line
-        else:
-            sys.stdout.write("\n")
-
-        print(leading_text + message)
 
     def update_info(self, command_info: ModuleInfoType):
         """

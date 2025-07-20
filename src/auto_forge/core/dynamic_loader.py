@@ -128,7 +128,7 @@ class CoreDynamicLoader(CoreModuleInterface):
         NOTE:
             This function exceeds typical complexity limits (C901) by design.
             It encapsulates a critical, tightly-coupled sequence of logic that benefits from being kept together
-            for clarity, atomicity, and maintainability. Refactoring would obscure the execution flo
+            for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow
         """
 
         def _to_list(_v: Union[str, list[str], None]) -> list[str]:
@@ -148,7 +148,7 @@ class CoreDynamicLoader(CoreModuleInterface):
             self._logger.warning("No commands or builders registered paths found")
             return 0
 
-        # Iterate on those paths and registered supported moules
+        # Iterate on those paths and registered supported modules
         for path in paths:
 
             self._logger.debug(f"Discovering modules in '{path.name}'")

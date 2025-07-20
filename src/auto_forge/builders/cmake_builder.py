@@ -393,5 +393,5 @@ class CMakeBuilder(BuilderRunnerInterface):
         finally:
             if build_start > 0:
                 build_duration = time.perf_counter() - build_start
-                self.print_message(message=f"Build duration {build_duration:.2f} seconds'")
+                self.print_message(message=f"Build duration {build_duration:.2f} seconds")
             self._tool_box.set_cursor(visible=True)

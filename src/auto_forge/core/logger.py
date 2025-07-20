@@ -144,6 +144,10 @@ class _ColorFormatter(logging.Formatter):
             # Apply tokens list regex cleanup
             record.msg = self.clean_log_line(record.msg)
 
+            if record.args:
+                record.msg = record.msg % record.args
+                record.args = ()  # Prevent double-formatting
+
             if not self._enable_colors:
                 # Bare text mode: remove any ANSI color codes leftovers and maintain clear text
                 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -181,10 +185,10 @@ class _ColorFormatter(logging.Formatter):
                 return super().format(record)
             else:
                 # Handle other OS errors
-                return f"logger exception: {os_error!s}"
+                raise RuntimeError(f"logger exception: {os_error!s}")
         except Exception as format_exception:
             # Handle any other exception that is not an OSError
-            return f"logger exception {format_exception!s}"
+            raise RuntimeError(f"logger exception {format_exception!s}")
 
     @staticmethod
     def _message_format(message: str):

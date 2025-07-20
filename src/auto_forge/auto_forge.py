@@ -4,7 +4,7 @@ Author:         AutoForge Team
 
 Description:
     Central package entry point of the AutoForge build system package, responsible for orchestrating the entire
-    build system lifecycle, including:
+    build system life-cycle, including:
         - Initializing core subsystems and shared services
         - Handling and validating command-line arguments
         - Parsing and loading solution-level configuration files
@@ -30,11 +30,11 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeWorkModeType, CoreLogger, CoreDynamicLoader,
-    CorePlatform, CoreGUI, CoreJSONCProcessor, CoreModuleInterface, CoreBuildShell, CoreRegistry, CoreLinuxAliases,
-    CoreSolution, CoreSystemInfo, CoreToolBox, CoreTelemetry, CoreWatchdog,
-    CoreVariables, CoreXRayDB, CoreAIBridge, ExceptionGuru, EventManager, LogHandlersType, StatusNotifType,
-    PackageGlobals, CoreContext)
+    AddressInfoType, AutoForgeWorkModeType, CoreAIBridge, CoreBuildShell, CoreContext, CoreDynamicLoader, CoreGUI,
+    CoreJSONCProcessor, CoreLinuxAliases, CoreLogger, CoreModuleInterface, CorePlatform, CoreRegistry,
+    CoreSolution, CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog, CoreXRayDB,
+    EventManager, ExceptionGuru, LogHandlersType, PackageGlobals, StatusNotifType,
+)
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
@@ -42,8 +42,8 @@ AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"
 
 class AutoForge(CoreModuleInterface):
     """
-    This module serves as the core of the AutoForge system, initialized ising the basd 'CoreModuleInterface' which
-    ensures a singleton pattern.
+    This class defines the core of the AutoForge system. It initializes the base 'CoreModuleInterface',
+    enforcing a singleton pattern to ensure a single shared instance.
     """
 
     def __init__(self, *args, **kwargs):
@@ -191,12 +191,12 @@ class AutoForge(CoreModuleInterface):
         # working with the file system, and more.
         self._platform = CorePlatform(workspace_path=self._workspace_path)
 
-        # Remove any previously generated autoforge temporary files.
+        # Remove any previously generated temporary files.
         self._tool_box.clear_residual_files()
 
         # The last core module to be instantiated is the solution module. It comes last because it depends
-        # on most of the other core modules to function correctly. Its task is to load the project’s solution file(s),
-        # preprocess them, and resolve all references, pointers, and variables into a clean, validated JSON.
+        # on most of the other core modules to function correctly. Its task is to load the solution file(s),
+        # pre-process them, and resolve all references, pointers, and variables into a clean, validated JSON.
         # This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
 
@@ -293,6 +293,11 @@ class AutoForge(CoreModuleInterface):
 
         # Flush memory logs and disable memory logger
         self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
+
+        # Bring the logger to the from of the state when in automating one command mode
+        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            self._core_logger.set_output_enabled(logger=None, state=True)
+
         self._logger.info(f"AutoForge version: {PackageGlobals.VERSION} starting")
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
@@ -421,7 +426,7 @@ class AutoForge(CoreModuleInterface):
                 if self._run_command_args and self._run_command_args[0] == '--':
                     self._run_command_args = self._run_command_args[1:]
 
-        # If none of non-interactive modes was detected we falldown to interactive.
+        # If none of non-interactive modes was detected we fall-down to 'interactive'.
         if self._work_mode == AutoForgeWorkModeType.UNKNOWN:
             self._work_mode = AutoForgeWorkModeType.INTERACTIVE
 
@@ -705,7 +710,7 @@ class AutoForge(CoreModuleInterface):
                     command_line = " ".join([self._run_command_name.strip()] + self._run_command_args)
                     self._logger.debug("Executing command: %s", command_line)
 
-                    # Execute the command (same way cmdloop does internally)
+                    # Execute the command (same way command-loop does internally)
                     self._build_shell.onecmd_plus_hooks(command_line)
                     self._exit_code = self._build_shell.last_result if self._build_shell.last_result is not None else 0
 

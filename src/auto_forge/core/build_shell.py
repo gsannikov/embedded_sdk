@@ -7,8 +7,10 @@ Description:
     interactive shell with prompt_toolkit to provide a rich command-line interface for the
     AutoForge build system.
 """
+import contextlib
 import fcntl
 import fnmatch
+import io
 import logging
 import os
 import random
@@ -48,10 +50,11 @@ from rich.console import Console
 
 # AutoForge imports
 from auto_forge import (
-    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, CoreLogger, BuildProfileType,
-    CoreDynamicLoader, CorePlatform, CoreModuleInterface, CoreRegistry, CoreTelemetry,
-    CoreSolution, CoreToolBox, CoreVariables, CoreSystemInfo, CommandFailedException, CommandResultType,
-    ModuleInfoType, TerminalEchoType, TelemetryTrackedCounter, VariableFieldType, PackageGlobals
+    AutoForgCommandType, AutoForgeModuleType, AutoForgeWorkModeType, BuildProfileType,
+    CommandFailedException, CommandResultType, CoreDynamicLoader, CoreLogger, CoreModuleInterface,
+    CorePlatform, CoreRegistry, CoreSolution, CoreSystemInfo, CoreTelemetry, CoreToolBox,
+    CoreVariables, ModuleInfoType, PackageGlobals, TelemetryTrackedCounter, TerminalEchoType,
+    VariableFieldType,
 )
 
 # Basic types
@@ -668,8 +671,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         # Store the alias and it's metadat also in a global dictionary
         self._commands_metadata[name] = metadata
 
-    @staticmethod
-    def _make_dynamic_alias_handler(name: str, command: Union[str, list]) -> Optional[
+    def _make_dynamic_alias_handler(self, name: str, command: Union[str, list]) -> Optional[
         Callable[[Any, Any], None]]:
         """
         Implements a dynamic function which will be executed when an alias is invoked by the prompt.
@@ -694,24 +696,35 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
             cmd_instance.history.append(Statement(cmd_str))
 
             def _run_commands() -> bool:
+                """ Alias execution dynamic handler """
                 try:
-                    if isinstance(command, str):
-                        stop = cmd_instance.onecmd_plus_hooks(f"{command} {' '.join(args)}")
-                        if stop:
-                            return True  # Relay quit/exit signal to outer loop
-                    elif isinstance(command, list):
-                        for cmd in command:
-                            full_cmd = f"{cmd} {' '.join(args)}"
-                            stop = cmd_instance.onecmd_plus_hooks(full_cmd)
-                            if stop:
-                                return True  # Relay quit/exit signal to outer loop
 
-                            result = getattr(cmd_instance, "last_result", None)
-                            if result not in (None, 0):
-                                break
+                    suppress_output = (
+                            self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND)
+                    if suppress_output:
+                        devnull = io.StringIO()
+                        redirect_ctx = contextlib.redirect_stdout(devnull)
                     else:
-                        cmd_instance.perror("Invalid target_command type")
-                        cmd_instance.last_result = 1
+                        redirect_ctx = contextlib.nullcontext()  # no-op
+
+                    with redirect_ctx:
+                        if isinstance(command, str):
+                            stop = cmd_instance.onecmd_plus_hooks(f"{command} {' '.join(args)}")
+                            if stop:
+                                return True
+                        elif isinstance(command, list):
+                            for cmd in command:
+                                full_cmd = f"{cmd} {' '.join(args)}"
+                                stop = cmd_instance.onecmd_plus_hooks(full_cmd)
+                                if stop:
+                                    return True
+
+                                result = getattr(cmd_instance, "last_result", None)
+                                if result not in (None, 0):
+                                    break
+                        else:
+                            cmd_instance.perror("Invalid target_command type")
+                            cmd_instance.last_result = 1
 
                     return False
 
@@ -1655,7 +1668,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                 return
 
             self._tool_box.show_status(message="🔧 Building project...")
-            print()
+            # self._tool_box.print()
 
             # Construct 'build profile' object
             build_profile = BuildProfileType()
@@ -1697,13 +1710,12 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
             self._logger.exception(build_error)
         finally:
             self._tool_box.show_status()
-
             # Update telemetry build  counters
             if self.last_result:
                 self._build_failure_counter.add(1)
             else:
                 self._build_success_counter.add(1)
-            print()
+            self._tool_box.print()
 
     def default(self, statement: Statement) -> Optional[bool]:
         """

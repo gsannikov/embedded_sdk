@@ -37,15 +37,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union, Tuple
 
+# Third-party
 from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgeModuleType, CoreLogger, CommandFailedException, CommandResultType,
-    CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreModuleInterface, CoreRegistry,
-    CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog,
-    ProgressTracker, PackageGlobals,
-    SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
+    AddressInfoType, AutoForgeModuleType, AutoForgeWorkModeType, CommandFailedException,
+    CommandResultType, CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreLogger,
+    CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, CoreToolBox,
+    CoreVariables, CoreWatchdog, PackageGlobals, ProgressTracker, SequenceErrorActionType,
+    TerminalEchoType, ValidationMethodType, VersionCompare,
+)
 
 AUTO_FORGE_MODULE_NAME = "Platform"
 AUTO_FORGE_MODULE_DESCRIPTION = "Platform Services"
@@ -111,7 +113,7 @@ class CorePlatform(CoreModuleInterface):
                                                              ["cat", "htop", "top", "vim", "less", "nano",
                                                               "vi", "clear", "pico"])
 
-        # Allow to override default execution opf subprocesses in configuration
+        # Allow to override default execution timeout of a sub-processes in configuration
         self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
                                                                     self._subprocess_execution_timout)
 
@@ -239,7 +241,7 @@ class CorePlatform(CoreModuleInterface):
         match = re.search(r"^version:\s*(.+)$", package_info, re.MULTILINE | re.IGNORECASE)
 
         if match:
-            return match.group(1).strip()  # Return the captured version number, stripping any extra whitespace
+            return match.group(1).strip()  # Return the captured version number, stripping any extra white-spaces
 
         # If no version is found, raise an error
         raise ValueError("version information not found in the input string")
@@ -461,9 +463,9 @@ class CorePlatform(CoreModuleInterface):
         # Restore any $(...) patterns if they were mistakenly expanded
         restored_path = command_substitution_pattern.sub(_ignore_command_substitution, expanded_path)
 
-        # Check if there are any unexpanded variables left (that are not command substitutions)
+        # Check if there are any un-expanded variables left (that are not command substitutions)
         if '$' in re.sub(command_substitution_pattern, '', restored_path):
-            # Find where the unexpanded variable starts
+            # Find where the un-expanded variable starts
             start_idx = restored_path.find('$')
             # Try to extract the variable name, avoiding command substitution patterns
             end_idx = restored_path.find('/', start_idx)
@@ -663,6 +665,10 @@ class CorePlatform(CoreModuleInterface):
         results: Optional[CommandResultType] = None
         prev_queued_message: Optional[str] = None
 
+        # Force no echo when automating a command, in which case it's output will be captured and logged
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            echo_type = TerminalEchoType.NONE
+
         def _safe_quote(_arg: str) -> str:
             """ Allow simple expansions or globs, quote all else """
             if re.match(r'^[$~][\w{}@]*$', _arg) or '*' in _arg or '?' in _arg:
@@ -711,6 +717,10 @@ class CorePlatform(CoreModuleInterface):
             Args:
                 line (str): The text to print.
             """
+
+            if echo_type == TerminalEchoType.NONE:
+                return
+
             if len(line):
                 line = _clean_shell_error_prefix(line) if line else line
 
