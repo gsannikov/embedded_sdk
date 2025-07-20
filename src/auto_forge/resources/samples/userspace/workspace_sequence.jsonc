@@ -30,41 +30,69 @@
         {
             "description": "Looking for 'python' 3.9.0 or greater",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPython 3.9 or newer is required.\nRun 'sudo dnf install python3' to install the latest and try again.",
+            "status_on_error": {
+                "fedora": "Run 'sudo dnf install python3'",
+                "ubuntu": "Run 'sudo apt install python3'",
+                "arch": "Run 'sudo pacman -S python'",
+                "default": "Python 3.9 or newer is required."
+            },
             "arguments": {
-                "command": "python3",
-                "cli_args": "--version",
-                "version": ">=3.9.0"
+                "default": {
+                    "command": "python3",
+                    "cli_args": "--version",
+                    "version": ">=3.9.0"
+                }
             }
         },
         {
             "description": "Looking for 'git'",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'git' not found.\nRun 'sudo dnf install gt' and try again.",
+            "status_on_error": {
+                "fedora": "Run 'sudo dnf install git'",
+                "ubuntu": "Run 'sudo apt install git'",
+                "arch": "Run 'sudo pacman -S git'",
+                "default": "Package 'git' not found."
+            },
             "arguments": {
-                "command": "git",
-                "cli_args": "--version",
-                "version": ">=2.0"
+                "default": {
+                    "command": "git",
+                    "cli_args": "--version",
+                    "version": ">=2.0"
+                }
             }
         },
         {
             "description": "Looking for 'cmake'",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'cmake' not found.\nRun 'sudo dnf install cmake' and try again.",
+            "status_on_error": {
+                "fedora": "Run 'sudo dnf install cmake'",
+                "ubuntu": "Run 'sudo apt install cmake'",
+                "arch": "Run 'sudo pacman -S cmake'",
+                "default": "Package 'cmake' not found."
+            },
             "arguments": {
-                "command": "cmake",
-                "cli_args": "--version",
-                "version": ">=3.0.0"
+                "default": {
+                    "command": "cmake",
+                    "cli_args": "--version",
+                    "version": ">=3.0.0"
+                }
             }
         },
         {
             "description": "Looking for 'ninja'",
             "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'ninja' not found.\nRun 'sudo dnf install ninja-build' and try again.",
+            "status_on_error": {
+                "fedora": "Run 'sudo dnf install ninja-build'",
+                "ubuntu": "Run 'sudo apt install ninja-build'",
+                "arch": "Run 'sudo pacman -S ninja'",
+                "default": "Package 'ninja' not found."
+            },
             "arguments": {
-                "command": "ninja",
-                "cli_args": "--version",
-                "version": ">=1.0.0"
+                "default": {
+                    "command": "ninja",
+                    "cli_args": "--version",
+                    "version": ">=1.0.0"
+                }
             }
         },
         {
