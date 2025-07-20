@@ -337,7 +337,7 @@ class CorePlatform(CoreModuleInterface):
                 raise RuntimeError(
                     f"Condition failed in step {step_number + 1}, but no 'if_false' steps were defined."
                 )
-            self._tracker.set_result(text="FAILED", status_code=1)
+            self._tracker.set_result(text="NO", status_code=1)
             return _run_inline_steps(if_false_steps, step_number)
 
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,

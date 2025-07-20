@@ -46,8 +46,10 @@ Each configuration defines a single build output:
 - Help documents
 - A **command alias** (e.g., `build_sample`), which serves as a trigger for invoking this build.
 
-> Example: `build_ssample` could refer to a CMake + Ninja build at a specific path, using unique flags and steps — all
+> Example: `build_sample` could refer to a CMake + Ninja build at a specific path, using unique flags and steps — all
 > defined under a named configuration.
+
+For an in-depth guide on creating a solution file, refer to [guide.md](../solution/guide.md).
 
 ---
 
