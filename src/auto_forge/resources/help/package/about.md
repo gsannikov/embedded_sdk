@@ -54,11 +54,10 @@ Each configuration defines a single build output:
 ### 2. The Sequence File
 
 A solution package can define a special JSON file titled `sequence.json`, which includes a list of batch operations that
-AutoForge can execute.
-
-While not specific to workspace creation, this ability to follow versatile, ordered instructions is instrumental in
-creating a fresh solution workspace.
-See [sequence.md](sequence.md) for a full developer guide on writing and extending sequence files.
+AutoForge can execute. While not specific to workspace creation, this ability to follow versatile, ordered instructions
+is instrumental in
+creating a fresh solution workspace. See [sequence.md](sequence.md) for a full developer guide on writing and extending
+sequence files.
 ---
 
 ## Execution Modes
