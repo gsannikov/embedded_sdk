@@ -76,20 +76,24 @@ def arguments_process() -> Optional[argparse.Namespace]:
         # Only one of these modes may be used at a time.
 
         group = parser.add_mutually_exclusive_group()
-        group.add_argument("-s", "--run_sequence", type=str, required=False,
-                           help="Solution properties name which points to a sequence of operations")
-        group.add_argument("-r", "--run-command", type=str, required=False,
-                           help="Name of known command which will be executed")
-        # This captures everything that comes after -- (REMAINDER)
-        parser.add_argument("run_command_args", nargs=argparse.REMAINDER,
-                            help="Arguments to pass to the command specified by --run-command")
+        group.add_argument(
+            "-s", "--run-sequence", type=str, required=False,
+            help="Solution properties name which points to a sequence of operations")
+        group.add_argument(
+            "-r", "--run-command",
+            nargs=argparse.REMAINDER,
+            help="One or more commands separated by ','"
+        )
 
         args = parser.parse_args()
 
-        # Enforce correct usage for 'run-command'
-        if "--run-command" in sys.argv:
-            if args.run_command is None or args.run_command.startswith("-"):
-                parser.error("You must provide a valid command name after --run-command.")
+        if args.run_command:
+            # Remove '--' if was injected by shell
+            cleaned = [arg for arg in args.run_command if arg != "--"]
+            if not cleaned or not any(a.strip() for a in cleaned):
+                parser.error("You must provide at least one command after --run-command.")
+
+            args.run_command = " ".join(cleaned).strip()
 
         return args
 

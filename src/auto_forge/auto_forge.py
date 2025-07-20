@@ -84,8 +84,8 @@ class AutoForge(CoreModuleInterface):
         self._configuration: Optional[dict[str, Any]] = None
         self._workspace_path: Optional[str] = None
         self._workspace_exist: Optional[bool] = None
-        self._run_command_name: Optional[str] = None
-        self._run_command_args: Optional[list] = None
+        self._raw_command: Optional[str] = None
+        self._run_commands: Optional[list[str]] = None
         self._run_sequence_ref_name: Optional[str] = None
         self._solution_package_path: Optional[str] = None
         self._solution_package_file: Optional[str] = None
@@ -121,7 +121,7 @@ class AutoForge(CoreModuleInterface):
         # ----------------------------------------------------------------------
 
         # Instantiate core modules
-        self._registry = CoreRegistry()  # Must be first—anchors the core system
+        self._registry = CoreRegistry()  # Must be first?anchors the core system
         self._telemetry = CoreTelemetry()
 
         # Obtain a logger instance as early as possible, configured to support memory-based logging.
@@ -156,7 +156,7 @@ class AutoForge(CoreModuleInterface):
         self._tool_box = CoreToolBox()
         self._linux_aliases = CoreLinuxAliases()
 
-        # Handle command-line arguments to determine the work mode — for example,
+        # Handle command-line arguments to determine the work mode ? for example,
         # whether we're running in automation mode, interactive shell mode, or using
         # other user-defined startup flags.
         self._init_arguments(*args, **kwargs)
@@ -183,7 +183,7 @@ class AutoForge(CoreModuleInterface):
         # which will be used from this point onward.
         self._init_logger()
 
-        # Load all supported dynamic modules — currently includes: command handlers and build plugins
+        # Load all supported dynamic modules ? currently includes: command handlers and build plugins
         self._loader = CoreDynamicLoader()
 
         # Instantiate the platform module, which provides key utilities for interacting with the user's platform.
@@ -270,7 +270,7 @@ class AutoForge(CoreModuleInterface):
 
             # Use different log file name when in one command mode
             if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
-                self._log_file_name = str(self._initial_path / f"{self._solution_name}.{self._run_command_name}.log")
+                self._log_file_name = str(self._initial_path / f"{self._solution_name}.{self._raw_command}.log")
 
             # Use different log file name when in one command mode
             elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
@@ -415,16 +415,19 @@ class AutoForge(CoreModuleInterface):
             self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE
             self._logger.debug(f"Sequence ref name '{self._run_sequence_ref_name}'")
         else:
-            self._run_command_name = kwargs.get("run_command")
-            if self._run_command_name is not None:
-                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND
-                self._logger.debug(f"Run command name '{self._run_command_name}'")
+            # Received raw command(s) to execute — one or more commands or aliases, possibly with arguments,
+            # separated by comma.
+            self._raw_command = kwargs.get("run_command")
 
-                # Handle 'single-command' arguments
-                self._run_command_args = kwargs.get("run_command_args", [])
-                # Drop the leading '--' left by 'argparse' when using 'REMAINDER' to consume all reminder args
-                if self._run_command_args and self._run_command_args[0] == '--':
-                    self._run_command_args = self._run_command_args[1:]
+            if isinstance(self._raw_command, str):
+                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND
+                self._logger.debug(f"Run command: {self._raw_command}")
+
+                # Split the raw string into individual commands:
+                # - Split by comma
+                # - Strip surrounding white-space
+                # - Skip empty entries
+                self._run_commands = [cmd.strip() for cmd in self._raw_command.split(',') if cmd.strip()]
 
         # If none of non-interactive modes was detected we fall-down to 'interactive'.
         if self._work_mode == AutoForgeWorkModeType.UNKNOWN:
@@ -696,22 +699,27 @@ class AutoForge(CoreModuleInterface):
 
                 if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
 
-                    # ==============================================================
-                    #  Running single command from an exiting workspace in
-                    #  non-interactive mode.
-                    # ==============================================================
+                    # ==========================================================
+                    #  Running one or more commands from an existing workspace
+                    #  in non-interactive, automatic mode.
+                    # ==========================================================
 
-                    self._logger.debug("Running in single command automatic non-interactive mode")
+                    commands_count = len(self._run_commands)
+                    self._logger.debug(f"Running {commands_count} command(s) in automatic non-interactive mode")
 
                     # Prepare the prompt instance
                     self._build_shell = CoreBuildShell()
 
-                    # Compose the full command string (with arguments, if any)
-                    command_line = " ".join([self._run_command_name.strip()] + self._run_command_args)
-                    self._logger.debug("Executing command: %s", command_line)
+                    # Execute each parsed command in order
+                    for cmd in self._run_commands:
+                        self._logger.debug("Executing: %s", cmd)
+                        self._build_shell.onecmd_plus_hooks(cmd)
 
-                    # Execute the command (same way command-loop does internally)
-                    self._build_shell.onecmd_plus_hooks(command_line)
+                        # Stop on first non-zero exit code (if you want strict behavior)
+                        if self._build_shell.last_result not in (None, 0):
+                            break
+
+                    # Final exit code: use last result or 0 if all passed
                     self._exit_code = self._build_shell.last_result if self._build_shell.last_result is not None else 0
 
                 elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:

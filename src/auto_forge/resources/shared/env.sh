@@ -4,7 +4,7 @@
 #
 # Script Name:    env.sh
 # Description:    AutoForge shell environment initiator.
-# Version:        1.4
+# Version:        1.5
 #
 # ------------------------------------------------------------------------------
 
@@ -15,7 +15,7 @@ print_help() {
     echo "Options:"
     echo "  -d, --debug_port PORT   Optional set remote debugging port."
     echo "  -h, --debug_host        Optional set remote debugging host (default: localhost)"
-    echo "  -r, --run_command       Optional execute command and exit"
+    echo "  -r, --run-command       Optional: execute one or more commands separated by commas"
     echo "      --verbose           Enable detailed output."
     echo "  -?, --help              Show this help message"
     echo ""
@@ -174,7 +174,7 @@ main() {
     fi
 
     if [[ ${#run_command[@]} -gt 0 ]]; then
-        cmd+=(--run-command "${run_command[0]}" -- "${run_command[@]:1}")
+        cmd+=(--run-command "${run_command[@]}")
     fi
 
     if [[ "$verbose" == true ]]; then
