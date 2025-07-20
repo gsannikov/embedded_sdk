@@ -8,6 +8,7 @@ Description:
     a scrollable panel. If Textual is not installed, the script exits quietly without error.
 """
 import argparse
+import os
 import sys
 from contextlib import suppress
 from pathlib import Path
@@ -24,8 +25,12 @@ with suppress(ImportError):
     class MarkdownApp(App):
         """A simple Markdown viewer application."""
 
-        BINDINGS = [Binding("t", "toggle_table_of_contents", "TOC", tooltip="Toggle the Table of Contents Panel", ),
-                    Binding("x", "exit", "Exit", tooltip="Exit Help Viewer"), ]
+        BINDINGS = [
+            Binding("t", "toggle_table_of_contents", "TOC", tooltip="Toggle the Table of Contents Panel"),
+            Binding("x", "exit", "Exit", tooltip="Exit Help Viewer"),
+            Binding("b", "back", "Back", tooltip="Go back to previous document"),
+            Binding("f", "forward", "Forward", tooltip="Go forward in document history"),
+        ]
 
         def __init__(self, path: str):
             super().__init__()
@@ -102,8 +107,11 @@ def main() -> int:
     try:
         if args.print:
             print(f"\nShowing '{file_path}'\n")
-            with file_path.open("r", encoding="utf-8") as f:
-                print(f.read())
+            with file_path.open("r", encoding="utf-8") as mark_down_file:
+                print(mark_down_file.read())
+
+        # Ensure relative links work correctly
+        os.chdir(file_path.parent)
 
         return MarkdownApp(str(file_path)).run()
 
