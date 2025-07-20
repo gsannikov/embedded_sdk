@@ -167,7 +167,7 @@
             }
         },
         {
-            "description": "Check if we have ARM AArch64 toolchain version 14.2 or higher",
+            "description": "Check if we have ARM AArch64 toolchain",
             "method": "conditional",
             "arguments": {
                 "condition": {
