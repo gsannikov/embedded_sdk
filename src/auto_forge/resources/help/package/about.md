@@ -1,4 +1,3 @@
-
 <!--suppress HtmlDeprecatedAttribute -->
 <br>
 <div align="center">
@@ -8,17 +7,22 @@
 
 # About
 
-**AutoForge** is a modular build and automation framework designed to orchestrate complex software environments in a consistent, reproducible, and extensible way.
+**AutoForge** is a modular build and automation framework designed to orchestrate complex software environments in a
+consistent, reproducible, and extensible way.
 
-It is **not** bound to any specific build system, toolchain, or technology stack. Instead, AutoForge operates through a **solution package** — a set of structured JSON files that define projects, configurations, commands, tools, environments, and automation sequences.
+It is **not** bound to any specific build system, toolchain, or technology stack. Instead, AutoForge operates through a
+**solution package** — a set of structured JSON files that define projects, configurations, commands, tools,
+environments, and automation sequences.
 
 By interpreting the solution package, AutoForge can:
+
 - Create isolated development or CI-ready workspaces
 - Trigger builds using user-defined aliases
 - Execute post-processing tools and log analyzers
 - Interface with AI agents and CI/CD systems via machine-readable exports
 
-At its core, AutoForge provides a clean separation between **logic (AutoForge engine)** and **project intent (solution package)**, making it ideal for teams working across diverse platforms and toolchains.
+At its core, AutoForge provides a clean separation between **logic (AutoForge engine)** and **project intent (solution
+package)**, making it ideal for teams working across diverse platforms and toolchains.
 
 ---
 
@@ -26,51 +30,57 @@ At its core, AutoForge provides a clean separation between **logic (AutoForge en
 
 ### 1. The Solution File
 
-At the heart of AutoForge is the **solution package**, which includes the main `solution.json` as well as several optional companion JSON files. These files use a custom *augmented JSON syntax* to describe:
+At the heart of AutoForge is the **solution package**, which includes the main `solution.json` as well as several
+optional companion JSON files. These files use a custom *augmented JSON syntax* to describe:
 
-- The **solution** itself  
-- Its derived **projects**  
-- Each project may include one or more **configurations**  
+- The **solution** itself
+- Its derived **projects**
+- Each project may include one or more **configurations**
 
 Each configuration defines a single build output:
 
-- Toolchain  
-- Paths  
-- Specific variables  
-- Pre-/post-build steps  
-- Help documents  
+- Toolchain
+- Paths
+- Specific variables
+- Pre-/post-build steps
+- Help documents
 - A **command alias** (e.g., `build_sample`), which serves as a trigger for invoking this build.
 
-> Example: `build_ssample` could refer to a CMake + Ninja build at a specific path, using unique flags and steps — all defined under a named configuration.
+> Example: `build_ssample` could refer to a CMake + Ninja build at a specific path, using unique flags and steps — all
+> defined under a named configuration.
 
 ---
 
 ### 2. The Sequence File
 
-A solution package can define a special JSON file titled `sequence.json`, which includes a list of batch operations that AutoForge can execute.
+A solution package can define a special JSON file titled `sequence.json`, which includes a list of batch operations that
+AutoForge can execute.
 
-While not specific to workspace creation, this ability to follow versatile, ordered instructions is instrumental in creating a fresh solution workspace.
-
+While not specific to workspace creation, this ability to follow versatile, ordered instructions is instrumental in
+creating a fresh solution workspace.
+See [sequence.md](sequence.md) for a full developer guide on writing and extending sequence files.
 ---
 
 ## Execution Modes
 
 The package is constructed so that it can handle several different flows. All share the following common attributes:
 
-- They are triggered by a unique combination of arguments to the AutoForge package.  
-- The **solution package** defines everything related to a specific solution and is required for all subsequent operations.  
-- All flows make use of AutoForge's infrastructure modules, including logging, telemetry, environment management, and more.
+- They are triggered by a unique combination of arguments to the AutoForge package.
+- The **solution package** defines everything related to a specific solution and is required for all subsequent
+  operations.
+- All flows make use of AutoForge's infrastructure modules, including logging, telemetry, environment management, and
+  more.
 
 ### 1. Workspace Initialization (via Sequence)
 
 AutoForge can create a solution-specific workspace based on a sequence file (e.g., `sequence.json`). This may include:
 
-- Verifying tool availability  
-- Creating a Python virtual environment  
-- Cloning sources  
-- Downloading toolchains  
-- Executing external commands  
-- Invoking methods from the AutoForge SDK  
+- Verifying tool availability
+- Creating a Python virtual environment
+- Cloning sources
+- Downloading toolchains
+- Executing external commands
+- Invoking methods from the AutoForge SDK
 
 These operations are available via the `platform` SDK class.
 
@@ -78,24 +88,26 @@ These operations are available via the `platform` SDK class.
 
 ### 2. User-Interactive Build Shell
 
-This mode launches an interactive shell for development and debugging. It allows the developer to execute any of the build configurations defined in the solution.
+This mode launches an interactive shell for development and debugging. It allows the developer to execute any of the
+build configurations defined in the solution.
 
 This shell is based on `cmd2` + `prompt_toolkit` and includes:
 
-- Autocompletion  
-- Hints  
-- History  
+- Autocompletion
+- Hints
+- History
 - Integrated Markdown and JSON viewers using `textual`
 
 ---
 
 ### 3. Automatic Mode
 
-This mode is designed for **CI/CD tools or AI agents**. The caller specifies a recognized command alias (like `build_ssample`), and AutoForge:
+This mode is designed for **CI/CD tools or AI agents**. The caller specifies a recognized command alias (like
+`build_ssample`), and AutoForge:
 
-- Processes the solution  
-- Locates the matching command  
-- Executes it  
+- Processes the solution
+- Locates the matching command
+- Executes it
 - Returns the exit status
 
 ---
@@ -104,13 +116,13 @@ This mode is designed for **CI/CD tools or AI agents**. The caller specifies a r
 
 AutoForge can generate an **AI-friendly JSON summary** that includes:
 
-- Workspace layout  
-- Available commands and aliases  
-- Paths and variables  
-- Help/documentation references  
-- Build artifacts  
-- Suggested commands  
-- Build error summaries for AI consumption  
+- Workspace layout
+- Available commands and aliases
+- Paths and variables
+- Help/documentation references
+- Build artifacts
+- Suggested commands
+- Build error summaries for AI consumption
 
 This allows an AI agent to understand, manipulate, and reason about the solution environment.
 
@@ -122,12 +134,12 @@ This allows an AI agent to understand, manipulate, and reason about the solution
 
 AutoForge allows dynamically adding:
 
-- Commands  
-- Help files  
-- Paths  
-- Context creators  
-- Builders  
-- Log analyzers  
+- Commands
+- Help files
+- Paths
+- Context creators
+- Builders
+- Log analyzers
 
 All are governed by specific abstract classes to ensure proper integration.
 
@@ -137,11 +149,11 @@ All are governed by specific abstract classes to ensure proper integration.
 
 AutoForge exposes an SDK — a public set of Python classes providing access to:
 
-- Core modules  
-- AI bridge  
-- Logging  
-- Platform monitoring  
-- Telemetry  
+- Core modules
+- AI bridge
+- Logging
+- Platform monitoring
+- Telemetry
 - And more
 
 ---

@@ -286,14 +286,15 @@ class CorePlatform(CoreModuleInterface):
         """
         condition = arguments.get("condition")
         if_false_steps = arguments.get("if_false", [])
-        if_true_steps = arguments.get("if_true", [])  # optional future use
+        if_true_steps = arguments.get("if_true", [])
 
         if not condition:
             raise ValueError(f"Missing 'condition' in conditional step at index {step_number}")
 
+        # Expand everything that could be expanded
         condition = self._variables.expand_any(data=condition)
 
-        def _run_inline_steps(steps: list, parent_step_number: int):
+        def _run_inline_steps(steps: list, parent_step_number: int) -> Optional[CommandResultType]:
             """
             Execute a sequence of inline steps within a conditional block.
             """
@@ -316,17 +317,27 @@ class CorePlatform(CoreModuleInterface):
             return _result
 
         # Evaluate the condition
-        result = self.execute_python_method(method_name=condition.get("method"),
-                                            arguments=condition.get("arguments"), quiet=True)
+        result = self.execute_python_method(
+            method_name=condition.get("method"),
+            arguments=condition.get("arguments"),
+            quiet=True
+        )
 
         if result.return_code == 0:
             self._logger.debug(f"Condition passed for conditional step {step_number}")
-            if not if_true_steps:
-                return result  # skip block, no action needed
-            else:
-                return _run_inline_steps(if_true_steps, step_number)
+            if if_true_steps:
+                raise NotImplementedError(
+                    f"'if_true' block is not yet supported in step {step_number + 1}"
+                )
+            return result  # skip block, condition passed but nothing to run
+
         else:
             self._logger.debug(f"Condition failed for conditional step {step_number}")
+            if not if_false_steps:
+                raise RuntimeError(
+                    f"Condition failed in step {step_number + 1}, but no 'if_false' steps were defined."
+                )
+            self._tracker.set_result(text="FAILED", status_code=1)
             return _run_inline_steps(if_false_steps, step_number)
 
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
