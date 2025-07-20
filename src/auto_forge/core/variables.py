@@ -690,6 +690,34 @@ class CoreVariables(CoreModuleInterface):
 
         return ''.join(result)
 
+    def expand_any(self, data: Union[str, list, dict], allow_environment: bool = True, quiet: bool = False) -> Union[
+        str, list, dict]:
+        """
+        Recursively traverse a dictionary, list, or string and expand all string values
+        using self._variables.expand(key=...).
+        Args:
+            data (str, dict, or list): The data structure to traverse and expand.
+            allow_environment (bool): Whether to fall back to environment variables when expansion fails internally.
+            quiet (bool): If False, raise an exception on unresolved variables; otherwise, fail silently.
+
+        Returns:
+            str, dict, or list: A new data structure with all expandable strings expanded.
+        """
+        if isinstance(data, dict):
+            return {
+                key: self.expand_any(value, allow_environment=allow_environment, quiet=quiet)
+                for key, value in data.items()
+            }
+        elif isinstance(data, list):
+            return [
+                self.expand_any(item, allow_environment=allow_environment, quiet=quiet)
+                for item in data
+            ]
+        elif isinstance(data, str):
+            return self.expand(key=data, allow_environment=allow_environment, quiet=quiet)
+        else:
+            return data  # Non-expandable value: return as-is
+
     def export(self, as_env: bool = False) -> Union[list[dict], dict[str, str]]:
         """
         Exports the internal list of VariableFieldType instances.

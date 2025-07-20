@@ -37,6 +37,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union, Tuple
 
+from colorama import Fore, Style
+
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeModuleType, CoreLogger, CommandFailedException, CommandResultType,
@@ -44,7 +46,6 @@ from auto_forge import (
     CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog,
     ProgressTracker, PackageGlobals,
     SequenceErrorActionType, TerminalEchoType, ValidationMethodType, VersionCompare)
-from colorama import Fore, Style
 
 AUTO_FORGE_MODULE_NAME = "Platform"
 AUTO_FORGE_MODULE_DESCRIPTION = "Platform Services"
@@ -276,6 +277,58 @@ class CorePlatform(CoreModuleInterface):
         except Exception:  # Propagate the exception
             raise
 
+    def _handle_conditional_step(self, arguments: dict, step_number: int) -> Optional[CommandResultType]:
+        """
+        Handles a conditional execution block within the step sequence.
+        Evaluates a condition step and, based on its result, executes either the
+        'if_true' or 'if_false' list of steps. Returns the result of the last executed step,
+        or the condition result if no conditional steps are executed.
+        """
+        condition = arguments.get("condition")
+        if_false_steps = arguments.get("if_false", [])
+        if_true_steps = arguments.get("if_true", [])  # optional future use
+
+        if not condition:
+            raise ValueError(f"Missing 'condition' in conditional step at index {step_number}")
+
+        condition = self._variables.expand_any(data=condition)
+
+        def _run_inline_steps(steps: list, parent_step_number: int):
+            """
+            Execute a sequence of inline steps within a conditional block.
+            """
+            _result: Optional[CommandResultType] = None
+            for i, sub_step in enumerate(steps):
+                try:
+                    self._tracker.set_pre(text=sub_step.get("description"), new_line=True)
+                    _result = self.execute_python_method(
+                        method_name=sub_step.get("method"),
+                        arguments=sub_step.get("arguments")
+                    )
+                    if _result.return_code != 0:
+                        raise RuntimeError(f"Inline step failed: {sub_step.get('description')}")
+                    self._tracker.set_result(text="OK", status_code=0)
+                except Exception as err:
+                    self._tracker.set_result(text="FAILED", status_code=1)
+                    raise RuntimeError(
+                        f"Failed inline step {i + 1} inside conditional block at step {parent_step_number + 1}: {err}"
+                    ) from err
+            return _result
+
+        # Evaluate the condition
+        result = self.execute_python_method(method_name=condition.get("method"),
+                                            arguments=condition.get("arguments"), quiet=True)
+
+        if result.return_code == 0:
+            self._logger.debug(f"Condition passed for conditional step {step_number}")
+            if not if_true_steps:
+                return result  # skip block, no action needed
+            else:
+                return _run_inline_steps(if_true_steps, step_number)
+        else:
+            self._logger.debug(f"Condition failed for conditional step {step_number}")
+            return _run_inline_steps(if_false_steps, step_number)
+
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
                              create_as_needed: bool = False, change_dir: bool = False) -> Optional[str]:
         """
@@ -450,25 +503,29 @@ class CorePlatform(CoreModuleInterface):
         if searched_token not in env_value:
             raise ValueError(f"token '{searched_token}' not found in environment variable '{name}'.")
 
-    def execute_python_method(self, method_name: str, arguments: Optional[Union[str, dict]] = None) -> Optional[
+    def execute_python_method(self, method_name: str, arguments: Optional[Union[str, dict]] = None,
+                              quiet: bool = False) -> Optional[
         CommandResultType]:
         """
         Dynamically execute an arbitrary method using its name and arguments read from JSON step.
         Args:
             method_name (str): The name of the python method from this class to be invoked.
             arguments (str or dict, optional): JSON string or dictionary with arguments for the method call.
+            quiet (bool): If False, raise an exception on unresolved variables; otherwise, log and continue.
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
         """
-        # Step 1: Decode arguments if passed as a JSON string
+        results: Any = None
+
+        # Decode arguments if passed as a JSON string
         if isinstance(arguments, str):
             try:
                 arguments = json.loads(arguments)
             except json.JSONDecodeError as json_error:
                 raise ValueError("Invalid JSON string provided for arguments") from json_error
 
-        # Step 2: Default to empty dict if still None
+        # Default to empty dict if still None
         if arguments is None:
             arguments = {}
 
@@ -477,11 +534,11 @@ class CorePlatform(CoreModuleInterface):
         if not callable(method):
             raise ValueError(f"Method '{method_name}' not found in '{self.__class__.__name__}'")
 
-        # Step 4: Analyze method signature
+        # Analyze method signature
         method_signature = inspect.signature(method)
         params = list(method_signature.parameters.values())
 
-        # Step 5: Wrap if method expects single 'arguments' param
+        # Wrap if method expects single 'arguments' param
         is_wrapped_style = len(params) >= 1 and params[0].name == "arguments"
         if is_wrapped_style and not isinstance(arguments, dict):
             raise TypeError(f"Expected arguments to be a dict, got {type(arguments).__name__}")
@@ -490,14 +547,14 @@ class CorePlatform(CoreModuleInterface):
             self._logger.debug(f"Wrapping arguments for method '{method_name}'")
             arguments = {"arguments": arguments}
 
-        # Step 6: Filter valid keyword args for the method
+        # Filter valid keyword args for the method
         method_kwargs, extra_kwargs = self._tool_box.filter_kwargs_for_method(
             kwargs=arguments, sig=method_signature
         )
 
         self._logger.debug(f"Executing Python method: '{method.__name__}'")
 
-        # Step 7: Call the method and handle return types
+        # Call the method and handle return types
         try:
             results = method(**method_kwargs)
             if isinstance(results, CommandResultType):
@@ -515,10 +572,21 @@ class CorePlatform(CoreModuleInterface):
                 exception_message = f"Command '{results.command}' returned {results.return_code}"
             else:
                 exception_message = f"caught execution exception with no data"
-            raise RuntimeError(exception_message) from execution_error
+            if quiet:
+                self._logger.error(exception_message)
+                return results
+            else:
+                raise RuntimeError(exception_message) from execution_error
 
         except Exception as exception:
-            raise exception
+            if not quiet:
+                raise exception
+            else:
+                self._logger.error(exception)
+                # Create dummy results object with error status when we dont have it
+                if not isinstance(results, CommandResultType):
+                    results = CommandResultType().return_code = 1
+                return results
 
     def execute_cli_command(self, command: str, arguments: str, expected_return_code: int = 0,
                             suppress_output: bool = False) -> Optional[CommandResultType]:
@@ -1734,7 +1802,7 @@ class CorePlatform(CoreModuleInterface):
             # Copy project resources to the destination workspace path
             if self._tool_box.copy_files(source=solution_package_path,
                                          destination=solution_destination_path,
-                                         pattern=["*.json*", "*.zip", "*.py", "*.md","*.txt"], descend=True) is None:
+                                         pattern=["*.json*", "*.zip", "*.py", "*.md", "*.txt"], descend=True) is None:
                 raise RuntimeError(f"Failed to copy resources files to '{solution_destination_path}'")
 
             # Copy the initiator shell script rom the package resources to the workspace
@@ -1829,8 +1897,21 @@ class CorePlatform(CoreModuleInterface):
 
                 self._tracker.set_pre(text=step.get("description"), new_line=status_new_line)
                 try:
-                    last_step_results = self.execute_python_method(method_name=step.get("method"),
-                                                                   arguments=step.get("arguments"))
+
+                    method_name = step.get("method")
+                    arguments = step.get("arguments")
+
+                    if not isinstance(method_name, str) or not method_name.strip() or arguments is None:
+                        raise RuntimeError(
+                            f"Missing or invalid 'method' or 'arguments' in step {step_number + 1}; both are required."
+                        )
+
+                    method_name = method_name.strip().lower()  # Normalize
+                    if method_name == "conditional":
+                        last_step_results = self._handle_conditional_step(arguments, step_number)
+                    else:
+                        last_step_results = self.execute_python_method(method_name=method_name, arguments=arguments)
+
                 except Exception as execution_error:
 
                     # Default - not specified is treated a break
