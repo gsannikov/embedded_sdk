@@ -247,6 +247,15 @@
             }
         },
         {
+            "description": "Adding shell alias 'usr' to the solution",
+            "method": "create_alias",
+            "action_on_error": "resume",
+            "arguments": {
+                "alias": "usr",
+                "command": "$PROJ_WORKSPACE/env.sh --run_command"
+            }
+        },
+        {
             "description": "Adding shell alias 'us' to the solution",
             "method": "create_alias",
             "action_on_error": "resume",

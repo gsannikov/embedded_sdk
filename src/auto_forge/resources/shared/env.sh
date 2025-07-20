@@ -4,7 +4,7 @@
 #
 # Script Name:    env.sh
 # Description:    AutoForge shell environment initiator.
-# Version:        1.3
+# Version:        1.4
 #
 # ------------------------------------------------------------------------------
 
@@ -83,6 +83,7 @@ main() {
     local debug_port=""
     local verbose=false
     local -a run_command=()
+    local run_command_triggered=false
     local parsing=true
     local original_dir="$PWD"
 
@@ -122,6 +123,7 @@ main() {
                 shift
                 ;;
             -r | --run_command)
+                run_command_triggered=true
                 shift
                 parsing=false
                 continue # Let next iteration collect command args
@@ -146,17 +148,23 @@ main() {
         fi
     done
 
+    # Validate inputs
+    if $run_command_triggered && [[ ${#run_command[@]} -eq 0 ]]; then
+        printf "Error: --run_command was provided but no command was specified.\n"
+        return 1
+    fi
+
     # Source virtual environment
     if [[ ! -f "$venv_path" ]]; then
         printf "Error: Python virtual environment not found at %s\n" "$venv_path"
-        return 1
+        return 2
     fi
     # shellcheck disable=SC1090
     source "$venv_path"
 
     if ! command -v autoforge >/dev/null 2>&1; then
         printf "Error: 'autoforge' command not found in PATH.\n"
-        return 2
+        return 3
     fi
 
     # Construct command

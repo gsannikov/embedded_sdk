@@ -47,7 +47,7 @@ from wcwidth import wcswidth
 
 # AutoForge imports
 from auto_forge import (
-    AddressInfoType, AutoForgFolderType, AutoForgeModuleType, CoreJSONCProcessor, CoreLogger,
+    AddressInfoType, AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType, CoreJSONCProcessor, CoreLogger,
     CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, MethodLocationType, PackageGlobals,
     PromptStatusType
 )
@@ -1896,6 +1896,10 @@ class CoreToolBox(CoreModuleInterface):
             expire_after (float): Seconds to keep message visible. Ignored when message is None.
             erase_after (bool): Whether to erase message after it wqs shown.
         """
+
+        # Only apply terminal effects in interactive sessions
+        if self.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:
+            return
 
         with self._show_status_lock:
             console = Console(force_terminal=True)

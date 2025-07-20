@@ -24,7 +24,7 @@ from typing import Optional, Tuple, Union, Any, TYPE_CHECKING
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (AutoForgeModuleType, ModuleInfoType, BuildProfileType, CoreContext,
+from auto_forge import (AutoForgeModuleType, AutoForgeWorkModeType, ModuleInfoType, BuildProfileType, CoreContext,
                         CommandResultType, SDKType, VersionCompare)
 
 # Lazy import SDK class instance
@@ -601,6 +601,11 @@ class BuilderRunnerInterface(ABC):
             log_level (int, optional): Logging level to use (e.g., logging.INFO).
                                        If None, the message is not logged.
         """
+
+        # Disable colors when running in non-interactive mode
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:
+            bare_text = True
+
         if not bare_text:
             # Map log levels to distinct label colors
             level_color_map = {logging.CRITICAL: Fore.LIGHTRED_EX, logging.ERROR: Fore.RED,
@@ -617,7 +622,11 @@ class BuilderRunnerInterface(ABC):
         if log_level is not None:
             self._logger.log(log_level, message)
 
-        sys.stdout.write("\r\033[K")  # Clear the current line
+        if not bare_text:
+            sys.stdout.write("\r\033[K")  # Clear the current line
+        else:
+            sys.stdout.write("\n")
+
         print(leading_text + message)
 
     def update_info(self, command_info: ModuleInfoType):

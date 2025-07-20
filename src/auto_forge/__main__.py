@@ -84,7 +84,14 @@ def arguments_process() -> Optional[argparse.Namespace]:
         parser.add_argument("run_command_args", nargs=argparse.REMAINDER,
                             help="Arguments to pass to the command specified by --run-command")
 
-        return parser.parse_args()
+        args = parser.parse_args()
+
+        # Enforce correct usage for 'run-command'
+        if "--run-command" in sys.argv:
+            if args.run_command is None or args.run_command.startswith("-"):
+                parser.error("You must provide a valid command name after --run-command.")
+
+        return args
 
     # Arguments parser exception
     print()
