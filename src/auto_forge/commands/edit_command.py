@@ -50,7 +50,6 @@ class EditCommand(CommandInterface):
         self._detected_editors: Optional[list[dict[str, Any]]] = []
         self._selected_editor_index: Optional[int] = None
         self._max_fallback_search_paths: int = 10
-        self._error_context_summary: Optional[list[tuple[str, int]]] = None
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
@@ -386,50 +385,48 @@ class EditCommand(CommandInterface):
                 with open(config_path, "w", encoding="utf-8") as f:
                     json.dump(trust_data, f, indent=4)
 
-    def _get_error_context(self) -> bool:
+    def _summarize_error_context(self) -> Optional[list[tuple[str, int]]]:
         """
         If there is an error context file left by a log analyzer after a build operation,
-        open it and extract file names and line numbers so we can allow opening the default
-        editor on those specific files and lines.
+        open it and extract (file_path, line_number) tuples for unique files only,
+        so we can allow opening the default editor once per file at its first error.
 
-        Sets self._error_summary to a list of (file_path, line_number) tuples,
-        or to None if no errors were found.
+        Returns:
+            A list of unique (file_path, line_number) tuples, or None if no errors were found.
         """
 
-        self._error_context_summary = None
         build_logs_path = self._tool_box.get_valid_path(self.sdk.variables.get("BUILD_LOGS"))
         context_path: Optional[str] = self._configuration.get("build_error_context_file")
 
         if not build_logs_path or not context_path:
-            return False
+            return None
 
         context_file = build_logs_path / context_path
-        print(context_file)
         if not context_file.is_file():
-            return False
+            return None
 
         try:
             with context_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
             self._logger.warning(f"Failed to load error context file: {e}")
-            return False
+            return None
 
         events = data.get("events", [])
         if not isinstance(events, list):
-            return False
+            return None
 
-        error_locations = [
-            (event["file"], event["line"])
-            for event in events
-            if isinstance(event.get("file"), str) and isinstance(event.get("line"), int)
-        ]
+        seen_files = {}
+        for event in reversed(events):
+            file = event.get("file")
+            line = event.get("line")
+            if isinstance(file, str) and isinstance(line, int) and file not in seen_files:
+                seen_files[file] = line
 
-        if not error_locations:
-            return False
+        if not seen_files:
+            return None
 
-        self._error_context_summary = error_locations
-        return True
+        return list(seen_files.items())
 
     def _edit_file(self, path: str, editor_index: Optional[int] = None) -> Optional[int]:
         """
@@ -486,7 +483,7 @@ class EditCommand(CommandInterface):
 
     def _edit_error_context_summary(self, editor_index: Optional[int] = 0) -> bool:
         """
-        Open all files and lines in self._error_context_summary using the selected editor.
+        Open all files and lines reported in the last analyzed error context using the selected editor.
         If the editor supports line numbers, they'll be passed as arguments.
         Args:
             editor_index (Optional[int]): Index of editor to use (default is first editor).
@@ -494,7 +491,9 @@ class EditCommand(CommandInterface):
         Returns:
             True if at least one file was successfully opened, False otherwise.
         """
-        if not self._error_context_summary:
+        error_context_summary: Optional[list[tuple[str, int]]] = self._summarize_error_context()
+        if not isinstance(error_context_summary, list):
+            print("No analyzed 🪲 error context data found or failed to load.")
             return False
 
         if not self._detected_editors:
@@ -510,7 +509,7 @@ class EditCommand(CommandInterface):
 
         opened_any = False
 
-        for file_path, line in self._error_context_summary:
+        for file_path, line in error_context_summary:
             full_path = self.sdk.variables.expand(key=file_path, quiet=True)
 
             if not os.path.isfile(full_path):
@@ -534,7 +533,7 @@ class EditCommand(CommandInterface):
                 args += [abs_path]  # fallback, no line support
 
             try:
-                self._logger.debug(f"Opening error: {args}")
+                self._logger.debug(f"Opening file: {file_path}:{line}")
                 subprocess.Popen(
                     args,
                     stdout=subprocess.DEVNULL,
@@ -600,7 +599,7 @@ class EditCommand(CommandInterface):
                             help="Editor identifying text, could be index or string")
 
         parser.add_argument(
-            "-ctx", "--error-context",
+            "-e", "--error-context",
             action="store_true",
             help="Open all files listed in the most recent error context summary"
         )
@@ -618,8 +617,6 @@ class EditCommand(CommandInterface):
 
         # Refresh class locals based on specified identifier 
         self._refresh_identifier(args.editor_identifier)
-        # Load and summarized an build analyzer error context if it exist
-        self._get_error_context()
 
         # Handle arguments
         if args.path is not None:

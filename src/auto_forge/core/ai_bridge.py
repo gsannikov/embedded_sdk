@@ -500,7 +500,6 @@ class CoreAIBridge(CoreModuleInterface):
                     self._logger.warning("No code blocks found or list is empty")
                 else:
                     self._logger.debug(f"Code blocks found: {len(code_blocks)}")
-                self._logger.debug(f"Response body after substitution: {repr(response_body)}")
 
             parts = re.split(r"\n\s*\n", response_body.strip())
             parts = [p.strip() for p in parts if p.strip()]
