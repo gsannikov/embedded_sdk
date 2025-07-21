@@ -269,8 +269,9 @@ class AutoForge(CoreModuleInterface):
         if self._log_file_name is None:
 
             # Use different log file name when in one command mode
-            if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
-                self._log_file_name = str(self._initial_path / f"{self._solution_name}.{self._raw_command}.log")
+            if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
+                self._log_file_name = str(self._initial_path / f"{self._solution_name}_automation.log")
+                self._core_logger.set_colors(enable_colors=False)
 
             # Use different log file name when in one command mode
             elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
@@ -295,9 +296,8 @@ class AutoForge(CoreModuleInterface):
         self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
 
         # Bring the logger to the front of the stage and drop ANSI colors when in automating one command mode
-        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             self._core_logger.set_output_enabled(logger=None, state=True)
-            self._core_logger.set_colors(enable_colors=False)
 
         self._logger.info(f"AutoForge version: {PackageGlobals.VERSION} starting")
 
@@ -421,7 +421,7 @@ class AutoForge(CoreModuleInterface):
             self._raw_command = kwargs.get("run_command")
 
             if isinstance(self._raw_command, str):
-                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND
+                self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION
                 self._logger.debug(f"Run command: {self._raw_command}")
 
                 # Split the raw string into individual commands:
@@ -698,7 +698,7 @@ class AutoForge(CoreModuleInterface):
                 #  interactive mode and exit.
                 # ==============================================================
 
-                if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+                if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
 
                     # ==========================================================
                     #  Running one or more commands from an existing workspace

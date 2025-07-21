@@ -128,7 +128,7 @@ class CoreToolBox(CoreModuleInterface):
         """
 
         # Only apply terminal effects in non-automatic sessions
-        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return
 
         if freq is None:
@@ -746,7 +746,7 @@ class CoreToolBox(CoreModuleInterface):
         """
 
         # Method not applicable when automating a command
-        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return
 
         if use_shell:
@@ -1006,7 +1006,7 @@ class CoreToolBox(CoreModuleInterface):
 
     def print(self, *args, **kwargs):
         """Prints only if not in NON_INTERACTIVE_ONE_COMMAND mode."""
-        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             print(*args, **kwargs)
 
     def set_cursor(self, visible: bool = False):
@@ -1016,7 +1016,7 @@ class CoreToolBox(CoreModuleInterface):
         visible (bool): If True, shows the cursor. If False, hide the cursor.
         """
         # Method is not applicable when automating a command
-        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return
 
         if visible:
@@ -1366,7 +1366,7 @@ class CoreToolBox(CoreModuleInterface):
         """
 
         # Only apply terminal effects in non-automatic sessions
-        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return
 
         if not text:
@@ -1919,7 +1919,7 @@ class CoreToolBox(CoreModuleInterface):
         """
 
         # Only apply terminal effects in non-automatic sessions
-        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return
 
         with self._show_status_lock:

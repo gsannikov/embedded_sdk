@@ -28,7 +28,7 @@ class AutoForgeWorkModeType(Enum):
     UNKNOWN = 0
     INTERACTIVE = 1  # Normal interactive shell
     NON_INTERACTIVE_SEQUENCE = 3  # Executing sequence non interactively
-    NON_INTERACTIVE_ONE_COMMAND = 4  # Executing single command, used in automation mode
+    NON_INTERACTIVE_AUTOMATION = 4  # Executing single command, used in automation mode
 
 
 class AutoForgeModuleType(Enum):

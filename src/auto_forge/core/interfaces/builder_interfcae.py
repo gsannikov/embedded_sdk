@@ -606,7 +606,7 @@ class BuilderRunnerInterface(ABC):
         automation_mode: bool = False
 
         # Disable colors when automating commands
-        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             automation_mode = True
 
         if not automation_mode:

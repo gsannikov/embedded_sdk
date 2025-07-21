@@ -700,7 +700,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                 try:
 
                     suppress_output = (
-                            self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND)
+                            self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION)
                     if suppress_output:
                         devnull = io.StringIO()
                         redirect_ctx = contextlib.redirect_stdout(devnull)

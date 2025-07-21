@@ -668,7 +668,7 @@ class CorePlatform(CoreModuleInterface):
         command: Optional[str] = None
 
         # Force no echo when automating a command, in which case it's output will be captured and logged
-        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             echo_type = TerminalEchoType.NONE
 
         def _safe_quote(_arg: str) -> str:
@@ -993,7 +993,7 @@ class CorePlatform(CoreModuleInterface):
             or None if an exception was raised.
         """
         # No full screen commands in non-interactive mode
-        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return CommandResultType(return_code=1, message="Full screen commands are not allowed in automatic mode")
 
         return_code: int = 0  # Initialize to error code
