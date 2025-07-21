@@ -153,6 +153,9 @@ class CMakeBuilder(BuilderRunnerInterface):
         if steps_data:
             self._process_build_steps(steps=steps_data, is_pre=True)
 
+        # Optional, additional environment keys
+        environment_data: Optional[dict[str,str]] = config.get("environment", None)
+
         # Validate or create build_path
         build_path = Path(config["build_path"]).expanduser().resolve()
         if not build_path.exists():
@@ -194,6 +197,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             results = self.sdk.platform.execute_shell_command(command_and_args=command_line,
                                                               echo_type=TerminalEchoType.LINE,
                                                               cwd=str(execute_from),
+                                                              env=environment_data,
                                                               leading_text=build_profile.terminal_leading_text)
         except CommandFailedException as execution_error:
             results = execution_error.results
@@ -224,6 +228,7 @@ class CMakeBuilder(BuilderRunnerInterface):
                 results = self.sdk.platform.execute_shell_command(command_and_args=ninja_cmd,
                                                                   echo_type=TerminalEchoType.CLEAR_LINE,
                                                                   cwd=str(execute_from),
+                                                                  env=environment_data,
                                                                   leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results

@@ -202,7 +202,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         Returns function if line is inside one, otherwise a range of lines.
         """
         path = Path(file_path)
-        if not path.exists() or path.suffix not in {".c", ".h"}:
+        if not path.exists() or path.suffix not in {".c", ".h", ".s"}:
             raise ValueError(f"Unsupported or missing file: {path}")
 
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
@@ -235,7 +235,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     end = i
                     break
 
-            # Confirm line falls inside function (not after it)
+            # Confirm line falls inside function
             if end is not None and start <= target_idx <= end:
                 raw = lines[start:end + 1]
                 snippet = textwrap.dedent("\n".join(line.rstrip() for line in raw)).strip()

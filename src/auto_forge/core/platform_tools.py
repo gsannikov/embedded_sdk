@@ -629,10 +629,9 @@ class CorePlatform(CoreModuleInterface):
     def execute_shell_command(  # noqa: C901
             self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
-            truncate_text: bool = True,
-            use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True, shell: bool = True,
-            cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None, max_reda_chunk: Optional[int] = 1024) -> \
-            Optional[CommandResultType]:
+            truncate_text: bool = True, use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True,
+            shell: bool = True, cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None,
+            max_reda_chunk: Optional[int] = 1024) -> Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -791,8 +790,13 @@ class CorePlatform(CoreModuleInterface):
             else:
                 return select.select([process.stdout, process.stderr], [], [], polling_interval)[0]
 
-        # Create merged environment where AutoForge variables override exising
+        # Handle spawned process environment
         proc_env: dict[str, str] = os.environ.copy()
+
+        # Apply AutoForge environment variables
+        variables_env = self._variables.export(as_env=True)
+        proc_env.update(variables_env)
+        # Apply user-provided optional additions and overrides (highest priority)
         if env:
             proc_env.update(env)  # apply overrides and updates
 

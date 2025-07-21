@@ -1724,13 +1724,10 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         Args:
             statement (Any): Either a raw string command or a `cmd2.Statement` object.
         """
-
         try:
-            # Export local variables to an environment mapping
-            var_env = self._variables.export(as_env=True)
 
             results = self._platform.execute_shell_command(
-                command_and_args=statement.command_and_args, env=var_env, echo_type=TerminalEchoType.LINE)
+                command_and_args=statement.command_and_args, echo_type=TerminalEchoType.LINE)
 
             self.last_result = results.return_code if results else 0
             return None

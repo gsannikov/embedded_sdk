@@ -107,6 +107,9 @@ class MakeBuilder(BuilderRunnerInterface):
         if not build_path.is_dir():
             raise ValueError(f"build path is not a directory: '{build_path}'")
 
+        # Optional, additional environment keys
+        environment_data: Optional[dict[str, str]] = config.get("environment", None)
+
         compiler_options = config["compiler_options"]
         artifacts = config["artifacts"]
 
@@ -119,6 +122,7 @@ class MakeBuilder(BuilderRunnerInterface):
             results = self.sdk.platform.execute_shell_command(command_and_args=command_line,
                                                               echo_type=TerminalEchoType.SINGLE_LINE,
                                                               cwd=str(execute_from),
+                                                              env=environment_data,
                                                               leading_text=build_profile.terminal_leading_text)
 
         except Exception as execution_error:

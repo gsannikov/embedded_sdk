@@ -129,6 +129,15 @@
                                 "-DCMAKE_C_FLAGS_DEBUG=-O0 -g3 -ggdb",
                                 "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
                             ],
+
+                            // Optional environment variables to inject into the build process.
+                            // These override AutoForge defaults but can still be overridden
+                            // at runtime by user-supplied environment settings.
+                            "environment": {
+                                 "MY_CUSTOM_FLAG_A": "A",
+                                 "MY_CUSTOM_FLAG_B": "B"
+                             },
+
                             "artifacts": [
                                 {
                                     "name": "static_libs",
