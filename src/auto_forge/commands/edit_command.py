@@ -18,9 +18,9 @@ import os
 import shutil
 import subprocess
 import threading
-from pathlib import Path
 from contextlib import suppress
 from nturl2path import pathname2url
+from pathlib import Path
 from typing import Optional, Any, Iterable
 
 from rich import box
@@ -50,6 +50,7 @@ class EditCommand(CommandInterface):
         self._detected_editors: Optional[list[dict[str, Any]]] = []
         self._selected_editor_index: Optional[int] = None
         self._max_fallback_search_paths: int = 10
+        self._error_context_summary: Optional[list[tuple[str, int]]] = None
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=True)
@@ -385,6 +386,51 @@ class EditCommand(CommandInterface):
                 with open(config_path, "w", encoding="utf-8") as f:
                     json.dump(trust_data, f, indent=4)
 
+    def _get_error_context(self) -> bool:
+        """
+        If there is an error context file left by a log analyzer after a build operation,
+        open it and extract file names and line numbers so we can allow opening the default
+        editor on those specific files and lines.
+
+        Sets self._error_summary to a list of (file_path, line_number) tuples,
+        or to None if no errors were found.
+        """
+
+        self._error_context_summary = None
+        build_logs_path = self._tool_box.get_valid_path(self.sdk.variables.get("BUILD_LOGS"))
+        context_path: Optional[str] = self._configuration.get("build_error_context_file")
+
+        if not build_logs_path or not context_path:
+            return False
+
+        context_file = build_logs_path / context_path
+        print(context_file)
+        if not context_file.is_file():
+            return False
+
+        try:
+            with context_file.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            self._logger.warning(f"Failed to load error context file: {e}")
+            return False
+
+        events = data.get("events", [])
+        if not isinstance(events, list):
+            return False
+
+        error_locations = [
+            (event["file"], event["line"])
+            for event in events
+            if isinstance(event.get("file"), str) and isinstance(event.get("line"), int)
+        ]
+
+        if not error_locations:
+            return False
+
+        self._error_context_summary = error_locations
+        return True
+
     def _edit_file(self, path: str, editor_index: Optional[int] = None) -> Optional[int]:
         """
         Launch the selected editor to open a file or directory.
@@ -438,23 +484,85 @@ class EditCommand(CommandInterface):
         except Exception as execution_error:
             raise execution_error from execution_error
 
+    def _edit_error_context_summary(self, editor_index: Optional[int] = 0) -> bool:
+        """
+        Open all files and lines in self._error_context_summary using the selected editor.
+        If the editor supports line numbers, they'll be passed as arguments.
+        Args:
+            editor_index (Optional[int]): Index of editor to use (default is first editor).
+
+        Returns:
+            True if at least one file was successfully opened, False otherwise.
+        """
+        if not self._error_context_summary:
+            return False
+
+        if not self._detected_editors:
+            raise RuntimeError("No editors detected")
+
+        if not isinstance(editor_index, int) or editor_index >= len(self._detected_editors):
+            raise RuntimeError("Invalid editor index specified; use 'edit -l' to list editors")
+
+        selected_editor = self._detected_editors[editor_index]
+        editor_path = selected_editor.get("path")
+        editor_args = selected_editor.get("args", [])
+        editor_name = selected_editor.get("name", "").lower()
+
+        opened_any = False
+
+        for file_path, line in self._error_context_summary:
+            full_path = self.sdk.variables.expand(key=file_path, quiet=True)
+
+            if not os.path.isfile(full_path):
+                self._logger.warning(f"Skipping missing file: {full_path}")
+                continue
+
+            args = [editor_path] + editor_args
+            abs_path = os.path.abspath(full_path)
+
+            # Add line number argument if editor supports it
+            # noinspection SpellCheckingInspection
+            if editor_name in ("vscode", "code"):
+                args += [f"--goto", f"{abs_path}:{line}"]
+            elif editor_name in ("sublime_text", "subl", "sublime"):
+                args += [f"{abs_path}:{line}"]
+            elif editor_name in ("gedit", "pluma", "xed", "mousepad", "kate", "notepad++"):
+                args += [f"+{line}", abs_path]
+            elif editor_name in ("vim", "vi", "nano", "micro", "emacs"):
+                args += [f"+{line}", abs_path]
+            else:
+                args += [abs_path]  # fallback, no line support
+
+            try:
+                self._logger.debug(f"Opening error: {args}")
+                subprocess.Popen(
+                    args,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                opened_any = True
+            except Exception as e:
+                self._logger.warning(f"Failed to open {full_path}: {e}")
+
+        return opened_any
 
     def _refresh_identifier(self, editor_identifier: Optional[str] = None):
         """
         Resolve the editor identifier (from arguments or config) to an index in the detected editors list
         and update class locals.
         """
-       
+
         if self._selected_editor_index is None:
             if editor_identifier is not None:
-                self._selected_editor_index = self._resolve_editor_identifier(args.editor_identifier)
+                self._selected_editor_index = self._resolve_editor_identifier(editor_identifier)
             else:
                 # Get the identifier from the solution
                 editor_identifier = self.sdk.solution.get_arbitrary_item(key="default_editor")
                 if isinstance(editor_identifier, str):
                     self._selected_editor_index = self._resolve_editor_identifier(editor_identifier)
 
-    
     def get_editor_path(self) -> Optional[Path]:
         """
         Gets the currently selected editor as a Path object, if valid.
@@ -464,10 +572,10 @@ class EditCommand(CommandInterface):
         self._refresh_identifier()
 
         if (
-            not self._detected_editors
-            or not isinstance(self._selected_editor_index, int)
-            or self._selected_editor_index < 0
-            or self._selected_editor_index >= len(self._detected_editors)
+                not self._detected_editors
+                or not isinstance(self._selected_editor_index, int)
+                or self._selected_editor_index < 0
+                or self._selected_editor_index >= len(self._detected_editors)
         ):
             return None
 
@@ -480,7 +588,6 @@ class EditCommand(CommandInterface):
         editor_path = Path(editor_path_str)
         return editor_path if editor_path.is_file() else None
 
-
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Adds command-line arguments.
@@ -491,6 +598,12 @@ class EditCommand(CommandInterface):
         parser.add_argument("-l", "--list-editors", action="store_true", help="Show the list of detected editors")
         parser.add_argument("-id", "--editor-identifier", type=str,
                             help="Editor identifying text, could be index or string")
+
+        parser.add_argument(
+            "-ctx", "--error-context",
+            action="store_true",
+            help="Open all files listed in the most recent error context summary"
+        )
 
     def run(self, args: argparse.Namespace) -> int:
         """
@@ -505,11 +618,17 @@ class EditCommand(CommandInterface):
 
         # Refresh class locals based on specified identifier 
         self._refresh_identifier(args.editor_identifier)
-       
+        # Load and summarized an build analyzer error context if it exist
+        self._get_error_context()
+
         # Handle arguments
         if args.path is not None:
             # Execute the selected editor to edit a specified file
             return_code = self._edit_file(path=args.path, editor_index=self._selected_editor_index)
+
+        elif args.error_context:
+            # Open all files listed in the most recent error context summary
+            return_code = self._edit_error_context_summary(editor_index=self._selected_editor_index)
 
         elif args.list_editors:
             # List all detected editors.
