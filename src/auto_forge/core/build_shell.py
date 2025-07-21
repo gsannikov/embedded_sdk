@@ -780,7 +780,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         """
         added_aliases_count: int = 0
 
-        # We allow anonymous list of dictionaries or named list, either way will flattened converted to a proper list.
+        # We allow anonymous list of dictionaries or named list, either way will flatten converted to a proper list.
         aliases: Optional[list] = self._tool_box.extract_bare_list(aliases, "aliases")
 
         # Aliases must be a list of dictionaries
@@ -1741,7 +1741,9 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
             if isinstance(results, CommandResultType):
                 self.last_result = results.return_code
-                self._logger.warning(f"Command '{results.command}' returned {results.return_code}")
+                self._logger.warning(
+                    f"Command '{results.command}' returned {results.return_code} "
+                    f"{results.message if results.message else ''}")
             else:
                 self._logger.error(f"caught execution exception with no data")
             return None
@@ -1752,6 +1754,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
         # Anything else, unexpected
         except Exception as exception:
+            self.last_result = 1
             self._logger.exception(f"Caught unexpected exception: {exception}")
             return None
 

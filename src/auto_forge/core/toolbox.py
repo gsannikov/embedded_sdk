@@ -127,7 +127,7 @@ class CoreToolBox(CoreModuleInterface):
             seed (float, optional): Phase base offset (applied to all channels).
         """
 
-        # Only apply terminal effects in non automatic sessions
+        # Only apply terminal effects in non-automatic sessions
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
             return
 
@@ -1365,7 +1365,7 @@ class CoreToolBox(CoreModuleInterface):
             terminal_title (Optional[str]): Optional terminal window title to set.
         """
 
-        # Only apply terminal effects in non automatic sessions
+        # Only apply terminal effects in non-automatic sessions
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
             return
 
@@ -1918,7 +1918,7 @@ class CoreToolBox(CoreModuleInterface):
             erase_after (bool): Whether to erase message after it wqs shown.
         """
 
-        # Only apply terminal effects in non automatic sessions
+        # Only apply terminal effects in non-automatic sessions
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
             return
 
@@ -2184,7 +2184,7 @@ class CoreToolBox(CoreModuleInterface):
             if stripped.startswith("}"):
                 level = max(level - 1, 0)
 
-            # Check for special keywords that should not be indented further after '}'
+            # Check for special keywords that should not be indented further
             if (formatted_lines and
                     formatted_lines[-1].strip().endswith("}") and
                     stripped.startswith(("else", "else if", "while"))):

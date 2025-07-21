@@ -596,7 +596,7 @@ class CorePlatform(CoreModuleInterface):
                 raise exception
             else:
                 self._logger.error(exception)
-                # Create dummy results object with error status when we dont have it
+                # Create dummy results object with error status when we don't have it
                 if not isinstance(results, CommandResultType):
                     results = CommandResultType().return_code = 1
                 return results
@@ -664,6 +664,8 @@ class CorePlatform(CoreModuleInterface):
         max_reda_chunk = 1024 if max_reda_chunk < 1 else max_reda_chunk  # Normalize bad user input
         results: Optional[CommandResultType] = None
         prev_queued_message: Optional[str] = None
+        process: Optional[subprocess.Popen] = None
+        command: Optional[str] = None
 
         # Force no echo when automating a command, in which case it's output will be captured and logged
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
@@ -806,58 +808,60 @@ class CorePlatform(CoreModuleInterface):
         else:
             raise TypeError("command_and_args must be a string or a list of strings")
 
-        full_command = command_list[0]  # The command
-        command = os.path.basename(full_command)
-
-        # -----------------------------------------------------------------------
-        #
-        # Full TTY handoff for interactive apps
-        #
-        # -----------------------------------------------------------------------
-
-        if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
-            self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
-            results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env,
-                                                            timeout=timeout)
-            if check and results.return_code != 0:
-                raise subprocess.CalledProcessError(returncode=results.return_code, cmd=command)
-            return results
-
-        # Expand current work directory if specified
-        cwd = self._variables.expand(key=cwd) if cwd else cwd
-
-        # When not using shell we have to use list for the arguments rather than string
-        if not shell:
-            if " " in command or any(c in command for c in "|&;<>()"):
-                raise ValueError(f"unsupported compound shell expression: {command}")
-            _command = command_list
-        else:
-            _command = " ".join(_safe_quote(arg) for arg in command_list)
-            env_shell = os.environ.get("SHELL")
-            if env_shell:
-                kwargs = dict()
-                kwargs['executable'] = env_shell
-
-        # -----------------------------------------------------------------------
-        #
-        # Execute PTY / Normal.
-        #
-        # -----------------------------------------------------------------------
-
-        if use_pty:
-            self._logger.debug(f"Executing: {command_and_args} (PTY)")
-            master_fd, slave_fd = pty.openpty()
-            process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
-                                       shell=shell, cwd=cwd, env=proc_env, **kwargs)
-            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-        else:  # Non PTY process open
-            self._logger.debug(f"Executing: {command_and_args}")
-            process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
-                                       **kwargs)
         try:
+
+            full_command = command_list[0]  # The command
+            command = os.path.basename(full_command)
+
+            # -----------------------------------------------------------------------
+            #
+            # Full TTY handoff for interactive apps
+            #
+            # -----------------------------------------------------------------------
+
+            if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
+                self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
+                results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env,
+                                                                timeout=timeout)
+                if check and results and results.return_code != 0:
+                    results.command = command
+                    raise CommandFailedException(results=results)
+                return results
+
+            # Expand current work directory if specified
+            cwd = self._variables.expand(key=cwd) if cwd else cwd
+
+            # When not using shell we have to use list for the arguments rather than string
+            if not shell:
+                if " " in command or any(c in command for c in "|&;<>()"):
+                    raise ValueError(f"unsupported compound shell expression: {command}")
+                _command = command_list
+            else:
+                _command = " ".join(_safe_quote(arg) for arg in command_list)
+                env_shell = os.environ.get("SHELL")
+                if env_shell:
+                    kwargs = dict()
+                    kwargs['executable'] = env_shell
+
+            # -----------------------------------------------------------------------
+            #
+            # Execute PTY / Normal.
+            #
+            # -----------------------------------------------------------------------
+
+            if use_pty:
+                self._logger.debug(f"Executing: {command_and_args} (PTY)")
+                master_fd, slave_fd = pty.openpty()
+                process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
+                                           shell=shell, cwd=cwd, env=proc_env, **kwargs)
+                flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+                fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+            else:  # Non PTY process open
+                self._logger.debug(f"Executing: {command_and_args}")
+                process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                           stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
+                                           **kwargs)
             start_time = time.time()
             output_ready = False
             early_exit_no_output = False
@@ -988,6 +992,10 @@ class CorePlatform(CoreModuleInterface):
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
         """
+        # No full screen commands in non-interactive mode
+        if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
+            return CommandResultType(return_code=1, message="Full screen commands are not allowed in automatic mode")
+
         return_code: int = 0  # Initialize to error code
         if timeout:
             self._watchdog.start(timeout=timeout)

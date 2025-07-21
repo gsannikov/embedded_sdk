@@ -294,9 +294,10 @@ class AutoForge(CoreModuleInterface):
         # Flush memory logs and disable memory logger
         self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
 
-        # Bring the logger to the from of the state when in automating one command mode
+        # Bring the logger to the front of the stage and drop ANSI colors when in automating one command mode
         if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_ONE_COMMAND:
             self._core_logger.set_output_enabled(logger=None, state=True)
+            self._core_logger.set_colors(enable_colors=False)
 
         self._logger.info(f"AutoForge version: {PackageGlobals.VERSION} starting")
 
@@ -769,11 +770,12 @@ class AutoForge(CoreModuleInterface):
 
     @property
     def git_token(self) -> Optional[str]:
-        """Get or set the configured web access token string."""
+        """Get the configured web access token string."""
         return self._git_token
 
     @git_token.setter
     def git_token(self, token: str) -> None:
+        """Set the configured web access token string."""
         self._git_token = token
 
     @property

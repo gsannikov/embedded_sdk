@@ -275,7 +275,7 @@ class BuilderToolChain:
 
     @property
     def tools(self) -> dict[str, str]:
-        """ Gets the the resolved tools dictionary """
+        """ Gets the resolved tools dictionary """
         return self._resolved_tools
 
 

@@ -98,10 +98,6 @@ class _ColorFormatter(logging.Formatter):
         self._auto_logger: CoreLogger = parent_logger
         self._clean_tokens = self._auto_logger.cleanup_patterns_list
 
-        # Enable colors only when used with a console handler and the logger allows it
-        self._enable_colors = (
-                LogHandlersType.CONSOLE_HANDLER in self._handler and self._auto_logger.is_console_colors_enabled())
-
     def clean_log_line(self, line: str) -> str:
         """
         Applies cleanup patterns to a log line using regular expressions.
@@ -139,6 +135,9 @@ class _ColorFormatter(logging.Formatter):
         """
         terminal_width: int = 1024
 
+        # Enable colors only when used with a console handler and the logger allows it
+        enable_colors = (
+                LogHandlersType.CONSOLE_HANDLER in self._handler and self._auto_logger.colors)
         try:
 
             # Apply tokens list regex cleanup
@@ -148,7 +147,7 @@ class _ColorFormatter(logging.Formatter):
                 record.msg = record.msg % record.args
                 record.args = ()  # Prevent double-formatting
 
-            if not self._enable_colors:
+            if not enable_colors:
                 # Bare text mode: remove any ANSI color codes leftovers and maintain clear text
                 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
                 formatted_record = ansi_escape.sub('', super().format(record))
@@ -272,11 +271,12 @@ class CoreLogger(CoreModuleInterface):
 
         self._log_file_name: Optional[str] = None
         self._enabled_handlers: LogHandlersType = LogHandlersType.NO_HANDLERS
+        self._enable_colors: bool = True
 
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, log_level=logging.ERROR, console_enable_colors: bool = True,
-                    console_output_state: bool = True,
+    def _initialize(self, log_level=logging.ERROR, enable_colors: bool = True,
+                    output_state: bool = True,
                     erase_exiting_file: bool = True, exclusive: bool = True,
                     enable_memory_logger: bool = True,
                     configuration_data: Optional[dict[str, Any]] = None) -> None:
@@ -285,8 +285,8 @@ class CoreLogger(CoreModuleInterface):
         Initializes the CoreLogger with default logging level and handler configuration.
         Args:
             log_level (int): Logging level.
-            console_enable_colors (bool): Enables ANSI color formatting for console output.
-            console_output_state (bool): Controls whether console output is enabled.
+            enable_colors (bool): Enables ANSI color formatting for console output.
+            output_state (bool): Controls whether console output is enabled.
             erase_exiting_file (bool): If True, na exiting log file will be erased.
             exclusive (bool): If True, disables all other non-CoreLogger loggers.
             enable_memory_logger (bool): If True, enables memory logger.
@@ -303,8 +303,8 @@ class CoreLogger(CoreModuleInterface):
         self._stream_file_handler: Optional[logging.FileHandler] = None
         self._stream_memory_handler: Optional[logging.StreamHandler] = None
         self._memory_logs_buffer = []  # List[str] of formatted log lines
-        self._enable_console_colors: bool = console_enable_colors
-        self._output_stdout: bool = console_output_state
+        self._enable_colors: bool = enable_colors
+        self._output_state: bool = output_state
         self._exclusive: bool = exclusive
 
         # Attempt to get the cleanup regex pattern from the configuration object
@@ -427,7 +427,7 @@ class CoreLogger(CoreModuleInterface):
                                                                     parent_logger=self,
                                                                     handler=LogHandlersType.CONSOLE_HANDLER))
             pause_filer = _PausableFilter()
-            pause_filer.enabled = self._output_stdout
+            pause_filer.enabled = self._output_state
 
             self._stream_console_handler = logging.StreamHandler(sys.stdout)
             self._stream_console_handler.setFormatter(formatter)
@@ -708,7 +708,7 @@ class CoreLogger(CoreModuleInterface):
         if target_logger == CoreLogger.get_base_logger():
             local_instance = CoreLogger.get_instance()
             if local_instance is not None:
-                local_instance._output_stdout = state
+                local_instance._output_state = state
 
     def get_logger(self, name: Optional[str] = None, log_level: Optional[int] = None,
                    console_stdout: Optional[bool] = None) -> logging.Logger:
@@ -743,19 +743,20 @@ class CoreLogger(CoreModuleInterface):
 
         # Use the base logger console state flag if not specified
         if console_stdout is None:
-            console_stdout = self._output_stdout
+            console_stdout = self._output_state
 
         # Set initial output state
         self.set_output_enabled(logger=returned_instance, state=console_stdout)
         return returned_instance
 
-    def is_console_colors_enabled(self) -> Optional[bool]:
+    def set_colors(self, enable_colors: bool = True):
         """
-        Checks whether ANSI console color formatting is enabled.
+        Disable or enable ANSI console color formatting globally.
         Returns:
             Optional[bool]: True if console colors are enabled, False otherwise.
         """
-        return self._enable_console_colors
+
+        self._enable_colors = enable_colors
 
     def close(self):
         """
@@ -770,3 +771,8 @@ class CoreLogger(CoreModuleInterface):
         self._disable_handlers(
             LogHandlersType.CONSOLE_HANDLER | LogHandlersType.FILE_HANDLER | LogHandlersType.MEMORY_HANDLER)
         self._enabled_handlers = LogHandlersType.NO_HANDLERS
+
+    @property
+    def colors(self) -> bool:
+        """Get the state of ANSI console colors."""
+        return self._enable_colors

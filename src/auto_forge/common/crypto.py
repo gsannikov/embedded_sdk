@@ -178,7 +178,7 @@ class Crypto:
         """
 
         try:
-            # If default data is valid, encrypt and and save it to file
+            # If default data is valid, encrypt and save it to file
             if isinstance(default_data, dict):
                 self.write_encrypted_file(filename, default_data)
                 return default_data
