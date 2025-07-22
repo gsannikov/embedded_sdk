@@ -821,6 +821,7 @@ class BuildAnalyzedEventType:
     A sequence of such events can be compressed and optionally sent to an AI for analysis.
     """
     file: Optional[str] = None  # File where the issue (error/warning/etc.) occurred
+    file_built: Optional[str] = None  # File that was built while the error happened
     line: Optional[int] = None  # Line number in the file where the issue was reported
     column: Optional[int] = None  # Column number within the line, if available
     type: Optional[str] = None  # Event type (e.g., 'error', 'warning', 'note')

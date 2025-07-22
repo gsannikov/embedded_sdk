@@ -267,7 +267,8 @@ class CoreDynamicLoader(CoreModuleInterface):
                     sys.modules[python_module_spec.name] = python_module_type
 
                     self._loaded_commands += 1
-                    self._logger.debug(f"Module '{module_info.name}' dynamically loaded from '{file_stem_name}'")
+                    self._logger.debug(
+                        f"{module_info.auto_forge_module_type.name.title()} '{module_info.name}' loaded from '{file_base_name}'")
 
                 # Propagate exceptions
                 except Exception:

@@ -99,17 +99,25 @@ class TreeApp(App):
         """Recursively add JSON data to a tree node, highlighting 'name' keys."""
 
         def add_node(name: str, _node: TreeNode, _data: object) -> None:
-            label_str = name
+            """
+            Recursively adds JSON-compatible data to a TreeNode with styled labels.
+            Behavior:
+            - For dictionaries: renders key names as labels using `{}` prefix.
+            - For lists: renders indices or embedded "name" values (if available) as labels using `[]` prefix.
+            - For primitive values: renders as 'key = value' with syntax highlighting.
+            - Special styling is applied to keys named "name" to make them stand out.
+
+            Args:
+                name (str): The name or index to display for the current node.
+                _node (TreeNode): The tree node to populate.
+                _data (object): The data associated with the node (dict, list, or primitive).
+            """
             if isinstance(_data, dict):
-                name_field = _data.get("name")
-                if isinstance(name_field, str) and name_field.strip():
-                    label_str = name_field.strip()
-
-                _node.set_label(Text.from_markup(f"[bold blue]{{}}[/] [cyan]{label_str}[/]"))
-
+                _node.set_label(Text.from_markup(f"[bold blue]{{}}[/] [cyan]{name}[/]"))
                 for key, value in _data.items():
                     new_node = _node.add("")
                     add_node(key, new_node, value)
+
             elif isinstance(_data, list):
                 _node.set_label(Text.from_markup(f"[bold magenta][][/] [cyan]{name}[/]"))
                 for index, value in enumerate(_data):
@@ -121,8 +129,10 @@ class TreeApp(App):
                             display_name = str(index)
                     else:
                         display_name = str(index)
+
                     new_node = _node.add("")
                     add_node(display_name, new_node, value)
+
             else:
                 _node.allow_expand = False
                 if name:

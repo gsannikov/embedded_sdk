@@ -386,6 +386,8 @@ class CoreAIBridge(CoreModuleInterface):
                 if isinstance(prompt, str) and prompt:
 
                     error_ctx_data = _to_dict(prompt)
+                    all_derived_files: set[str] = set()  # Accumulate unique derived files
+
                     if isinstance(error_ctx_data, dict):
                         md_lines.append("## 🛫 Outgoing Prompt (❌ Error Context)")
                         md_lines.append("")
@@ -404,9 +406,23 @@ class CoreAIBridge(CoreModuleInterface):
                             line = entry.get("line", "?")
                             col = entry.get("column", "?")
                             msg = entry.get("message", "None")
+
                             md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
 
-                        md_lines.append("")
+                            # Collect derived file(s)
+                            derived_files = entry.get("derived_files") or (
+                                [entry.get("derived_file")] if "derived_file" in entry else []
+                            )
+                            for df in derived_files:
+                                all_derived_files.add(Path(df).as_posix())
+
+                        if all_derived_files:
+                            md_lines.append("")
+                            md_lines.append("### 🔗 Derived from")
+                            md_lines.append("")
+                            for df in sorted(all_derived_files):
+                                md_lines.append(f"- `{df}`")
+                            md_lines.append("")
 
                         # Optional toolchain info
                         if isinstance(error_ctx_data, dict) and "toolchain" in error_ctx_data:
@@ -416,13 +432,17 @@ class CoreAIBridge(CoreModuleInterface):
                                 md_lines.append(f"- **{k}**: {v}")
                             md_lines.append("")
 
+                        snippet_title_rendered = False
                         for entry in events:
                             snippet = entry.get("snippet", "")
                             if isinstance(snippet, str) and snippet.strip():
                                 file = entry.get("file", "")
                                 line = entry.get("line", "?")
                                 cleaned_snippet = _clean_snippet(snippet)
-                                md_lines.append(f"### ✂️ Snippet: {Path(file).name} at line {line}")
+                                if not snippet_title_rendered:
+                                    md_lines.append("### ✂️ Snippet")
+                                    snippet_title_rendered = True
+                                md_lines.append(f"{Path(file).name} at line {line}")
                                 md_lines.append("")
                                 md_lines.append("```c")
                                 md_lines.append(f"// From file: {file} at line {line}")
@@ -446,7 +466,7 @@ class CoreAIBridge(CoreModuleInterface):
 
             # ------------------------------------------------------------------
             #
-            # Rendering the actual AI response
+            # Rendering the response
             #
             # ------------------------------------------------------------------
 
@@ -507,6 +527,111 @@ class CoreAIBridge(CoreModuleInterface):
             md_lines.append(f"## 🛬 Incoming Response")
             md_lines.append("")
 
+            def _replace_separator_block(lines: list[str]) -> list[str]:
+                """
+                Process a list of lines and convert visual horizontal dividers (──────) into Markdown-friendly equivalents.
+                Specifically:
+                - If a horizontal rule (HR) is followed by a single line of content, and then another HR,
+                  the entire 3-line block is interpreted as a section title and replaced with:
+                      ### <title line>
+                  This promotes the title to a Markdown heading, and removes both HR lines.
+
+                - If a single HR line appears (not part of a 3-line block), it is replaced with a standard Markdown divider:
+                      ---
+                Args:
+                    lines (list[str]): The input text lines to process.
+                Returns:
+                    list[str]: A new list of lines with Markdown-compatible formatting.
+                """
+                _result = []
+                _i = 0
+                while _i < len(lines):
+                    _line = lines[_i].strip()
+                    is_hr = re.fullmatch(r"[─\-]{10,}", _line)
+
+                    # Check for triplet: HR / content / HR
+                    if (
+                            is_hr
+                            and _i + 2 < len(lines)
+                            and re.fullmatch(r"[─\-]{10,}", lines[_i + 2].strip())
+                    ):
+                        title_line = lines[_i + 1].strip()
+                        _result.append(f"### {title_line}  <!-- ai-section -->")
+                        _result.append("")  # spacing after header
+                        _i += 3
+                        continue
+
+                    # Regular HR → ---
+                    if is_hr:
+                        if _result and _result[-1].strip() != "":
+                            _result.append("")
+                        _result.append("---")
+                        if _i + 1 < len(lines) and lines[_i + 1].strip() != "":
+                            _result.append("")
+                        _i += 1
+                        continue
+
+                    # Normal line
+                    _result.append(lines[_i])
+                    _i += 1
+
+                return _result
+
+            def _auto_backtick_inline_code(_line: str) -> str:
+                """
+                Detect code-like elements within a line of text and wrap them in Markdown backticks (`...`)
+                for improved readability and formatting in rendered output.
+                Elements detected and wrapped in backticks include:
+                - Filenames with known extensions (e.g., .h, .c, .log)
+                - Function calls (e.g., my_func())
+                - Preprocessor constants (e.g., CONFIG_DEBUG)
+                - Command-line flags (e.g., --verbose)
+                - C-like literals (e.g., NULL, true, false, 0x1F)
+                - CMake-style variables (e.g., ${PROJECT_SOURCE_DIR})
+                Args:
+                    _line (str): A single line of text.
+                Returns:
+                    str: The line with code-like tokens wrapped in backticks, unless excluded.
+                """
+
+                # Skip lines we should not handle
+                if re.match(r"^#{1,6} ", _line.lstrip()) \
+                        or _line.lstrip().startswith((">", "```")) \
+                        or '`' in _line:
+                    return _line
+
+                # Detect and format C/C++ #include lines
+                include_match = re.match(r'#include\s+["<]([^">]+)[">]', _line)
+                if include_match:
+                    return re.sub(r'(#include\s+["<])([^">]+)([">])', r'\1`\2`\3', _line)
+
+                # Detect and format common CMake directives
+                cmake_match = re.match(r"^\s*(target_include_directories|add_executable|add_library|set)\b", _line)
+                if cmake_match:
+                    # Wrap the entire directive as inline code
+                    return f"`{_line.strip()}`"
+
+                #  Apply safe inline formatting for common code-like tokens
+                replacements = [
+                    # Filenames
+                    (r"\b\w+\.(h|c|cpp|hpp|txt|log|md)\b", r"`\g<0>`"),
+                    # Function calls
+                    (r"\b\w+\(\)", r"`\g<0>`"),
+                    # Preprocessor constants
+                    (r"\bCONFIG_[A-Z0-9_]+\b", r"`\g<0>`"),
+                    # C-like constants
+                    (r"\b(?:NULL|true|false|0x[0-9A-Fa-f]+)\b", r"`\g<0>`"),
+                    # CLI flags
+                    (r"\B--?[a-zA-Z0-9_-]+\b", r"`\g<0>`"),
+                    # CMake-style variable references
+                    (r"\$\{[A-Za-z0-9_]+}", r"`\g<0>`"),
+                ]
+
+                for pattern, repl in replacements:
+                    _line = re.sub(pattern, repl, _line)
+
+                return _line
+
             for part in parts:
                 if "[[CODE_BLOCK]]" in part:
                     segments = part.split("[[CODE_BLOCK]]")
@@ -522,9 +647,58 @@ class CoreAIBridge(CoreModuleInterface):
                             md_lines.append("```")
                             md_lines.append("")
                 else:
-                    for line in part.splitlines():
-                        if isinstance(line, str) and line.strip():
-                            md_lines.append(f"> {line.strip()}")
+
+                    # Split the current paragraph into individual lines,
+                    # and replace any decorative horizontal bars (──────) with markdown '---'
+                    for line in _replace_separator_block(part.splitlines()):
+
+                        # Skip leftover horizontal dividers
+                        if re.fullmatch(r"[─\-]{5,}", line):
+                            continue
+
+                        # Preserve indentation while normalizing Unicode whitespace
+                        leading_spaces = re.match(r"^\s*", line).group(0)
+                        content = line[len(leading_spaces):]
+
+                        content = (
+                            content.replace('\u2003', '    ')
+                            .replace('\u2002', ' ')
+                            .replace('\u00A0', ' ')
+                            .replace('\u202F', ' ')
+                        )
+
+                        line = leading_spaces + content
+
+                        # Normalize Unicode bullets and dashes
+                        bullet_match = re.match(r"^(\s*)[•–—]\s+", line)
+                        if bullet_match:
+                            indent = bullet_match.group(1)
+                            line = re.sub(r"^(\s*)[•–—]\s+", rf"{indent}- ", line)
+                        else:
+                            # Mid-line normalization (non-intrusive)
+                            line = (
+                                line.replace("•", "-")
+                                .replace("–", " - ")
+                                .replace("—", " - ")
+                            )
+
+                        # Prevent accidental heading promotion
+                        # If a line starts with '#', convert it to a blockquote instead of Markdown heading
+                        if re.match(r"^#{1,6} ", line) and "<!-- ai-section -->" not in line:
+                            line = "> " + line.lstrip("#").strip()
+
+                        # Normalize lettered steps like 'a) Explanation'
+                        if re.match(r"^[a-zA-Z]\)\s", line):
+                            line = f"  - {line}"
+
+                        line = _auto_backtick_inline_code(line)
+
+                        # Append to the output Markdown buffer
+                        # Blank lines and regular lines are added as-is
+                        md_lines.append(line)
+
+                    # Ensure a trailing blank line after each paragraph block
+                    # This prevents markdown blocks from collapsing into one another
                     md_lines.append("")
 
             # Fallback for any remaining code blocks

@@ -79,7 +79,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         # Build system chatter patterns to ignore
         self._build_prefix_re = re.compile(r'^\[\d+/\d+]\s+Building ')  # Ninja/Make building progress
-        self._failed_line_re = re.compile(r'^FAILED:')  # Ninja/Make FAILED line
+        self._failed_line_re = re.compile(r'.*?\bFAILED:\s+(?P<obj_path>.+\.o)')  # Ninja/Make FAILED line
         self._compiler_invocation_re = re.compile(r'^\s*/.+gcc\b.*-c\s+')  # Compiler command line
         self._ninja_summary_re = re.compile(
             r'^ninja:.*stopped:.*$')  # Ninja summary (e.g., "ninja: build stopped: sub-command failed.")
@@ -363,7 +363,8 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         parsed_entries: Optional[list[dict]] = None
         event_info: Optional[BuildAnalyzedEventType] = None
         analyzed_context = BuildAnalyzedContextType(toolchain=toolchain)
-        pending_function = None
+        pending_function: Optional[str] = None
+        last_failed_build_obj: Optional[str] = None  # Tracks source file inferred from FAILED line
         current_message_lines = []
         log_lines_iterable: Union[IO, list[str]] = []
         log_source_name: str = ""
@@ -406,6 +407,22 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             for line in log_lines_iterable:
                 stripped_line = line.strip()
 
+                # Match FAILED line to capture the object file path
+                failed_match = self._failed_line_re.match(stripped_line)
+                if failed_match:
+                    obj_path = failed_match.group('obj_path').strip()
+                    candidate = Path(obj_path)
+                    if candidate.suffix == '.o':
+                        src_candidate = candidate.with_suffix('.c')
+                        parts = list(src_candidate.parts)
+                        try:
+                            dir_index = parts.index("dir")
+                            src_parts = parts[dir_index + 1:]
+                        except ValueError:
+                            src_parts = parts[-2:]
+                        last_failed_build_obj = str(Path(*src_parts))
+                    continue
+
                 # Match diagnostic entry (file:line:col: warning|error|note: ...)
                 diag_match = self._diag_regex.match(stripped_line)
                 if diag_match:
@@ -418,6 +435,8 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     # Create new structured diagnostic
                     event_info = self._generate_error_context(file_path=file_name, line_number=line_number)
                     event_info.file = file_name.strip()
+                    event_info.file_built = last_failed_build_obj
+
                     event_info.line = line_number
                     event_info.column = int(diag_match.group('column')) if diag_match.group('column') else None
                     event_info.type = diag_match.group('type').strip()
@@ -444,7 +463,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 # Match build system lines (not part of diagnostics)
                 is_non_diagnostic_line = any((
                     self._build_prefix_re.match(stripped_line),
-                    self._failed_line_re.match(stripped_line),
                     self._compiler_invocation_re.match(stripped_line),
                     self._ninja_summary_re.match(stripped_line),
                     "[ninja" in stripped_line.lower(),

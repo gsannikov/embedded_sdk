@@ -12,9 +12,9 @@
     // Solutions
     "solutions": [
         {
-            "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
-            "name": "userspace",
-            "description": "Userspace CMake port",
+            "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
+            "name": "userspace",                    // This solution name
+            "description": "Userspace CMake port",  // Mandatory description
 
             // Specify a sequence of setup operation required for initiating a new workspace
             "workspace_sequence": "<$include>workspace_sequence.jsonc",
@@ -48,23 +48,25 @@
                 "*source/kernels/*"                 // Centralized kernel storage paths
             ],
 
-            // Tool-chains list used by thi solution projects
+            // List of one or more toolchains used by the 'userspace' solution projects.
             "tool_chains": [
                 {
-                    "name": "Arm GNU AArch64 Cross Toolchain",
+                    "name": "Arm GNU AArch64 Cross (CMake + Ninja)",
 
-                    // The following assumes that the Arm GNU AArch64 toolchain is available under the
-                    // AutoForge persistent path, typically located at '$HOME/.auto_forge'.
+                    // Assumes the Arm GNU AArch64 toolchain is available under the AutoForge persistent path,
+                    // typically located at '$HOME/.auto_forge'.
+                    // Note: The sysroot is provided by Arm and included with the toolchain.
+
                     "platform": "linux",
                     "description": "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads",
                     "architecture": "aarch64",
-                    "build_system": "cmake",        // AutoForge must have a 'builder' register for this build system.
-                    "tool_prefix": "aarch64-none-linux-gnu-",
+                    "build_system": "cmake",                        // AutoForge must have a 'builder' register for this build system.
+                    "tool_prefix": "aarch64-none-linux-gnu-",       // Optional binaries name prefix name
                     "tool_base_path": "$AF_TOOL_CHAINS/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu",
                     "tool_bins_path": "<$ref_tool_base_path>/bin",
                     "tool_sysroot": "<$ref_tool_base_path>/aarch64-none-linux-gnu/libc",
 
-                    // Sysroot is provided by Arm
+                    // List of executables used by this toolchain. These will be validated during the build system initialization phase.
                     "required_tools": {
                         "cmake": {
                             "path": "cmake",
@@ -98,34 +100,105 @@
                             "help": "builder/ninja.md"
                         }
                     }
+                },
+                {
+                    "name": "Arm GNU AArch64 Cross (CMake + make)",
+                    "platform": "linux",
+                    "description": "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads",
+                    "architecture": "aarch64",
+                    "build_system": "cmake",        // AutoForge must have a 'builder' register for this build system.
+                    "tool_prefix": "aarch64-none-linux-gnu-",
+                    "tool_base_path": "$AF_TOOL_CHAINS/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu",
+                    "tool_bins_path": "<$ref_tool_base_path>/bin",
+                    "tool_sysroot": "<$ref_tool_base_path>/aarch64-none-linux-gnu/libc",
+
+                    "required_tools": {
+                        "cmake": {
+                            "path": "cmake",
+                            "version": ">=3.20",
+                            "help": "builder/cmake.md",
+                            "options": [
+                                "-G",
+                                "-DCMAKE_SYSTEM_NAME=Linux",
+                                "-DCMAKE_SYSTEM_PROCESSOR=aarch64",
+                                "-DCMAKE_C_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>gcc",
+                                "-DCMAKE_CXX_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>g++",
+                                "-DCMAKE_SYSROOT=<$ref_tool_sysroot>",
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
+                            ]
+                        },
+                        "gcc": {
+                            "path": "<$ref_tool_bins_path>/<$ref_tool_prefix>gcc",
+                            "version": ">=14.2",
+                            "help": "builder/arm_cross_gcc.md"
+                        },
+                        "nm": {
+                            "path": "<$ref_tool_bins_path>/<$ref_tool_prefix>nm",
+                            "version": ">=2.43.1",
+                            "help": "builder/arm_cross_gcc.md"
+                        },
+                        "make": {
+                            "path": "make",
+                            "version": ">=4.2",
+                            "help": "builder/make.md"
+                        }
+                    }
                 }
             ],
-            // Projects list
+
+            // List of projects belonging to the 'userspace' solution
             "projects": [
                 {
-                    "name": "zephyr_build",
+                    "name": "mmg_imc",
                     "description": "ARM64 compilation of the userspace project.",
-                    "tool_chain": "<$ref_solutions[].tool_chains[Arm GNU AArch64 Cross Toolchain]>",
-                    // Per-project configuration
+
+                    // Point to any of the toolchain(s) listed by for the solution.
+                    "tool_chain": "<$ref_solutions[].tool_chains[Arm GNU AArch64 Cross (CMake + Ninja)]>",
+
+                    // List of configurations (discrete build elements) belonging to the 'mmg_imc' project
                     "configurations": [
                         {
                             "name": "debug",
+
+                            // Directory for intermediate build artifacts such as object files, logs, and temporary outputs
                             "build_path": "<$ref_solutions[].build_path>/<$ref_projects[].name>/<$ref_projects[].tool_chain.architecture>/<$ref_name>",
+
+                            // Defines an alias name for triggering this build.
+                            // This alias will be used in the interactive shell interface and embedded in the exported AI context.
                             "menu_command": {
                                 "name": "busd",
                                 "description": "🔨 Build `userspace` <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
+
+                            // This is where the top-level CMakeLists.txt is located; compilation starts from this path.
                             "execute_from": "$SOURCE_BASE/userspace",
+
+                            // Optional: customize the behavior of the 'clean' operation for this configuration
                             "clean": "cmake --build <$ref_build_path> --target clean",
+
+                            // Specify compilation flags relevant to this configuration. These will be merged with the
+                            // toolchain's general flags and passed to CMake when it is invoked.
+
                             "compiler_options": [
                                 "-S .",
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Debug",
-                                "-DMMG=1",
                                 "-DSOURCES_ROOT_PATH=$USERSPACE_MMG",
+                                "-DEBUG=1",
+                                "-DRELEASE=0",
+                                "-DCLEAN_BETWEEN=0",
+                                "-DMEV_TS=0",
+                                "-DMEV_1=0",
+                                "-DMMG=1",
+                                "-DREBUILD=1",
+                                "-DSKIP_FT_GEN=1",
+                                "-DCOVERAGE_ENABLE=0",
+                                "-DANVM=0",
+                                "-DMEV1_DPCP=0",
                                 "-DDO_COMPILE_INFRA=1",
-                                "-DZEPHYR_BUILD=1",
-                                // Explicit debug flags
+
+                                // GCC debug flags
                                 "-DCMAKE_C_FLAGS_DEBUG=-O0 -g3 -ggdb",
                                 "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
                             ],
@@ -133,10 +206,15 @@
                             // Optional environment variables to inject into the build process.
                             // These override AutoForge defaults but can still be overridden
                             // at runtime by user-supplied environment settings.
+
                             "environment": {
                                  "MY_CUSTOM_FLAG_A": "A",
                                  "MY_CUSTOM_FLAG_B": "B"
                              },
+
+                            // A list of items built by this configuration, along with an optional action.
+                            // For supported actions, refer to the implementation of the 'builder' class
+                            // in AutoForge (e.g., 'cmake').
 
                             "artifacts": [
                                 {
@@ -151,6 +229,9 @@
                                     "copy_to": "$BUILD_IMAGES/shared_libs"
                                 }
                             ],
+
+                            // List of actions to perform before compilation starts.
+
                             "pre_build_steps": [
                                 {
                                     "name": "Clean Static Libraries",
@@ -161,10 +242,18 @@
                                     "command": "!rm -rf $BUILD_IMAGES/shared_libs"
                                 }
                             ],
+
+                            // List of actions to perform after the build has completed successfully.
+
                             "post_build_steps": [
                             ]
                         },
                         {
+                            // Additional configuration demonstrating the use of the 'derived_from' keyword,
+                            // which allows inheriting all properties from an existing configuration and specifying
+                            // only the elements to override.
+
+
                             "name": "release",
                             "data": "<$derived_from_solutions[].projects[].configurations[debug]>",
                             "menu_command": {
@@ -175,14 +264,27 @@
                                 "-S .",
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Release",
-                                "-DMMG=1",
                                 "-DSOURCES_ROOT_PATH=$USERSPACE_MMG",
-                                "-DDO_COMPILE_INFRA=1",
-                                "-DZEPHYR_BUILD=1",
-                                // Explicit release optimization flags
+                                "-DEBUG=0",
+                                "-DRELEASE=1",
+                                "-DCLEAN_BETWEEN=0",
+                                "-DMEV_TS=0",
+                                "-DMEV_1=0",
+                                "-DMMG=1",
+                                "-DREBUILD=1",
+                                "-DSKIP_FT_GEN=1",
+                                "-DCOVERAGE_ENABLE=0",
+                                "-DANVM=0",
+                                "-DMEV1_DPCP=0",
+                                "-DDO_COMPILE_INFRA=0",
+
+                                // GCC optimization flag — can be fine-tuned further in the CMake files
                                 "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG",
                                 "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
-                            ]
+                            ],
+
+                            // This is how we can avoid inheriting unwanted element
+                            "environment": null
                         }
                     ]
                 }

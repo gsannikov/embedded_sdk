@@ -450,7 +450,10 @@ class CoreSolution(CoreModuleInterface):
                 raise RuntimeError(f"exceeded maximum reference resolution iterations '{self._max_iterations}', "
                                    f"potential unresolved references or circular dependencies!")
 
-            # Finally, if a schema was specified, validate the fully constructed solution configuration
+            # Remove keys pointing to none
+            self._process_and_refresh(method=self._traverse_and_process_nones)
+
+            # If a schema was specified, validate the fully constructed solution configuration
             if self._solution_schema is not None:
                 validate(instance=self._solution_data, schema=self._solution_schema)
 
@@ -474,6 +477,26 @@ class CoreSolution(CoreModuleInterface):
         """
         method(self._solution_data)
         self._solution_data = self._refresh_data(self._solution_data)
+
+    @staticmethod
+    def _traverse_and_process_nones(node) -> None:
+        """
+        Recursively removes all keys with value None from self._solution_data.
+        This modifies the structure in-place.
+        """
+        def _clean(obj):
+            if isinstance(obj, dict):
+                keys_to_delete = [k for k, v in obj.items() if v is None]
+                for k in keys_to_delete:
+                    del obj[k]
+                for v in obj.values():
+                    _clean(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    _clean(item)
+
+        if node and isinstance(node, dict):
+            _clean(node)
 
     def _traverse_and_process_syntax(self, node, parent_key=None, solution_names=None, project_names=None,
                                      config_names=None):
