@@ -1,6 +1,7 @@
 """
 Script:         help_viewer.py
 Author:         AutoForge Team
+Version         1.0
 
 Description:
     A simple terminal-based Markdown viewer built using the Textual framework.

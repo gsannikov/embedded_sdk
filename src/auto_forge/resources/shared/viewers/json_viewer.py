@@ -1,6 +1,7 @@
 """
 Script:         json_viewer.py
 Author:         AutoForge Team
+Version         1.0
 
 Description:
     Terminal-friendly JSON viewer built using the Textual framework.
@@ -98,16 +99,30 @@ class TreeApp(App):
         """Recursively add JSON data to a tree node, highlighting 'name' keys."""
 
         def add_node(name: str, _node: TreeNode, _data: object) -> None:
+            label_str = name
             if isinstance(_data, dict):
-                _node.set_label(Text.from_markup(f"[bold blue]{{}}[/] [cyan]{name}[/]"))
+                name_field = _data.get("name")
+                if isinstance(name_field, str) and name_field.strip():
+                    label_str = name_field.strip()
+
+                _node.set_label(Text.from_markup(f"[bold blue]{{}}[/] [cyan]{label_str}[/]"))
+
                 for key, value in _data.items():
                     new_node = _node.add("")
                     add_node(key, new_node, value)
             elif isinstance(_data, list):
                 _node.set_label(Text.from_markup(f"[bold magenta][][/] [cyan]{name}[/]"))
                 for index, value in enumerate(_data):
+                    if isinstance(value, dict):
+                        name_field = value.get("name")
+                        if isinstance(name_field, str) and name_field.strip():
+                            display_name = name_field.strip()
+                        else:
+                            display_name = str(index)
+                    else:
+                        display_name = str(index)
                     new_node = _node.add("")
-                    add_node(str(index), new_node, value)
+                    add_node(display_name, new_node, value)
             else:
                 _node.allow_expand = False
                 if name:
@@ -191,8 +206,9 @@ def main() -> int:
     parser.add_argument("-r", "--root_name", type=str, default="JSON", help="Root node name")
 
     args = parser.parse_args()
-    json_file_path = Path(args.json).resolve()
 
+    # Load the JSON file
+    json_file_path = Path(args.json).resolve()
     json_data = load_and_validate_json(file_path=json_file_path)
     if json_data is None:
         return 1
@@ -205,7 +221,7 @@ def main() -> int:
             decoded_text = base64.b64decode(args.panel_content).decode("utf-8")
             panel_data = json.loads(decoded_text)
     try:
-
+        # Fire Textual to render the data
         app = TreeApp(json_data=json_data, application_title=args.title, root_node_name=args.root_name,
                       panel_data=panel_data)
         return app.run()
