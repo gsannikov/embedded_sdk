@@ -40,16 +40,14 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
 
         self._last_error: Optional[str] = None
         self._ai_context: str = (
-            "The following is a structured diagnostic report from a C code-base. Each entry includes:\n"
-            "- File name, line number, column, and diagnostic type (e.g., 'warning', 'error').\n"
-            "- A concise GCC message (with the type prefix removed).\n"
-            "- The name of the function where the issue occurred.\n"
-            "- A compressed source snippet of the full function, preserving line numbers (only shown once per function).\n"
-            "- (Optional) Toolchain metadata indicating which compilers and tools were used.\n\n"
-            "Note: If multiple diagnostics occur in the same function, only the first one may include the full snippet to avoid duplication.\n\n"
-            "Use this information to identify root causes or propose precise fixes. Be technical and concise  "
-            "focus on what a human developer would need to inspect or modify to resolve the issue. "
-            "Provide fixed code suggestions whenever possible."
+            "This is a structured diagnostic log from a C project. Each item includes:\n"
+            "- Source file, line, column, and diagnostic type\n"
+            "- The error/warning message (cleaned)\n"
+            "- List of source files that triggered it ('derived_files')\n"
+            "- Optional function name and code snippet for context\n"
+            "- Toolchain info (e.g., compiler/Ninja)\n"
+            "- Similar diagnostics across multiple files will be consolidated into a single entry with a list of derived sources.\n"
+            "- Suggest root causes and fixes as a developer would, including code edits.\n\n"
         )
 
         self._module_info = self.sdk.registry.register_module(  # and these lines are handled by the user's setup
@@ -268,7 +266,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 - a list of structured diagnostic dictionaries, or
                 - a dictionary containing additional metadata (e.g., {"toolchain": ..., "events": [...]})
             output_path: Destination file path (str or Path).
-
         Returns:
             True if successfully written, False otherwise.
         """
@@ -283,6 +280,37 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     _seen.add(key)
                     _unique.append(_entry)
             return _unique
+
+        def _merge_duplicates_by_diagnostic_core(_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            """
+            Deduplicates diagnostics with identical core info but different derived_file values.
+            Produces one entry per unique (file, line, column, type, message, snippet) with merged derived_files.
+            """
+            merged = {}
+            for event in _events:
+                key = (
+                    event.get("file"),
+                    event.get("line"),
+                    event.get("column"),
+                    event.get("type"),
+                    event.get("message"),
+                    event.get("snippet"),
+                )
+                derived = event.get("derived_file")
+                if key not in merged:
+                    event = dict(event)  # clone
+                    if derived is not None:
+                        event["derived_files"] = [derived]
+                        del event["derived_file"]
+                    merged[key] = event
+                else:
+                    if derived is not None:
+                        merged_entry = merged[key]
+                        if "derived_files" not in merged_entry:
+                            merged_entry["derived_files"] = []
+                        if derived not in merged_entry["derived_files"]:
+                            merged_entry["derived_files"].append(derived)
+            return list(merged.values())
 
         def _remove_none_recursive(_obj):
             """Recursively remove keys with None values from dicts/lists."""
@@ -320,6 +348,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 if isinstance(events, list):
                     events = _clear_duplicated_entries(events)
                     events = _dedup_redundant_snippets(events)
+                    events = _merge_duplicates_by_diagnostic_core(events)
                     events.sort(key=lambda e: (e.get("file", ""), e.get("line", 0)))
                     cleaned["events"] = events
                 json_str = json.dumps(cleaned, indent=4, ensure_ascii=False)
@@ -364,13 +393,25 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
         event_info: Optional[BuildAnalyzedEventType] = None
         analyzed_context = BuildAnalyzedContextType(toolchain=toolchain)
         pending_function: Optional[str] = None
-        last_failed_build_obj: Optional[str] = None  # Tracks source file inferred from FAILED line
         current_message_lines = []
         log_lines_iterable: Union[IO, list[str]] = []
         log_source_name: str = ""
 
         self._logger.debug(f"Context will be stored in '{context_file_name}'")
         self._last_error = None
+
+        def guess_source_from_object(_obj_path: str) -> str:
+            """
+            Heuristically converts an object file path to its likely source file path.
+            """
+            base = _obj_path.rsplit('.', 1)[0]  # remove '.o'
+            candidates = [f"{base}.c", f"{base}.cpp", f"{base}.cc", f"{base}.s", f"{base}.S"]
+            # Add other known extensions if needed
+            for src in candidates:
+                if Path(src).exists():
+                    return src
+            # fallback if nothing exists
+            return f"{base}.c"
 
         # Nested helper to finalize and store a diagnostic event
         def _finalize_event():
@@ -403,6 +444,8 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             else:
                 raise TypeError("log_source must be a Path or a string.")
 
+            obj_path: Optional[str] = None
+
             # Main parsing loop
             for line in log_lines_iterable:
                 stripped_line = line.strip()
@@ -411,16 +454,6 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                 failed_match = self._failed_line_re.match(stripped_line)
                 if failed_match:
                     obj_path = failed_match.group('obj_path').strip()
-                    candidate = Path(obj_path)
-                    if candidate.suffix == '.o':
-                        src_candidate = candidate.with_suffix('.c')
-                        parts = list(src_candidate.parts)
-                        try:
-                            dir_index = parts.index("dir")
-                            src_parts = parts[dir_index + 1:]
-                        except ValueError:
-                            src_parts = parts[-2:]
-                        last_failed_build_obj = str(Path(*src_parts))
                     continue
 
                 # Match diagnostic entry (file:line:col: warning|error|note: ...)
@@ -435,7 +468,9 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
                     # Create new structured diagnostic
                     event_info = self._generate_error_context(file_path=file_name, line_number=line_number)
                     event_info.file = file_name.strip()
-                    event_info.file_built = last_failed_build_obj
+
+                    derived = guess_source_from_object(obj_path)
+                    event_info.derived_file = re.sub(r'\.(c|cpp|s|S)\.\1$', r'.\1', derived).strip()
 
                     event_info.line = line_number
                     event_info.column = int(diag_match.group('column')) if diag_match.group('column') else None

@@ -255,6 +255,18 @@ class CoreAIBridge(CoreModuleInterface):
 
         elif self._provider.name == "azure_openai":
 
+            formatting_context = """
+                Format your output similarly to OpenAI GPT-4:
+                - Use clean Markdown formatting.
+                - Mark code examples using triple backticks (e.g., ```c, ```python, ```cmake).
+                - Use Markdown headers (e.g., ### Root Cause) to separate sections.
+                - Avoid decorative characters (e.g., ──────, ======) for separation.
+                - Do not include a diagnostic summary if the input already provides structured error or event context.
+                - Avoid repeating what was given.
+                - Keep spacing and indentation consistent and minimal.
+                """
+            request_context += "\n" + formatting_context
+
             # Get API key from the storage
             api_key = self._provider.get_key(name="subscription_key")
             if api_key is None or not api_key:
@@ -370,7 +382,6 @@ class CoreAIBridge(CoreModuleInterface):
             return False
 
         try:
-
             export_markdown_file = Path(export_markdown_file).expanduser().resolve()
             raw_txt_file = export_markdown_file.with_suffix(".raw.txt")
 
@@ -470,50 +481,10 @@ class CoreAIBridge(CoreModuleInterface):
             #
             # ------------------------------------------------------------------
 
-            # Define multiple patterns
-            markdown_pattern = re.compile(r"```(?:\w+)?\s*\n(.*?)```", re.DOTALL)
-            dashed_block_pattern = re.compile(r"-{10,}\n(.*?)\n-{10,}", re.DOTALL)
-            labeled_code_block_pattern = re.compile(
-                r"(?:Original code:|Revised code:)\s*-{10,}\s*\n(.*?)\n-{10,}", re.DOTALL)
-            response_body = response  # default
-
-            # ------------------------------------------------------------------
-            #
-            # Formatting AzureOpanAI
-            #
-            # ------------------------------------------------------------------
-
-            if self._provider.name == "azure_openai":
-                # Try markdown first
-                code_blocks = markdown_pattern.findall(response)
-                if code_blocks:
-                    response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
-                else:
-                    # Try dashed block
-                    code_blocks = dashed_block_pattern.findall(response)
-                    if code_blocks:
-                        response_body = dashed_block_pattern.sub("[[CODE_BLOCK]]", response)
-                    else:
-                        # Try labeled sections like 'Original code:' or 'Revised code:'
-                        code_blocks = labeled_code_block_pattern.findall(response)
-                        if code_blocks:
-                            response_body = labeled_code_block_pattern.sub("[[CODE_BLOCK]]", response)
-
-
-            # ------------------------------------------------------------------
-            #
-            # Formatting Open|AI
-            #
-            # ------------------------------------------------------------------
-
-            elif self._provider.name == "openai" or self._provider.name is None:
-                code_blocks = markdown_pattern.findall(response)
-                response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
-
-            else:
-                self._logger.warning(f"Unknown provider '{self._provider.name}'; using default markdown pattern")
-                code_blocks = markdown_pattern.findall(response)
-                response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
+            # Extract all fenced code blocks (optionally with language)
+            markdown_pattern = re.compile(r"```(\w+)?\s*\n(.*?)```", re.DOTALL)
+            code_blocks = markdown_pattern.findall(response)
+            response_body = markdown_pattern.sub("[[CODE_BLOCK]]", response)
 
             if debug:
                 if not code_blocks:
@@ -521,190 +492,38 @@ class CoreAIBridge(CoreModuleInterface):
                 else:
                     self._logger.debug(f"Code blocks found: {len(code_blocks)}")
 
+            # Split the response into parts (paragraphs separated by blank lines)
             parts = re.split(r"\n\s*\n", response_body.strip())
             parts = [p.strip() for p in parts if p.strip()]
 
-            md_lines.append(f"## 🛬 Incoming Response")
+            md_lines.append("## 🛬 Incoming Response")
             md_lines.append("")
-
-            def _replace_separator_block(lines: list[str]) -> list[str]:
-                """
-                Process a list of lines and convert visual horizontal dividers (──────) into Markdown-friendly equivalents.
-                Specifically:
-                - If a horizontal rule (HR) is followed by a single line of content, and then another HR,
-                  the entire 3-line block is interpreted as a section title and replaced with:
-                      ### <title line>
-                  This promotes the title to a Markdown heading, and removes both HR lines.
-
-                - If a single HR line appears (not part of a 3-line block), it is replaced with a standard Markdown divider:
-                      ---
-                Args:
-                    lines (list[str]): The input text lines to process.
-                Returns:
-                    list[str]: A new list of lines with Markdown-compatible formatting.
-                """
-                _result = []
-                _i = 0
-                while _i < len(lines):
-                    _line = lines[_i].strip()
-                    is_hr = re.fullmatch(r"[─\-]{10,}", _line)
-
-                    # Check for triplet: HR / content / HR
-                    if (
-                            is_hr
-                            and _i + 2 < len(lines)
-                            and re.fullmatch(r"[─\-]{10,}", lines[_i + 2].strip())
-                    ):
-                        title_line = lines[_i + 1].strip()
-                        _result.append(f"### {title_line}  <!-- ai-section -->")
-                        _result.append("")  # spacing after header
-                        _i += 3
-                        continue
-
-                    # Regular HR → ---
-                    if is_hr:
-                        if _result and _result[-1].strip() != "":
-                            _result.append("")
-                        _result.append("---")
-                        if _i + 1 < len(lines) and lines[_i + 1].strip() != "":
-                            _result.append("")
-                        _i += 1
-                        continue
-
-                    # Normal line
-                    _result.append(lines[_i])
-                    _i += 1
-
-                return _result
-
-            def _auto_backtick_inline_code(_line: str) -> str:
-                """
-                Detect code-like elements within a line of text and wrap them in Markdown backticks (`...`)
-                for improved readability and formatting in rendered output.
-                Elements detected and wrapped in backticks include:
-                - Filenames with known extensions (e.g., .h, .c, .log)
-                - Function calls (e.g., my_func())
-                - Preprocessor constants (e.g., CONFIG_DEBUG)
-                - Command-line flags (e.g., --verbose)
-                - C-like literals (e.g., NULL, true, false, 0x1F)
-                - CMake-style variables (e.g., ${PROJECT_SOURCE_DIR})
-                Args:
-                    _line (str): A single line of text.
-                Returns:
-                    str: The line with code-like tokens wrapped in backticks, unless excluded.
-                """
-
-                # Skip lines we should not handle
-                if re.match(r"^#{1,6} ", _line.lstrip()) \
-                        or _line.lstrip().startswith((">", "```")) \
-                        or '`' in _line:
-                    return _line
-
-                # Detect and format C/C++ #include lines
-                include_match = re.match(r'#include\s+["<]([^">]+)[">]', _line)
-                if include_match:
-                    return re.sub(r'(#include\s+["<])([^">]+)([">])', r'\1`\2`\3', _line)
-
-                # Detect and format common CMake directives
-                cmake_match = re.match(r"^\s*(target_include_directories|add_executable|add_library|set)\b", _line)
-                if cmake_match:
-                    # Wrap the entire directive as inline code
-                    return f"`{_line.strip()}`"
-
-                #  Apply safe inline formatting for common code-like tokens
-                replacements = [
-                    # Filenames
-                    (r"\b\w+\.(h|c|cpp|hpp|txt|log|md)\b", r"`\g<0>`"),
-                    # Function calls
-                    (r"\b\w+\(\)", r"`\g<0>`"),
-                    # Preprocessor constants
-                    (r"\bCONFIG_[A-Z0-9_]+\b", r"`\g<0>`"),
-                    # C-like constants
-                    (r"\b(?:NULL|true|false|0x[0-9A-Fa-f]+)\b", r"`\g<0>`"),
-                    # CLI flags
-                    (r"\B--?[a-zA-Z0-9_-]+\b", r"`\g<0>`"),
-                    # CMake-style variable references
-                    (r"\$\{[A-Za-z0-9_]+}", r"`\g<0>`"),
-                ]
-
-                for pattern, repl in replacements:
-                    _line = re.sub(pattern, repl, _line)
-
-                return _line
 
             for part in parts:
                 if "[[CODE_BLOCK]]" in part:
                     segments = part.split("[[CODE_BLOCK]]")
                     for i, seg in enumerate(segments):
-                        if isinstance(seg, str) and seg.strip():
+                        if seg.strip():
                             for line in seg.strip().splitlines():
                                 md_lines.append(f"> {line.strip()}")
                             md_lines.append("")
                         if i < len(segments) - 1 and code_blocks:
-                            code = code_blocks.pop(0).strip()
-                            md_lines.append("```c")
-                            md_lines.append(code)
+                            lang, code = code_blocks.pop(0)
+                            lang = lang or "c"
+                            md_lines.append(f"```{lang}")
+                            md_lines.append(code.strip())
                             md_lines.append("```")
                             md_lines.append("")
                 else:
-
-                    # Split the current paragraph into individual lines,
-                    # and replace any decorative horizontal bars (──────) with markdown '---'
-                    for line in _replace_separator_block(part.splitlines()):
-
-                        # Skip leftover horizontal dividers
-                        if re.fullmatch(r"[─\-]{5,}", line):
-                            continue
-
-                        # Preserve indentation while normalizing Unicode whitespace
-                        leading_spaces = re.match(r"^\s*", line).group(0)
-                        content = line[len(leading_spaces):]
-
-                        content = (
-                            content.replace('\u2003', '    ')
-                            .replace('\u2002', ' ')
-                            .replace('\u00A0', ' ')
-                            .replace('\u202F', ' ')
-                        )
-
-                        line = leading_spaces + content
-
-                        # Normalize Unicode bullets and dashes
-                        bullet_match = re.match(r"^(\s*)[•–—]\s+", line)
-                        if bullet_match:
-                            indent = bullet_match.group(1)
-                            line = re.sub(r"^(\s*)[•–—]\s+", rf"{indent}- ", line)
-                        else:
-                            # Mid-line normalization (non-intrusive)
-                            line = (
-                                line.replace("•", "-")
-                                .replace("–", " - ")
-                                .replace("—", " - ")
-                            )
-
-                        # Prevent accidental heading promotion
-                        # If a line starts with '#', convert it to a blockquote instead of Markdown heading
-                        if re.match(r"^#{1,6} ", line) and "<!-- ai-section -->" not in line:
-                            line = "> " + line.lstrip("#").strip()
-
-                        # Normalize lettered steps like 'a) Explanation'
-                        if re.match(r"^[a-zA-Z]\)\s", line):
-                            line = f"  - {line}"
-
-                        line = _auto_backtick_inline_code(line)
-
-                        # Append to the output Markdown buffer
-                        # Blank lines and regular lines are added as-is
+                    for line in part.splitlines():
                         md_lines.append(line)
-
-                    # Ensure a trailing blank line after each paragraph block
-                    # This prevents markdown blocks from collapsing into one another
                     md_lines.append("")
 
-            # Fallback for any remaining code blocks
-            for leftover in code_blocks:
-                md_lines.append("```c")
-                md_lines.append(leftover.strip())
+            # Fallback for any unmatched code blocks
+            for leftover_lang, leftover_code in code_blocks:
+                lang = leftover_lang or "c"
+                md_lines.append(f"```{lang}")
+                md_lines.append(leftover_code.strip())
                 md_lines.append("```")
                 md_lines.append("")
 
