@@ -165,8 +165,6 @@ class CoreDynamicLoader(CoreModuleInterface):
                 python_module_type: Optional[ModuleType] = None
                 callable_object: Optional[object] = None
 
-                self._logger.debug(f"Analyzing '{file_base_name}'")
-
                 try:
                     # Attempt to dynamically import the file
                     python_module_spec: Optional[ModuleSpec] = (
