@@ -24,6 +24,27 @@
     "build_error_context_file": "build_error_context.json",
     "build_duplicate_symbols_file": "build_duplicate_symbols.json",
     "build_ai_response_file": "build_ai_response.md",
+    
+    // Recognized keywords in build output that should be colorized using ANSI colors
+    // to improve clarity during visual inspection
+    "build_colorize_keywords": [
+        {
+            "keyword": "error:",
+            "color": "red"
+        },
+        {
+            "keyword": "fatal:",
+            "color": "red"
+        },
+        {
+            "keyword": "warning:",
+            "color": "yellow"
+        },
+        {
+            "keyword": "FAILED:",
+            "color": "red"
+        }
+    ],
 
     // -----------------------------------------------------------------------------------------------------------------
     //

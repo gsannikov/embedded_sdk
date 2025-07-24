@@ -15,6 +15,7 @@ import threading
 from bisect import bisect_left
 from contextlib import suppress
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any, Optional, Union, Iterator
 from urllib.parse import urlparse
 
@@ -143,7 +144,7 @@ class CoreVariables(CoreModuleInterface):
         Load variables into internal storage from a list of dictionaries.
         Each dictionary must contain at least 'name' and 'value', and may optionally include
         'description', 'is_path', 'path_must_exist', and 'create_path_if_not_exist'.
-        Arfs:
+        Args:
             var_dict (list[dict]): List of dictionaries.
         """
         if not isinstance(var_dict, list) or not all(isinstance(v, dict) for v in var_dict):
@@ -184,6 +185,8 @@ class CoreVariables(CoreModuleInterface):
             return VariableType.INT
         if isinstance(value, float):
             return VariableType.FLOAT
+        if isinstance(value, Path):
+            return VariableType.PATH
         if not isinstance(value, str):
             return VariableType.UNKNOWN
 
@@ -477,12 +480,13 @@ class CoreVariables(CoreModuleInterface):
         """ Gets a list of variables with a key matching the given clue (prefix-based)."""
         return [var for var in self.iter_matching_keys(clue) if var.key is not None]
 
-    def add(self, key: str, value: str,
+    def add(self, key: str, value: Union[str, Path],
             is_path: Optional[bool] = None,
             description: Optional[str] = None,
             path_must_exist: Optional[bool] = True,
             create_path_if_not_exist: Optional[bool] = True,
             folder_type: Optional[AutoForgFolderType] = AutoForgFolderType.UNKNOWN,
+            update_if_exist: Optional[bool] = False,
             **_kwargs) -> Optional[bool]:
         """
         Adds a new Variable to the list if no variable with the same key name already exists.
@@ -494,18 +498,27 @@ class CoreVariables(CoreModuleInterface):
             path_must_exist (bool): If True, the path will be validated.
             create_path_if_not_exist (bool): If True, the path will be created.
             folder_type (AutoForgFolderType): The type of the path, when it's a path.
+            update_if_exist (bool): Update a variable if a matching key value already exist 
             _kwargs(optional): Additional keyword arguments to pass to the variable.
         Returns:
             Optional[bool]: Returns True if the variable was successfully added. Returns
                             None if a variable with the same name already exists.
         """
 
+        def _description_from_key(_key: str) -> str:
+            """ Create description from the variable name when no description is provided """
+            return ' '.join(word.capitalize() for word in _key.strip('_').split('_'))
+
         new_var = VariableFieldType()
         new_var.key = key.strip().upper()
 
+        # Normalize 'value'
+        value = str(value) if isinstance(value, Path) else value
+
         # Auto-detect the variable type
         classification: VariableType = self._classify_variable(value=value)
-        if self._classify_variable:
+
+        if self._auto_categorize:
             if classification == VariableType.UNKNOWN:
                 raise RuntimeError(f"variable '{key}' with value '{value}' could not be classified")
             # Internally we only have path / non path
@@ -516,7 +529,7 @@ class CoreVariables(CoreModuleInterface):
                 folder_type = AutoForgFolderType.UNKNOWN
 
         # Force defaults when not provided
-        new_var.description = description if description is not None else "Description not specified"
+        new_var.description = description if description is not None else _description_from_key(key)
         new_var.folder_type = folder_type if folder_type is not None else AutoForgFolderType.UNKNOWN
         new_var.is_path = is_path if is_path is not None else self._tool_box.looks_like_unix_path(value)
         new_var.path_must_exist = path_must_exist if path_must_exist is not None else True
@@ -529,7 +542,13 @@ class CoreVariables(CoreModuleInterface):
 
         index = self._get_index(new_var.key)
         if index != -1:
-            raise RuntimeError(f"variable '{new_var.key}' already exists at index {index}")
+            print(update_if_exist)
+            if not update_if_exist:
+                raise RuntimeError(f"variable '{new_var.key}' already exists at index {index}")
+            else:
+                # Update the variables list
+                self._variables[index].value = value
+                return True
 
         # When it's not a path
         if not new_var.is_path:
@@ -584,10 +603,11 @@ class CoreVariables(CoreModuleInterface):
         with self._lock:
             index = self._get_index(key)
             if index == -1:
-                raise RuntimeError(f"variable '{key}' not found")
+                return False
 
             self._variables.pop(index)  # Remove it
             self._refresh()  # Update the list and the search dictionary
+            return True
 
     def expand(self, key: Optional[str], allow_environment: bool = True, quiet: bool = False) -> Optional[str]:
         """

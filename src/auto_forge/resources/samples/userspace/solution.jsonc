@@ -185,20 +185,15 @@
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Debug",
                                 "-DSOURCES_ROOT_PATH=$USERSPACE_MMG",
-                                "-DEBUG=1",
-                                "-DRELEASE=0",
-                                "-DCLEAN_BETWEEN=0",
                                 "-DMEV_TS=0",
                                 "-DMEV_1=0",
                                 "-DMMG=1",
-                                "-DREBUILD=1",
-                                "-DSKIP_FT_GEN=1",
-                                "-DCOVERAGE_ENABLE=0",
                                 "-DANVM=0",
-                                "-DMEV1_DPCP=0",
+                                "-DMEV1_DPCP=1",
                                 "-DDO_COMPILE_INFRA=1",
+                                "-DZEPHYR_BUILD=1",
 
-                                // GCC debug flags
+                                // Explicit debug flags
                                 "-DCMAKE_C_FLAGS_DEBUG=-O0 -g3 -ggdb",
                                 "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
                             ],
@@ -265,20 +260,15 @@
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Release",
                                 "-DSOURCES_ROOT_PATH=$USERSPACE_MMG",
-                                "-DEBUG=0",
-                                "-DRELEASE=1",
-                                "-DCLEAN_BETWEEN=0",
                                 "-DMEV_TS=0",
                                 "-DMEV_1=0",
                                 "-DMMG=1",
-                                "-DREBUILD=1",
-                                "-DSKIP_FT_GEN=1",
-                                "-DCOVERAGE_ENABLE=0",
                                 "-DANVM=0",
                                 "-DMEV1_DPCP=0",
-                                "-DDO_COMPILE_INFRA=0",
+                                "-DDO_COMPILE_INFRA=1",
+                                "-DZEPHYR_BUILD=1",
 
-                                // GCC optimization flag — can be fine-tuned further in the CMake files
+                                // Explicit release optimization flags
                                 "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG",
                                 "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
                             ],

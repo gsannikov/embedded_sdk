@@ -197,7 +197,7 @@ class XRayCommand(CommandInterface):
         """
         Locate files by name pattern with optional extension filter and result limit.
         Also attempts to show how each file could be included in CMake, based on
-        automatically generated path mappings collected during the userspace CMake build.
+        automatically generated path mappings collected during the last CMake build.
 
         Args:
             file_name_pattern (str): SQL LIKE-style pattern (use '%' or '_' wildcards).
@@ -227,19 +227,15 @@ class XRayCommand(CommandInterface):
         cmake_prefixes: list[tuple[str, str]] = []
 
         if show_cmake_paths:
-            cmake_json_path: Optional[Path] = self._get_build_path(project_name="zephyr_build",
-                                                                   configuration_name="debug")
-            if not isinstance(cmake_json_path, Path):
-                cmake_json_path = self._get_build_path(project_name="zephyr_build", configuration_name="release")
-
-            if cmake_json_path:
-                cmake_paths_data: Optional[dict] = self._get_auto_vars(path=cmake_json_path, prefix_str="_auto_forge_")
+            cmake_json_path = self.sdk.variables.get(key="LAST_BUILD_PATH")
+            if isinstance(cmake_json_path, str):
+                cmake_paths_data: Optional[dict] = self._get_auto_vars(path=Path(cmake_json_path),
+                                                                       prefix_str="_auto_forge_")
                 if isinstance(cmake_paths_data, dict):
                     cmake_prefixes = sorted(
                         [(var, str(Path(base_path).resolve())) for var, base_path in cmake_paths_data.items()],
                         key=lambda kv: -len(kv[1])
                     )
-
         try:
             sql_pattern, extensions = self._resolve_search_pattern_and_extensions(file_name_pattern, extensions)
             query = """

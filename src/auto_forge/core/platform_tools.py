@@ -109,9 +109,12 @@ class CorePlatform(CoreModuleInterface):
         self._configuration: dict[str, Any] = self.auto_forge.configuration
 
         # Get the interactive commands from package configuration or use defaults if not available
-        self._interactive_commands = self._configuration.get('interactive_commands',
-                                                             ["cat", "htop", "top", "vim", "less", "nano",
-                                                              "vi", "clear", "pico"])
+        self._interactive_commands: list = self._configuration.get('interactive_commands',
+                                                                   ["cat", "htop", "top", "vim", "less", "nano",
+                                                                    "vi", "clear", "pico"])
+
+        # Get an optional list of keywords which, when found in command output, will be colorized using ANSI colors
+        self._build_colorize_keywords: list = self._configuration.get('build_colorize_keywords', [])
 
         # Allow to override default execution timeout of a sub-processes in configuration
         self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
@@ -631,7 +634,8 @@ class CorePlatform(CoreModuleInterface):
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
             truncate_text: bool = True, use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True,
             shell: bool = True, cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None,
-            max_reda_chunk: Optional[int] = 1024) -> Optional[CommandResultType]:
+            max_read_chunk: Optional[int] = 1024, apply_colorization: Optional[bool] = False) -> Optional[
+        CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -646,8 +650,9 @@ class CorePlatform(CoreModuleInterface):
             shell (bool): If True, the command will be executed in a shell environment.
             cwd (Optional[str]): The directory from which the process should be executed.
             env (Optional[Mapping[str, str]]): Environment variables.
-            max_reda_chunk (Optional[int]): The maximum number of bytes we're allowed to acclimate.
-
+            max_read_chunk (Optional[int]): The maximum number of bytes we're allowed to acclimate.
+            apply_colorization (Optional[bool]): Whether to highlight common build status keywords (e.g., "error:", "warning:") 
+                    using ANSI colors in the output.
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
@@ -660,7 +665,7 @@ class CorePlatform(CoreModuleInterface):
         master_fd: Optional[int] = None  # PTY master descriptor
         timeout = self._subprocess_execution_timout if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
-        max_reda_chunk = 1024 if max_reda_chunk < 1 else max_reda_chunk  # Normalize bad user input
+        max_read_chunk = 1024 if max_read_chunk < 1 else max_read_chunk  # Normalize bad user input
         results: Optional[CommandResultType] = None
         prev_queued_message: Optional[str] = None
         process: Optional[subprocess.Popen] = None
@@ -733,10 +738,32 @@ class CorePlatform(CoreModuleInterface):
                     if leading_text is not None:
                         line = leading_text + line  # Prefix with optional leading text
 
-                    if "warning:" in line:
-                        line = line.replace("warning:", f"{Fore.YELLOW}\nWarning:{Style.RESET_ALL}") + "\n"
-                    elif "error:" in line:
-                        line = line.replace("error:", f"{Fore.RED}\nError:{Style.RESET_ALL}") + "\n"
+                    # Look for several clues in the output and colorize them for clarity
+                    if apply_colorization and self._build_colorize_keywords:
+                        patterns = [entry["keyword"] for entry in self._build_colorize_keywords]
+                        match = self._tool_box.find_pattern_in_line(line, patterns)
+                        if match:
+                            matched_pattern, pos = match
+
+                            # Find the matching config entry (case-insensitive)
+                            keyword_entry = next(
+                                (entry for entry in self._build_colorize_keywords
+                                 if entry["keyword"].lower() == matched_pattern.lower()),
+                                None
+                            )
+
+                            # Resolve color, defaulting to red
+                            color_name = keyword_entry.get("color", "red") if keyword_entry else "red"
+                            color = getattr(Fore, color_name.upper(), Fore.RED)
+
+                            # Format the replacement text
+                            title_case = matched_pattern.title()
+                            colored = f"{color}{title_case}{Style.RESET_ALL}"
+                            replacement = f"\n{colored}" if pos > 0 else colored
+
+                            # Replace only the first occurrence
+                            line = line.replace(matched_pattern, replacement, 1) + "\n"
+
                     sys.stdout.write(f'\033[K{line}\r')
                 else:
                     # Bare text, no formatting
@@ -819,7 +846,7 @@ class CorePlatform(CoreModuleInterface):
 
             # -----------------------------------------------------------------------
             #
-            # Full TTY handoff for interactive apps
+            # Full TTY hand off for interactive apps
             #
             # -----------------------------------------------------------------------
 
@@ -901,9 +928,9 @@ class CorePlatform(CoreModuleInterface):
 
                 if _is_readable():
                     if use_pty:
-                        received_bytes = os.read(master_fd, max_reda_chunk)
+                        received_bytes = os.read(master_fd, max_read_chunk)
                     else:
-                        received_bytes = process.stdout.read(max_reda_chunk)
+                        received_bytes = process.stdout.read(max_read_chunk)
 
                     if received_bytes:
                         for b in received_bytes:

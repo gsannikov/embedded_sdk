@@ -337,7 +337,7 @@ class CoreJSONCProcessor(CoreModuleInterface):
         Returns:
             dict or None: Parsed JSON object, or None if an error occurs.
         """
-        clean_text: Optional[str] = None
+        dirty_json: Optional[str] = None
         path_obj = Path(file_name)
         base = path_obj.with_suffix('')  # Remove .json or .jsonc if present
 
@@ -380,10 +380,10 @@ class CoreJSONCProcessor(CoreModuleInterface):
             return json_data
 
         except (FileNotFoundError, json.JSONDecodeError, ValueError) as json_parsing_error:
-            if clean_text is not None:
+            if dirty_json is not None:
                 error_line = self._get_line_number_from_error(str(json_parsing_error))
                 if error_line is not None:
-                    self._show_debug_message(file_name, clean_text, error_line, json_parsing_error)
+                    self._show_debug_message(file_name, dirty_json, error_line, json_parsing_error)
             raise
 
 

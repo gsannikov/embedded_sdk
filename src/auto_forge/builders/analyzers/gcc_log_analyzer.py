@@ -188,7 +188,9 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             try:
                 asyncio.run(_inner())
             except Exception as ai_exception:
-                self.sdk.tool_box.show_status(message=f"🤖 AI query failed: {ai_exception}", expire_after=2,
+                error_message = f"AI query failed: {ai_exception}"
+                self._logger.error(error_message)
+                self.sdk.tool_box.show_status(message=f"🤖 {error_message}", expire_after=2,
                                               status_type=PromptStatusType.ERROR, erase_after=True)
 
         threading.Thread(target=_runner, daemon=True).start()

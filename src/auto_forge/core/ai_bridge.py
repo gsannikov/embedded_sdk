@@ -413,10 +413,10 @@ class CoreAIBridge(CoreModuleInterface):
                         for entry in events:
                             file = Path(entry.get("file", "None")).name
                             function = entry.get("function", "-")
-                            typ = entry.get("type", "")
+                            typ = entry.get("type", "?").title()
                             line = entry.get("line", "?")
                             col = entry.get("column", "?")
-                            msg = entry.get("message", "None")
+                            msg = entry.get("message", "None").title()
 
                             md_lines.append(f"| {typ} | `{file}` | `{function}` | `{line}:{col}` | {msg} |")
 

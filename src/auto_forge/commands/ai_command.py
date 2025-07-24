@@ -66,6 +66,28 @@ class AICommand(CommandInterface):
             user_prompt (str): The user's natural language query description.
         """
 
+        def _clean_sql_query(_query: str) -> str:
+            """
+            Cleans up an AI-generated SQL query string by:
+            - Removing Markdown code block markers (```sql, ```).
+            - Stripping leading/trailing whitespace.
+            - Normalizing indentation and removing aligned padding.
+            - Collapsing excessive internal whitespace to a single space.
+            """
+            # Remove markdown code fences
+            _query = re.sub(r"```sql\s*|```", "", _query.strip(), flags=re.IGNORECASE)
+
+            # Remove extra indentation/padding from each line
+            lines = _query.splitlines()
+            stripped_lines = [line.strip() for line in lines if line.strip()]
+
+            # Rejoin and normalize internal spaces for alignment artifacts
+            normalized_sql = "\n".join(
+                re.sub(r"\s{2,}", " ", line) for line in stripped_lines
+            )
+
+            return normalized_sql
+
         ai_prompt = f"""
         Generate a safe and complete SQL SELECT query based on the user's request.
 
@@ -118,8 +140,10 @@ class AICommand(CommandInterface):
             print("\r", end='', flush=True)
 
         if not sql_query or "select" not in sql_query.lower():
-            print()
+            self._logger.warning("AI response does not look like a valid SQL query")
             return
+
+        sql_query = _clean_sql_query(sql_query)
 
         sql_syntax = Syntax(sql_query, "sql", theme="monokai", line_numbers=False, code_width=80)
         self._console.print(sql_syntax)

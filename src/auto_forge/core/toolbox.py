@@ -35,7 +35,7 @@ from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from types import ModuleType
-from typing import Any, Optional, SupportsInt, Union, Callable
+from typing import Any, Optional, SupportsInt, Union, Callable, Tuple
 from urllib.parse import ParseResult, unquote, urlparse
 
 import psutil
@@ -2258,6 +2258,26 @@ class CoreToolBox(CoreModuleInterface):
         now = datetime.now(UTC)
         window_start = now - timedelta(days=days_back)
         return window_start <= event_date <= now
+
+    @staticmethod
+    def find_pattern_in_line(line: str, patterns: list[str]) -> Optional[Tuple[str, int]]:
+        """
+        Searches for the first occurrence of any pattern (case-insensitive) in the given line.
+        Args:
+            line (str): The text line to search.
+            patterns (list[str]): List of patterns to search for.
+
+        Returns:
+            Optional[Tuple[str, int]]: A tuple of (matched_pattern_original_case, position_in_line),
+                                       or None if no pattern is found.
+        """
+        line_lower = line.lower()
+        for pattern in patterns:
+            idx = line_lower.find(pattern.lower())
+            if idx != -1:
+                # Return the pattern from the original line based on its position
+                return line[idx:idx + len(pattern)], idx
+        return None
 
     # noinspection SpellCheckingInspection
     def truncate_for_terminal(self, text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:

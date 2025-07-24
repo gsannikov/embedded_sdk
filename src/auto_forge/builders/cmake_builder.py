@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 # AutoForge imports
 from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CommandFailedException,
-                        BuilderArtifactsValidator, TerminalEchoType, GCCLogAnalyzer)
+                        BuilderArtifactsValidator, TerminalEchoType, GCCLogAnalyzer, CoreVariables)
 
 AUTO_FORGE_MODULE_NAME = "cmake"
 AUTO_FORGE_MODULE_DESCRIPTION = "CMake builder"
@@ -66,6 +66,7 @@ class CMakeBuilder(BuilderRunnerInterface):
         self._last_rendered_ai_response: Optional[str] = None
         self._state: _CMakeBuildStep = _CMakeBuildStep.PRE_CONFIGURE
         self._gcc_analyzer = GCCLogAnalyzer()
+        self._variables: CoreVariables = CoreVariables.get_instance()
 
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
@@ -118,6 +119,11 @@ class CMakeBuilder(BuilderRunnerInterface):
         self._build_duplicate_symbols_file.unlink(missing_ok=True)
         self._build_ai_response_file.unlink(missing_ok=True)
 
+        # Reset 'last build' variables'
+        self._variables.remove(key="LAST_BUILD_CONFIGURATION")
+        self._variables.remove(key="LAST_BUILD_PROJECT")
+        self._variables.remove(key="LAST_BUILD_PATH")
+
         # Check if we should auto send build errors to the registered AI
         ai_auto_advise_config: Optional[bool] = self.sdk.solution.get_arbitrary_item(key="ai_auto_advise")
         ai_auto_advise = ai_auto_advise_config if isinstance(ai_auto_advise_config, bool) else False
@@ -154,7 +160,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             self._process_build_steps(steps=steps_data, is_pre=True)
 
         # Optional, additional environment keys
-        environment_data: Optional[dict[str,str]] = config.get("environment", None)
+        environment_data: Optional[dict[str, str]] = config.get("environment", None)
 
         # Validate or create build_path
         build_path = Path(config["build_path"]).expanduser().resolve()
@@ -198,6 +204,7 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                               echo_type=TerminalEchoType.LINE,
                                                               cwd=str(execute_from),
                                                               env=environment_data,
+                                                              apply_colorization=True,
                                                               leading_text=build_profile.terminal_leading_text)
         except CommandFailedException as execution_error:
             results = execution_error.results
@@ -229,6 +236,7 @@ class CMakeBuilder(BuilderRunnerInterface):
                                                                   echo_type=TerminalEchoType.CLEAR_LINE,
                                                                   cwd=str(execute_from),
                                                                   env=environment_data,
+                                                                  apply_colorization=True,
                                                                   leading_text=build_profile.terminal_leading_text)
             except CommandFailedException as execution_error:
                 results = execution_error.results
@@ -253,7 +261,7 @@ class CMakeBuilder(BuilderRunnerInterface):
                     raise RuntimeError(
                         f"Ninja execution error {results.message if results else 'unknown'}")
 
-                    # Validate CMaKE results
+            # Echo Ninja build results
             self.print_build_results(results=results, raise_exception=True)
 
             # Update step and optionally handle extra arguments based on the current state
@@ -276,6 +284,11 @@ class CMakeBuilder(BuilderRunnerInterface):
         nm_command = self._toolchain.get_tool('nm')
         self.analyze_library_exports(path=str(build_path), nm_tool_name=nm_command, max_libs=100,
                                      json_report_path=str(self._build_duplicate_symbols_file))
+
+        # Update variables 'last build''
+        self._variables.add(key="LAST_BUILD_CONFIGURATION", value=build_profile.config_name, update_if_exist=True)
+        self._variables.add(key="LAST_BUILD_PROJECT", value=build_profile.project_name, update_if_exist=True)
+        self._variables.add(key="LAST_BUILD_PATH", value=build_path, update_if_exist=True)
 
         return results.return_code
 

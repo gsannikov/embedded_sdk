@@ -20,7 +20,7 @@ from typing import Optional
 from colorama import Fore, Style
 
 # AutoForge imports
-from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, TerminalEchoType)
+from auto_forge import (BuilderRunnerInterface, BuilderToolChain, BuildProfileType, CoreVariables, TerminalEchoType)
 
 AUTO_FORGE_MODULE_NAME = "make"
 AUTO_FORGE_MODULE_DESCRIPTION = "make files builder"
@@ -44,6 +44,8 @@ class MakeBuilder(BuilderRunnerInterface):
                              Currently unused but accepted for interface compatibility.
         """
         self._toolchain: Optional[BuilderToolChain] = None
+        self._variables: CoreVariables = CoreVariables.get_instance()
+
         super().__init__(build_system=AUTO_FORGE_MODULE_NAME)
 
     def _execute_build(  # noqa: C901
@@ -86,6 +88,11 @@ class MakeBuilder(BuilderRunnerInterface):
         build_target_string = (f"{Fore.LIGHTBLUE_EX}{build_profile.project_name}"
                                f"{Style.RESET_ALL}/{build_profile.config_name}")
 
+        # Reset 'last build' variables'
+        self._variables.remove(key="LAST_BUILD_CONFIGURATION")
+        self._variables.remove(key="LAST_BUILD_PROJECT")
+        self._variables.remove(key="LAST_BUILD_PATH")
+
         # Gets the exact compiler path from the toolchain class
         build_command = self._toolchain.get_tool('make')
         self.print_message(f"Build of '{build_target_string}' for {architecture} starting...")
@@ -123,6 +130,7 @@ class MakeBuilder(BuilderRunnerInterface):
                                                               echo_type=TerminalEchoType.SINGLE_LINE,
                                                               cwd=str(execute_from),
                                                               env=environment_data,
+                                                              apply_colorization=True,
                                                               leading_text=build_profile.terminal_leading_text)
 
         except Exception as execution_error:
@@ -155,6 +163,11 @@ class MakeBuilder(BuilderRunnerInterface):
 
         if missing_artifacts:
             raise ValueError("missing expected build artifacts:" + "\n".join(missing_artifacts))
+
+        # Update variables 'last build''
+        self._variables.add(key="LAST_BUILD_CONFIGURATION", value=build_profile.config_name, update_if_exist=True)
+        self._variables.add(key="LAST_BUILD_PROJECT", value=build_profile.project_name, update_if_exist=True)
+        self._variables.add(key="LAST_BUILD_PATH", value=build_path, update_if_exist=True)
 
         self.print_message(message=f"Building of '{build_target_string}' was successful", log_level=logging.INFO)
         return results.return_code
