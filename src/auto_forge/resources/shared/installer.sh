@@ -37,9 +37,9 @@ is_sourced() {
 }
 
 #
-# @brief Installs the AutoForge package, which then locates and installs the required solution package.
-#        Once complete, AutoForge takes over the rest of the installation process.
-# @return 0 if the script was sourced, 1 if it was executed directly.
+# @brief Installs the AutoForge Python package, which then locates and installs the required solution package.
+#        Once installed, AutoForge takes over and completes the rest of the setup process.
+# @return 0 if the script was sourced; 1 if it was executed directly.
 #
 
 install_auto_forge() {
