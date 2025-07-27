@@ -84,7 +84,7 @@ main() {
         echo "  -w, --workspace 	  [path]      Destination workspace path."
         echo "  -n, --name      	  [name]      Solution name to use."
         echo "  -p, --package   	  [path/url]  Solution package to use (local path or URL)."
-        echo "  -s, --sequence  	  [name]      Solution sequence name required for preparing new workspace"
+        echo "  -s, --sequence  	  [name]      Solution sequence name required for preparing new workspace."
         echo "  -u, --url           [url]       Optional override AutoForge package URL."
         echo "  -h, --help                      Display this help and exit."
         echo
