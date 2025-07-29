@@ -10,8 +10,7 @@
             "Must be read before workspace-specific metadata (e.g., `.autoforge/agent_metadata.json`) is available."
         ],
         "location": "This file is located in the root of the AutoForge package repository, alongside pyproject.toml.",
-        "comment_format": "jsonc (agents should treat file as opaque and call AutoForge CLI for structured data)",
-        "schema": "TBD - this file structure is designed to be declarative, but may be validated in future against a formal JSON schema."
+        "comment_format": "jsonc (agents should treat file as opaque and call AutoForge CLI for structured data)"
     },
     "_notes": {
         "placeholders": {
