@@ -21,7 +21,7 @@ from typing import Optional
 from auto_forge import (CommandInterface, CoreToolBox, AutoForgCommandType)
 
 AUTO_FORGE_MODULE_NAME = "deploy"
-AUTO_FORGE_MODULE_DESCRIPTION = "Recipe Deployer"
+AUTO_FORGE_MODULE_DESCRIPTION = "Utility for recipe-based deployment"
 AUTO_FORGE_MODULE_VERSION = "1.0"
 
 

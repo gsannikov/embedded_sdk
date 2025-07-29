@@ -81,7 +81,9 @@
                                 "-DCMAKE_CXX_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>g++",
                                 "-DCMAKE_SYSROOT=<$ref_tool_sysroot>",
                                 "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
-                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY",
+                                "-DCMAKE_C_COMPILER_WORKS=TRUE",        // Bypass CMake's compiler sanity check
+                                "-DCMAKE_CXX_COMPILER_WORKS=TRUE"       // Bypass CMake's compiler sanity check
                             ]
                         },
                         "gcc": {
@@ -125,7 +127,9 @@
                                 "-DCMAKE_CXX_COMPILER=<$ref_tool_bins_path>/<$ref_tool_prefix>g++",
                                 "-DCMAKE_SYSROOT=<$ref_tool_sysroot>",
                                 "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
-                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
+                                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY",
+                                "-DCMAKE_C_COMPILER_WORKS=TRUE",        // Bypass CMake's compiler sanity check
+                                "-DCMAKE_CXX_COMPILER_WORKS=TRUE"       // Bypass CMake's compiler sanity check
                             ]
                         },
                         "gcc": {
@@ -150,13 +154,14 @@
             // List of projects belonging to the 'userspace' solution
             "projects": [
                 {
-                    "name": "mmg_imc",
+                    "name": "mev_imc",
                     "description": "ARM64 compilation of the userspace project.",
+                    "sys_root": "/opt/ipu/imc/simics/sysroots/aarch64-intel-linux",
 
                     // Point to any of the toolchain(s) listed by for the solution.
                     "tool_chain": "<$ref_solutions[].tool_chains[Arm GNU AArch64 Cross (CMake + Ninja)]>",
 
-                    // List of configurations (discrete build elements) belonging to the 'mmg_imc' project
+                    // List of configurations (discrete build elements) belonging to the 'mev_imc' project
                     "configurations": [
                         {
                             "name": "debug",
@@ -181,21 +186,26 @@
                             // toolchain's general flags and passed to CMake when it is invoked.
 
                             "compiler_options": [
+                                "-DCMAKE_SYSROOT=<$ref_projects[].sys_root>", // Overriding ARM native sysroot with Simics local sysroot,
                                 "-S .",
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Debug",
                                 "-DSOURCES_ROOT_PATH=$USERSPACE_MMG",
+                                "-DDEBUG=1",
                                 "-DMEV_TS=0",
                                 "-DMEV_1=0",
                                 "-DMMG=1",
                                 "-DANVM=0",
-                                "-DMEV1_DPCP=1",
-                                "-DDO_COMPILE_INFRA=1",
-                                "-DZEPHYR_BUILD=1",
+                                "-DMEV1_DPCP=0",
 
-                                // Explicit debug flags
-                                "-DCMAKE_C_FLAGS_DEBUG=-O0 -g3 -ggdb",
-                                "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -g3 -ggdb"
+                                // Debug build with balanced performance:
+                                // -Og enables useful optimizations that do not interfere with debugging,
+                                //   improving compile time and runtime performance over -O0.
+                                // -g includes standard debug symbols for source-level debugging.
+                                // This setup is ideal for day-to-day development: faster builds and effective debugging.
+                                "-DCMAKE_C_FLAGS_DEBUG=-Og -g",
+                                "-DCMAKE_CXX_FLAGS_DEBUG=-Og -g"
+
                             ],
 
                             // Optional environment variables to inject into the build process.
@@ -256,21 +266,21 @@
                                 "description": "🔨 Build `userspace` <$ref_projects[].name>/<$ref_name> for <$ref_projects[].tool_chain.architecture>"
                             },
                             "compiler_options": [
+                                "-DCMAKE_SYSROOT=<$ref_projects[].sys_root>", // Overriding ARM native sysroot with Simics local sysroot,
                                 "-S .",
                                 "-B <$ref_build_path>",
                                 "-DCMAKE_BUILD_TYPE=Release",
                                 "-DSOURCES_ROOT_PATH=$USERSPACE_MMG",
+                                "-DDEBUG=0",
                                 "-DMEV_TS=0",
                                 "-DMEV_1=0",
                                 "-DMMG=1",
                                 "-DANVM=0",
                                 "-DMEV1_DPCP=0",
-                                "-DDO_COMPILE_INFRA=1",
-                                "-DZEPHYR_BUILD=1",
 
                                 // Explicit release optimization flags
-                                "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG",
-                                "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
+                                "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG -D_FORTIFY_SOURCE=2",
+                                "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG -D_FORTIFY_SOURCE=2"
                             ],
 
                             // This is how we can avoid inheriting unwanted element

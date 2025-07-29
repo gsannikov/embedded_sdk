@@ -214,6 +214,45 @@ class CoreToolBox(CoreModuleInterface):
 
         return '/' in might_be_path
 
+    @staticmethod
+    def looks_like_unix_file(might_be_file: str) -> bool:
+        """
+        Determines if a string looks like a Unix-style file path (not a directory).
+        Args:
+            might_be_file (str): The string to evaluate.
+        Returns:
+            bool: True if the string appears to be a valid Unix-style file path, False otherwise.
+        """
+        if not might_be_file or not isinstance(might_be_file, str):
+            return False
+
+        # Reject strings with characters forbidden or risky in filenames
+        if '<' in might_be_file or '>' in might_be_file:
+            return False
+
+        if re.search(r'[<>:"|?*]', might_be_file):
+            return False
+
+        # Basic check for having at least one '/'
+        if '/' not in might_be_file:
+            return False
+
+        path = Path(might_be_file)
+
+        # Must have a suffix (file extension)
+        if not path.suffix:
+            return False
+
+        # Ensure last part is not empty
+        if not path.name or path.name.endswith('/'):
+            return False
+
+        # Avoid purely directory-looking paths like /usr/local/bin/
+        if might_be_file.endswith('/'):
+            return False
+
+        return True
+
     def store_value(self, key: Any, value: Any) -> bool:
         """
         Provide a simple interface to store values into a RAM-based storage.
@@ -2147,7 +2186,7 @@ class CoreToolBox(CoreModuleInterface):
     def clang_formatter(code: str, indent: int = 4, use_tabs: bool = False) -> str:
         """
         Basic C/C++ formatter:
-        - Indents after '{' and dedents after '}'
+        - Indents after '{' and de-dents after '}'
         - Handles multi-line definitions and statements
         - Supports switch/case indentation
         - Keeps pre-processor lines and block comments aligned

@@ -499,15 +499,21 @@ class MethodLocationType(NamedTuple):
 
 
 class VariableType(Enum):
-    """ Types of variables which could be autodetect """
-    UNKNOWN = auto()
-    PATH = auto()
-    WIN_PATH = auto()
-    URL = auto()
-    INT = auto()
-    FLOAT = auto()
-    VERSION = auto()
-    STRING = auto()
+    """
+    Represents the different types of variables that can be automatically detected
+    based on their value format.
+    """
+    UNKNOWN = auto()  # Type could not be determined
+    PATH = auto()  # Unix-style directory path (e.g., /usr/bin)
+    FILE = auto()  # Unix-style file path (e.g., /usr/bin/ls)
+    WIN_PATH = auto()  # Windows-style directory path (e.g., C:\Windows)
+    WIN_FILE = auto()  # Windows-style file path (e.g., C:\Windows\notepad.exe)
+    URL = auto()  # Web URL (e.g., https://example.com)
+    BOOL = auto()  # Boolean value (True, False, "yes", "no", etc.)
+    INT = auto()  # Integer value (e.g., 42, -7)
+    FLOAT = auto()  # Floating-point value (e.g., 3.14, -0.001)
+    VERSION = auto()  # Version-like string (e.g., "1.2.3", "v2.0-beta")
+    STRING = auto()  # Generic string not matching any of the above types
 
 
 @dataclass

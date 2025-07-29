@@ -44,7 +44,7 @@ class CoreVariables(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared
         earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
-        self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted listy of objects
+        self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted list of objects
         super().__init__(*args, **kwargs)
 
     def _initialize(self, workspace_path: str, solution_name: str, work_mode: AutoForgeWorkModeType) -> None:
@@ -192,9 +192,17 @@ class CoreVariables(CoreModuleInterface):
 
         val = value.strip()
 
+        # Boolean-like strings
+        if val.lower() in {"true", "false", "yes", "no", "on", "off", "1", "0"}:
+            return VariableType.BOOL
+
         # Check for Unix path
         if self._tool_box.looks_like_unix_path(val):
             return VariableType.PATH
+
+        # Check for Unix file 
+        if self._tool_box.looks_like_unix_file(val):
+            return VariableType.FILE
 
         # Check for URL
         with suppress(Exception):
@@ -212,13 +220,17 @@ class CoreVariables(CoreModuleInterface):
                 float(val)
                 return VariableType.FLOAT
 
-        # Windows Path
-        if (len(val) >= 3
-            and val[1] == ':'
-            and val[2] in ('\\', '/')
-            and val[0].isalpha()
-        ) or val.startswith('\\\\'):
-            return VariableType.WIN_PATH
+        # Check for Windows path (drive letter style or UNC path)
+        if (
+                (len(val) >= 3 and val[1] == ':' and val[2] in ('\\', '/')
+                 and val[0].isalpha()) or
+                val.startswith('\\\\')
+        ):
+            # If it ends in slash or looks like a folder
+            if val[-1] in ('\\', '/'):
+                return VariableType.WIN_PATH
+            else:
+                return VariableType.WIN_FILE
 
         # Check for version-like string (e.g. "1.2.3", "v1.0", "2.0-beta")
         version_pattern = re.compile(r'^(v?\d+(\.\d+)*([-_a-zA-Z0-9]*)?)$')
@@ -292,6 +304,8 @@ class CoreVariables(CoreModuleInterface):
             if self._variables is None or not self._variables:
                 return
 
+            self._resolve_variable_references()
+
             # Sort the variables list based on whether the name is None and the name itself.
             self._variables.sort(key=lambda var: (var.key is None, var.key or ""))
 
@@ -334,6 +348,80 @@ class CoreVariables(CoreModuleInterface):
 
             # Load essential
             self._load_from_dictionary(self._essential_variables)
+
+    def _resolve_variable_references(self):
+        """
+        Expands all stored variable values by resolving internal references to other variables.
+        For example, given:
+            KEY_A = $KEY_B/suffix
+            KEY_B = prefix
+
+        The result will be:
+            KEY_A = prefix/suffix
+            KEY_B = prefix
+
+        External references (e.g., $HOME) that are not defined in the internal list are left unchanged.
+        Notes:
+            - Self-referencing or circular definitions (e.g., KEY_A = $KEY_B and KEY_B = $KEY_A)
+              will trigger a RuntimeError with a detailed dependency path.
+            - Expansion is limited by a maximum iteration count to prevent infinite loops caused
+              by indirect or unresolved dependencies.
+        """
+        with self._lock:
+            key_to_value = {
+                var.key: var.value
+                for var in self._variables
+                if var.key and var.value
+            }
+
+            max_iterations = len(self._variables) * 3  # Prevent infinite recursion
+            pattern = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
+
+            def _expand_value(val: str, stack: set[str]) -> str:
+                def _replacer(match):
+                    ref_key = match.group(1)
+                    if ref_key in stack:
+                        raise RuntimeError(
+                            f"Cyclic or self-referencing variable detected: ${ref_key} "
+                            f"(dependency chain: {' -> '.join(stack)} -> {ref_key})"
+                        )
+                    if ref_key in key_to_value:
+                        stack.add(ref_key)
+                        resolved = _expand_value(key_to_value[ref_key], stack)
+                        stack.remove(ref_key)
+                        return resolved
+                    return f"${ref_key}"  # Preserve unknown/system environment references
+
+                return pattern.sub(_replacer, val)
+
+            iteration = 0
+            while iteration < max_iterations:
+                changes = 0
+                for var in self._variables:
+                    if not var.key or not var.value:
+                        continue
+                    before = var.value
+                    after = _expand_value(before, {var.key})
+                    if after != before:
+                        var.value = after
+                        key_to_value[var.key] = after
+                        changes += 1
+
+                        # Reclassify after resolution
+                        new_type = self._classify_variable(after)
+                        if new_type != var.type and new_type != VariableType.UNKNOWN:
+                            var.type = new_type
+                if changes == 0:
+                    break
+                iteration += 1
+            else:
+                raise RuntimeError(
+                    "Variable expansion exceeded the maximum number of iterations. "
+                    "This may indicate an unresolved circular reference. "
+                    "Check for definitions such as KEY_A = $KEY_B and KEY_B = $KEY_A. "
+                    f"Max iterations attempted: {max_iterations}. "
+                    f"Keys involved: {sorted(key_to_value.keys())}"
+                )
 
     def load_from_file(self, config_file_name: str, reset: bool = False,
                        variables_schema: Optional[dict] = None) -> Optional[int]:

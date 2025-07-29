@@ -70,6 +70,7 @@ Copy and paste the following into your terminal:
 #
 # ⚠ No 'sudo' is required, and no files are deleted without consent.
 
+SOLUTION_PACKAGE="<SAMPLES_PATH>/userspace"
 GITHUB_REPO="intel-innersource/firmware.ethernet.devops.auto_forge"
 GITHUB_TOKEN=$(dt github print-token https://github.com/${GITHUB_REPO})
 
@@ -81,7 +82,7 @@ curl -sSL \
       -n userspace \
       -w ws \
       -s workspace_sequence \
-      -p "<SAMPLES_PATH>/userspace"
+      -p "${SOLUTION_PACKAGE}"
 ```
 
 ### What Happens Next:

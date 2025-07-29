@@ -16,7 +16,7 @@
     // -----------------------------------------------------------------------------------------------------------------
 
     "git_token_environment_var": "NONE",                                // Optional name of the environment variable that may hold the user's Git token
-    "subprocess_execution_timout": 120.0,                               // Default timeout (in seconds) for sub-process execution.
+    "subprocess_execution_timout": 300.0,                               // Default timeout (in seconds) for sub-process execution.
     "watchdog_timeout": 10.0,                                           // Default timeout (in seconds) for sub-process execution.
     "productivity_assist": true,                                        // Productivity assist flag
 
@@ -619,14 +619,24 @@
 
     "proxy_servers": [
         // List of proxy server
-        { "host": "51.158.105.94",           "port": 31826, "https":  false  },
-        { "host": "43.198.151.41",           "port": 31005, "https":  false  },
-        { "host": "123.141.181.8",           "port": 5031,  "https":  false },
-        { "host": "209.135.168.41",          "port": 80,    "https":  false }
+        { "host": "proxy-dmz.intel.com",    "port": 911, "https": false },
+        { "host": "proxy-iil.intel.com",    "port": 912, "https": false },
+        { "host": "child-prc.intel.com",    "port": 912, "https": false },
+        { "host": "proxy-chain.intel.com",  "port": 912, "https": false },
+        { "host": "proxy-us.intel.com",     "port": 912, "https": false },
+        { "host": "ftpgw.fm.intel.com",     "port": 911, "https": false },
+        { "host": "proxy-jf.intel.com",     "port": 912, "https": false },
+        { "host": "proxy-fm.intel.com",     "port": 912, "https": false },
+        { "host": "proxy-iind.intel.com",   "port": 912, "https": false },
+        { "host": "proxy-ir.intel.com",     "port": 912, "https": false },
+        { "host": "child-jf.intel.com",     "port": 912, "https": false },
+        { "host": "proxy1-iil.intel.com",   "port": 912, "https": false },
+        { "host": "proxy2-iil.intel.com",   "port": 912, "https": false },
+        { "host": "proxy-png.intel.com",    "port": 912, "https": false }
     ],
 
     "proxy_dummy_files": [
-        // Downloadable resources
+        // Downloadable resources 100Mb each
         { "url": "http://speed.hetzner.de/100MB.bin",                   "size": 100000,    "name": "Hetzner Online"    },
         { "url": "http://ipv4.download.thinkbroadband.com/100MB.zip",   "size": 100000,    "name": "ThinkBroadband"    },
         { "url": "http://speedtest.tokyo2.linode.com/100MB-tokyo.bin",  "size": 100000,    "name": "Linode"            },

@@ -87,10 +87,10 @@ class SolutionCommand(CommandInterface):
             for var in var_list:
                 key = str(var.get("key", "") or "")
                 description = str(var.get("description", "") or "")
-                is_path = var.get("is_path", False)
                 value = var.get("value", "")
                 folder_type = var.get("folder_type", AutoForgFolderType.UNKNOWN)
                 var_type: VariableType = var.get("type", VariableType.UNKNOWN)
+                is_file_or_path = var_type in (VariableType.PATH, VariableType.FILE)
 
                 # Get and format folder type
                 folder_type_str = folder_type.name if isinstance(folder_type, AutoForgFolderType) else ""
@@ -99,7 +99,7 @@ class SolutionCommand(CommandInterface):
                 # Build styled value text
                 value_text = Text()
                 try:
-                    if is_path and isinstance(value, str):
+                    if is_file_or_path and isinstance(value, str):
                         path_obj = Path(value)
 
                         if value.startswith(project_workspace):
@@ -121,7 +121,7 @@ class SolutionCommand(CommandInterface):
                 except ValueError:
                     value_text = Text(str(value))
 
-                table.add_row(key, value_text, description, self._bool_emoji(is_path),
+                table.add_row(key, value_text, description, self._bool_emoji(is_file_or_path),
                               self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str,
                               var_type.name.capitalize())
 
