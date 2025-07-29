@@ -778,12 +778,21 @@ class CoreToolBox(CoreModuleInterface):
                 sys.stdout.write("\033]0;\007")
             sys.stdout.flush()
 
-    def reset_terminal(self, use_shell: bool = True):
+    def reset_terminal(self, use_shell: bool = True, flush_buffers: bool = True):
+        # noinspection SpellCheckingInspection
         """
-        Restores terminal to a sane state using term-ios.
-        Equivalent to 'stty sane', but avoids shell calls.
-        """
+        Restore terminal to a usable, interactive state after full-screen or raw-mode manipulation.
+        It performs two key actions:
+            1. Attempts a low-level terminal reset via Python's `termios` and `tty` modules (avoids subprocess when possible).
+            2. Optionally invokes `stty sane` as a fallback or additional layer of reset (if `use_shell=True`).
 
+        Optionally also flushes screen artifacts and exits alternate screen buffer.
+        Args:
+            use_shell (bool): If True, invokes `stty sane` via subprocess for POSIX-style terminal reset.
+                              Set to False to avoid any shell subprocess usage.
+            flush_buffers (bool): If True, forcibly exits alternate screen buffer (e.g., after `nano`)
+                                  and clears both the visible screen and scrollback buffer.
+        """
         # Method not applicable when automating a command
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             return
@@ -800,8 +809,9 @@ class CoreToolBox(CoreModuleInterface):
                     attrs[3] |= termios.ECHO | termios.ICANON  # enable echo and canonical mode
                     termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
 
-                print("\033[?1049l", end="", flush=True)  # Exit alt screens (for ex. 'nano')
-                print("\033[3J\033[H\033[2J", end="", flush=True)
+                if flush_buffers:
+                    print("\033[?1049l", end="", flush=True)  # Exit alt screens (for ex. 'nano')
+                    print("\033[3J\033[H\033[2J", end="", flush=True)
 
     def safe_start_keyboard_listener(self, listener_handler: callable) -> Optional[Any]:
         """
