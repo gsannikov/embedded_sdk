@@ -221,9 +221,7 @@ class AICommand(CommandInterface):
             self._logger.warning("AI response does not appear to contain code summary.")
             return
 
-        sanitized_response = self._tool_box.markdown_to_text(md=code_review_response)
         base_filename = os.path.basename(filename)
-
         panels = []
 
         if analysis_info.summary_exiting_content:
