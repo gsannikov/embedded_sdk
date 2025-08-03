@@ -39,9 +39,9 @@ try:
         DataSizeFormatter, EventManager, ExceptionGuru, ExecutionModeType, ExpectedVersionInfoType,
         FieldColorType, InputBoxButtonType, InputBoxLineType, InputBoxTextType, LinuxShellType,
         LogHandlersType, MessageBoxType, MethodLocationType, ModuleInfoType, PromptStatusType, ProxyServerType,
-        SDKType, SequenceErrorActionType, SignatureFieldType, SignatureSchemaType, StatusNotifType,
-        SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru, TerminalEchoType,
-        TerminalSpinner, TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType,
+        SourceFileLanguageType, SourceFileInfoType, SDKType, SequenceErrorActionType, SignatureFieldType,
+        SignatureSchemaType, StatusNotifType, SysInfoLinuxDistroType, SysInfoPackageManagerType, TerminalAnsiGuru,
+        TerminalEchoType, TerminalSpinner, TerminalTeeStream, ValidationMethodType, VariableFieldType, VariableType,
         XRayStateType,
     )
 
@@ -49,6 +49,7 @@ try:
     from auto_forge.common.version_compare import (VersionCompare)
     from auto_forge.common.progress_tracker import (ProgressTracker)
     from auto_forge.common.crypto import (Crypto)
+    from auto_forge.common.summary_patcher import (SummaryPatcher)
 
     # Protocols
     from auto_forge.core.protocols.protocols import (
@@ -112,10 +113,11 @@ __all__ = [
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "GCCLogAnalyzer", "HasConfigurationProtocol", "InputBoxButtonType", "InputBoxLineType",
     "InputBoxTextType", "LinuxShellType", "LogHandlersType", "MessageBoxType", "MethodLocationType",
-    "ModuleInfoType", "PackageGlobals", "ProgressTracker", "PromptStatusType", "ProxyServerType", "SDKType",
-    "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
+    "ModuleInfoType", "PackageGlobals", "ProgressTracker", "PromptStatusType", "ProxyServerType",
+    "SourceFileLanguageType", "SourceFileInfoType",
+    "SDKType", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "StatusNotifType", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalSpinner",
     "TerminalTeeStream", "ValidationMethodType", "VariableFieldType", "VariableType", "VersionCompare",
-    "XRayStateType",
+    "XRayStateType", "SummaryPatcher",
 ]

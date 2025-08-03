@@ -33,8 +33,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreAIBridge, CoreBuildShell, CoreContext, CoreDynamicLoader, CoreGUI,
     CoreJSONCProcessor, CoreLinuxAliases, CoreLogger, CoreModuleInterface, CorePlatform, CoreRegistry,
     CoreSolution, CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog, CoreXRayDB,
-    EventManager, ExceptionGuru, LogHandlersType, PackageGlobals, StatusNotifType,
-)
+    EventManager, ExceptionGuru, LogHandlersType, PackageGlobals, StatusNotifType, )
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
 AUTO_FORGE_MODULE_DESCRIPTION = "AutoForge Main"

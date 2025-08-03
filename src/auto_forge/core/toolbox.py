@@ -41,6 +41,7 @@ from urllib.parse import ParseResult, unquote, urlparse
 import psutil
 # Third-party
 from pyfiglet import Figlet
+# Rich terminal utilities
 from rich.console import Console
 from rich.text import Text
 from wcwidth import wcswidth
@@ -79,6 +80,7 @@ class CoreToolBox(CoreModuleInterface):
         self._telemetry: CoreTelemetry = CoreTelemetry.get_instance()
         self._registry = CoreRegistry.get_instance()
         self._preprocessor: Optional[CoreJSONCProcessor] = CoreJSONCProcessor.get_instance()
+        self._configuration: Optional[dict[str, Any]] = None
 
         # Dependencies check
         if None in (self._core_logger, self._logger, self._system_info, self._telemetry, self._preprocessor,
@@ -90,9 +92,10 @@ class CoreToolBox(CoreModuleInterface):
         self._dynamic_vars_storage: dict = {}  # Dictionary for managed arbitrary session variables
         self._show_status_lock = threading.RLock()
         self._pre_compiled_escape_patterns = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+        self._configuration = self.auto_forge.configuration
 
-        # Populate ANSI codes from the configuration data
-        self._ansi_codes = self.auto_forge.configuration.get("ansi_codes", {})
+        # Populate ANSI codes from the package configuration data
+        self._ansi_codes = self._configuration.get("ansi_codes", {})
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -516,6 +519,7 @@ class CoreToolBox(CoreModuleInterface):
 
         for root, _, files in os.walk(directory):
             for file in files:
+
                 if not file.endswith('.py'):
                     continue
 
@@ -763,6 +767,70 @@ class CoreToolBox(CoreModuleInterface):
             else:
                 raise FileNotFoundError(f"Path does not exist: {path}")
         return path
+
+    @staticmethod
+    def markdown_to_text(md: str) -> Optional[str]:
+        """
+        Converts basic Markdown to plain text using regex.
+        Handles headers, bold/italic, links, lists, code blocks, and inline code.
+        Does not require external packages.
+        """
+
+        # Make sure we have something to work on
+        if not isinstance(md, str) or len(md) == 0:
+            return md
+
+        text = md.strip()
+
+        # Remove opening fenced code block marker (e.g., ```python or ```sql)
+        text = re.sub(r"^```[a-zA-Z0-9_+-]*\s*", "", text, flags=re.MULTILINE)
+
+        # Remove closing triple backticks
+        text = re.sub(r"^```$", "", text, flags=re.MULTILINE)
+
+        # Remove inline code backticks
+        text = re.sub(r"`([^`]*)`", r"\1", text)
+
+        # Remove images
+        text = re.sub(r"!\[[^]]*]\([^)]+\)", "", text)
+
+        # Convert links [text](url) -> text
+        text = re.sub(r"\[([^]]+)]\([^)]+\)", r"\1", text)
+
+        # Headers
+        text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+
+        # Bold/italic
+        text = re.sub(r"\*\*\*([^*]+)\*\*\*", r"\1", text)
+        text = re.sub(r"___([^_]+)___", r"\1", text)
+        text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+        text = re.sub(r"__([^_]+)__", r"\1", text)
+        text = re.sub(r"\*([^*]+)\*", r"\1", text)
+        text = re.sub(r"_([^_]+)_", r"\1", text)
+
+        # Blockquotes
+        text = re.sub(r"^\s*> ?", "", text, flags=re.MULTILINE)
+
+        # Lists
+        text = re.sub(r"^\s*[-+*]\s+", "- ", text, flags=re.MULTILINE)
+        text = re.sub(r"^\s*\d+\.\s+", "- ", text, flags=re.MULTILINE)
+
+        # Remove triple quotes
+        text = re.sub(r'("""|\'\'\')', '', text)
+
+        # Remove visual separator lines (e.g., ====..., ---..., ***..., etc.)
+        text = re.sub(r"^\s*([=\-*_.~#])\1{3,}.*$", "", text, flags=re.MULTILINE)
+
+        # Remove leading colon + quote pattern like: ': "text'
+        text = re.sub(r"^[:\-–—]\s*[\"']+", "", text, flags=re.MULTILINE)
+
+        # Remove trailing quote-only lines or dangling trailing quotes
+        text = re.sub(r"[\"']+\s*$", "", text)
+
+        # Collapse excessive blank lines
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        return text.strip()
 
     @staticmethod
     def set_terminal_title(title: Optional[str] = None):

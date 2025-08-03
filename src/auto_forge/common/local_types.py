@@ -17,7 +17,7 @@ from enum import Enum, auto, IntFlag
 from itertools import cycle
 from pathlib import Path
 from types import ModuleType
-from typing import Any, NamedTuple, Optional, TextIO, Union, ClassVar, TypeVar, Type
+from typing import Any, NamedTuple, Optional, TextIO, Union, ClassVar, TypeVar, Type, Sequence
 
 AUTO_FORGE_MODULE_NAME: str = "LocalTypes"
 AUTO_FORGE_MODULE_DESCRIPTION: str = "Project shared types"
@@ -157,6 +157,40 @@ class XRayStateType(Enum):
     IDLE = auto()  # Module is running and ready to serve requests
     DB_QUERY = auto()  # Executing SQL query
     ERROR = auto()  # Module is in error state
+
+
+class SourceFileLanguageType(Enum):
+    """Programming languages that can be auto-detected from source content."""
+    UNKNOWN = auto()
+    PYTHON = auto()
+    C = auto()
+    JSON = auto()
+    GROOVY = auto()
+    SHELL = auto()
+    YAML = auto()
+
+
+@dataclass
+class SourceFileInfoType:
+    """Generic type for storing analyzed source file information"""
+    filename: Optional[Path] = None
+    file_size: Optional[int] = None
+    file_content: Optional[str] = None
+    source_code: Optional[bytes] = None
+    source_code_lines: Optional[list] = None
+
+    # Suggested line index to insert a summary (e.g., docstring or comment block).
+    # This is language-dependent. For Python:
+    # - If a shebang exists after leading empty lines, the summary should follow it.
+    # - If a docstring already exists, it starts there.
+    # - If no shebang or docstring is present, 0 is assumed.
+    # Used by patchers to decide where to inject or replace the summary block.
+    suggested_start_line: int = -1
+
+    programming_language: SourceFileLanguageType = SourceFileLanguageType.UNKNOWN
+    summary_start_line: Optional[int] = None  # 0-based
+    summary_end_line: Optional[int] = None  # inclusive
+    summary_exiting_content: Optional[Sequence[str]] = None
 
 
 class PromptStatusType(Enum):

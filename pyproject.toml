@@ -41,6 +41,11 @@ dependencies = [
     "pynput>=1.8.1,<2.0",
     "openai==1.30.5",
     "cryptography>=45.0.0",
+    "Pygments >= 2.19.2",
+    "tree-sitter >= 0.20.1",
+    "tree-sitter-bash >= 0.19.0",
+    "tree-sitter-groovy >= 0.1.0",
+    "tree-sitter-python >= 0.20.0",
     "cmd2==2.3.3"]
 
 [project.urls]

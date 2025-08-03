@@ -19,6 +19,7 @@
     "subprocess_execution_timout": 300.0,                               // Default timeout (in seconds) for sub-process execution.
     "watchdog_timeout": 10.0,                                           // Default timeout (in seconds) for sub-process execution.
     "productivity_assist": true,                                        // Productivity assist flag
+    "max_inspection_size_bytes": 16384,                                 // Upper limit to an AI inspected file size
 
     // Build auto generated files
     "build_error_context_file": "build_error_context.json",
@@ -94,7 +95,6 @@
         ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                       "Solution JSONs",                              null,    null,   "SCRIPTS"           ],
         ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ]
     ],
-
 
     // -----------------------------------------------------------------------------------------------------------------
     //
@@ -236,7 +236,8 @@
         { "name": "er",           "command": "edit --error-context",                                    "cmd_type": "UTILITY",      "description": "📝 Edit Files from Last Build Errors"                       },
         { "name": "exit",         "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                            "hidden": true  },
         { "name": "xfind",        "command": "xray -c -l",                                              "cmd_type": "UTILITY",      "description": "Files finding utility"                                      },
-        { "name": "aifind",       "command": "ai --db",                                                 "cmd_type": "AI",           "description": "Natural language files search"                              },
+        { "name": "aifind",       "command": "ai --query-from-prompt",                                  "cmd_type": "AI",           "description": "Natural language DB files search"                           },
+        { "name": "aisum",        "command": "ai --get-source-summary",                                 "cmd_type": "AI",           "description": "Generate a high-level description of a source module"       },
         { "name": "ga",           "command": "git add .",                                               "cmd_type": "GIT",          "description": "Git add all"                                                },
         { "name": "gc",           "command": "git commit -m",                                           "cmd_type": "GIT",          "description": "Git commit"                                                 },
         { "name": "gob",          "command": "cd $BUILD_OUT",                                           "cmd_type": "NAVIGATE",     "description": "Go to build output directory"                               },
@@ -301,6 +302,7 @@
         "cat"             : { "path_completion": true , "only_dirs": false    },
         "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias
         "j"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.jsonc", "*.json"]  },
+        "aisum"           : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.sh", "*.py", "*.c", "*.json", "*.jsonc"]  },
         "m"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.md"]  },
         "cd"              : { "path_completion": true , "only_dirs": true     },
         "clear"           : { "path_completion": false                        },
