@@ -301,7 +301,7 @@ class RefactorCommand(CommandInterface):
                 processed_folders_count += 1
                 depth_from_root = 0
                 os.makedirs(folder.destination, exist_ok=True)
-                self._logger.info(f"Processing '{folder.raw_source}' -> '{folder.raw_destination}'")
+                self._tool_box.print_same_line(f"Processing '{folder.raw_source}' -> '{folder.raw_destination}'")
 
                 max_depth = folder.max_copy_depth
                 base_level = folder.source.count(os.sep)
@@ -315,7 +315,7 @@ class RefactorCommand(CommandInterface):
                     relative_source_root = os.path.relpath(root, self._defaults.source_path)
 
                     if depth_from_root > 1:
-                        self._logger.info(f"> Processing '{relative_source_root}'")
+                        self._tool_box.print_same_line(f"> Processing '{relative_source_root}'")
 
                     if max_depth != -1 and current_depth > max_depth:
                         raise RuntimeError(f"exceeded maximum copy depth ({max_depth}) at '{root}'")
@@ -345,7 +345,7 @@ class RefactorCommand(CommandInterface):
                             copied_graveyard_files_count = copied_graveyard_files_count + 1
 
                     processed_files_count = processed_files_count + (copied_files_count + copied_graveyard_files_count)
-                    self._logger.info(
+                    self._tool_box.print_same_line(
                         f"Total {copied_files_count} files copied and {copied_graveyard_files_count} sent to graveyard.")
 
             print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")

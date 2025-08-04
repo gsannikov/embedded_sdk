@@ -1126,6 +1126,26 @@ class CoreToolBox(CoreModuleInterface):
         if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             print(*args, **kwargs)
 
+    def print_same_line(self, *args, **kwargs):
+        """
+        Print text on the same terminal line by:
+        - Moving cursor to start of line
+        - Clearing the current line
+        - Printing text without newline
+        - Returning cursor to line start
+        """
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
+            print(*args, **kwargs)
+        else:
+            sep = kwargs.get('sep', ' ')
+            end = kwargs.get('end', '')
+            text = sep.join(str(arg) for arg in args) + end
+
+            sys.stdout.write('\r\033[K')  # Move to start and clear line
+            sys.stdout.write(text)  # Print text
+            sys.stdout.flush()  # Ensure it's written out
+            sys.stdout.write('\r')  # Return cursor to start
+
     def set_cursor(self, visible: bool = False):
         """
         Sets the visibility of the terminal cursor using ANSI escape codes.
