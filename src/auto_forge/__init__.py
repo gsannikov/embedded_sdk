@@ -33,7 +33,7 @@ try:
 
     # Common types
     from auto_forge.common.local_types import (
-        AIKeyType, AIProviderType, AIProvidersType, AddressInfoType,
+        AIKeyType, AIModelType, AIProviderType, AIProvidersType, AddressInfoType,
         AutoForgCommandType, AutoForgFolderType, AutoForgeModuleType, AutoForgeWorkModeType,
         BuildAnalyzedContextType, BuildAnalyzedEventType, BuildProfileType,
         CommandFailedException, CommandResultType,
@@ -106,7 +106,7 @@ except Exception as exception:
 
 # Exported symbols
 __all__ = [
-    "AIKeyType", "AIProviderType", "AIProvidersType", "AddressInfoType",
+    "AIKeyType", "AIModelType", "AIProviderType", "AIProvidersType", "AddressInfoType",
     "AutoForgCommandType", "AutoForgFolderType", "AutoForgeModuleType", "AutoForgeWorkModeType",
     "BuildAnalyzedContextType", "BuildAnalyzedEventType", "BuildLogAnalyzerInterface", "BuildProfileType",
     "BuilderArtifactsValidator", "BuilderRunnerInterface", "BuilderToolChain",
@@ -129,4 +129,3 @@ __all__ = [
     "TerminalTeeStream", "ValidationMethodType", "VariableFieldType", "VariableType", "VersionCompare",
     "XRayStateType",
 ]
-

@@ -14,9 +14,9 @@ import os
 import re
 from typing import Any, Optional
 
-from rich.columns import Columns
 # Third-party
 from rich.console import Console
+from rich.console import Group
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
@@ -44,7 +44,7 @@ class AICommand(CommandInterface):
 
         self._console = Console(force_terminal=True)
         self._system_info_data = self.sdk.system_info.get_data
-        self._analyzer = SummaryPatcher(max_read_size_bytes=(32 * 1024))
+        self._analyzer = SummaryPatcher()
 
         # Base class initialization
         super().__init__(command_name=AUTO_FORGE_MODULE_NAME, hidden=False, command_type=AutoForgCommandType.AI)
@@ -169,6 +169,22 @@ class AICommand(CommandInterface):
             max_description_lines (int): Approximate number of summary lines to request.
         """
 
+        def _strip_code_fence(text: str, fence: str = "```") -> str:
+            """
+            Removes leading and trailing code fences from the given string.
+            The opening fence may include a language (e.g., ```python).
+
+            Args:
+                text: The input string (possibly fenced code).
+                fence: The fence string to look for (default: "```").
+
+            Returns:
+                The string with fences removed, if they existed.
+            """
+            # Match optional language after the opening fence
+            pattern = rf"^\s*{re.escape(fence)}[^\n]*\n|\n{re.escape(fence)}\s*$"
+            return re.sub(pattern, "", text.strip(), flags=re.MULTILINE)
+
         analysis_info: Optional[SourceFileInfoType] = self._analyzer.get_analysis(filename=filename)
 
         if analysis_info.programming_language == SourceFileLanguageType.UNKNOWN or analysis_info.file_content is None:
@@ -222,28 +238,42 @@ class AICommand(CommandInterface):
             return
 
         base_filename = os.path.basename(filename)
+
+        # Normalize the AI response which is auto- rendering to markdown
+        code_review_response = _strip_code_fence(code_review_response)
+
+        # Print the results: prepare both panels with consistent styling
+        language_title = analysis_info.programming_language.name.title()
+        title_suffix = f"'{base_filename}' ({language_title})"
+        shared_style = "white on #1e1e1e"  # white text on dark background
+        panel_width = 128
+
         panels = []
 
         if analysis_info.summary_exiting_content:
             content_text = "\n".join(analysis_info.summary_exiting_content)
             panels.append(
-                Panel.fit(
+                Panel(
                     content_text,
-                    title=f"Existing Summary for '{base_filename}' ({analysis_info.programming_language.name.title()})",
-                    border_style="bold magenta"
+                    title=f"Existing Summary for {title_suffix}",
+                    border_style="bold magenta",
+                    width=panel_width,
+                    style=shared_style
                 )
             )
 
         panels.append(
-            Panel.fit(
+            Panel(
                 code_review_response,
-                title=f"AI Suggested Summary for '{base_filename}' ({analysis_info.programming_language.name.title()})",
-                border_style="bold green"
+                title=f"AI Suggested Summary for {title_suffix}",
+                border_style="bold green",
+                width=panel_width,
+                style=shared_style
             )
         )
 
-        # Display side-by-side if both are present, otherwise just one
-        self._console.print(Columns(panels, equal=True, expand=True))
+        # Show them as stacked in order
+        self._console.print(Group(*panels))
         print()  # extra line break after columns
 
     async def _async_ask_ai(self, user_prompt: str, response_width: int = 100):

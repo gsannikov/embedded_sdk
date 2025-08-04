@@ -14,7 +14,7 @@ Description:
     across language boundaries.
 
 """
-
+import re
 from pathlib import Path
 from typing import Union, Optional
 
@@ -31,16 +31,30 @@ from auto_forge import (SourceFileLanguageType, SourceFileInfoType, )
 
 AUTO_FORGE_MODULE_NAME = "SummaryPatcher"
 AUTO_FORGE_MODULE_DESCRIPTION = "Language-aware summary detection and patching using AST and Tree-sitter"
+AUTO_FORGE_DEFAULT_MAX_REDA_SIZE = (1024 * 128)  # 128Kb max allowed processed source file size
 
 
 class _LanguageAnalysis:
     """
-    Auxiliary class to identify the programming language used in a given source file.
+    Helper class that analyzes a source file to identify its programming language and
+    extract structural information relevant to AI summarization.
+
+    This class uses Tree-sitter with language-specific grammars to:
+      - Parse the source code.
+      - Detect the programming language.
+      - Locate any existing summary blocks (e.g., docstrings or header comments).
+      - Suggest an appropriate insertion point for a new summary.
+
+    Returns its results in a structured SourceFileInfoType dataclass, including:
+      - Source file content and metadata.
+      - Detected language.
+      - Suggested line index for injecting summaries.
     """
 
     def __init__(self, max_read_size_bytes: Optional[int] = None):
         self._max_read_size_bytes: int = (
-            max_read_size_bytes if isinstance(max_read_size_bytes, int) and max_read_size_bytes > 0 else 4096
+            max_read_size_bytes if isinstance(max_read_size_bytes,
+                                              int) and max_read_size_bytes > 0 else AUTO_FORGE_DEFAULT_MAX_REDA_SIZE
         )
 
     def _read_content(self, filename: Union[str, Path]) -> Optional[str]:
@@ -66,6 +80,45 @@ class _LanguageAnalysis:
         """
         Detects the existing top-level comments block in shell scripts.
         """
+
+        def _normalize_lines(_lines: list[str]) -> list[str]:
+            """
+            Normalize a block of text as a valid shell script docstring.
+            - If a 'Description:' section is found, extract and return it.
+            - Otherwise, reformat all lines to ensure each starts with exactly '# '.
+
+            Any un-commented or improperly commented lines are fixed.
+            """
+
+            def _normalize_comment(_line: str) -> str:
+                _match = re.sub(r"^\s*#\s?", "", _line.rstrip())  # remove leading comment if present
+                return f"# {_match}" if _match else "#"
+
+            # Try to find a 'description:' section in any form
+            description_block = []
+            in_description = False
+            for idx, line in enumerate(_lines):
+                _content = re.sub(r"^\s*#\s?", "", line.rstrip())
+
+                if re.match(r"(?i)^description\s*:", _content):
+                    in_description = True
+                    after_colon = _content.split(":", 1)[1].strip()
+                    description_block.append(_normalize_comment(after_colon))
+                    continue
+
+                if in_description:
+                    if _content.strip() == "":
+                        description_block.append("#")
+                    elif re.match(r"^\s", line):  # indented = continuation
+                        description_block.append(_normalize_comment(_content.strip()))
+                    else:
+                        break  # End of description block
+
+            if description_block:
+                return description_block
+
+            # Fallback: normalize entire block
+            return [_normalize_comment(line) for line in _lines]
 
         def _suggest_patch_start_line(_lines: list[str]) -> int:
             """
@@ -111,7 +164,7 @@ class _LanguageAnalysis:
             file_info.summary_end_line = summary_end
 
             comment_block = file_info.source_code_lines[summary_start:summary_end + 1]
-            file_info.summary_exiting_content = comment_block
+            file_info.summary_exiting_content = _normalize_lines(comment_block)
 
     @staticmethod
     def _detect_groovy_summary(file_info: SourceFileInfoType):
@@ -169,6 +222,41 @@ class _LanguageAnalysis:
         insertion line for a summary block in a Python source file.
         """
 
+        def _normalize_lines(_lines: list[str]) -> list[str]:
+            """
+            Normalize a block of text as a python script docstring.
+            If a 'description' section exists in the lines, return its indented block as a cleaned list of strings.
+            Otherwise, return the input list as-is.
+            """
+            description_start = None
+            description_lines = []
+
+            for idx, line in enumerate(_lines):
+                if re.match(r'^[ \t]*description[ \t]*:', line, re.IGNORECASE):
+                    description_start = idx
+                    break
+
+            if description_start is not None:
+                # Handle inline text on same line
+                desc_header = _lines[description_start]
+                after_colon = desc_header.split(":", 1)[1].strip()
+                if after_colon:
+                    description_lines.append(after_colon)
+
+                # Add indented block
+                for line in _lines[description_start + 1:]:
+                    if line.strip() == "":
+                        description_lines.append("")
+                    elif re.match(r'^[ \t]+', line):
+                        description_lines.append(line.strip())
+                    else:
+                        break
+
+                return description_lines
+
+            # No description section → fallback: return all non-blank lines stripped of indentation
+            return [line.strip() for line in _lines if line.strip()]
+
         def _suggest_patch_start_line(_lines: list[str]) -> int:
             """
             Suggests the line index for inserting a summary.
@@ -190,20 +278,24 @@ class _LanguageAnalysis:
         parser = Parser(PY_LANGUAGE)
         tree = parser.parse(file_info.source_code)
         root = tree.root_node
+        summary_start = None
+        summary_end = None
 
         for node in root.children:
             if node.type == "expression_statement" and node.child_count == 1:
                 child = node.children[0]
                 if child.type == "string":
-                    start_line = child.start_point[0]
-                    end_line = child.end_point[0]
-                    file_info.summary_start_line = start_line
-                    file_info.summary_end_line = end_line
+                    if summary_start is None:
+                        summary_start = node.start_point[0]
+                    summary_end = node.end_point[0]
+                elif summary_start is not None:
+                    break  # End of contiguous block
 
-                    # Extract and store the raw string content (with or without quotes)
-                    string_text = file_info.source_code[child.start_byte:child.end_byte].decode("utf-8")
-                    file_info.summary_exiting_content = string_text
-                    return  # Stop after first match
+                if summary_start is not None and summary_end is not None:
+                    file_info.summary_start_line = summary_start
+                    file_info.summary_end_line = summary_end
+                    comment_block = file_info.source_code_lines[summary_start:summary_end + 1]
+                    file_info.summary_exiting_content = _normalize_lines(comment_block)
 
     def analyze(self, filename: Union[str, Path]) -> Optional[SourceFileInfoType]:
         """

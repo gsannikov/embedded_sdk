@@ -1,8 +1,8 @@
 # Script:       pyproject.toml
-# Description:  auto_forge package configuration
+# Description:  AutoForge package configuration.
 
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -46,6 +46,7 @@ dependencies = [
     "tree-sitter-bash >= 0.19.0",
     "tree-sitter-groovy >= 0.1.0",
     "tree-sitter-python >= 0.20.0",
+    "tiktoken>=0.5.1,<1.0.0",
     "cmd2==2.3.3"]
 
 [project.urls]

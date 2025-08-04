@@ -314,6 +314,24 @@ class AIKeyType:
     id: Optional[str] = None  # Optional: used for key rotation, identification, etc.
 
 
+class AIModelType(Enum):
+    """ Currently known AI models """
+    UNKNOWN = "unknown"
+    GPT_3_MINI = "o3-mini"
+    GPT_3_5 = "gpt-3.5-turbo"
+    GPT_4 = "gpt-4"
+    GPT_4O = "gpt-4o"
+
+    @classmethod
+    def from_str(cls, value: str) -> "AIModelType":
+        if not isinstance(value, str):
+            return cls.UNKNOWN
+        for member in cls:
+            if member.value == value:
+                return member
+        return cls.UNKNOWN
+
+
 @dataclass
 class AIProviderType:
     """Generic type for storing AI provider configuration."""
@@ -324,7 +342,7 @@ class AIProviderType:
     organization: Optional[str] = None  # OpenAI-style org ID
     deployment: Optional[str] = None  # Azure-specific deployment ID
     api_version: Optional[str] = None  # Azure-specific or versioned APIs
-    model: Optional[str] = None  # Optional: default model to use (e.g., 'gpt-4')
+    model: Optional[AIModelType] = AIModelType.UNKNOWN  # AI Model to use (e.g., 'gpt-4')
     extra_field_1: Optional[str] = None  # Additional optional general purpose field
     extra_field_2: Optional[str] = None  # Additional optional general purpose field
     extra_field_3: Optional[str] = None  # Additional optional general purpose field
@@ -364,8 +382,13 @@ class AIProvidersType:
                 return [convert(i) for i in obj]
             elif isinstance(obj, dict):
                 return {k: convert(v) for k, v in obj.items()}
+            elif isinstance(obj, Enum):
+                return obj.value
             elif is_dataclass(obj):
-                return {k: convert(v) for k, v in asdict(obj).items()}
+                return {
+                    k: convert(v.value if isinstance(v, Enum) else v)
+                    for k, v in asdict(obj).items()
+                }
             else:
                 return obj
 
@@ -391,6 +414,8 @@ class AIProvidersType:
             d['keys'] = [build_ai_key(k) for k in d.get('keys', [])]
             if 'proxy_server' in d and d['proxy_server'] is not None:
                 d['proxy_server'] = build_proxy(d['proxy_server'])
+            if 'model' in d:
+                d['model'] = AIModelType.from_str(d['model'])
             return AIProviderType(**d)
 
         providers = [build_provider(p) for p in data.get('providers', [])]
