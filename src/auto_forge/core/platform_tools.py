@@ -710,8 +710,8 @@ class CorePlatform(CoreModuleInterface):
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
             truncate_text: bool = True, use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True,
             shell: bool = True, cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None,
-            max_read_chunk: Optional[int] = 1024, apply_colorization: Optional[bool] = False) -> Optional[
-        CommandResultType]:
+            max_read_chunk: Optional[int] = 1024, apply_colorization: Optional[bool] = False,
+            expand_command: Optional[bool] = False) -> Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -729,6 +729,7 @@ class CorePlatform(CoreModuleInterface):
             max_read_chunk (Optional[int]): The maximum number of bytes we're allowed to acclimate.
             apply_colorization (Optional[bool]): Whether to highlight common build status keywords (e.g., "error:", "warning:") 
                     using ANSI colors in the output.
+            expand_command (Optional[bool]): Whether to expand commands before executing them. Defaults to False.
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
@@ -906,11 +907,17 @@ class CorePlatform(CoreModuleInterface):
         # Cleanup
         if isinstance(command_and_args, str):
             command_and_args = CoreToolBox.normalize_text(text=command_and_args)
+            # Auto expand when specified
+            if expand_command:
+                command_and_args = self._variables.expand(key=command_and_args)
             command_list = command_and_args.strip().split()
         elif isinstance(command_and_args, list):
             command_list = []
             for item in command_and_args:
                 cleaned = CoreToolBox.normalize_text(text=item)
+                # Auto expand when specified
+                if expand_command:
+                    cleaned = self._variables.expand(key=cleaned)
                 command_list.append(cleaned)
         else:
             raise TypeError("command_and_args must be a string or a list of strings")
@@ -1124,7 +1131,16 @@ class CorePlatform(CoreModuleInterface):
             *,
             validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
             cwd: Optional[str] = None) -> Optional[CommandResultType]:
-
+        """
+        Validates that a system-level prerequisite is met using a specified method.
+        Args:
+            arguments (Optional[str]): Arguments to pass to the command
+            validation_method (ValidationMethodType): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
+            cwd (Optional[str]): The directory from which the process should be executed.
+        Returns:
+            Optional[CommandResultType]: A result object containing the command output and return code,
+            or None if an exception was raised.
+        """
         try:
             def _resolve_args(_args: dict) -> dict:
                 # If it's a flat dict: contains 'command'
@@ -1200,91 +1216,6 @@ class CorePlatform(CoreModuleInterface):
 
             else:
                 raise ValueError(f"Unsupported validation method: {validation_method}")
-
-            return results
-
-        except Exception:  # Propagate the exception
-            raise
-
-    def validate_prerequisite_ex(self, command: str, arguments: Optional[str] = None, cwd: Optional[str] = None,
-                                 validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
-                                 expected_response: Optional[str] = None, version: Optional[str] = None) -> Optional[
-        CommandResultType]:
-        """
-        Validates that a system-level prerequisite is met using a specified method.
-        Args:
-            command (str): For EXECUTE_PROCESS: the command to run.
-                           For READ_FILE: a string in the form "<path>:<line_number>:<optional_line_count>".
-                           For SYS_PACKAGE: the command variable is treated as the system package to be validated.
-            arguments (Optional[str]): Arguments to pass to the command (EXECUTE_PROCESS only).
-            cwd (Optional[str]): The directory from which the process should be executed.
-            validation_method (ValidationMethodType): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
-            expected_response (Optional[str]): Expected content in output (for EXECUTE_PROCESS)
-                or file content (for READ_FILE).
-            version (Optional[str]): The expected version of the system package or executed binary, would be fixed
-                (e.g., "10.76"), or an expression (e.g., ">=10.0", "==1.2.3").
-        Returns:
-            Optional[CommandResultType]: A result object containing the command output and return code,
-            or None if an exception was raised.
-        """
-
-        try:
-            # Execute a process and check its response
-            if validation_method == ValidationMethodType.EXECUTE_PROCESS:
-
-                if expected_response is not None and version is not None:
-                    raise ValueError(f"can specify either 'expected_response' or 'version' but not both")
-
-                results = self.execute_shell_command(
-                    command_and_args=self._flatten_command(command=command, arguments=arguments), cwd=cwd)
-
-                if results.response is None:
-                    raise RuntimeError(f"'{command}' returned no output while expecting '{expected_response}'")
-
-                # If the user specified required version, use the VersionInfo auxiliary class to do the heavy lifting.
-                if isinstance(version, str):
-
-                    compare_results = VersionCompare().compare(detected=results.response, expected=version)
-                    if compare_results is not None:
-                        version_ok, detected_version = compare_results
-                        if not version_ok:
-                            raise Exception(f"command '{command}' version was not satisfied, "
-                                            f"expected '{version}' found {detected_version}")
-
-                elif isinstance(expected_response, str):
-                    if expected_response.lower() not in results.response.lower():
-                        raise Exception(f"expected response '{expected_response}' not found in output")
-
-            # Read a text line from a file and compare its content
-            elif validation_method == ValidationMethodType.READ_FILE:
-                parts = command.split(':')
-                if len(parts) < 2:
-                    raise ValueError("READ_FILE command must be in the form '<file_path>:<line_number>[:<line_count>]'")
-                file_path = parts[0]
-                line_number = int(parts[1])
-                line_count = int(parts[2]) if len(parts) > 2 else 1
-
-                if not expected_response:
-                    raise ValueError("expected response must be provided for READ_FILE validation")
-
-                with open(file_path) as f:
-                    lines = f.readlines()
-                    start = max(0, line_number - 1)
-                    end = start + line_count
-                    selected_lines = lines[start:end]
-                    found = any(expected_response.lower() in line.lower() for line in selected_lines)
-                    if not found:
-                        raise Exception(f"expected response '{expected_response}' "
-                                        f"not found in {file_path}:{line_number}")
-
-                    results = CommandResultType(response=None, return_code=0)
-
-            # Check if a system package is installed
-            elif validation_method == ValidationMethodType.SYS_PACKAGE:
-                results = self._validate_sys_package(package_name=command)
-
-            else:
-                raise ValueError(f"unsupported validation method: {validation_method}")
 
             return results
 
