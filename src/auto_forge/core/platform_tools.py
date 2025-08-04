@@ -346,7 +346,7 @@ class CorePlatform(CoreModuleInterface):
             return _run_inline_steps(if_false_steps, step_number)
 
     def initialize_workspace(self, delete_existing: bool = False, must_be_empty: bool = False,
-                             create_as_needed: bool = False, change_dir: bool = False) -> Optional[str]:
+                             create_as_needed: bool = False, change_dir: bool = False) -> Optional[CommandResultType]:
         """
         Initializes the workspace path.
         Args:
@@ -390,6 +390,7 @@ class CorePlatform(CoreModuleInterface):
                 _solution_package_path (str): The path to where the solution file used for creating the workspace
                     could be found.
             """
+            _result: Optional[CommandResultType] = None
 
             try:
                 # Store the solution files in the newly created workspace.
@@ -454,7 +455,8 @@ class CorePlatform(CoreModuleInterface):
             if change_dir:
                 os.chdir(self._workspace_path)
 
-            return self._workspace_path
+            # Wrap return code the command result type
+            return CommandResultType(response=self._workspace_path, return_code=0)
 
         # Propagate the exception
         except Exception as exception:

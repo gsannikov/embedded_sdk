@@ -238,6 +238,13 @@
             }
         },
         {
+            "description": "Execute solution command 'usgen'",
+            "method": "execute_shell_command",
+            "arguments": {
+                "command_and_args": "$PROJ_WORKSPACE/env.sh --run_command usgen"
+            }
+        },
+        {
             "description": "Adding shell alias 'usd' to the solution",
             "method": "create_alias",
             "action_on_error": "resume",
