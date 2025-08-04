@@ -732,6 +732,10 @@ class AutoForge(CoreModuleInterface):
 
                     self._logger.debug("Running in sequence execution non-interactive mode")
 
+                    # Add package temporary source path to the variables so it could be used later when finalizing the workspace creation.
+                    self._variables.add(key="SOLUTION_PACKAGE_PATH", value=self._solution_package_path,
+                                        path_must_exist=True)
+
                     # Get the sequence dictionary from the solution
                     sequence_data = self._solution.get_sequence_by_name(sequence_name=self._run_sequence_ref_name)
                     if not isinstance(sequence_data, dict):
@@ -740,11 +744,7 @@ class AutoForge(CoreModuleInterface):
 
                     # Execute sequence
                     self._exit_code = self._platform.run_sequence(sequence_data=sequence_data)
-                    if self._exit_code == 0:
-                        # Finalize workspace creation
-                        self._platform.finalize_workspace_creation(solution_name=self._solution_name,
-                                                                   solution_package_path=self._solution_package_path,
-                                                                   sequence_log_file=self._log_file_name)
+
                 else:
                     raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
