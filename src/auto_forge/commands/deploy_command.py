@@ -10,6 +10,7 @@ Description:
 
 import argparse
 import os
+import sys
 import zipfile
 from datetime import datetime
 from enum import Enum, auto
@@ -171,7 +172,8 @@ class DeployCommand(CommandInterface):
                         self._skipped_files_count += 1
                         continue
 
-                    self._tool_box.print_same_line(f"Adding to archive: {os.path.basename(src_abs)} as {entry['archive']}")
+                    self._tool_box.print_same_line(
+                        f"Adding to archive: {os.path.basename(src_abs)} as {entry['archive']}")
                     archive.write(src_abs, arcname=str(arc_rel))
                     self._processed_files_count += 1
 
@@ -203,7 +205,7 @@ class DeployCommand(CommandInterface):
             create_dirs: bool = self._recipe_defaults.get("create_host_path", False)
             break_on_errors: bool = self._recipe_defaults.get("break_on_errors", True)
 
-            policy = self._parse_overwrite_policy(self._recipe_defaults.get("host_overwrite_policy", "never"))
+            policy = self._parse_overwrite_policy(self._recipe_defaults.get("overwrite_host_files", "never"))
 
             if policy == _OverwritePolicy.Unknown:
                 raise ValueError(f"invalid overwrite policy in recipe: {self._recipe_defaults.get('overwrite')}")
@@ -255,7 +257,7 @@ class DeployCommand(CommandInterface):
                         dst.write(src.read())
                         self._processed_files_count += 1
 
-                    self._tool_box.print_same_line(f"Extracted {arc_rel} -> {dst_abs}")
+                    self._tool_box.print_same_line(f"Extracted {arc_rel}", sleep_after=0.01)
 
         except Exception as extract_error:
             raise extract_error from extract_error
@@ -292,7 +294,7 @@ class DeployCommand(CommandInterface):
 
             self._tool_box.print_same_line(f"Using recipe from: {recipe_file}")
 
-            # Load and preprocess the recipe JSONC/JSON file
+            # Load and pre-process the recipe JSONC/JSON file
             recipe_raw: Optional[dict] = self.sdk.jsonc_processor.render(file_name=recipe_file)
             if not isinstance(recipe_raw, dict):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
@@ -305,11 +307,11 @@ class DeployCommand(CommandInterface):
                 raise ValueError(f"missing or malformed 'defaults' or 'files' section in recipe: '{recipe_file}'")
 
             if not len(self._recipe_deploy_files):
-                raise ValueError(f"not files specified in recipe: '{recipe_file}'")
+                raise ValueError(f"no files specified in recipe: '{recipe_file}'")
 
-            self._tool_box.print_same_line(f"Loaded recipe: {len(self._recipe_deploy_files)} file entries found")
+            self._tool_box.print_same_line(f"Recipe loaded: {len(self._recipe_deploy_files)} file entries found")
 
-            print(f"\nStarting deploy process for {len(self._recipe_deploy_files)} listed files..")
+            print(f"Starting deploy process for {len(self._recipe_deploy_files)} listed files..")
 
             if direction == _DeployDirectionType.HostToArchive:
                 exit_code = self._to_archive(host_base_path=host_base_path, archive_path=archive_path,
@@ -319,6 +321,7 @@ class DeployCommand(CommandInterface):
             else:
                 raise ValueError(f"unknown deploy direction: {direction}")
 
+            sys.stdout.write('\r\033[K\r')  # Move to start and clear line
             print(f"Done, total {self._processed_files_count} files processed, {self._skipped_files_count} skipped.\n")
             return exit_code
 

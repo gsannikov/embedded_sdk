@@ -13,6 +13,7 @@ import argparse
 import logging
 import os
 import shutil
+import sys
 from dataclasses import dataclass
 from logging import Logger
 from typing import Any, Optional
@@ -135,7 +136,7 @@ class RefactorCommand(CommandInterface):
         self._defaults_raw_data: Optional[dict[str, Any]] = None  # Defaults raw JSON data
         self._folders_raw_data: Optional[list[dict]] = None  # List of folders as raw JSON data
 
-        # Deserialize data
+        # De-serialize data
         self._defaults: Optional[_RefactorDefaults] = None
         self._folders: Optional[list[_RefactorFolder]] = None
         self._folders_count: Optional[int] = 0
@@ -173,7 +174,7 @@ class RefactorCommand(CommandInterface):
                 alternative_path = f"$SCRIPTS_SOLUTION/{recipe_file}"
                 recipe_file = self.sdk.variables.expand(key=alternative_path)
 
-            # Preprocess the JSON file (e.g., strip comments)
+            # Pre-process the JSON file (e.g., strip comments)
             self._recipe_data = self.sdk.jsonc_processor.render(file_name=recipe_file)
 
             # Validate and parse 'defaults' section
@@ -205,15 +206,12 @@ class RefactorCommand(CommandInterface):
             if self._defaults.create_empty_cmake_file:
                 self._logger.warning("'create_empty_cmake_file' is not implemented")
 
-            self._logger.debug(
-                f"Recipe '{recipe_file}' loaded successfully: {self._folders_count} folders defined.")
-
         except Exception as load_error:
             # Re-raise the exception explicitly for future extension (e.g., logging or wrapping)
             raise load_error from load_error
 
     def _safe_copy_file(self, src_path: str, dest_path: str, relative_src: str, relative_dest: str,
-                        is_source: bool = True, fatal=False, log_level="debug"):
+                        is_source: bool = True, fatal=False):
         """
         Attempt to copy a file from src_path to dest_path, creating parent directories if needed.
         Logs the copy operation at the specified level and handles exceptions based on the 'fatal' flag.
@@ -224,14 +222,13 @@ class RefactorCommand(CommandInterface):
             relative_dest (str): Destination path relative to the base destination folder (for logging).
             is_source (bool): Specifies if it's a source or grave-yard item,
             fatal (bool): If True, raises RuntimeError on failure. Otherwise, logs the error.
-            log_level (str): Logging method to use for successful copies (e.g., 'debug', 'info').
         """
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         try:
             shutil.copy2(src_path, dest_path)
             file_name = os.path.basename(src_path)
             if is_source:
-                getattr(self._logger, log_level)(f"> Copying '{file_name}'")
+                self._tool_box.print_same_line(f"> Copying '{file_name}'")
         except Exception as copy_error:
             msg = f"Failed to copy '{relative_src}' to '{relative_dest}' {copy_error}"
             if fatal:
@@ -275,6 +272,8 @@ class RefactorCommand(CommandInterface):
             # Load and validate recipe; raises on error
             self._load_recipe(recipe_file=recipe_file, source_path=source_path, destination_path=destination_path)
 
+            print(f"Starting refactoring process for {len(self._folders)} paths..")
+
             if not self._folders or not self._folders_count:
                 raise RuntimeError("No folders found in the recipe to process.")
 
@@ -282,7 +281,7 @@ class RefactorCommand(CommandInterface):
             if self._defaults.delete_destination_on_start:
                 if os.path.exists(destination_path):
                     try:
-                        self._logger.debug(f"Deleting existing destination: '{destination_path}'")
+                        self._tool_box.print_same_line(f"Deleting destination: '{destination_path}'")
                         # Safe erase
                         self._tool_box.safe_erase_path(target_path=destination_path, force=True)
                     except Exception as exception:
@@ -290,8 +289,6 @@ class RefactorCommand(CommandInterface):
             else:
                 if os.path.exists(destination_path):
                     raise RuntimeError(f"destination '{destination_path}' already exists.")
-
-            print(f"\nStarting refactoring process for {len(self._folders)} paths..")
 
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
@@ -335,19 +332,20 @@ class RefactorCommand(CommandInterface):
                                                  fatal=self._defaults.break_on_errors)
                             copied_files_count += 1
 
-                        # Not part of the list, see if we have a garve yard
+                        # Not part of the list, see if we have a graveyard
                         elif folder.create_grave_yard:
                             graveyard_path = os.path.join(folder.destination, "grave_yard", relative_path, file)
                             relative_dest = os.path.relpath(graveyard_path, self._defaults.destination_path)
                             self._safe_copy_file(src_path=src_path, dest_path=graveyard_path, relative_src=relative_src,
                                                  relative_dest=relative_dest, is_source=False,
-                                                 fatal=self._defaults.break_on_errors, log_level="debug")
+                                                 fatal=self._defaults.break_on_errors)
                             copied_graveyard_files_count = copied_graveyard_files_count + 1
 
                     processed_files_count = processed_files_count + (copied_files_count + copied_graveyard_files_count)
                     self._tool_box.print_same_line(
                         f"Total {copied_files_count} files copied and {copied_graveyard_files_count} sent to graveyard.")
 
+            sys.stdout.write('\r\033[K\r')  # Move to start and clear line
             print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
             return 0
 
