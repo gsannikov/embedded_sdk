@@ -297,7 +297,7 @@ class AutoForge(CoreModuleInterface):
 
         # Bring the logger to the front of the stage and drop ANSI colors when in automating one command mode
         if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
-            self._core_logger.set_output_enabled(logger=None, state=True)
+            self._core_logger.set_output(logger=None, state=True)
 
         self._logger.info(f"AutoForge version: {PackageGlobals.VERSION} starting")
 

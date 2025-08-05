@@ -152,7 +152,7 @@ class DeployCommand(CommandInterface):
 
                 # Delete if exists, create backup if specified
                 if self._create_archive_backup:
-                    self._tool_box.print_same_line(f"creating backup for '{os.path.basename(archive_path)}'")
+                    self._logger.warning(f"creating backup for '{os.path.basename(archive_path)}'")
                     CoreToolBox.safe_backup_and_erase_file(file_path=archive_path)
                 else:
                     archive_path.unlink(missing_ok=True)
@@ -168,12 +168,11 @@ class DeployCommand(CommandInterface):
                         if break_on_errors:
                             raise RuntimeError(f"host source file not found: {src_abs}")
 
-                        self._tool_box.print_same_line(f"host source file not found: {src_abs}")
+                        self._logger.warning(f"host source file not found: {src_abs}")
                         self._skipped_files_count += 1
                         continue
 
-                    self._tool_box.print_same_line(
-                        f"Adding to archive: {os.path.basename(src_abs)} as {entry['archive']}")
+                    self._logger.info(f"Adding to archive: {os.path.basename(src_abs)} as {entry['archive']}")
                     archive.write(src_abs, arcname=str(arc_rel))
                     self._processed_files_count += 1
 
@@ -229,7 +228,7 @@ class DeployCommand(CommandInterface):
                     if not dst_abs.parent.exists():
                         if create_dirs:
                             dst_abs.parent.mkdir(parents=True, exist_ok=True)
-                            self._tool_box.print_same_line(f"Created directory: {dst_abs.parent}")
+                            self._logger.info(f"Created directory: {dst_abs.parent}")
                         else:
                             status_message = f"Host path does not exist: {os.path.abspath(dst_abs.parent)}"
                             if break_on_errors:
@@ -242,13 +241,13 @@ class DeployCommand(CommandInterface):
                     # Overwrite policy enforcement
                     if dst_abs.exists():
                         if policy == _OverwritePolicy.Never:
-                            self._tool_box.print_same_line(f"Skipping (exists): {dst_abs}")
+                            self._logger.info(f"Skipping (exists): {dst_abs}")
                             continue
                         elif policy == _OverwritePolicy.WhenNewer:
                             arc_mtime = datetime(*archive_contents[arc_rel].date_time)
                             fs_mtime = datetime.fromtimestamp(dst_abs.stat().st_mtime)
                             if fs_mtime >= arc_mtime:
-                                self._tool_box.print_same_line(f"Skipping (up-to-date): {dst_abs}")
+                                self._logger.info(f"Skipping (up-to-date): {dst_abs}")
                                 self._skipped_files_count += 1
                                 continue
 
@@ -257,7 +256,7 @@ class DeployCommand(CommandInterface):
                         dst.write(src.read())
                         self._processed_files_count += 1
 
-                    self._tool_box.print_same_line(f"Extracted {arc_rel}", sleep_after=0.01)
+                    self._logger.info(f"Extracted {arc_rel} -> {dst_abs}")
 
         except Exception as extract_error:
             raise extract_error from extract_error
@@ -292,7 +291,7 @@ class DeployCommand(CommandInterface):
             archive_path = Path(self.sdk.variables.expand(archive_path))
             host_base_path = Path(self.sdk.variables.expand(host_base_path))
 
-            self._tool_box.print_same_line(f"Using recipe from: {recipe_file}")
+            self._logger.debug(f"Using recipe from: {recipe_file}")
 
             # Load and pre-process the recipe JSONC/JSON file
             recipe_raw: Optional[dict] = self.sdk.jsonc_processor.render(file_name=recipe_file)
@@ -309,7 +308,7 @@ class DeployCommand(CommandInterface):
             if not len(self._recipe_deploy_files):
                 raise ValueError(f"no files specified in recipe: '{recipe_file}'")
 
-            self._tool_box.print_same_line(f"Recipe loaded: {len(self._recipe_deploy_files)} file entries found")
+            self._logger.debug(f"Recipe loaded: {len(self._recipe_deploy_files)} file entries found")
 
             print(f"Starting deploy process for {len(self._recipe_deploy_files)} listed files..")
 

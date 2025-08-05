@@ -134,10 +134,22 @@ class _ColorFormatter(logging.Formatter):
         Format the log message for terminal colored mode or as bare text.
         """
         terminal_width: int = 1024
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+        # Gets the enable formatting from the root logger
+        enable_formatting = self._auto_logger.formatting
 
         # Enable colors only when used with a console handler and the logger allows it
         enable_colors = (
                 LogHandlersType.CONSOLE_HANDLER in self._handler and self._auto_logger.colors)
+
+        if not enable_formatting:
+            # Return raw message only and strip ANSI if colors are disabled
+            message = record.getMessage()
+            if not enable_colors:
+                message = ansi_escape.sub('', message)
+            return message
+
         try:
 
             # Apply tokens list regex cleanup
@@ -149,7 +161,6 @@ class _ColorFormatter(logging.Formatter):
 
             if not enable_colors:
                 # Bare text mode: remove any ANSI color codes leftovers and maintain clear text
-                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
                 formatted_record = ansi_escape.sub('', super().format(record))
 
             else:
@@ -196,7 +207,6 @@ class _ColorFormatter(logging.Formatter):
         and convert HTML content into a single-line error string.
         Parameters:
             message (str): The original log message that may contain JSON or HTML error content.
-
         Returns:
             str: The log message with JSON or HTML content formatted, if detected.
         """
@@ -272,8 +282,9 @@ class CoreLogger(CoreModuleInterface):
         self._log_file_name: Optional[str] = None
         self._enabled_handlers: LogHandlersType = LogHandlersType.NO_HANDLERS
         self._enable_colors: bool = True
+        self._enable_formatting: bool = True
 
-        super().__init__(*args, **kwargs)
+        super().__init__(args, **kwargs)
 
     def _initialize(self, log_level=logging.ERROR, enable_colors: bool = True,
                     output_state: bool = True,
@@ -685,7 +696,7 @@ class CoreLogger(CoreModuleInterface):
         return local_instance._logger if (local_instance and local_instance._logger) else None
 
     @staticmethod
-    def set_output_enabled(logger: Optional[logging.Logger] = None, state: bool = True) -> None:
+    def set_output(logger: Optional[logging.Logger] = None, state: bool = True) -> None:
         """
         Enable or disable log output for any logger by toggling _PausableFilter instances
         attached to its handlers.
@@ -746,7 +757,7 @@ class CoreLogger(CoreModuleInterface):
             console_stdout = self._output_state
 
         # Set initial output state
-        self.set_output_enabled(logger=returned_instance, state=console_stdout)
+        self.set_output(logger=returned_instance, state=console_stdout)
         return returned_instance
 
     def set_colors(self, enable_colors: bool = True):
@@ -757,6 +768,16 @@ class CoreLogger(CoreModuleInterface):
         """
 
         self._enable_colors = enable_colors
+
+    def set_formatter(self, enable_formatting: bool = True):
+        """
+        Disable or enable logs formatting allowing for temporary raw trext logging without
+        adding the typical severity, facility and timestamp fields.
+        Returns:
+            Optional[bool]: True if formatting enabled, False otherwise.
+        """
+
+        self._enable_formatting = enable_formatting
 
     def close(self):
         """
@@ -776,3 +797,8 @@ class CoreLogger(CoreModuleInterface):
     def colors(self) -> bool:
         """Get the state of ANSI console colors."""
         return self._enable_colors
+
+    @property
+    def formatting(self) -> bool:
+        """Get the state of the logs formater."""
+        return self._enable_formatting

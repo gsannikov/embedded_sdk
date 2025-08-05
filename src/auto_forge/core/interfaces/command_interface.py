@@ -353,7 +353,7 @@ class CommandInterface(ABC):
                 args = self._args_parser.parse_args(args_list)
                 # Handle verbosity
                 if "-vv" in args_list or "--verbose" in args_list:
-                    self._core_logger.set_output_enabled(logger=self._logger, state=True)
+                    self._core_logger.set_output(logger=self._logger, state=True)
                     verbose = True
 
                 return_value = self.run(args)
@@ -382,7 +382,7 @@ class CommandInterface(ABC):
 
             if verbose:
                 # Restore verbosity
-                self._core_logger.set_output_enabled(logger=self._logger, state=False)
+                self._core_logger.set_output(logger=self._logger, state=False)
 
         return return_value
 

@@ -1126,8 +1126,7 @@ class CoreToolBox(CoreModuleInterface):
         if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             print(*args, **kwargs)
 
-    @staticmethod
-    def print_same_line(*args, sleep_after: float = 0.0, **kwargs):
+    def print_same_line(self, *args, sleep_after: float = 0.001, **kwargs):
         """
         Print text on the same terminal line by:
         - Moving cursor to start of line
@@ -1136,19 +1135,21 @@ class CoreToolBox(CoreModuleInterface):
         - Returning cursor to line start
         """
 
-        sep = kwargs.get('sep', ' ')
-        end = kwargs.get('end', '')
-        text = sep.join(str(arg) for arg in args) + end
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
+            print(*args, **kwargs)
+        else:
+            sep = kwargs.get('sep', ' ')
+            end = kwargs.get('end', '')
+            text = sep.join(str(arg) for arg in args) + end
 
-        text = text.rstrip('\r\n')  # Strip trailing line breaks
-        sys.stdout.write('\r\033[K')  # Move to start and clear line
-        sys.stdout.write(text)  # Print text
-        sys.stdout.flush()  # Ensure it's written out
+            text = text.rstrip('\r\n')  # Strip trailing line breaks
+            sys.stdout.write('\r\033[K')  # Move to start and clear line
+            sys.stdout.write(text)  # Print text
+            sys.stdout.write('\r')  # Return cursor to start
+            sys.stdout.flush()  # Ensure it's written out
 
-        if sleep_after > 0:
-            time.sleep(sleep_after)
-
-        sys.stdout.write('\r')  # Return cursor to start
+            if sleep_after > 0:
+                time.sleep(sleep_after)
 
     def set_cursor(self, visible: bool = False):
         """
