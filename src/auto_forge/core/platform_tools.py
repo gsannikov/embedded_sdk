@@ -875,7 +875,8 @@ class CorePlatform(CoreModuleInterface):
                         is_similar = True
 
                 if not is_similar:
-                    self._logger.debug(f"> {clear_text}")
+                    # When we are a child process spawned by another instance of AutoForge do not prefix with '>'
+                    self._logger.debug(f"{'' if PackageGlobals.SPAWNED else '> '}{clear_text}")
                     prev_queued_message = clear_text
 
             if echo_type != TerminalEchoType.LINE:
