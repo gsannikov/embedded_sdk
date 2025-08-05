@@ -31,7 +31,7 @@ from auto_forge import (ExceptionGuru, SDKType)
 
 # Lazy internal imports to avoid circular dependencies
 if TYPE_CHECKING:
-    from auto_forge.auto_forge import AutoForge
+    from auto_forge.auto_forge import AutoForge  # noqa: F401
 
 # Generic type variable used to represent subclasses of CoreModuleInterface
 T = TypeVar("T", bound="CoreModuleInterface")

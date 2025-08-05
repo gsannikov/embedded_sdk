@@ -368,7 +368,7 @@ class GCCLogAnalyzer(BuildLogAnalyzerInterface):
             return True
         return False
 
-    def analyze(self, log_source: Union[Path, str],
+    def analyze(self, log_source: Optional[Union[Path, str]],
                 context_file_name: Optional[str] = None,
                 ai_response_file_name: Optional[str] = None,
                 ai_auto_advise: Optional[bool] = False,

@@ -321,7 +321,8 @@ class CoreToolBox(CoreModuleInterface):
         return value
 
     @staticmethod
-    def format_productivity(events_per_minute: float, total_seconds: Optional[float] = None) -> Optional[str]:
+    def format_productivity(events_per_minute: Optional[Union[float, int]], total_seconds: Optional[float] = None) -> \
+    Optional[str]:
         """
         Translates raw events-per-minute into a mysterious productivity descriptor,
         using a pseudo-scientific algorithm known only to ancient CI monks.
@@ -881,11 +882,11 @@ class CoreToolBox(CoreModuleInterface):
                     print("\033[?1049l", end="", flush=True)  # Exit alt screens (for ex. 'nano')
                     print("\033[3J\033[H\033[2J", end="", flush=True)
 
-    def safe_start_keyboard_listener(self, listener_handler: callable) -> Optional[Any]:
+    def safe_start_keyboard_listener(self, listener_handler: Callable) -> Optional[Any]:
         """
         Safely attempts to import `pynput.keyboard` if the system environment supports it.
         Args:
-            listener_handler (callable): Function which will be called when a keyboard key is pressed.
+            listener_handler (Callable): Function which will be called when a keyboard key is pressed.
         Returns:
             The `pynput.keyboard.Listener` module if available and safe to use, otherwise None.
         Notes:
@@ -1449,7 +1450,7 @@ class CoreToolBox(CoreModuleInterface):
         return True
 
     @staticmethod
-    def strip_ansi(text: str, bare_text: bool = False) -> str:
+    def strip_ansi(text: Optional[str], bare_text: bool = False) -> Optional[str]:
         """
         Removes ANSI escape sequences and broken hyperlink wrappers,
         but retains useful text such as GCC warning flags.
@@ -2422,7 +2423,8 @@ class CoreToolBox(CoreModuleInterface):
         return None
 
     # noinspection SpellCheckingInspection
-    def truncate_for_terminal(self, text: str, reduce_by_chars: int = 0, fallback_width: int = 120) -> str:
+    def truncate_for_terminal(self, text: Optional[str], reduce_by_chars: int = 0,
+                              fallback_width: int = 120) -> Optional[str]:
         """
         Truncates a string to fit within the terminal width, adding "..." if truncated.
         Handles truncation on a line-by-line basis, preserving original newlines or lack thereof, and attempts to
@@ -2437,7 +2439,7 @@ class CoreToolBox(CoreModuleInterface):
             The truncated string.
         """
 
-        def _get_visible_width(_text: str) -> int:
+        def _get_visible_width(_text: Optional[str]) -> int:
             """
             Calculates the visible width of a string by removing ANSI escape codes.
             This assumes escape codes don't affect character width (e.g., no double-width chars).

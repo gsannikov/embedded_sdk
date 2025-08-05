@@ -107,7 +107,7 @@ class CMakeBuilder(BuilderRunnerInterface):
             for clarity, atomicity, and maintainability. Refactoring would obscure the execution flow.
         """
 
-        config: dict = build_profile.config_data
+        config: Optional[dict] = build_profile.config_data
         if not isinstance(config, dict):
             raise ValueError("build profile contain invalid configuration")
 
@@ -366,7 +366,7 @@ class CMakeBuilder(BuilderRunnerInterface):
 
         build_start = 0
 
-        def _normalize_message(_s: str) -> str:
+        def _normalize_message(_s: Optional[str]) -> Optional[str]:
             """ Make sure the error message is trimmed, capitalized and has dit at the end """
             if not isinstance(_s, str):
                 return _s

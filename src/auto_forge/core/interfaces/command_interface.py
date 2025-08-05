@@ -308,7 +308,7 @@ class CommandInterface(ABC):
             int: 0 on success, non-zero on failure (e.g., usage error).
         """
 
-        def _normalize_error(_s: str) -> str:
+        def _normalize_error(_s: Optional[str]) -> Optional[str]:
             """ Make sure the error message is trimmed, capitalized and has dit at the end """
             if not isinstance(_s, str):
                 return _s

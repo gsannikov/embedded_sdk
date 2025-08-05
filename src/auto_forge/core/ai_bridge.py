@@ -119,14 +119,14 @@ class CoreAIBridge(CoreModuleInterface):
                     raise FileNotFoundError(f"Providers file '{joker}' not found or not a .json file")
                 self._logger.debug(f"Loading providers from '{str(joker)}'")
                 joker_providers = AIProvidersType().from_json(joker)
-                joker_data = joker_providers.to_dict()
+                joker_data: Optional[dict] = joker_providers.to_dict()
                 if not isinstance(joker_data, dict):
                     raise FileNotFoundError(f"Providers file '{joker}' cold be converted to a dictionary")
                 os.unlink(self._batman) if os.path.exists(self._batman) else None
                 crypto.create_or_load_encrypted_dict(filename=self._batman, default_data=joker_data)
 
             # Read the storage or create a fresh storage if we could not read it.
-            storage_data = crypto.create_or_load_encrypted_dict(filename=self._batman)
+            storage_data: Optional[dict] = crypto.create_or_load_encrypted_dict(filename=self._batman)
             storage_version: Optional[str] = storage_data.get('version') if isinstance(storage_data, dict) else None
 
             if not isinstance(storage_version, str) or storage_version != self._providers.version:
@@ -421,14 +421,14 @@ class CoreAIBridge(CoreModuleInterface):
                 # If the request_prompt is essentially a dictionary try to decode it as build error context
                 if isinstance(prompt, str) and prompt:
 
-                    error_ctx_data = _to_dict(prompt)
+                    error_ctx_data: Optional[dict] = _to_dict(prompt)
                     all_derived_files: set[str] = set()  # Accumulate unique derived files
 
                     if isinstance(error_ctx_data, dict):
                         md_lines.append("## 🛫 Outgoing Prompt (❌ Error Context)")
                         md_lines.append("")
 
-                        events = error_ctx_data.get("events") if isinstance(error_ctx_data, dict) else error_ctx_data
+                        events: Optional[list] = error_ctx_data.get("events", None)
                         if not isinstance(events, list):
                             raise TypeError("Expected 'events' to be a list in context")
 

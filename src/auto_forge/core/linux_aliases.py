@@ -127,7 +127,7 @@ class CoreLinuxAliases(CoreModuleInterface):
         if not shell_path:
             return None
 
-        def _get_clear_text(_text: str) -> str:
+        def _get_clear_text(_text: Optional[str]) -> Optional[str]:
             """ Remove ANSI escape sequences from the input string. """
             if isinstance(_text, str):
                 ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -360,7 +360,7 @@ class CoreLinuxAliases(CoreModuleInterface):
         return False
 
     @staticmethod
-    def _format_shell_comment(_text: str, max_line_width: int = 120) -> Optional[str]:
+    def _format_shell_comment(_text: Optional[str], max_line_width: int = 120) -> Optional[str]:
         """
         Formats a given text into a shell comment friendly format,ensuring:
         1. Each output line adheres to max_line_width.
@@ -441,7 +441,7 @@ class CoreLinuxAliases(CoreModuleInterface):
         return version
 
     @staticmethod
-    def _get_shell_type(shell_name: str) -> LinuxShellType:
+    def _get_shell_type(shell_name: Optional[str]) -> LinuxShellType:
         """
         Maps the shell binary base name to its enum identifier.
         Args:

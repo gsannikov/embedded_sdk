@@ -243,7 +243,7 @@ class CoreGUI(CoreModuleInterface):
         self._msg_queue.put(_show_input_box)
         return self._wait_for_response()
 
-    def message_box(self, text: str, caption: str, box_type: MessageBoxType, _centered: bool = True,
+    def message_box(self, text: str, caption: str, box_type: Optional[MessageBoxType], _centered: bool = True,
                     top_most: bool = True) -> Optional[str]:
         """
         Displays a message box to the user in a thread-safe and GUI-friendly way.

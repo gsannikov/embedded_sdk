@@ -10,6 +10,7 @@ Description:
 import os
 import re
 import sys
+import uuid
 from contextlib import suppress
 from importlib.metadata import metadata, version
 from pathlib import Path
@@ -38,6 +39,8 @@ class PackageGlobals:
     VIEWERS_PATH: Optional[Path] = None
     SCHEMAS_PATH: Optional[Path] = None
     EDITABLE: Optional[bool] = True
+    SESSION_ID:Optional[str] = None
+    SPAWNED: Optional[bool] = False
 
     def __new__(cls):
         if cls._instance is None:
@@ -76,6 +79,11 @@ class PackageGlobals:
             if "site-packages" in str(package_path):
                 cls.EDITABLE = False
 
+            # Assume we are spawned by a parent AutoForge instance if the SESSION_ID is already exported
+            if os.environ.get('PACKAGE_SESSION_ID'):
+                cls.SPAWNED = True
+
+            cls.SESSION_ID = str(uuid.uuid4())
             cls.PACKAGE_PATH = package_path
             cls.VERSION = version(package_name)
             cls.PROJ_NAME = project_data.get("Name")

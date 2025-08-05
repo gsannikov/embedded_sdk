@@ -203,7 +203,7 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             List[str]: List of project names, or None if no solution is loaded or no projects are found.
         """
-        projects = self.query_projects()
+        projects: Optional[Union[dict, list]] = self.query_projects()
         if projects is None:
             return None
 
@@ -212,8 +212,6 @@ class CoreSolution(CoreModuleInterface):
 
         if isinstance(projects, list):
             return [proj.get("name") for proj in projects if isinstance(proj, dict)]
-
-        return None
 
     def query_configurations(self, project_name: str, configuration_name: Optional[str] = None) -> Optional[
         Union[list, dict]]:
@@ -241,7 +239,7 @@ class CoreSolution(CoreModuleInterface):
         if not project:
             return None
 
-        configurations = project.get("configurations", [])
+        configurations: Optional[list] = project.get("configurations", [])
         if not isinstance(configurations, list):
             return None
 
@@ -266,7 +264,7 @@ class CoreSolution(CoreModuleInterface):
         Returns:
             List[str]: List of configuration names, or None if not found.
         """
-        configurations = self.query_configurations(project_name=project_name)
+        configurations: Optional[Union[dict, list]] = self.query_configurations(project_name=project_name)
         if configurations is None:
             return None
 
@@ -275,8 +273,6 @@ class CoreSolution(CoreModuleInterface):
 
         if isinstance(configurations, list):
             return [conf.get("name") for conf in configurations if isinstance(conf, dict)]
-
-        return None
 
     def iter_menu_commands_with_context(self) -> Optional[Iterator[tuple[str, str, dict]]]:
         """
@@ -484,6 +480,7 @@ class CoreSolution(CoreModuleInterface):
         Recursively removes all keys with value None from self._solution_data.
         This modifies the structure in-place.
         """
+
         def _clean(obj):
             if isinstance(obj, dict):
                 keys_to_delete = [k for k, v in obj.items() if v is None]
@@ -676,7 +673,7 @@ class CoreSolution(CoreModuleInterface):
                 elif isinstance(item, (dict, list)):
                     self._traverse_and_process_references(item, parent_key, current_context)
 
-    def _resolve_variable_in_string(self, text: str, variable_type: "PreProcessType") -> Any:
+    def _resolve_variable_in_string(self, text: str, variable_type: Optional["PreProcessType"]) -> Any:
         """
         Resolves environment variables or reference tokens in a string based on the specified variable type.
         Args:

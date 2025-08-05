@@ -671,7 +671,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         # Store the alias and it's metadat also in a global dictionary
         self._commands_metadata[name] = metadata
 
-    def _make_dynamic_alias_handler(self, name: str, command: Union[str, list]) -> Optional[
+    def _make_dynamic_alias_handler(self, name: str, command: Optional[Union[str, list]]) -> Optional[
         Callable[[Any, Any], None]]:
         """
         Implements a dynamic function which will be executed when an alias is invoked by the prompt.
@@ -842,11 +842,11 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
 
         for cmd_info in commands_list:
 
-            name = cmd_info.name
-            cmd_type = cmd_info.command_type.name
-            doc = cmd_info.description or "Description not provided"
-            hidden = cmd_info.hidden
-            metadata = cmd_info.metadata or {}
+            name: Optional[str] = cmd_info.name
+            cmd_type: str = cmd_info.command_type.name
+            doc: str = cmd_info.description or "Description not provided"
+            hidden: bool = cmd_info.hidden
+            metadata: dict = cmd_info.metadata or {}
 
             # Make sure we got the essentials
             if not isinstance(name, str):

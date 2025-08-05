@@ -51,7 +51,8 @@ class BuilderArtifactsValidator:
     """
 
     def __init__(self, artifact_list: list[dict]):
-        self._artifact_list = artifact_list
+        """ Initializes the BuilderArtifactsValidator class """
+        self._artifact_list: Optional[list] = artifact_list
         self._resolved: dict[str, list[Path]] = {}
         self._validate_and_resolve()
 

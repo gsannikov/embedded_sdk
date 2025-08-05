@@ -18,7 +18,7 @@ import re
 import struct
 import zlib
 from re import Match
-from typing import Any, Optional, cast
+from typing import Any, Optional, cast, Union
 
 # AutoForge imports
 from auto_forge import (
@@ -69,7 +69,8 @@ class CoreSignatures(CoreModuleInterface):
         expanded_file = os.path.expanduser(os.path.expandvars(signatures_config_file_name))
         self._config_file_name = os.path.abspath(expanded_file)  # Resolve relative paths to absolute paths
 
-        signatures = self._processor.render(file_name=signatures_config_file_name).get("signatures", None)
+        signatures: Optional[Union[list, dict]] = self._processor.render(file_name=signatures_config_file_name).get(
+            "signatures", None)
         if signatures is None or not isinstance(signatures, (list, dict)):
             raise RuntimeError(f"no signatures found in '{signatures_config_file_name}'")
 

@@ -170,7 +170,7 @@ class CoreRegistry(CoreModuleInterface):
 
     def get_instance_by_class_name(
             self,
-            class_name: str,
+            class_name: Optional[str],
             case_insensitive: bool = False,
             return_protocol: bool = False
     ) -> Optional[Any]:

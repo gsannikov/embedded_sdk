@@ -74,7 +74,7 @@ class ProgressTracker:
             linger_interval_ms (int): Time to wait between consecutive lines update.
             default_new_line (bool): Default behaviour for new message.
         """
-        self._state = _TrackerState.UN_INITIALIZES
+        self._state: Optional[_TrackerState] = _TrackerState.UN_INITIALIZES
         self._add_time_prefix: bool = add_time_prefix
         self._title_length: int = title_length
         self._terminal_width: int = shutil.get_terminal_size().columns
@@ -121,7 +121,7 @@ class ProgressTracker:
             str: The formatted string ready for display.
         """
 
-        def _get_clear_text(_text: str) -> str:
+        def _get_clear_text(_text: Optional[str]) -> Optional[str]:
             """ Remove ANSI escape sequences from the input string."""
             if isinstance(_text, str):
                 ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -162,7 +162,7 @@ class ProgressTracker:
         """
 
         if self._state != _TrackerState.PRE:
-            return False
+            return False  # PyCharm This code is unreachable ???
 
         text = text.strip() if text is not None else ""  # Basic normalizing
         # Set default new line behaviour when not specified explicitly

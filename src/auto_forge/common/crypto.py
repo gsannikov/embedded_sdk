@@ -8,7 +8,7 @@ Description:
 """
 import json
 import os
-from typing import Any
+from typing import Any, Optional
 
 # Third-party
 from cryptography.fernet import Fernet, InvalidToken
@@ -96,7 +96,7 @@ class Crypto:
                 raise RuntimeError(f"Error storing key to file '{path}': {e}")
         return key
 
-    def _encrypt_dict(self, data: dict[str, Any]) -> bytes:
+    def _encrypt_dict(self, data: Optional[dict[str, Any]]) -> bytes:
         """
         Encrypts a Python dictionary into bytes. (Internal method)
         Args:
@@ -113,7 +113,7 @@ class Crypto:
         except Exception as e:
             raise RuntimeError(f"Error encrypting dictionary: {e}")
 
-    def _decrypt_dict(self, encrypted_data: bytes) -> dict[str, Any]:
+    def _decrypt_dict(self, encrypted_data: Optional[bytes]) -> dict[str, Any]:
         """
         Decrypts bytes into a Python dictionary. (Internal method)
         Args:

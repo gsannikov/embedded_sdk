@@ -57,7 +57,7 @@ class _LanguageAnalysis:
                                               int) and max_read_size_bytes > 0 else AUTO_FORGE_DEFAULT_MAX_REDA_SIZE
         )
 
-    def _read_content(self, filename: Union[str, Path]) -> Optional[str]:
+    def _read_content(self, filename: Optional[Union[str, Path]]) -> Optional[str]:
         if not isinstance(filename, (str, Path)):
             raise TypeError("'filename' must be a string or pathlib.Path object")
 

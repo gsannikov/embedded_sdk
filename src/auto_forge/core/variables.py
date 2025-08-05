@@ -18,6 +18,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Optional, Union, Iterator
 from urllib.parse import urlparse
+from uuid import UUID
 
 # Third-party
 from jsonschema.validators import validate
@@ -44,7 +45,7 @@ class CoreVariables(CoreModuleInterface):
         Extra initialization required for assigning runtime values to attributes declared
         earlier in `__init__()` See 'CoreModuleInterface' usage.
         """
-        self._variables: list[VariableFieldType] = []  # Inner variables stored as a sorted list of objects
+        self._variables: Optional[list[VariableFieldType]] = []  # Inner variables stored as a sorted list of objects
         super().__init__(*args, **kwargs)
 
     def _initialize(self, workspace_path: str, solution_name: str, work_mode: AutoForgeWorkModeType) -> None:
@@ -195,6 +196,11 @@ class CoreVariables(CoreModuleInterface):
         # Boolean-like strings
         if val.lower() in {"true", "false", "yes", "no", "on", "off", "1", "0"}:
             return VariableType.BOOL
+
+        # Check for UUID
+        with suppress(Exception):
+            UUID(val)
+            return VariableType.UUID
 
         # Check for Unix path
         if self._tool_box.looks_like_unix_path(val):
@@ -798,8 +804,8 @@ class CoreVariables(CoreModuleInterface):
 
         return ''.join(result)
 
-    def expand_any(self, data: Union[str, list, dict], allow_environment: bool = True, quiet: bool = False) -> Union[
-        str, list, dict]:
+    def expand_any(self, data: Optional[Union[str, list, dict]],
+                   allow_environment: bool = True, quiet: bool = False) -> Optional[Union[str, list, dict]]:
         """
         Recursively traverse a dictionary, list, or string and expand all string values
         using self._variables.expand(key=...).

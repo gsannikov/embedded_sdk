@@ -424,7 +424,7 @@ class CoreXRayDB(CoreModuleInterface):
 
             # Load existing meta values
             cursor.execute("SELECT key, value FROM meta")
-            self._db_meta_data = dict(cursor.fetchall())
+            self._db_meta_data: Optional[dict] = dict(cursor.fetchall())
 
             if not isinstance(self._db_meta_data, dict):
                 raise RuntimeError("'meta' table could not be interpreted as a key-value dictionary")
@@ -478,7 +478,7 @@ class CoreXRayDB(CoreModuleInterface):
                     f"'meta' table has an unsupported db_version '{existing_db_version}', expected '{self._db_version}'")
 
             # Validate the last indexing date as ISO string from meta table when we have it.
-            raw_date = self._db_meta_data.get("db_last_indexed_date", None)
+            raw_date: Optional[str] = self._db_meta_data.get("db_last_indexed_date", None)
             if raw_date is not None:
                 self._db_last_indexed_date = None
                 self._db_last_indexed_age_days = None

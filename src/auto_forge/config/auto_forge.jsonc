@@ -7,7 +7,7 @@
 */
 
 {
-    "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
+  "format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
 
     // -----------------------------------------------------------------------------------------------------------------
     //

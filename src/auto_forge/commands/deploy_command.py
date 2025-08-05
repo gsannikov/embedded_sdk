@@ -298,8 +298,8 @@ class DeployCommand(CommandInterface):
             if not isinstance(recipe_raw, dict):
                 raise ValueError(f"failed to parse recipe: '{recipe_file}'")
 
-            self._recipe_defaults = recipe_raw.get("defaults", {})
-            self._recipe_deploy_files = recipe_raw.get("files", [])
+            self._recipe_defaults: Optional[dict] = recipe_raw.get("defaults", {})
+            self._recipe_deploy_files: Optional[list] = recipe_raw.get("files", [])
 
             # Validate presence of mandatory fields
             if not isinstance(self._recipe_defaults, dict) or not isinstance(self._recipe_deploy_files, list):

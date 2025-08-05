@@ -310,7 +310,8 @@ class EditCommand(CommandInterface):
         # Fallback to default
         return None
 
-    def _purify_paths(self, paths: Iterable[dict[str, Any]], max_items: Optional[int] = None) -> list[dict[str, Any]]:
+    def _purify_paths(self, paths: Iterable[Optional[dict[str, Any]]],
+                      max_items: Optional[int] = None) -> list[dict[str, Any]]:
         """
         Filters and normalizes a list of dictionaries containing file or directory paths.
         For each dictionary that has a 'path' key:

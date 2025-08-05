@@ -198,8 +198,11 @@ class CoreDynamicLoader(CoreModuleInterface):
                         self._logger.warning(f"No supported class found in module '{file_stem_name}'. Skipping")
                         continue
 
-                    interface_name: str = next((name for base, name in self._supported_interfaces.items()
-                                                if issubclass(callable_object, base)), None)
+                    interface_name: Optional[str] = next(
+                        (name for base, name in self._supported_interfaces.items()
+                         if isinstance(callable_object, type) and issubclass(callable_object, base)),
+                        None
+                    )
 
                     if not interface_name:
                         self._logger.warning(f"Unsupported command interface in module '{file_stem_name}'. Skipping")

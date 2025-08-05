@@ -59,12 +59,12 @@ class _RefactorDefaultsRead:
     """
 
     @staticmethod
-    def process(defaults_data: dict[str, Any]) -> _RefactorDefaults:
+    def process(defaults_data: Optional[dict[str, Any]]) -> _RefactorDefaults:
         if not isinstance(defaults_data, dict):
             raise TypeError("'defaults_data' must be a dictionary")
 
         # Validate file_types
-        file_types = defaults_data.get("file_types", ["*"])
+        file_types: Optional[list] = defaults_data.get("file_types", ["*"])
         if not isinstance(file_types, list):
             raise ValueError("'file_types' must be a list")
 
@@ -85,7 +85,8 @@ class _RefactorFolderRead:
     """
 
     @staticmethod
-    def process(defaults: _RefactorDefaults, raw_folder_entry: dict[str, Any], logger: Logger) -> _RefactorFolder:
+    def process(defaults: _RefactorDefaults, raw_folder_entry: Optional[dict[str, Any]],
+                logger: Logger) -> _RefactorFolder:
         if not isinstance(raw_folder_entry, dict):
             raise TypeError("Each folder entry must be a dictionary")
 
@@ -107,7 +108,7 @@ class _RefactorFolderRead:
                     logger = logging.getLogger("Refactor")
                     logger.warning(f"'{raw_source} -> {raw_destination}': '{source}' does not exist")
 
-        file_types = raw_folder_entry.get("file_types", defaults.file_types)
+        file_types: Optional[list] = raw_folder_entry.get("file_types", defaults.file_types)
         if not isinstance(file_types, list):
             raise ValueError("'file_types' must be a list if provided")
 

@@ -64,7 +64,8 @@ class AutoForgCommandType(Enum):
     AI = 14
 
     @classmethod
-    def from_str(cls, value: str, default: Union[str, 'AutoForgCommandType'] = None) -> 'AutoForgCommandType':
+    def from_str(cls, value: Optional[str],
+                 default: Optional[Union[str, 'AutoForgCommandType']] = None) -> 'AutoForgCommandType':
         """
         Safely convert a string to an AutoForgCommandType enum value.
         Args:
@@ -81,8 +82,6 @@ class AutoForgCommandType(Enum):
             default_enum = cls.__members__.get(default.strip().upper(), cls.UNKNOWN)
         elif isinstance(default, cls):
             default_enum = default
-        else:
-            default_enum = cls.UNKNOWN
 
         if not isinstance(value, str):
             return default_enum
@@ -139,8 +138,6 @@ class AutoForgFolderType(Enum):
             default_enum = cls.__members__.get(default.strip().upper(), cls.UNKNOWN)
         elif isinstance(default, cls):
             default_enum = default
-        else:
-            default_enum = cls.UNKNOWN
 
         if not isinstance(value, str):
             return default_enum
@@ -323,7 +320,7 @@ class AIModelType(Enum):
     GPT_4O = "gpt-4o"
 
     @classmethod
-    def from_str(cls, value: str) -> "AIModelType":
+    def from_str(cls, value: Optional[str]) -> "AIModelType":
         if not isinstance(value, str):
             return cls.UNKNOWN
         for member in cls:
@@ -573,6 +570,7 @@ class VariableType(Enum):
     FLOAT = auto()  # Floating-point value (e.g., 3.14, -0.001)
     VERSION = auto()  # Version-like string (e.g., "1.2.3", "v2.0-beta")
     STRING = auto()  # Generic string not matching any of the above types
+    UUID = auto()  # Generic UUID
 
 
 @dataclass

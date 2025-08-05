@@ -144,7 +144,6 @@ class CorePlatform(CoreModuleInterface):
             return f"{command} {arguments}"
         if isinstance(arguments, list):
             return " ".join([command] + [shlex.quote(str(arg)) for arg in arguments])
-        raise TypeError("arguments must be None, a string, or a list")
 
     @staticmethod
     def _get_default_python_info() -> Optional[Tuple[str, str]]:
@@ -195,7 +194,7 @@ class CorePlatform(CoreModuleInterface):
         return python_executable
 
     @staticmethod
-    def _extract_decimal(text: str, treat_no_decimal_as_zero: bool = True) -> Union[float, int]:
+    def _extract_decimal(text: Optional[str], treat_no_decimal_as_zero: bool = True) -> Union[float, int]:
         """
         Extracts the first decimal or integer number from a given string.
         Args:
@@ -706,7 +705,7 @@ class CorePlatform(CoreModuleInterface):
         return CommandResultType(response=command_response, return_code=return_code)
 
     def execute_shell_command(  # noqa: C901
-            self, command_and_args: Union[str, list[str]], timeout: Optional[float] = None,
+            self, command_and_args: Optional[Union[str, list[str]]], timeout: Optional[float] = None,
             echo_type: TerminalEchoType = TerminalEchoType.NONE, leading_text: Optional[str] = None,
             truncate_text: bool = True, use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True,
             shell: bool = True, cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None,
@@ -774,7 +773,7 @@ class CorePlatform(CoreModuleInterface):
 
             return _error_msg
 
-        def _print_bytes_safely(byte_data: bytes, suppress_errors: bool = True):
+        def _print_bytes_safely(byte_data: Optional[bytes], suppress_errors: bool = True):
             """
             Incrementally decodes a single byte of UTF-8 data and writes the result to stdout.
             Args:
@@ -942,6 +941,10 @@ class CorePlatform(CoreModuleInterface):
                     raise CommandFailedException(results=results)
                 return results
 
+            # When we are a child process spawned by another instance of AutoForge switch to raw logging
+            if PackageGlobals.SPAWNED:
+                self._core_logger.set_formatter(enable_formatting=False)
+
             # Expand current work directory if specified
             cwd = self._variables.expand(key=cwd) if cwd else cwd
 
@@ -1092,6 +1095,8 @@ class CorePlatform(CoreModuleInterface):
         finally:
             if master_fd is not None:  # Close PTY descriptor
                 os.close(master_fd)
+            # Restore normal logger
+            self._core_logger.set_formatter(enable_formatting=True)
 
     def execute_fullscreen_shell_command(self, command_and_args: str, env: Optional[Mapping[str, str]] = None,
                                          timeout: Optional[float] = None) -> Optional[
@@ -1127,9 +1132,9 @@ class CorePlatform(CoreModuleInterface):
 
     def validate_prerequisite(
             self,
-            arguments: dict,
+            arguments: Optional[dict],
             *,
-            validation_method: ValidationMethodType = ValidationMethodType.EXECUTE_PROCESS,
+            validation_method: Optional[ValidationMethodType] = ValidationMethodType.EXECUTE_PROCESS,
             cwd: Optional[str] = None) -> Optional[CommandResultType]:
         """
         Validates that a system-level prerequisite is met using a specified method.
@@ -1632,7 +1637,7 @@ class CorePlatform(CoreModuleInterface):
         if results.return_code != 0 or results.extra_data is None:
             raise RuntimeError("could not get path listing for remote URL")
 
-        files: list = results.extra_data
+        files: Optional[list] = results.extra_data
         if not isinstance(files, list):
             raise RuntimeError("path listing did not return a list")
 
@@ -1655,9 +1660,10 @@ class CorePlatform(CoreModuleInterface):
 
                 # Use the provided download function
                 file_url = self._tool_box.normalize_to_github_api_url(url=file_url)
-                results = self.url_get(url=file_url, destination=local_filename)
-                if results.return_code != 0:
-                    raise RuntimeError(f"HTTP operation failed with exit code {results.return_code}")
+                results: Optional[CommandResultType] = self.url_get(url=file_url, destination=local_filename)
+
+                if not isinstance(results, CommandResultType) or results.return_code != 0:
+                    raise RuntimeError("HTTP operation failed")
 
             # After all files are downloaded, zip them
             with zipfile.ZipFile(destination_file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -1790,7 +1796,6 @@ class CorePlatform(CoreModuleInterface):
                         written_bytes = len(content)
                         return CommandResultType(response=url, return_code=0, extra_value=written_bytes,
                                                  extra_data=content)
-
                 else:
                     total_size = int(response.getheader('Content-Length').strip())
                     downloaded_size = 0

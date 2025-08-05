@@ -9,7 +9,7 @@ Description:
 """
 
 import re
-from typing import Optional
+from typing import Optional, Union
 
 # AutoForge imports
 from auto_forge import (ExpectedVersionInfoType)
@@ -51,7 +51,7 @@ class VersionCompare:
         return None
 
     @staticmethod
-    def _parse_version_info(input_string: str, operators: list) -> Optional[ExpectedVersionInfoType]:
+    def _parse_version_info(input_string: Optional[str], operators: list) -> Optional[ExpectedVersionInfoType]:
         """
         Parses an input version string, validates its operator, and cleans the version number.
         Args:
@@ -102,13 +102,13 @@ class VersionCompare:
 
     # noinspection SpellCheckingInspection
     @staticmethod
-    def extract_version(text: str) -> Optional[str]:
+    def extract_version(text: Optional[Union[str, bytes]]) -> Optional[str]:
         """
         General purpose the best effort version extractor and identifier from a given text blob.
         Attempts to find version numbers using a series of regular expressions
         designed to match common versioning patterns. It returns the first match found.
         Args:
-            text (str): A string, typically the output of a command, typically in response to
+            text (str, bytes): A string, typically the output of a command, typically in response to
                 something like 'binary --version'.
         Returns:
             A string containing the extracted version number if found, otherwise None.
