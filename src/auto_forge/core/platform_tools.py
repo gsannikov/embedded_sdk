@@ -941,10 +941,6 @@ class CorePlatform(CoreModuleInterface):
                     raise CommandFailedException(results=results)
                 return results
 
-            # When we are a child process spawned by another instance of AutoForge switch to raw logging
-            if PackageGlobals.SPAWNED:
-                self._core_logger.set_formatter(enable_formatting=False)
-
             # Expand current work directory if specified
             cwd = self._variables.expand(key=cwd) if cwd else cwd
 
@@ -1095,8 +1091,6 @@ class CorePlatform(CoreModuleInterface):
         finally:
             if master_fd is not None:  # Close PTY descriptor
                 os.close(master_fd)
-            # Restore normal logger
-            self._core_logger.set_formatter(enable_formatting=True)
 
     def execute_fullscreen_shell_command(self, command_and_args: str, env: Optional[Mapping[str, str]] = None,
                                          timeout: Optional[float] = None) -> Optional[

@@ -299,6 +299,10 @@ class AutoForge(CoreModuleInterface):
         if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             self._core_logger.set_output(logger=None, state=True)
 
+        # When we are a child process spawned by another instance of AutoForge switch to raw logging
+        if PackageGlobals.SPAWNED:
+            self._core_logger.set_formatter(enable_formatting=False)
+
         self._logger.info(f"AutoForge{' (child)' if PackageGlobals.SPAWNED else ''} "
                           f"version: {PackageGlobals.VERSION} starting")
 
