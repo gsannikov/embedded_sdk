@@ -284,11 +284,13 @@ class CoreLogger(CoreModuleInterface):
         self._enable_colors: bool = True
         self._enable_formatting: bool = True
 
-        super().__init__(args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-    def _initialize(self, log_level=logging.ERROR, enable_colors: bool = True,
+    def _initialize(self, log_level: int = logging.ERROR,
+                    enable_colors: bool = True,
                     output_state: bool = True,
-                    erase_exiting_file: bool = True, exclusive: bool = True,
+                    erase_exiting_file: bool = True,
+                    exclusive: bool = True,
                     enable_memory_logger: bool = True,
                     configuration_data: Optional[dict[str, Any]] = None) -> None:
 
