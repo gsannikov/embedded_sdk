@@ -232,7 +232,7 @@ class RefactorCommand(CommandInterface):
             shutil.copy2(src_path, dest_path)
             file_name = os.path.basename(src_path)
             if is_source:
-                getattr(self._logger, log_level)(f"> Copying '{file_name}'")
+                getattr(self._logger, log_level)(f"Copying '{file_name}'")
         except Exception as copy_error:
             msg = f"Failed to copy '{relative_src}' to '{relative_dest}' {copy_error}"
             if fatal:
@@ -292,7 +292,7 @@ class RefactorCommand(CommandInterface):
                 if os.path.exists(destination_path):
                     raise RuntimeError(f"destination '{destination_path}' already exists.")
 
-            print(f"Starting refactoring process for {len(self._folders)} paths..")
+            self._tool_box.print(f"Starting refactoring process for {len(self._folders)} paths..")
 
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
@@ -316,7 +316,7 @@ class RefactorCommand(CommandInterface):
                     relative_source_root = os.path.relpath(root, self._defaults.source_path)
 
                     if depth_from_root > 1:
-                        self._logger.info(f"> Processing '{relative_source_root}'")
+                        self._logger.info(f"Processing '{relative_source_root}'")
 
                     if max_depth != -1 and current_depth > max_depth:
                         raise RuntimeError(f"exceeded maximum copy depth ({max_depth}) at '{root}'")
@@ -349,7 +349,7 @@ class RefactorCommand(CommandInterface):
                     self._logger.info(
                         f"Total {copied_files_count} files copied and {copied_graveyard_files_count} sent to graveyard.")
 
-            print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
+            self._tool_box.print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
             return 0
 
         except Exception as refactoring_error:

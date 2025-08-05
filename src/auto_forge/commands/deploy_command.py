@@ -310,7 +310,7 @@ class DeployCommand(CommandInterface):
 
             self._logger.debug(f"Recipe loaded: {len(self._recipe_deploy_files)} file entries found")
 
-            print(f"Starting deploy process for {len(self._recipe_deploy_files)} listed files..")
+            self._tool_box.print(f"Starting deploy process for {len(self._recipe_deploy_files)} listed files..")
 
             if direction == _DeployDirectionType.HostToArchive:
                 exit_code = self._to_archive(host_base_path=host_base_path, archive_path=archive_path,
@@ -321,7 +321,7 @@ class DeployCommand(CommandInterface):
                 raise ValueError(f"unknown deploy direction: {direction}")
 
             sys.stdout.write('\r\033[K\r')  # Move to start and clear line
-            print(f"Done, total {self._processed_files_count} files processed, {self._skipped_files_count} skipped.\n")
+            self._tool_box.print(f"Done, total {self._processed_files_count} files processed, {self._skipped_files_count} skipped.\n")
             return exit_code
 
         except Exception as deploy_error:
