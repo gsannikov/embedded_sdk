@@ -660,7 +660,7 @@ class CorePlatform(CoreModuleInterface):
             results = execution_error.results
 
             if isinstance(results, CommandResultType):
-                exception_message = f"Command '{results.command}' returned {results.return_code}"
+                exception_message = f"Command '{results.command}' returned {results.return_code}, message {results.message}"
             else:
                 exception_message = f"caught execution exception with no data"
             if quiet:
@@ -1300,32 +1300,44 @@ class CorePlatform(CoreModuleInterface):
         """
         try:
             if not isinstance(path, (Path, str)):
-                return CommandResultType(return_code=1, message="'path' is not a valid string or Path object")
+                raise CommandFailedException(
+                    results=CommandResultType(return_code=1, command="path_check_exist",
+                                              message="'path' is not a valid string or Path object"))
 
             path = Path(path)
 
             if not path.exists():
-                return CommandResultType(return_code=1, message=f"path does not exist: '{path}'")
+                raise CommandFailedException(
+                    results=CommandResultType(return_code=1, command="path_check_exist",
+                                              message=f"path does not exist: '{path}'"))
 
             if path.is_file():
-                return CommandResultType(return_code=1, message=f"path is a file, not a directory: '{path}'")
+                raise CommandFailedException(
+                    results=CommandResultType(return_code=1, command="path_check_exist",
+                                              message=f"path is a file, not a directory: '{path}'"))
 
             if not path.is_dir():
-                return CommandResultType(return_code=1, message=f"path exists but is not a regular directory: '{path}'")
+                raise CommandFailedException(results=CommandResultType(return_code=1,
+                                                                       command="path_check_exist",
+                                                                       message=f"path exists but is not a regular directory: '{path}'"))
 
             if not_empty:
                 try:
                     if not any(path.iterdir()):
-                        return CommandResultType(return_code=1, message=f"directory is empty: '{path}'")
+                        raise CommandFailedException(
+                            results=CommandResultType(return_code=1, command="path_check_exist",
+                                                      message=f"directory is empty: '{path}'"))
                 except PermissionError:
-                    return CommandResultType(return_code=1, message=f"permission denied when accessing: '{path}'")
+                    raise CommandFailedException(
+                        results=CommandResultType(return_code=1, command="path_check_exist",
+                                                  message=f"permission denied when accessing: '{path}'"))
 
-            return CommandResultType(return_code=0)
+            return CommandResultType(return_code=0, command="path_check_exist")
 
         except PermissionError:
-            return CommandResultType(return_code=1, message=f"permission denied: '{path}'")
-        except Exception as e:
-            return CommandResultType(return_code=1, message=f"unexpected error while checking path: {e}")
+            raise CommandFailedException(
+                results=CommandResultType(return_code=1, message=f"permission denied: '{path}'"))
+        raise
 
     def decompress(self, archive_path: str, destination_path: Optional[str] = None) -> Optional[CommandResultType]:
         """
@@ -1905,6 +1917,9 @@ class CorePlatform(CoreModuleInterface):
 
                 if step.get("disabled", False):
                     continue
+
+                # Expand anything that could be expanded in the step
+                step = self._variables.expand_any(data=step)
 
                 action_on_error: SequenceErrorActionType = SequenceErrorActionType.from_label(
                     step.get("action_on_error"))
