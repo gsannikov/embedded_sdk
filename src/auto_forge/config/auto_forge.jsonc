@@ -98,6 +98,32 @@
 
     // -----------------------------------------------------------------------------------------------------------------
     //
+    // Logger options.
+    //
+    // -----------------------------------------------------------------------------------------------------------------
+
+    "log_similarity_filter": {
+        
+        "default_threshold": 0.85,  // Default similarity threshold for all tools
+        "enabled": true,            // Optional: global enable/disable flag
+
+        // Tool-specific overrides
+        "overrides": {
+            "ninja": {
+                "suppress_similar_lines": false
+            },
+            "git": {
+                "suppress_similar_lines": true,
+                "similarity_threshold": 0.92
+            },
+            "curl": {
+                "suppress_similar_lines": true
+            }
+        }
+    },
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //
     // SQLIte data-base configuration attributes.
     //
     // -----------------------------------------------------------------------------------------------------------------
@@ -108,14 +134,14 @@
     "db_extra_log_verbosity": false,            // Log skipped/warnings
     "db_filter_files_content": true,            // Slightly optimize files content before indexing
     "db_indexing_log_frequency":10000,          // How often we should log indexing progress
-    "db_max_index_age_days":30,                 // Skip reindexing if the data was indexed within the last N days
+    "db_max_index_age_days":30,                 // Skip re-indexing if the data was indexed within the last N days
 
     "db_meta_schema": {
 
         // Schema definition for persistent metadata stored in the 'meta' table.
         // Each key represents a metadata field to be stored.
         // - "required": whether this key must be present during metadata creation.
-        // - "type": the expected value type, currently supports: "str" and "datetime".
+        // - "type": the expected value type, currently supports: "str" and "date-time".
 
         "db_version":           {   "required": true,  "type": "str" },
         "db_creation_date":     {   "required": true,  "type": "datetime" },

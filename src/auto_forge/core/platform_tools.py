@@ -116,6 +116,9 @@ class CorePlatform(CoreModuleInterface):
         # Get an optional list of keywords which, when found in command output, will be colorized using ANSI colors
         self._build_colorize_keywords: list = self._configuration.get('build_colorize_keywords', [])
 
+        # Logger similarity filtering rules
+        self._log_similarity_filter:Optional[dict] = self._configuration.get('log_similarity_filter')
+
         # Allow to override default execution timeout of a sub-processes in configuration
         self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
                                                                     self._subprocess_execution_timout)
@@ -740,6 +743,8 @@ class CorePlatform(CoreModuleInterface):
         """
 
         polling_interval: float = 0.1
+        similarity_filter: float = 0.85 # Used to filter similar lines from being logged
+        buffer_size:int = 0 # Sub-process buffer size
         kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=1024)  # Storing upto the last 100 output lines
@@ -755,6 +760,7 @@ class CorePlatform(CoreModuleInterface):
         # Force no echo when automating a command, in which case it's output will be captured and logged
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             echo_type = TerminalEchoType.NONE
+            similarity_filter = 1.0 # Do not filter anything in this mode
 
         def _safe_quote(_arg: str) -> str:
             """ Allow simple expansions or globs, quote all else """
@@ -876,7 +882,7 @@ class CorePlatform(CoreModuleInterface):
                 is_similar: bool = False
                 if isinstance(prev_queued_message, str):
                     similarity: float = difflib.SequenceMatcher(None, clear_text, prev_queued_message).ratio()
-                    if similarity >= 0.85:
+                    if similarity >= similarity_filter:
                         is_similar = True
 
                 if not is_similar:
@@ -978,7 +984,7 @@ class CorePlatform(CoreModuleInterface):
             if use_pty:
                 self._logger.debug(f"Executing: {command_and_args} (PTY)")
                 master_fd, slave_fd = pty.openpty()
-                process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=0,
+                process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=buffer_size,
                                            shell=shell, cwd=cwd, env=proc_env, **kwargs)
                 flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
                 fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -986,7 +992,7 @@ class CorePlatform(CoreModuleInterface):
             else:  # Non PTY process open
                 self._logger.debug(f"Executing: {command_and_args}")
                 process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT, bufsize=0, shell=shell, cwd=cwd, env=proc_env,
+                                           stderr=subprocess.STDOUT, bufsize=buffer_size, shell=shell, cwd=cwd, env=proc_env,
                                            **kwargs)
             start_time = time.time()
             output_ready = False
