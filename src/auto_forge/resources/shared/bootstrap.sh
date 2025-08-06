@@ -30,20 +30,34 @@ install_autoforge_package() {
 	}
 
 	# Print all error blocks (starting with ERROR: and any indented lines after)
-	_print_error_block() {
+	# Note avoiding 'awk' for better compatability.
+	_print_pip_error_block() {
 		local in_error=0
-		while IFS= read -r line; do
-			if printf "%s\n" "$line" | grep -q '^ERROR:'; then
-				in_error=1
-				printf "%s\n" "$line"
-			elif [ "$in_error" -eq 1 ]; then
-				if printf "%s" "$line" | grep -q '^[[:space:]]'; then
+		while IFS= read -r line || [ -n "$line" ]; do
+			case "$line" in
+				ERROR:*)
+					in_error=1
 					printf "%s\n" "$line"
-				else
-					in_error=0
-				fi
-			fi
-		done < "$1"
+					;;
+				"")
+					if [ "$in_error" -eq 1 ]; then
+						echo    # print the empty line
+						in_error=0
+					fi
+					;;
+				[A-Z]*:*)
+					# Detected a new top-level log line like 'Collecting:' or 'Installing:'
+					if [ "$in_error" -eq 1 ]; then
+						in_error=0
+					fi
+					;;
+				*)
+					if [ "$in_error" -eq 1 ]; then
+						printf "%s\n" "$line"
+					fi
+					;;
+			esac
+		done <"$1"
 	}
 
 	# Check for Python 3.9 or higher
@@ -53,17 +67,17 @@ install_autoforge_package() {
 	fi
 
 	# Upgrade pip silently
-	python3 -m pip install --upgrade pip --break-system-packages --no-warn-script-location > /dev/null 2>&1 || {
+	python3 -m pip install --upgrade pip --break-system-packages --no-warn-script-location >/dev/null 2>&1 || {
 		_log_line "Error: Python 'pip' could not be upgraded."
 		return 1
 	}
 
 	# Quietly uninstall auto_forge if it exists
-	pip3 uninstall -y auto_forge &> /dev/null
+	pip3 uninstall -y auto_forge &>/dev/null
 
 	# Install and log to a temporary file
 	# Get system temp dir in a safe, portable way
-	tmp_dir="${TMPDIR:-$(getconf DARWIN_USER_TEMP_DIR 2> /dev/null || echo /tmp)}"
+	tmp_dir="${TMPDIR:-$(getconf DARWIN_USER_TEMP_DIR 2>/dev/null || echo /tmp)}"
 
 	# Fall back to /tmp if all else fails or the directory is not writable
 	if [[ ! -w "$tmp_dir" ]]; then
@@ -73,8 +87,8 @@ install_autoforge_package() {
 	# Define the full path to the log file
 	log_file="${tmp_dir}/__AUTO_FORGE_bootstrap.log"
 
-	if pip3 install git+"$package_url" -q --force-reinstall --break-system-packages --no-warn-script-location 2> "$log_file"; then
-		if pip3 list 2> /dev/null | grep -q 'auto_forge'; then
+	if pip3 install git+"$package_url" -q --force-reinstall --break-system-packages --no-warn-script-location 2>"$log_file"; then
+		if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
 			rm -f "$log_file"
 			return 0
 		else
@@ -85,7 +99,7 @@ install_autoforge_package() {
 	else
 		_log_line "Error: 'pip install' did not complete successfully."
 		echo
-		_print_error_block "$log_file"
+		_print_pip_error_block "$log_file"
 		echo
 		return 1
 	fi
@@ -198,7 +212,7 @@ main() {
 	fi
 
 	# Attempt to get Git token using 'dt'
-	if output="$(dt github print-token 2> /dev/null)"; then
+	if output="$(dt github print-token 2>/dev/null)"; then
 		token="$output"
 		autoforge_cmd+=(--git-token "$token")
 	fi
@@ -208,7 +222,7 @@ main() {
 	ret_val=$?
 
 	# Quietly uninstall auto_forge from the global scope to restrict it as possible  only to virtual environments.
-	pip3 uninstall -y auto_forge &> /dev/null
+	pip3 uninstall -y auto_forge &>/dev/null
 	echo -ne '\e[?25h' # Restore cursor.
 
 	# Restore original directory
