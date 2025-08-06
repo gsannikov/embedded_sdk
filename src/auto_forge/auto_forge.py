@@ -318,7 +318,7 @@ class AutoForge(CoreModuleInterface):
         if flush_memory_logs:
             self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
 
-        self._logger.info(f"AutoForge{' (child)' if PackageGlobals.SPAWNED else ''} "
+        self._logger.info(f"AutoForge{' (spawned)' if PackageGlobals.SPAWNED else ''} "
                           f"version: {PackageGlobals.VERSION} starting")
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
