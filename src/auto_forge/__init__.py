@@ -46,7 +46,7 @@ try:
         SourceFileInfoType, SourceFileLanguageType, StatusNotifType,
         SysInfoLinuxDistroType, SysInfoPackageManagerType,
         TerminalAnsiGuru, TerminalEchoType, TerminalSpinner, TerminalTeeStream,
-        ValidationMethodType, VariableFieldType, VariableType,
+        VariableFieldType, VariableType,
         XRayStateType,
     )
 
@@ -126,6 +126,6 @@ __all__ = [
     "SignatureSchemaType", "SourceFileInfoType", "SourceFileLanguageType", "StatusNotifType",
     "SummaryPatcher", "SysInfoLinuxDistroType", "SysInfoPackageManagerType",
     "TelemetryTrackedCounter", "TerminalAnsiGuru", "TerminalEchoType", "TerminalSpinner",
-    "TerminalTeeStream", "ValidationMethodType", "VariableFieldType", "VariableType", "VersionCompare",
+    "TerminalTeeStream", "VariableFieldType", "VariableType", "VersionCompare",
     "XRayStateType",
 ]
