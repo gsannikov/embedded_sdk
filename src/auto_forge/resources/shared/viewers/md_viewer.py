@@ -1,7 +1,7 @@
 """
 Script:         help_viewer.py
 Author:         AutoForge Team
-Version         1.1
+Version         1.2
 
 Description:
     A simple terminal-based Markdown viewer built using the Textual framework.
@@ -18,7 +18,6 @@ import argparse
 import os
 import sys
 from contextlib import suppress
-from packaging import version
 from pathlib import Path
 from typing import Union
 
@@ -34,6 +33,7 @@ with suppress(ImportError):
     if textual.__version__ != "4.0.0":
         print(f"Error: AutoForge Help Viewer requires Textual 0.4.0, found {textual.__version__}")
         sys.exit(1)
+
 
     class MarkdownApp(App):
         """A simple Markdown viewer application."""
