@@ -4,7 +4,7 @@
 #
 # Script Name:    bootstrap.sh
 # Description:    AutoForge bootstrap installer.
-# Version:        1.3
+# Version:        1.4
 #
 # ------------------------------------------------------------------------------
 
@@ -91,8 +91,8 @@ main() {
 		echo "  -n, --name      	  [name]          Solution name to use."
 		echo "  -p, --package   	  [path/url]      Solution package to use (local path or URL)."
 		echo "  -s, --sequence  	  [json/prop]     Solution sequence name required for preparing new workspace."
-		echo "  -u, --url			  [url]           Optional override AutoForge package URL."
-		echo "  -h, --help							  Display this help and exit."
+		echo "  -u, --url		  [url]           Optional override AutoForge package URL."
+		echo "  -h, --help				  Display this help and exit."
 		echo
 	}
 
