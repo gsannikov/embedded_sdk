@@ -16,7 +16,10 @@ classifiers = ["Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux"]
 requires-python = ">=3.9"  # Requires Python 3.9 or later
-# NOTE: tkinter is required but must be installed via system package manager.
+# Notes:
+#   1. 'tkinter' must be installed via the system package manager (not pip).
+#   2. The Markdown viewer requires Textual v0.4.x. Do not upgrade since v0.5+ breaks Markdown rendering.
+
 dependencies = [
     "packaging>=20.0",
     "wheel==0.43.0",
@@ -37,7 +40,7 @@ dependencies = [
     "GitPython>=3.1.40",
     "prompt_toolkit>=3.0.43,<4.0.0",
     "jmespath>=0.10.0,<1.0.0",
-    "textual>=3.3.0",
+    "textual >=0.4.0, <0.5.0",
     "pynput>=1.8.1,<2.0",
     "openai==1.30.5",
     "cryptography>=45.0.0",

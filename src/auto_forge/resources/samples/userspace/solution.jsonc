@@ -1,7 +1,7 @@
 /*
     AutoForge solution configuration file
     -------------------------------------
-    Use sln -t to view a full tutorial regarding the solution file structure.
+    Use 'sln -t' to view a full tutorial regarding the solution file structure.
 
     Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
     This allows for improved readability and documentation which are not valid standard JSON.
@@ -9,10 +9,10 @@
 */
 
 {
-    // Solutions
-    "solutions": [
-        {
-            "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
+  // Solutions
+  "solutions": [
+    {
+      "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
             "name": "userspace",                    // This solution name
             "description": "Userspace CMake port",  // Mandatory description
 

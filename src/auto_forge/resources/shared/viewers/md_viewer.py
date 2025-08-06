@@ -1,27 +1,41 @@
 """
 Script:         help_viewer.py
 Author:         AutoForge Team
-Version         1.0
+Version         1.1
 
 Description:
     A simple terminal-based Markdown viewer built using the Textual framework.
     Launches a full-screen TUI (Textual User Interface) that renders and displays a Markdown (.md) file using
     a scrollable panel. If Textual is not installed, the script exits quietly without error.
+
+Note: 
+    This viewer requires Textual v0.4.x.  
+    Newer versions (v5+) enforce strict DOM ID rules that can break rendering of 
+    common Markdown patterns such as emojis or numbered headings.
 """
+
 import argparse
 import os
 import sys
 from contextlib import suppress
+from packaging import version
 from pathlib import Path
 from typing import Union
 
 # Safely check for textual availability
 with suppress(ImportError):
+    import textual
     from textual.app import App, ComposeResult
     from textual.binding import Binding
     from textual.widgets import Footer, MarkdownViewer
     from textual import events
 
+    # Force only Textual 0.4.x (e.g., 0.4.0 to 0.4.999)
+    required_range = (version.parse("0.4.0"), version.parse("0.5.0"))
+
+    if not (required_range[0] <= version.parse(textual.__version__) < required_range[1]):
+        print(f"Error: AutoForge Help Viewer requires Textual 0.4.xm, found {textual.__version__}")
+        sys.exit(1)
 
     class MarkdownApp(App):
         """A simple Markdown viewer application."""
