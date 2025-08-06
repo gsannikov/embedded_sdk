@@ -45,8 +45,16 @@ install_autoforge_package() {
 	pip3 uninstall -y auto_forge &> /dev/null
 
 	# Install and log to a temporary file
-	local log_file
-	log_file=$(mktemp)
+	# Get system temp dir in a safe, portable way
+	tmp_dir="${TMPDIR:-$(getconf DARWIN_USER_TEMP_DIR 2> /dev/null || echo /tmp)}"
+
+	# Fall back to /tmp if all else fails or the directory is not writable
+	if [[ ! -w "$tmp_dir" ]]; then
+		tmp_dir="/tmp"
+	fi
+
+	# Define the full path to the log file
+	log_file="${tmp_dir}/__AUTO_FORGE_bootstrap.log"
 
 	if pip3 install git+"$package_url" -q --force-reinstall --break-system-packages --no-warn-script-location 2> "$log_file"; then
 		if pip3 list 2> /dev/null | grep -q 'auto_forge'; then
@@ -62,6 +70,7 @@ install_autoforge_package() {
 		echo
 		grep '^ERROR:' "$log_file"
 		echo "🔍 Full pip output logged at: $log_file"
+		echo
 		return 1
 	fi
 }
@@ -91,43 +100,43 @@ main() {
 		echo "  -n, --name      	  [name]          Solution name to use."
 		echo "  -p, --package   	  [path/url]      Solution package to use (local path or URL)."
 		echo "  -s, --sequence  	  [json/prop]     Solution sequence name required for preparing new workspace."
-		echo "  -u, --url		  [url]           Optional override AutoForge package URL."
-		echo "  -h, --help				  Display this help and exit."
+		echo "  -u, --url		  	  [url]           Optional override AutoForge package URL."
+		echo "  -h, --help				  			  Display this help and exit."
 		echo
 	}
 
 	# Parse command-line arguments.
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-		-w | --workspace)
-			workspace_path="$2"
-			shift 2
-			;;
-		-n | --name)
-			solution_name="$2"
-			shift 2
-			;;
-		-p | --package)
-			package="$2"
-			shift 2
-			;;
-		-s | --sequence)
-			sequence_name="$2"
-			shift 2
-			;;
-		-u | --url)
-			auto_forge_url="$2"
-			shift 2
-			;;
-		-h | --help)
-			display_help
-			return 0
-			;;
-		*)
-			printf "\nError: Unknown option: %s\n\n" "$1"
-			display_help
-			return 1
-			;;
+			-w | --workspace)
+				workspace_path="$2"
+				shift 2
+				;;
+			-n | --name)
+				solution_name="$2"
+				shift 2
+				;;
+			-p | --package)
+				package="$2"
+				shift 2
+				;;
+			-s | --sequence)
+				sequence_name="$2"
+				shift 2
+				;;
+			-u | --url)
+				auto_forge_url="$2"
+				shift 2
+				;;
+			-h | --help)
+				display_help
+				return 0
+				;;
+			*)
+				printf "\nError: Unknown option: %s\n\n" "$1"
+				display_help
+				return 1
+				;;
 		esac
 	done
 

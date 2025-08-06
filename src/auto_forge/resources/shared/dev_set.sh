@@ -103,39 +103,39 @@ main() {
 	# Parse command-line arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-		-v | --venv_path)
-			if [[ -z "$2" ]]; then
-				echo "Error: --venv_path requires an argument."
+			-v | --venv_path)
+				if [[ -z "$2" ]]; then
+					echo "Error: --venv_path requires an argument."
+					return 1
+				fi
+				venv_path="$2"
+				shift 2
+				;;
+			-a | --auto_forge_path)
+				if [[ -z "$2" ]]; then
+					echo "Error: --auto_forge_path requires an argument."
+					return 1
+				fi
+				auto_forge_path="$2"
+				shift 2
+				;;
+			-p | --pydev_ver)
+				pydev_ver="$2"
+				shift 2
+				;;
+			-i | --install)
+				mode="install"
+				shift
+				;;
+			-h | --help | -\?)
+				print_help
+				return 0
+				;;
+			*)
+				printf "Error: Unknown option: %s\n\n" "$1"
+				print_help
 				return 1
-			fi
-			venv_path="$2"
-			shift 2
-			;;
-		-a | --auto_forge_path)
-			if [[ -z "$2" ]]; then
-				echo "Error: --auto_forge_path requires an argument."
-				return 1
-			fi
-			auto_forge_path="$2"
-			shift 2
-			;;
-		-p | --pydev_ver)
-			pydev_ver="$2"
-			shift 2
-			;;
-		-i | --install)
-			mode="install"
-			shift
-			;;
-		-h | --help | -\?)
-			print_help
-			return 0
-			;;
-		*)
-			printf "Error: Unknown option: %s\n\n" "$1"
-			print_help
-			return 1
-			;;
+				;;
 		esac
 	done
 

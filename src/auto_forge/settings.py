@@ -89,7 +89,7 @@ class PackageGlobals:
             cls.PROJ_NAME = project_data.get("Name")
             cls.REPO = cls._get_project_url("auto_forge", "repository")
             cls.NAME = cls._snake_to_pascal(s=cls.PROJ_NAME)
-            cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else None
+            cls.TEMP_PREFIX = f"__{cls.NAME}_" if cls.NAME else "Unknown"
             cls.CONFIG_PATH = cls.PACKAGE_PATH / "config"
             cls.CONFIG_FILE = cls.CONFIG_PATH / "auto_forge.jsonc"
             cls.COMMANDS_PATH = cls.PACKAGE_PATH / "commands"
