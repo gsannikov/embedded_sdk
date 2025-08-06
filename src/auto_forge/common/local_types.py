@@ -241,19 +241,6 @@ class ModuleInfoType(NamedTuple):
     metadata: Optional[dict[str, Any]] = None
 
 
-class ValidationMethodType(Enum):
-    """
-    Enumeration for supported validation methods.
-    Attributes:
-        EXECUTE_PROCESS (int): Run a shell command and validate based on its return code and/or output.
-        READ_FILE (int): Read specific lines from a file and validate expected content.
-        SYS_PACKAGE (int): Checks if a specific package ('apt', 'dnf' is installed)
-    """
-    EXECUTE_PROCESS = 1
-    READ_FILE = 2
-    SYS_PACKAGE = 3
-
-
 class ExecutionModeType(Enum):
     """
     Defines how a command should be executed.

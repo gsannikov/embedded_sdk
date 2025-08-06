@@ -46,7 +46,7 @@ from auto_forge import (
     CommandResultType, CoreDynamicLoader, CoreJSONCProcessor, CoreLinuxAliases, CoreLogger,
     CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry, CoreToolBox,
     CoreVariables, CoreWatchdog, PackageGlobals, ProgressTracker, SequenceErrorActionType,
-    TerminalEchoType, ValidationMethodType, VersionCompare,
+    TerminalEchoType, VersionCompare,
 )
 
 AUTO_FORGE_MODULE_NAME = "Platform"
@@ -1137,17 +1137,15 @@ class CorePlatform(CoreModuleInterface):
 
         return CommandResultType(response='', return_code=return_code)
 
-    def validate_prerequisite(
+    def validate_binary(
             self,
             arguments: Optional[dict],
             *,
-            validation_method: Optional[ValidationMethodType] = ValidationMethodType.EXECUTE_PROCESS,
             cwd: Optional[str] = None) -> Optional[CommandResultType]:
         """
-        Validates that a system-level prerequisite is met using a specified method.
+        Validates that a given binary exists and meets a specified version condition.
         Args:
             arguments (Optional[str]): Arguments to pass to the command
-            validation_method (ValidationMethodType): The type of validation (EXECUTE_PROCESS ,READ_FILE and SYS_PACKAGE)
             cwd (Optional[str]): The directory from which the process should be executed.
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
@@ -1175,60 +1173,23 @@ class CorePlatform(CoreModuleInterface):
             version = args_block.get("version")
             expected_response = args_block.get("expected_response")
 
-            if validation_method == ValidationMethodType.EXECUTE_PROCESS:
-                if expected_response and version:
-                    raise ValueError("Specify either 'expected_response' or 'version', not both")
+            if expected_response and version:
+                raise ValueError("Specify either 'expected_response' or 'version', not both")
 
-                results = self.execute_shell_command(
-                    command_and_args=self._flatten_command(command=command, arguments=cmd_args),
-                    override_interactive=False,
-                    cwd=cwd)
+            results = self.execute_shell_command(
+                command_and_args=self._flatten_command(command=command, arguments=cmd_args),
+                override_interactive=False, cwd=cwd)
 
-                if results.response is None:
-                    raise RuntimeError(f"'{command}' returned no output")
+            if results.response is None:
+                raise RuntimeError(f"'{command}' returned no output")
 
-                if version:
-                    version_ok, detected_version = VersionCompare().compare(results.response, version)
-                    if not version_ok:
-                        raise Exception(
-                            f"Command '{command}' version mismatch: expected {version}, got {detected_version}")
+            if version:
+                version_ok, detected_version = VersionCompare().compare(results.response, version)
+                if not version_ok:
+                    raise Exception(f"Command '{command}' version mismatch: expected {version}, got {detected_version}")
                 elif expected_response:
                     if expected_response.lower() not in results.response.lower():
                         raise Exception(f"Expected response '{expected_response}' not found in output")
-
-            # Read a text line from a file and compare its content
-            elif validation_method == ValidationMethodType.READ_FILE:
-
-                parts = command.split(':')
-                if len(parts) < 2:
-                    raise ValueError("READ_FILE command must be in the form '<file_path>:<line_number>[:<line_count>]'")
-
-                file_path = parts[0]
-                line_number = int(parts[1])
-                line_count = int(parts[2]) if len(parts) > 2 else 1
-
-                if not expected_response:
-                    raise ValueError("expected response must be provided for READ_FILE validation")
-
-                with open(file_path) as f:
-                    lines = f.readlines()
-                    start = max(0, line_number - 1)
-                    end = start + line_count
-                    selected_lines = lines[start:end]
-                    found = any(expected_response.lower() in line.lower() for line in selected_lines)
-
-                    if not found:
-                        raise Exception(f"expected response '{expected_response}' "
-                                        f"not found in {file_path}:{line_number}")
-
-                    results = CommandResultType(response=None, return_code=0)
-
-            # Check if a system package is installed
-            elif validation_method == ValidationMethodType.SYS_PACKAGE:
-                results = self._validate_sys_package(package_name=command)
-
-            else:
-                raise ValueError(f"Unsupported validation method: {validation_method}")
 
             return results
 
@@ -1284,7 +1245,7 @@ class CorePlatform(CoreModuleInterface):
             raise erase_exception
 
     def path_create(self, path: Optional[str] = None, paths: Optional[list[str]] = None, erase_if_exist: bool = False,
-                    project_path: bool = True) -> Optional[str]:
+                    project_path: bool = True) -> Optional[CommandResultType]:
         """
         Create a path or folder tree. Optionally erase if it exists.
         If `project_path` is True, the path is assumed to be relative to `self._workspace_path`.
@@ -1293,12 +1254,11 @@ class CorePlatform(CoreModuleInterface):
             paths: (List[str], optional): A list of paths to create.
             erase_if_exist (bool): Whether to erase the path if it exists.
             project_path (bool): Whether the path is part of the project base path.
-
         Returns:
-            Optional[str]: The full path to the last created directory, or None if no path was created.
+            CommandResultType: A structured result containing the extraction path and status code.
         """
         if path is None and paths is None:
-            raise ValueError("must specify either 'path' or 'paths'")
+            return CommandResultType(return_code=1, message="must specify either 'path' or 'paths'")
 
         if path:
             paths = [path]  # If only a single path is given, make it a list
@@ -1322,9 +1282,50 @@ class CorePlatform(CoreModuleInterface):
                 last_full_path = full_path  # Update the last path created
 
             except Exception as path_create_error:
-                raise Exception(f"could not create '{full_path}': {path_create_error!s}") from path_create_error
+                return CommandResultType(return_code=1,
+                                         message=f"could not create '{full_path}': {path_create_error!s}")
 
-        return last_full_path  # Return the path of the last directory successfully created
+        return CommandResultType(return_code=0, response=last_full_path)
+
+    @staticmethod
+    def path_check_exist(path: Optional[Union[Path, str]] = None, not_empty: bool = True) -> Optional[
+        CommandResultType]:
+        """
+        Check if a path exists, is a directory, and optionally ensure it is non-empty.
+        Args:
+            path (Optional[Union[Path, str]]): Path to validate. Can be a string or Path object.
+            not_empty (bool): If True, the path must not only exist but also contain files (if it's a directory).
+        Returns:
+            CommandResultType: return_code=0 on success, return_code=1 on failure with a descriptive message.
+        """
+        try:
+            if not isinstance(path, (Path, str)):
+                return CommandResultType(return_code=1, message="'path' is not a valid string or Path object")
+
+            path = Path(path)
+
+            if not path.exists():
+                return CommandResultType(return_code=1, message=f"path does not exist: '{path}'")
+
+            if path.is_file():
+                return CommandResultType(return_code=1, message=f"path is a file, not a directory: '{path}'")
+
+            if not path.is_dir():
+                return CommandResultType(return_code=1, message=f"path exists but is not a regular directory: '{path}'")
+
+            if not_empty:
+                try:
+                    if not any(path.iterdir()):
+                        return CommandResultType(return_code=1, message=f"directory is empty: '{path}'")
+                except PermissionError:
+                    return CommandResultType(return_code=1, message=f"permission denied when accessing: '{path}'")
+
+            return CommandResultType(return_code=0)
+
+        except PermissionError:
+            return CommandResultType(return_code=1, message=f"permission denied: '{path}'")
+        except Exception as e:
+            return CommandResultType(return_code=1, message=f"unexpected error while checking path: {e}")
 
     def decompress(self, archive_path: str, destination_path: Optional[str] = None) -> Optional[CommandResultType]:
         """
@@ -1349,8 +1350,8 @@ class CorePlatform(CoreModuleInterface):
         except Exception as decompress_error:
             raise decompress_error from decompress_error
 
-    def python_virtualenv_create(self, venv_path: str, python_version: Optional[str] = None) -> Optional[
-        CommandResultType]:
+    def python_virtualenv_create(self, venv_path: str,
+                                 python_version: Optional[str] = None) -> Optional[CommandResultType]:
         """
         Create a Python virtual environment using a specified or default Python interpreter.
         Args:
@@ -1376,10 +1377,11 @@ class CorePlatform(CoreModuleInterface):
             self._logger.debug(
                 f"Using Python '{python_binary}' (version {python_version}) to create venv at '{venv_expanded_path}'")
 
-            created_venv_path = self.path_create(venv_expanded_path, erase_if_exist=True, project_path=True)
-            if created_venv_path is None:
+            results = self.path_create(path=venv_expanded_path, erase_if_exist=True, project_path=True)
+            if results.return_code != 0 or results.response is None:
                 raise RuntimeError(f"Could not create virtual environment path '{venv_expanded_path}'")
 
+            created_venv_path = results.response
             command_and_args = self._flatten_command(command=python_binary, arguments=f"-m venv {created_venv_path}")
 
             return self.execute_shell_command(command_and_args=command_and_args, override_interactive=False)
@@ -1759,7 +1761,9 @@ class CorePlatform(CoreModuleInterface):
                     else:
                         os.remove(destination_file)
                 else:  # Create the directory if it does not exist
-                    self.path_create(path=destination_dir, erase_if_exist=False)
+                    results = self.path_create(path=destination_dir, erase_if_exist=False)
+                    if results.return_code != 0:
+                        return results
 
             # Set up the HTTP request
             request = urllib.request.Request(url)

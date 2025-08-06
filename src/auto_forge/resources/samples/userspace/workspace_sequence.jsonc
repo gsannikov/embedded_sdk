@@ -2,348 +2,357 @@
     Workspace setup sequence recipe for 'userspace'
     -----------------------------------------------
 
-    Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
+    Note: This file uses JSONC - an extended JSON format that supports inline comments and multi-line strings.
     This allows for improved readability and documentation which are not valid standard JSON.
-    
+
     Refer to <AutoForge package URL>/blob/main/src/auto_forge/resources/help/package/sequence.md for more information
     about the sequence file format.
 */
-
 {
-  "format_off": "# @formatter:off",         // Instruct PyCharm not to format this file.
-    "status_title_length": 60,              // Limit the title field width
-    "status_add_time_prefix": true,         // Adds a timestamp (down to milliseconds) to each step in the status log.
-    "status_new_line": true,                // Enables multi-line status output instead of in-place updates
-    
-    // Optional messages to display before and after successful execution.
-    "status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
-    "status_post_message": "\n\nSetup complete.\nPlease reopen the terminal to apply changes, then type 'us' to get started.",
+	"format_off": "# @formatter:off",	// Instruct PyCharm not to format this file.
+	"status_title_length": 60, 			// Limit the title field width
+	"status_add_time_prefix": true, 	// Adds a timestamp (down to milliseconds) to each step in the status log.
+	"status_new_line": true, 			// Enables multi-line status output instead of in-place updates
 
-    // The following is a sequence of setup steps, each mapped to a method defined in AutoForge's 'CorePlatform'.
-    // AutoForge will execute these steps in order to create a fully functional workspace tailored to the given solution.
+	// Optional messages to display before and after successful execution.
+	"status_pre_message": "\nHello, welcome to the '$SOLUTION_NAME' solution setup.",
+	"status_post_message": "\n\nSetup complete.\nPlease reopen the terminal to apply changes, then type 'us' to get started.",
 
-    "steps": [
-        {
-            "description": "Looking for 'python'",
-            "method": "validate_prerequisite",
-            "status_on_error": {
-                "fedora": "Run 'sudo dnf install python3'",
-                "ubuntu": "Run 'sudo apt install python3'",
-                "arch": "Run 'sudo pacman -S python'",
-                "default": "Python 3.9 or newer is required."
-            },
-            "arguments": {
-                "default": {
-                    "command": "python3",
-                    "cli_args": "--version",
-                    "version": ">=3.9.0"
-                }
-            }
-        },
-        {
-            "description": "Looking for 'git'",
-            "method": "validate_prerequisite",
-            "status_on_error": {
-                "fedora": "Run 'sudo dnf install git'",
-                "ubuntu": "Run 'sudo apt install git'",
-                "arch": "Run 'sudo pacman -S git'",
-                "default": "Package 'git' not found."
-            },
-            "arguments": {
-                "default": {
-                    "command": "git",
-                    "cli_args": "--version",
-                    "version": ">=2.0"
-                }
-            }
-        },
-        {
-            "description": "Looking for 'cmake'",
-            "method": "validate_prerequisite",
-            "status_on_error": {
-                "fedora": "Run 'sudo dnf install cmake'",
-                "ubuntu": "Run 'sudo apt install cmake'",
-                "arch": "Run 'sudo pacman -S cmake'",
-                "default": "Package 'cmake' not found."
-            },
-            "arguments": {
-                "default": {
-                    "command": "cmake",
-                    "cli_args": "--version",
-                    "version": ">=3.0.0"
-                }
-            }
-        },
-        {
-            "description": "Looking for 'ninja'",
-            "method": "validate_prerequisite",
-            "status_on_error": {
-                "fedora": "Run 'sudo dnf install ninja-build'",
-                "ubuntu": "Run 'sudo apt install ninja-build'",
-                "arch": "Run 'sudo pacman -S ninja'",
-                "default": "Package 'ninja' not found."
-            },
-            "arguments": {
-                "default": {
-                    "command": "ninja",
-                    "cli_args": "--version",
-                    "version": ">=1.0.0"
-                }
-            }
-        },
-        {
-            "description": "Looking for 'glib2' (development)",
-            "method": "validate_prerequisite",
-            "status_on_error": {
-                "fedora": "Run 'sudo dnf install glib2-devel'",
-                "ubuntu": "Run 'sudo apt install libglib2.0-dev'",
-                "arch": "Run 'sudo pacman -S glib2'",
-                "default": "Missing 'glib2-devel' or equivalent"
-            },
-            "arguments": {
-                "default": {
-                    "command": "pkg-config",
-                    "cli_args": "--modversion glib-2.0",
-                    "version": ">=2.0.0"
-                },
-                "ubuntu": {
-                    "command": "pkg-config",
-                    "cli_args": "--modversion glib-2.0",
-                    "version": ">=2.0.0"
-                },
-                "arch": {
-                    "command": "pkgconf",
-                    "cli_args": "--modversion glib-2.0",
-                    "version": ">=2.0.0"
-                }
-            }
-        },
-        {
-            "description": "Looking for 'libconfig' (development)",
-            "method": "validate_prerequisite",
-            "status_on_error": {
-                "fedora": "Run 'sudo dnf install libconfig-devel'",
-                "ubuntu": "Run 'sudo apt install libconfig-dev'",
-                "arch": "Run 'sudo pacman -S libconfig'",
-                "default": "Missing 'libconfig-devel' or equivalent"
-            },
-            "arguments": {
-                "default": {
-                    "command": "pkg-config",
-                    "cli_args": "--modversion libconfig",
-                    "version": ">=1.4.0"
-                },
-                "ubuntu": {
-                    "command": "pkg-config",
-                    "cli_args": "--modversion libconfig",
-                    "version": ">=1.4.0"
-                },
-                "arch": {
-                    "command": "pkgconf",
-                    "cli_args": "--modversion libconfig",
-                    "version": ">=1.4.0"
-                }
-            }
-        },
-        {
-            "description": "Looking for 'dt'",
-            "method": "validate_prerequisite",
-            "status_on_error": "\nPackage 'dt' could not be found. Please make sure it is installed and try again.",
-            "action_on_error": "resume", // Recommended: use 'break' or omit this field in production
-            
-            "arguments": {
-                "command": "dt",
-                "cli_args": "version",
-                "cwd": "$HOME/bin"
-            }
-        },
-        {
-            // Intel-specific command-line tool used to link the user's GitHub account with 
-            // Intel-secured inner sources, allowing access to protected repositories.
-            // We expect this tool to be pre-installed and available in the system's search path.
+	// The following is a sequence of setup steps, each mapped to a method defined in AutoForge's 'CorePlatform'.
+	// AutoForge will execute these steps in order to create a fully functional workspace tailored to the given solution.
+	"steps": [
+		{
+			"description": "Looking for 'python'",
+			"method": "validate_binary",
+			"status_on_error": {
+				"fedora": "Run 'sudo dnf install python3'",
+				"ubuntu": "Run 'sudo apt install python3'",
+				"arch": "Run 'sudo pacman -S python'",
+				"default": "Python 3.9 or newer is required."
+			},
+			"arguments": {
+				"default": {
+					"command": "python3",
+					"cli_args": "--version",
+					"version": ">=3.9.0"
+				}
+			}
+		},
+		{
+			"description": "Looking for 'git'",
+			"method": "validate_binary",
+			"status_on_error": {
+				"fedora": "Run 'sudo dnf install git'",
+				"ubuntu": "Run 'sudo apt install git'",
+				"arch": "Run 'sudo pacman -S git'",
+				"default": "Package 'git' not found."
+			},
+			"arguments": {
+				"default": {
+					"command": "git",
+					"cli_args": "--version",
+					"version": ">=2.0"
+				}
+			}
+		},
+		{
+			"description": "Looking for 'cmake'",
+			"method": "validate_binary",
+			"status_on_error": {
+				"fedora": "Run 'sudo dnf install cmake'",
+				"ubuntu": "Run 'sudo apt install cmake'",
+				"arch": "Run 'sudo pacman -S cmake'",
+				"default": "Package 'cmake' not found."
+			},
+			"arguments": {
+				"default": {
+					"command": "cmake",
+					"cli_args": "--version",
+					"version": ">=3.0.0"
+				}
+			}
+		},
+		{
+			"description": "Looking for 'ninja'",
+			"method": "validate_binary",
+			"status_on_error": {
+				"fedora": "Run 'sudo dnf install ninja-build'",
+				"ubuntu": "Run 'sudo apt install ninja-build'",
+				"arch": "Run 'sudo pacman -S ninja'",
+				"default": "Package 'ninja' not found."
+			},
+			"arguments": {
+				"default": {
+					"command": "ninja",
+					"cli_args": "--version",
+					"version": ">=1.0.0"
+				}
+			}
+		},
+		{
+			"description": "Looking for 'glib2' (development)",
+			"method": "validate_binary",
+			"status_on_error": {
+				"fedora": "Run 'sudo dnf install glib2-devel'",
+				"ubuntu": "Run 'sudo apt install libglib2.0-dev'",
+				"arch": "Run 'sudo pacman -S glib2'",
+				"default": "Missing 'glib2-devel' or equivalent"
+			},
+			"arguments": {
+				"default": {
+					"command": "pkg-config",
+					"cli_args": "--modversion glib-2.0",
+					"version": ">=2.0.0"
+				},
+				"ubuntu": {
+					"command": "pkg-config",
+					"cli_args": "--modversion glib-2.0",
+					"version": ">=2.0.0"
+				},
+				"arch": {
+					"command": "pkgconf",
+					"cli_args": "--modversion glib-2.0",
+					"version": ">=2.0.0"
+				}
+			}
+		},
+		{
+			"description": "Looking for 'libconfig' (development)",
+			"method": "validate_binary",
+			"status_on_error": {
+				"fedora": "Run 'sudo dnf install libconfig-devel'",
+				"ubuntu": "Run 'sudo apt install libconfig-dev'",
+				"arch": "Run 'sudo pacman -S libconfig'",
+				"default": "Missing 'libconfig-devel' or equivalent"
+			},
+			"arguments": {
+				"default": {
+					"command": "pkg-config",
+					"cli_args": "--modversion libconfig",
+					"version": ">=1.4.0"
+				},
+				"ubuntu": {
+					"command": "pkg-config",
+					"cli_args": "--modversion libconfig",
+					"version": ">=1.4.0"
+				},
+				"arch": {
+					"command": "pkgconf",
+					"cli_args": "--modversion libconfig",
+					"version": ">=1.4.0"
+				}
+			}
+		},
+		{
+			"description": "Looking for 'dt'",
+			"method": "validate_binary",
+			"status_on_error": "\nPackage 'dt' could not be found. Please make sure it is installed and try again.",
+			"action_on_error": "resume", // Recommended: use 'break' or omit this field in production
+			"arguments": {
+				"command": "dt",
+				"cli_args": "version",
+				"version": ">=2.0.0",
+				"cwd": "$HOME/bin"
+			}
+		},
+		{
+			// Intel-specific command-line tool used to link the user's GitHub account with
+			// Intel-secured inner sources, allowing access to protected repositories.
+			// We expect this tool to be pre-installed and available in the system's search path.
 
-            "description": "Getting GitHub access token using 'dt'",
-            "method": "execute_shell_command",
-            "status_on_error": "\nFailed to retrieve Git token using 'dt'.\nPlease ensure it is installed correctly.",
-            "action_on_error": "resume", // Recommended: use 'break' or omit this field in production
-            
-            "arguments": {
-                "command_and_args": "dt github print-token",
-                "cwd": "$HOME/bin"
-            },
-            
-            "response_store_key": "dt_token" // Store the executed command response in key name 'dt_token'
-        },
-        {
-            // The 'initialize_workspace' step is designed to create the basic workspace directory structure
-            // and populate it with the solution package files. These include the main solution JSONC,
-            // several complementary JSONC files (such as this sequence file), and additional non-source
-            // resources like AutoForge metadata files.
+			"description": "Getting GitHub access token using 'dt'",
+			"method": "execute_shell_command",
+			"status_on_error": "\nFailed to retrieve Git token using 'dt'.\nPlease ensure it is installed correctly.",
+			"action_on_error": "resume", // Recommended: use 'break' or omit this field in production
+			"arguments": {
+				"command_and_args": "dt github print-token",
+				"cwd": "$HOME/bin"
+			},
+			"response_store_key": "dt_token" // Store the executed command response in key name 'dt_token'
+		},
+		{
+			// This sample is designed to act as an overlay on an existing production 'userspace' repository.
+			// The next step uses a hardcoded check for the repository at its typical expected location.
 
-            "description": "Initializing workspace path",
-            "method": "initialize_workspace",
-            "arguments": {
-                "delete_existing": false,
-                "must_be_empty": true,
-                "create_as_needed": true,
-                "change_dir": true
-            }
-        },
-        {
-            // The engine of the build system is the AutoForge Python package, which depends on several open-source packages.
-            // Creating a Python virtual environment for AutoForge within the newly created workspace is essential and expected
-            // by subsequent steps. By doing this, we isolate all dependencies, ensure version consistency, and prevent conflicts
-            // with system-wide Python packages.
+			"description": "Looking for an exiting cloned repository",
+			"method": "path_check_exist",
+			"status_on_error": "\nAn exiting 'userspace' repository could not be found in: /home/$USER/projects/mmg_new_repo/sources.",
+			"action_on_error": "resume", // Recommended: use 'break' or omit this field in production
+			"arguments": {
+				"path": "/home/$USER/projects/mmg_new_repo/sources",
+				"not_empty": true
+			}
+		},
+		{
+			// The 'initialize_workspace' step is designed to create the basic workspace directory structure
+			// and populate it with the solution package files. These include the main solution JSONC,
+			// several complementary JSONC files (such as this sequence file), and additional non-source
+			// resources like AutoForge metadata files.
 
-            "description": "Creating Python virtual environment",
-            "method": "python_virtualenv_create",
-            "arguments": {
-                "venv_path": ".venv"
-            }
-        },
-        {
-            // 'pip' is an essential Python tool for managing Python packages. The following step
-            // ensures that the 'pip' tool installed in the Python virtual environment created by
-            // previous steps is up to date.
+			"description": "Initializing workspace path",
+			"method": "initialize_workspace",
+			"arguments": {
+				"delete_existing": false,
+				"must_be_empty": true,
+				"create_as_needed": true,
+				"change_dir": true
+			}
+		},
+		{
+			// The engine of the build system is the AutoForge Python package, which depends on several open-source packages.
+			// Creating a Python virtual environment for AutoForge within the newly created workspace is essential and expected
+			// by subsequent steps. By doing this, we isolate all dependencies, ensure version consistency, and prevent conflicts
+			// with system-wide Python packages.
 
-            "description": "Updating PIP in virtual environment",
-            "method": "python_update_pip",
-            "arguments": {
-                "venv_path": ".venv"
-            }
-        },
-        {
-            // Although it's possible to specify a list of packages directly (as shown below),
-            // it is generally better to provide a requirements file using the 'python_package_add' argument.
-            // This approach improves readability and makes dependency management easier.
+			"description": "Creating Python virtual environment",
+			"method": "python_virtualenv_create",
+			"arguments": {
+				"venv_path": ".venv"
+			}
+		},
+		{
+			// 'pip' is an essential Python tool for managing Python packages. The following step
+			// ensures that the 'pip' tool installed in the Python virtual environment created by
+			// previous steps is up to date.
 
-            "description": "Installing Python packages",
-            "method": "python_package_add",
-            "arguments": {
-                "venv_path": ".venv",
-                "package_or_requirements": "json5 tabulate toml wheel"
-            }
-        },
-        {
-            // The solution JSON typically defines one or more tool-chains that subsequent build-related commands
-            // may rely on. This step installs an ARM-required toolchain if one cannot be found,
-            // placing it into AutoForge's 'persistent path' located under the user's home directory at '.auto_forge'.
-            // By using this persistent location, we avoid cluttering the workspace with executables and large packages,
-            // and prevent redundant tool installations every time a new workspace is created.
+			"description": "Updating PIP in virtual environment",
+			"method": "python_update_pip",
+			"arguments": {
+				"venv_path": ".venv"
+			}
+		},
+		{
+			// Although it's possible to specify a list of packages directly (as shown below),
+			// it is generally better to provide a requirements file using the 'python_package_add' argument.
+			// This approach improves readability and makes dependency management easier.
 
-            "description": "Looking for ARM AArch64 toolchain",
-            "method": "conditional",
-            "arguments": {
-                "condition": {
-                    "method": "validate_prerequisite",
-                    "arguments": {
-                        "command": "$AF_TOOL_CHAINS/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc",
-                        "cli_args": "--version",
-                        "version": ">=14.2"
-                    }
-                },
-                "if_false": [
-                    {
-                        "description": "Getting ARM AArch64 cross-toolchain 14.2",
-                        "method": "url_get",
-                        "arguments": {
-                            "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
-                            "destination": "$AF_TOOL_CHAINS/downloads",
-                            "timeout": 240.0,
-                            "delete_if_exist": true
-                        }
-                    },
-                    {
-                        "description": "Decompressing ARM AArch64 tool-chain",
-                        "method": "decompress",
-                        "arguments": {
-                            "archive_path": "$AF_TOOL_CHAINS/downloads/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
-                            "destination_path": "$AF_TOOL_CHAINS/"
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            // At this point, AutoForge was executed using a temporary shell script that injected it into
-            // the user's global Python environment (coded in the package 'bootstrap.sh'). 
-            // This was only needed for the initial workspace creation, which ironically depends on AutoForge itself to complete.
-            //
-            // This step now installs AutoForge properly inside the new Python virtual environment ('.venv')
-            // created within the workspace, this is where it should live going forward.
-            // Note: The initial shell script ('bootstrap.sh') is designed to clean up and remove the temporary AutoForge 
-            // installation from the global Python environment once this setup completes.
+			"description": "Installing Python packages",
+			"method": "python_package_add",
+			"arguments": {
+				"venv_path": ".venv",
+				"package_or_requirements": "json5 tabulate toml wheel"
+			}
+		},
+		{
+			// The solution JSON typically defines one or more tool-chains that subsequent build-related commands
+			// may rely on. This step installs an ARM-required toolchain if one cannot be found,
+			// placing it into AutoForge's 'persistent path' located under the user's home directory at '.auto_forge'.
+			// By using this persistent location, we avoid cluttering the workspace with executables and large packages,
+			// and prevent redundant tool installations every time a new workspace is created.
 
-            "description": "Installing AutoForge in virtual environment",
-            "method": "python_package_add",
-            "action_on_error": "resume",
-            "arguments": {
-                "venv_path": ".venv",
-                "package_or_requirements": "git+$PACKAGE_REPO"
-            }
-        },
-        {
-            // At this stage, the workspace has already been initialized:
-            // - The required directory structure has been created
-            // - The AutoForge package has been installed into a dedicated Python virtual environment
-            //
-            // As part of this initialization, an invocation script (`env.sh`) was generated. 
-            // This script can now be used to execute solution-specific commands.
-            //
-            // In the following step, we execute the `usgen` command via `env.sh`. The `usgen` command performs:
-            //
-            // 1. A call to AutoForge's `refactor` command using a JSON recipe file (`refactor.jsonc`) to copy source files 
-            //    from a known existing path into the new workspace, reorganizing them into a defined structure.
-            //
-            // 2. A call to AutoForge's `deploy` command using another recipe file (`deploy.jsonc`) to overlay the copied sources 
-            //    with CMake configuration files. This enables building the project using CMake instead of traditional Makefiles.
-            //
-            // 3. Both steps are chained through an alias named `usgen`, defined in the userspace package file `aliases.jsonc`.
+			"description": "Looking for ARM AArch64 toolchain",
+			"method": "conditional",
+			"arguments": {
+				"condition": {
+					"method": "validate_binary",
+					"arguments": {
+						"command": "$AF_TOOL_CHAINS/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc",
+						"cli_args": "--version",
+						"version": ">=14.2"
+					}
+				},
+				"if_false": [
+					{
+						"description": "Getting ARM AArch64 cross-toolchain 14.2",
+						"method": "url_get",
+						"arguments": {
+							"url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
+							"destination": "$AF_TOOL_CHAINS/downloads",
+							"timeout": 240.0,
+							"delete_if_exist": true
+						}
+					},
+					{
+						"description": "Decompressing ARM AArch64 tool-chain",
+						"method": "decompress",
+						"arguments": {
+							"archive_path": "$AF_TOOL_CHAINS/downloads/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz",
+							"destination_path": "$AF_TOOL_CHAINS/"
+						}
+					}
+				]
+			}
+		},
+		{
+			// At this point, AutoForge was executed using a temporary shell script that injected it into
+			// the user's global Python environment (coded in the package 'bootstrap.sh').
+			// This was only needed for the initial workspace creation, which ironically depends on AutoForge itself to complete.
+			//
+			// This step now installs AutoForge properly inside the new Python virtual environment ('.venv')
+			// created within the workspace, this is where it should live going forward.
+			// Note: The initial shell script ('bootstrap.sh') is designed to clean up and remove the temporary AutoForge
+			// installation from the global Python environment once this setup completes.
 
-            "description": "Running solution command 'usgen'",
-            "method": "execute_shell_command",
-            "arguments": {
-                "command_and_args": "$PROJ_WORKSPACE/env.sh --run_command usgen",
-                "expand_command": true
-            }
-        },
-        {
-            // During the workspace creation phase, a small utility script named 'env.sh' was generated.
-            // This script simplifies invoking AutoForge in various modes but is not strictly mandatory.
-            //
-            // In this step, we use the 'create_alias' method to detect the user's shell environment
-            // (e.g., '.bashrc' for Bash, '.zshrc' for Zsh) and inject useful aliases tied to the current workspace.
-            //
-            // The method is cautious by design: it automatically creates a backup of the startup script,
-            // skips alias creation if an identical one already exists, and avoids overwriting user customizations.
-            // See the 'CoreLinuxAliases' class for additional implementation details.
+			"description": "Installing AutoForge in virtual environment",
+			"method": "python_package_add",
+			"action_on_error": "resume",
+			"arguments": {
+				"venv_path": ".venv",
+				"package_or_requirements": "git+$PACKAGE_REPO"
+			}
+		},
+		{
+			// At this stage, the workspace has already been initialized:
+			// - The required directory structure has been created
+			// - The AutoForge package has been installed into a dedicated Python virtual environment
+			//
+			// As part of this initialization, an invocation script (`env.sh`) was generated.
+			// This script can now be used to execute solution-specific commands.
+			//
+			// In the following step, we execute the `usgen` command via `env.sh`. The `usgen` command performs:
+			//
+			// 1. A call to AutoForge's `refactor` command using a JSON recipe file (`refactor.jsonc`) to copy source files
+			//    from a known existing path into the new workspace, reorganizing them into a defined structure.
+			//
+			// 2. A call to AutoForge's `deploy` command using another recipe file (`deploy.jsonc`) to overlay the copied sources
+			//    with CMake configuration files. This enables building the project using CMake instead of traditional Makefiles.
+			//
+			// 3. Both steps are chained through an alias named `usgen`, defined in the userspace package file `aliases.jsonc`.
 
-            "description": "Adding shell alias 'usd' to the solution",
-            "method": "create_alias",
-            "action_on_error": "resume",
-            "arguments": {
-                "alias": "usd",
-                "command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
-            }
-        },
-        {
-            "description": "Adding shell alias 'usr' to the solution",
-            "method": "create_alias",
-            "action_on_error": "resume",
-            "arguments": {
-                "alias": "usr",
-                "command": "$PROJ_WORKSPACE/env.sh --run_command"
-            }
-        },
-        {
-            "description": "Adding shell alias 'us' to the solution",
-            "method": "create_alias",
-            "action_on_error": "resume",
-            "arguments": {
-                "alias": "us",
-                "command": "$PROJ_WORKSPACE/env.sh",
-                "commit_changes": true
-            }
-        }
-    ]
+			"description": "Running solution command 'usgen'",
+			"method": "execute_shell_command",
+			"arguments": {
+				"command_and_args": "$PROJ_WORKSPACE/env.sh --run_command usgen",
+				"expand_command": true
+			}
+		},
+		{
+			// During the workspace creation phase, a small utility script named 'env.sh' was generated.
+			// This script simplifies invoking AutoForge in various modes but is not strictly mandatory.
+			//
+			// In this step, we use the 'create_alias' method to detect the user's shell environment
+			// (e.g., '.bashrc' for Bash, '.zshrc' for Zsh) and inject useful aliases tied to the current workspace.
+			//
+			// The method is cautious by design: it automatically creates a backup of the startup script,
+			// skips alias creation if an identical one already exists, and avoids overwriting user customizations.
+			// See the 'CoreLinuxAliases' class for additional implementation details.
+
+			"description": "Adding shell alias 'usd' to the solution",
+			"method": "create_alias",
+			"action_on_error": "resume",
+			"arguments": {
+				"alias": "usd",
+				"command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
+			}
+		},
+		{
+			"description": "Adding shell alias 'usr' to the solution",
+			"method": "create_alias",
+			"action_on_error": "resume",
+			"arguments": {
+				"alias": "usr",
+				"command": "$PROJ_WORKSPACE/env.sh --run_command"
+			}
+		},
+		{
+			"description": "Adding shell alias 'us' to the solution",
+			"method": "create_alias",
+			"action_on_error": "resume",
+			"arguments": {
+				"alias": "us",
+				"command": "$PROJ_WORKSPACE/env.sh",
+				"commit_changes": true
+			}
+		}
+	]
 }
