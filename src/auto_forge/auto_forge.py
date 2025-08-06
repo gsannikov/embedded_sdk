@@ -257,58 +257,66 @@ class AutoForge(CoreModuleInterface):
         self._logger.debug(f"Solution: '{self._solution_name}' loaded and expanded")
 
     def _init_logger(self):
-        """ Construct the logger file name, initialize and start logging"""
+        """ Finalize logger initialization based on Auto|Forge execution mode """
 
-        allow_console_output = False
-        default_log_file = f"{PackageGlobals.PROJ_NAME}.log"
+        handlers: LogHandlersType = LogHandlersType.NO_HANDLERS
+        log_file: Optional[str] = None
+        enable_console_output = False
+        enable_colors: bool = False
+        enable_formatting: bool = True
+        flush_memory_logs: bool = False
 
-        # Determine if we have a workspace which could she log file
-        logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
+        if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
 
-        # Determine the log file name to use (when not specified through arguments)
-        if self._log_file_name is None:
+            # Determine if we have a workspace which could she log file
+            logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
+            handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            base_file_name = os.path.join(logs_workspace_path, f"{PackageGlobals.PROJ_NAME}.log")
 
-            # Use different log file name when in one command mode
-            if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
-                self._log_file_name = str(self._initial_path / f"{self._solution_name}_automation.log")
-                self._core_logger.set_colors(enable_colors=False)
+            # Patch the log file name with timestamp so we will have dedicated log for each build system run.
+            log_file = self._tool_box.append_timestamp_to_path(base_file_name)
+            enable_colors = True
+            enable_console_output = False
+            flush_memory_logs = True
 
-            # Use different log file name when in one command mode
-            elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
-                self._log_file_name = str(
-                    self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
+        elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION or PackageGlobals.SPAWNED:
+            # Spawned mode is similar to automation profile
+            handlers = LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            log_file = None
+            enable_colors = False
+            enable_console_output = True
+            flush_memory_logs = False
+            if PackageGlobals.SPAWNED:
+                # When spawned by a parent AutoForge process, we disable file logging and formatting.
+                # Log lines are written as plain, unformatted text directly to the terminal. This allows
+                # the parent logger to capture them as subprocess output and apply its own formatting,
+                # avoiding duplicated prefixes like:
+                #   10:00:00 Warning Module: 10:00:00 Warning Module: Logged line
 
-            # Normal flow
-            elif logs_workspace_path is not None and self._tool_box.validate_path(logs_workspace_path,
-                                                                                  raise_exception=False):
-                self._log_file_name = os.path.join(logs_workspace_path, default_log_file)
-                # Patch it with timestamp so we will have dedicated log for each build system run.
-                self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
+                enable_formatting = False
 
-        # Initialize logger, do not disable memory logger, it will be auto disabled by flush_memory_logs()
-        if not PackageGlobals.SPAWNED:
-            self._core_logger.set_log_file_name(self._log_file_name)
-            self._core_logger.set_handlers(
-                LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
-        else:
-            # When spawned by a parent AutoForge process, we disable file logging and formatting.
-            # Log lines are written as plain, unformatted text directly to the terminal. This allows
-            # the parent logger to capture them as subprocess output and apply its own formatting,
-            # avoiding duplicated prefixes like:
-            #   10:00:00 Warning Module: 10:00:00 Warning Module: Logged line
+        elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
+            handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            log_file = str(self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
+            enable_colors = True
+            enable_console_output = False
+            flush_memory_logs = True
 
-            self._core_logger.set_handlers(
-                LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
-            self._core_logger.set_formatter(enable_formatting=False)  # No formatting
+        # Now, re-initialize the logger based on the configured properties.
+        # Note: Do not disable memory logger, it will be auto disabled by flush_memory_logs()
+        if log_file:
+            self._core_logger.set_log_file_name(log_file)
+            self._log_file_name = log_file
 
-        self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=allow_console_output)
+        self._core_logger.set_handlers(handlers)
+        self._core_logger.set_colors(enable_colors=enable_colors)
+        self._core_logger.set_formatter(enable_formatting=enable_formatting)
+        self._core_logger.set_output(logger=None, state=enable_console_output)
+        self._logger = self._core_logger.get_logger(console_stdout=enable_console_output)
 
         # Flush memory logs and disable memory logger
-        self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
-
-        # Bring the logger to the front of the stage and drop ANSI colors when in automating one command mode
-        if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
-            self._core_logger.set_output(logger=None, state=True)
+        if flush_memory_logs:
+            self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
 
         self._logger.info(f"AutoForge{' (child)' if PackageGlobals.SPAWNED else ''} "
                           f"version: {PackageGlobals.VERSION} starting")
@@ -702,7 +710,6 @@ class AutoForge(CoreModuleInterface):
                 self._build_shell.cmdloop()
                 self._exit_code = self._build_shell.last_result
                 return self._exit_code
-
             else:
 
                 # ==============================================================
@@ -760,6 +767,7 @@ class AutoForge(CoreModuleInterface):
                 else:
                     raise RuntimeError(f"work mode '{self._work_mode}' not supported")
 
+                self._logger.info("AutoForge signing out")
                 return self._exit_code
 
         except Exception:  # Propagate

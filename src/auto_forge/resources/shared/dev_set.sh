@@ -90,7 +90,7 @@ main() {
 	local mode="activate"
 	local venv_path=""
 	local auto_forge_path=""
-	local pydev_ver="251.25410.122"
+	local pydev_ver="252.23892.439"
 	local original_dir="$PWD"
 	printf "\n"
 

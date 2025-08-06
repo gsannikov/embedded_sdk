@@ -27,7 +27,7 @@ class PackageGlobals:
     REPO: Optional[str] = None
     VERSION: Optional[str] = None
     TEMP_PREFIX: Optional[str] = None
-    PACKAGE_PATH: Optional[Path] = None  # Package path
+    PACKAGE_PATH: Optional[Path] = None  # Package installation path
     CONFIG_PATH: Optional[Path] = None
     CONFIG_FILE: Optional[Path] = None
     COMMANDS_PATH: Optional[Path] = None
@@ -39,7 +39,7 @@ class PackageGlobals:
     VIEWERS_PATH: Optional[Path] = None
     SCHEMAS_PATH: Optional[Path] = None
     EDITABLE: Optional[bool] = True
-    SESSION_ID:Optional[str] = None
+    SESSION_ID: Optional[str] = None
     SPAWNED: Optional[bool] = False
 
     def __new__(cls):

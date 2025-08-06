@@ -250,7 +250,7 @@ class RefactorCommand(CommandInterface):
         Returns:
             bool: True if the operation was successful, False otherwise.
         """
-        processed_folders_count = 0
+        processed_folders_count = -1  # wil also be used as a pre-loop error indicator
         processed_files_count = 0
 
         try:
@@ -267,9 +267,9 @@ class RefactorCommand(CommandInterface):
 
             # Validate that source_path is an existing directory
             if not os.path.isdir(source_path):
-                raise NotADirectoryError(f"source path must be an existing directory: {source_path}")
+                raise NotADirectoryError(f"source path must be an existing directory: '{source_path}'")
             if not self._tool_box.looks_like_unix_path(destination_path):
-                raise NotADirectoryError(f"destination path does not appear to look like a directory: {source_path}")
+                raise NotADirectoryError(f"destination path does not appear to look like a directory: '{source_path}'")
             if destination_path == source_path:
                 raise RuntimeError("destination path must be different from source path")
 
@@ -296,6 +296,8 @@ class RefactorCommand(CommandInterface):
 
             # Recreate destination
             os.makedirs(destination_path, exist_ok=True)
+
+            processed_folders_count = 0
 
             # Process each folder entry
             for folder in self._folders:
@@ -349,12 +351,16 @@ class RefactorCommand(CommandInterface):
                     self._logger.info(
                         f"Total {copied_files_count} files copied and {copied_graveyard_files_count} sent to graveyard.")
 
-            self._tool_box.print(f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
+            self._tool_box.print(
+                f"Done, total {processed_files_count} files in {processed_folders_count} paths ware processed.\n")
             return 0
 
         except Exception as refactoring_error:
             # Re-raise for upstream error handling; can be enhanced for logging
-            raise RuntimeError(f"{refactoring_error} @ #{processed_folders_count}") from refactoring_error
+            message = str(refactoring_error)
+            if processed_folders_count > -1:
+                message += f" @ #{processed_folders_count}"
+            raise RuntimeError(message) from refactoring_error
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:
         """

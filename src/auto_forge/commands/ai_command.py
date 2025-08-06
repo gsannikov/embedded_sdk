@@ -22,7 +22,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgCommandType, CommandInterface, SummaryPatcher,
+from auto_forge import (AutoForgCommandType, AutoForgeWorkModeType, CommandInterface, SummaryPatcher,
                         SourceFileLanguageType, SourceFileInfoType, TerminalSpinner)
 
 AUTO_FORGE_MODULE_NAME = "ai"
@@ -185,6 +185,7 @@ class AICommand(CommandInterface):
             pattern = rf"^\s*{re.escape(fence)}[^\n]*\n|\n{re.escape(fence)}\s*$"
             return re.sub(pattern, "", text.strip(), flags=re.MULTILINE)
 
+        self._logger.debug(f"Generating source summary for '{filename}'")
         analysis_info: Optional[SourceFileInfoType] = self._analyzer.get_analysis(filename=filename)
 
         if analysis_info.programming_language == SourceFileLanguageType.UNKNOWN or analysis_info.file_content is None:
@@ -242,12 +243,15 @@ class AICommand(CommandInterface):
         # Normalize the AI response which is auto- rendering to markdown
         code_review_response = _strip_code_fence(code_review_response)
 
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:
+            self._logger.debug(f"Code review response: \n{code_review_response}")
+            return
+
         # Print the results: prepare both panels with consistent styling
         language_title = analysis_info.programming_language.name.title()
         title_suffix = f"'{base_filename}' ({language_title})"
         shared_style = "white on #1e1e1e"  # white text on dark background
         panel_width = 128
-
         panels = []
 
         if analysis_info.summary_exiting_content:
@@ -288,6 +292,8 @@ class AICommand(CommandInterface):
         response: Optional[str] = None
         spin_task = asyncio.create_task(TerminalSpinner.run("Thinking..."))
 
+        self._logger.debug("Executing AI free style chat request")
+
         try:
             response = await  self.sdk.ai_bridge.query(prompt=user_prompt)
         finally:
@@ -307,6 +313,10 @@ class AICommand(CommandInterface):
         # Detect and format code blocks
         pattern = re.compile(r"```(\w+)?\n(.*?)```", re.DOTALL)
         last_end = 0
+
+        if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:
+            self._logger.debug(f"Received AI response: \n'{response}'")
+            return
 
         for match in pattern.finditer(response):
             lang = match.group(1) or "text"
