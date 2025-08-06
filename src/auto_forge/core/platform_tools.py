@@ -660,7 +660,7 @@ class CorePlatform(CoreModuleInterface):
             results = execution_error.results
 
             if isinstance(results, CommandResultType):
-                exception_message = f"Command '{results.command}' returned {results.return_code}, message {results.message}"
+                exception_message = f"command '{results.command}' returned {results.return_code}, message: {results.message}"
             else:
                 exception_message = f"caught execution exception with no data"
             if quiet:
@@ -1084,11 +1084,11 @@ class CorePlatform(CoreModuleInterface):
 
             # Non-zero return code
             if check and return_code != 0:
-                results.message = f"Child process exited with non zero return code {return_code}"
+                results.message = f"child process exited with non zero return code {return_code}"
                 raise CommandFailedException(results=results)
             # Token not found
             if searched_token and command_response and searched_token not in command_response:
-                results.message = f"Token '{searched_token}' not found in response"
+                results.message = f"token '{searched_token}' not found in response"
                 raise CommandFailedException(results=results)
 
             return results
@@ -1287,8 +1287,7 @@ class CorePlatform(CoreModuleInterface):
 
         return CommandResultType(return_code=0, response=last_full_path)
 
-    @staticmethod
-    def path_check_exist(path: Optional[Union[Path, str]] = None, not_empty: bool = True) -> Optional[
+    def path_check_exist(self, path: Optional[Union[Path, str]] = None, not_empty: bool = True) -> Optional[
         CommandResultType]:
         """
         Check if a path exists, is a directory, and optionally ensure it is non-empty.
@@ -1304,7 +1303,9 @@ class CorePlatform(CoreModuleInterface):
                     results=CommandResultType(return_code=1, command="path_check_exist",
                                               message="'path' is not a valid string or Path object"))
 
-            path = Path(path)
+            # Expand and convert to Path object
+            expanded_path: str = self._variables.expand(key=str(path))
+            path = Path(expanded_path)
 
             if not path.exists():
                 raise CommandFailedException(
@@ -1320,7 +1321,6 @@ class CorePlatform(CoreModuleInterface):
                 raise CommandFailedException(results=CommandResultType(return_code=1,
                                                                        command="path_check_exist",
                                                                        message=f"path exists but is not a regular directory: '{path}'"))
-
             if not_empty:
                 try:
                     if not any(path.iterdir()):
@@ -1918,11 +1918,9 @@ class CorePlatform(CoreModuleInterface):
                 if step.get("disabled", False):
                     continue
 
-                # Expand anything that could be expanded in the step
-                step = self._variables.expand_any(data=step)
+                action_on_error: SequenceErrorActionType = (
+                    SequenceErrorActionType.from_label(step.get("action_on_error")))
 
-                action_on_error: SequenceErrorActionType = SequenceErrorActionType.from_label(
-                    step.get("action_on_error"))
                 status_on_error = step.get("status_on_error")
                 # Resolve status_on_error per distro if it's a dict
                 if isinstance(status_on_error, dict):

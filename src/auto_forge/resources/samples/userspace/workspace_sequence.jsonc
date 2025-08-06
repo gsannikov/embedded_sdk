@@ -176,7 +176,7 @@
 
 			"description": "Looking for an exiting cloned repository",
 			"method": "path_check_exist",
-			"status_on_error": "\nAn exiting 'userspace' repository could not be found in: /home/$USER/projects/mmg_new_repo/sources.",
+			"status_on_error": "\nAn exiting 'userspace' repository could not be found in: '/home/$USER/projects/mmg_new_repo/sources'.\nPlease ensure it is cloned beforehand.",
 			"action_on_error": "resume", // Recommended: use 'break' or omit this field in production
 			"arguments": {
 				"path": "/home/$USER/projects/mmg_new_repo/sources",
