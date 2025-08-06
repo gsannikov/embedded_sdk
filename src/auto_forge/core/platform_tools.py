@@ -1304,9 +1304,7 @@ class CorePlatform(CoreModuleInterface):
                                               message="'path' is not a valid string or Path object"))
 
             # Expand and convert to Path object
-            self._logger.debug(f"Checking file, expanding path: '{str(path)}'")
             expanded_path: str = self._variables.expand(key=str(path))
-            self._logger.debug(f"Checking file, expanded path: '{str(expanded_path)}'")
             path = Path(expanded_path)
 
             if not path.exists():
