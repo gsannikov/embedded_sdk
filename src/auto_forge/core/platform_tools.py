@@ -1304,39 +1304,41 @@ class CorePlatform(CoreModuleInterface):
                                               message="'path' is not a valid string or Path object"))
 
             # Expand and convert to Path object
+            self._logger.debug(f"Checking file, expanding path: '{str(path)}'")
             expanded_path: str = self._variables.expand(key=str(path))
+            self._logger.debug(f"Checking file, expanded path: '{str(expanded_path)}'")
             path = Path(expanded_path)
 
             if not path.exists():
                 raise CommandFailedException(
                     results=CommandResultType(return_code=1, command="path_check_exist",
-                                              message=f"path does not exist: '{path}'"))
+                                              message=f"path does not exist: '{str(path)}'"))
 
             if path.is_file():
                 raise CommandFailedException(
                     results=CommandResultType(return_code=1, command="path_check_exist",
-                                              message=f"path is a file, not a directory: '{path}'"))
+                                              message=f"path is a file, not a directory: '{str(path)}'"))
 
             if not path.is_dir():
                 raise CommandFailedException(results=CommandResultType(return_code=1,
                                                                        command="path_check_exist",
-                                                                       message=f"path exists but is not a regular directory: '{path}'"))
+                                                                       message=f"path exists but is not a regular directory: '{str(path)}'"))
             if not_empty:
                 try:
                     if not any(path.iterdir()):
                         raise CommandFailedException(
                             results=CommandResultType(return_code=1, command="path_check_exist",
-                                                      message=f"directory is empty: '{path}'"))
+                                                      message=f"directory is empty: '{str(path)}'"))
                 except PermissionError:
                     raise CommandFailedException(
                         results=CommandResultType(return_code=1, command="path_check_exist",
-                                                  message=f"permission denied when accessing: '{path}'"))
+                                                  message=f"permission denied when accessing: '{str(path)}'"))
 
             return CommandResultType(return_code=0, command="path_check_exist")
 
         except PermissionError:
             raise CommandFailedException(
-                results=CommandResultType(return_code=1, message=f"permission denied: '{path}'"))
+                results=CommandResultType(return_code=1, message=f"permission denied: '{str(path)}'"))
         raise
 
     def decompress(self, archive_path: str, destination_path: Optional[str] = None) -> Optional[CommandResultType]:
