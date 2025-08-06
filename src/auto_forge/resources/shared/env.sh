@@ -10,16 +10,16 @@
 
 print_help() {
 
-    echo "Usage: $(basename "$0") [OPTION]"
-    echo ""
-    echo "Options:"
-    echo "  -d, --debug_port PORT   Optional set remote debugging port."
-    echo "  -h, --debug_host        Optional set remote debugging host (default: localhost)"
-    echo "  -r, --run-command       Optional: execute one or more commands separated by commas"
-    echo "      --verbose           Enable detailed output."
-    echo "  -?, --help              Show this help message"
-    echo ""
-    echo "When no option is provided, only the virtual environment is activated."
+	echo "Usage: $(basename "$0") [OPTION]"
+	echo ""
+	echo "Options:"
+	echo "  -d, --debug_port PORT   Optional set remote debugging port."
+	echo "  -h, --debug_host        Optional set remote debugging host (default: localhost)"
+	echo "  -r, --run-command       Optional: execute one or more commands separated by commas"
+	echo "      --verbose           Enable detailed output."
+	echo "  -?, --help              Show this help message"
+	echo ""
+	echo "When no option is provided, only the virtual environment is activated."
 }
 
 #
@@ -46,26 +46,26 @@ print_help() {
 
 get_config_value() {
 
-    local key="$1"
-    local config_file=".config"
+	local key="$1"
+	local config_file=".config"
 
-    if [[ ! -f "$config_file" ]]; then
-        echo "Error: $config_file not found" >&2
-        return 1
-    fi
+	if [[ ! -f "$config_file" ]]; then
+		echo "Error: $config_file not found" >&2
+		return 1
+	fi
 
-    # Strip white space and extract the value for the given key
-    local value
-    value=$(grep -E "^\s*${key}\s*=" "$config_file" | sed -E "s/^\s*${key}\s*=\s*//" | head -n 1)
+	# Strip white space and extract the value for the given key
+	local value
+	value=$(grep -E "^\s*${key}\s*=" "$config_file" | sed -E "s/^\s*${key}\s*=\s*//" | head -n 1)
 
-    if [[ -z "$value" ]]; then
-        echo "Error: Key '$key' not found in $config_file" >&2
-        return 2
-    fi
+	if [[ -z "$value" ]]; then
+		echo "Error: Key '$key' not found in $config_file" >&2
+		return 2
+	fi
 
-    # Cleanup
-    echo "$value" | tr -d '\r' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g'
-    return 0
+	# Cleanup
+	echo "$value" | tr -d '\r' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g'
+	return 0
 }
 
 #
@@ -75,119 +75,119 @@ get_config_value() {
 
 main() {
 
-    local ret_val=0
-    local solution_name
-    local script_dir
-    local venv_path=".venv/bin/activate"
-    local debug_host="localhost"
-    local debug_port=""
-    local verbose=false
-    local -a run_command=()
-    local run_command_triggered=false
-    local parsing=true
-    local original_dir="$PWD"
+	local ret_val=0
+	local solution_name
+	local script_dir
+	local venv_path=".venv/bin/activate"
+	local debug_host="localhost"
+	local debug_port=""
+	local verbose=false
+	local -a run_command=()
+	local run_command_triggered=false
+	local parsing=true
+	local original_dir="$PWD"
 
-    # Determine the script's directory (works in both bash and zsh)
-    if [[ -n "${BASH_SOURCE:-}" ]]; then
-        script_path="${BASH_SOURCE[0]}"
-    else
-        script_path="$0"
-    fi
+	# Determine the script's directory (works in both bash and zsh)
+	if [[ -n "${BASH_SOURCE:-}" ]]; then
+		script_path="${BASH_SOURCE[0]}"
+	else
+		script_path="$0"
+	fi
 
-    script_dir="$(cd "$(dirname "$script_path")" && pwd)"
-    cd "$script_dir" || {
-        printf "Error: Failed to change to script directory '%s'\n" "$script_dir"
-        return 1
-    }
+	script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+	cd "$script_dir" || {
+		printf "Error: Failed to change to script directory '%s'\n" "$script_dir"
+		return 1
+	}
 
-    # Get the solution name from the config file
-    solution_name=$(get_config_value solution_name)
-    if [[ -z "$solution_name" ]]; then
-        printf "No solution name found, using '.config'.\n"
-    fi
+	# Get the solution name from the config file
+	solution_name=$(get_config_value solution_name)
+	if [[ -z "$solution_name" ]]; then
+		printf "No solution name found, using '.config'.\n"
+	fi
 
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        if $parsing; then
-            case "$1" in
-            -d | --debug_port)
-                debug_port="$2"
-                shift 2
-                ;;
-            -h | --debug_host)
-                debug_host="$2"
-                shift 2
-                ;;
-            --verbose)
-                verbose=true
-                shift
-                ;;
-            -r | --run_command)
-                run_command_triggered=true
-                shift
-                parsing=false
-                continue # Let next iteration collect command args
-                ;;
-            -\? | --help)
-                print_help
-                return 0
-                ;;
-            --)
-                parsing=false
-                shift
-                ;;
-            *)
-                printf "Error: Unknown option '%s'\n" "$1"
-                print_help
-                return 5
-                ;;
-            esac
-        else
-            run_command+=("$1")
-            shift
-        fi
-    done
+	# Parse arguments
+	while [[ $# -gt 0 ]]; do
+		if $parsing; then
+			case "$1" in
+			-d | --debug_port)
+				debug_port="$2"
+				shift 2
+				;;
+			-h | --debug_host)
+				debug_host="$2"
+				shift 2
+				;;
+			--verbose)
+				verbose=true
+				shift
+				;;
+			-r | --run_command)
+				run_command_triggered=true
+				shift
+				parsing=false
+				continue # Let next iteration collect command args
+				;;
+			-\? | --help)
+				print_help
+				return 0
+				;;
+			--)
+				parsing=false
+				shift
+				;;
+			*)
+				printf "Error: Unknown option '%s'\n" "$1"
+				print_help
+				return 5
+				;;
+			esac
+		else
+			run_command+=("$1")
+			shift
+		fi
+	done
 
-    # Validate inputs
-    if $run_command_triggered && [[ ${#run_command[@]} -eq 0 ]]; then
-        printf "Error: --run_command was provided but no command was specified.\n"
-        return 1
-    fi
+	# Validate inputs
+	if $run_command_triggered && [[ ${#run_command[@]} -eq 0 ]]; then
+		printf "Error: --run_command was provided but no command was specified.\n"
+		return 1
+	fi
 
-    # Source virtual environment
-    if [[ ! -f "$venv_path" ]]; then
-        printf "Error: Python virtual environment not found at %s\n" "$venv_path"
-        return 2
-    fi
-    # shellcheck disable=SC1090
-    source "$venv_path"
+	# Source virtual environment
+	if [[ ! -f "$venv_path" ]]; then
+		printf "Error: Python virtual environment not found at %s\n" "$venv_path"
+		return 2
+	fi
+	# shellcheck disable=SC1090
+	source "$venv_path"
 
-    if ! command -v autoforge >/dev/null 2>&1; then
-        printf "Error: 'autoforge' command not found in PATH.\n"
-        return 3
-    fi
+	if ! command -v autoforge > /dev/null 2>&1; then
+		printf "Error: 'autoforge' command not found in PATH.\n"
+		return 3
+	fi
 
-    # Construct command
-    local cmd=(autoforge -n "$solution_name" -w .)
-    if [[ -n "$debug_port" ]]; then
-        cmd+=(--remote-debugging "$debug_host:$debug_port")
-    fi
+	# Construct command
+	local cmd=(autoforge -n "$solution_name" -w .)
+	if [[ -n "$debug_port" ]]; then
+		cmd+=(--remote-debugging "$debug_host:$debug_port")
+	fi
 
-    if [[ ${#run_command[@]} -gt 0 ]]; then
-        cmd+=(--run-command "${run_command[@]}")
-    fi
+	if [[ ${#run_command[@]} -gt 0 ]]; then
+		cmd+=(--run-command "${run_command[@]}")
+	fi
 
-    if [[ "$verbose" == true ]]; then
-        printf "Running: %s\n" "${cmd[*]}"
-    fi
+	if [[ "$verbose" == true ]]; then
+		printf "Running: %s\n" "${cmd[*]}"
+	fi
 
-    "${cmd[@]}"
-    ret_val=$?
+	"${cmd[@]}"
+	ret_val=$?
 
-    # Restore original directory
-    cd "$original_dir" || return 1
+	# Restore original directory
+	cd "$original_dir" || return 1
 
-    return $ret_val
+	return $ret_val
 }
 
 #
