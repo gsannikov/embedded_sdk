@@ -110,37 +110,37 @@ main() {
 	while [[ $# -gt 0 ]]; do
 		if $parsing; then
 			case "$1" in
-			-d | --debug_port)
-				debug_port="$2"
-				shift 2
-				;;
-			-h | --debug_host)
-				debug_host="$2"
-				shift 2
-				;;
-			--verbose)
-				verbose=true
-				shift
-				;;
-			-r | --run_command)
-				run_command_triggered=true
-				shift
-				parsing=false
-				continue # Let next iteration collect command args
-				;;
-			-\? | --help)
-				print_help
-				return 0
-				;;
-			--)
-				parsing=false
-				shift
-				;;
-			*)
-				printf "Error: Unknown option '%s'\n" "$1"
-				print_help
-				return 5
-				;;
+				-d | --debug_port)
+					debug_port="$2"
+					shift 2
+					;;
+				-h | --debug_host)
+					debug_host="$2"
+					shift 2
+					;;
+				--verbose)
+					verbose=true
+					shift
+					;;
+				-r | --run_command)
+					run_command_triggered=true
+					shift
+					parsing=false
+					continue # Let next iteration collect command args
+					;;
+				-\? | --help)
+					print_help
+					return 0
+					;;
+				--)
+					parsing=false
+					shift
+					;;
+				*)
+					printf "Error: Unknown option '%s'\n" "$1"
+					print_help
+					return 5
+					;;
 			esac
 		else
 			run_command+=("$1")
@@ -162,7 +162,7 @@ main() {
 	# shellcheck disable=SC1090
 	source "$venv_path"
 
-	if ! command -v autoforge > /dev/null 2>&1; then
+	if ! command -v autoforge >/dev/null 2>&1; then
 		printf "Error: 'autoforge' command not found in PATH.\n"
 		return 3
 	fi

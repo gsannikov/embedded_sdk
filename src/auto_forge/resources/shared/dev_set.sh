@@ -6,7 +6,7 @@
 # Description:    Developer helper script for AutoForge.
 #                 Installs AutoForge as an editable (writable) package,
 #                 enabling local development and debugging.
-# Version:        1.3
+# Version:        1.5
 #
 # ------------------------------------------------------------------------------
 
@@ -152,7 +152,7 @@ main() {
 	# Validate virtual environment, create if missing
 	if [ ! -d "$venv_path" ]; then
 		printf "Warning: Virtual environment directory '%s' not found. Creating...\n" "$venv_path"
-		if ! python3 -m venv "$venv_path" &> /dev/null; then
+		if ! python3 -m venv "$venv_path" &>/dev/null; then
 			printf "Error: Could not create virtual environment in '%s'\n" "$venv_path"
 			return 1
 		fi
@@ -174,7 +174,7 @@ main() {
 	}
 
 	# Verify we have pip
-	if ! command -v pip > /dev/null 2>&1; then
+	if ! command -v pip >/dev/null 2>&1; then
 		printf "Error: pip is not available in the virtual environment.\n"
 		return 1
 	fi
@@ -199,14 +199,14 @@ main() {
 	printf "Installing requirements and 'pydev' version %s support.\n" "$pydev_ver"
 
 	# Attempting to install fresh 'pydev' at a specific revision to our venv.
-	pip uninstall pydevd-pycharm -y &> /dev/null
-	pip install pydevd-pycharm~="$pydev_ver" &> /dev/null || {
+	pip uninstall pydevd-pycharm -y &>/dev/null
+	pip install pydevd-pycharm~="$pydev_ver" &>/dev/null || {
 		printf "Warning: 'pydev' was not installed successfully.\n"
 	}
 
 	# Installing other package requirements if we have requirements
 	if [ -f "$requirements_file" ]; then
-		pip install --force-reinstall -r "$requirements_file" &> /dev/null || return 1
+		pip install --force-reinstall -r "$requirements_file" &>/dev/null || return 1
 	else
 		printf "Requirements file '%s' not found, skipping step\n" "$requirements_file"
 	fi
@@ -218,7 +218,7 @@ main() {
 		return 1
 	}
 
-	pip install -e . --force-reinstall &> /dev/null || {
+	pip install -e . --force-reinstall &>/dev/null || {
 		print "Error: 'pip install' did not complete successfully\n"
 		return 1
 	}

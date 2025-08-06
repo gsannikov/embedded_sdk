@@ -4,105 +4,85 @@
 #
 # Script Name:    bootstrap.sh
 # Description:    AutoForge bootstrap installer.
-# Version:        1.4
+# Version:        1.5
 #
 # ------------------------------------------------------------------------------
 
 AUTO_FORGE_URL="https://github.com/emichael72/auto_forge.git"
 
 #
-# @brief Installs AutoForge package
-# @return Returns 0 on overall success, else failure.
+# @brief Installs the AutoForge package
+# @return 0 on success, non-zero on failure.
 #
 
 install_autoforge_package() {
 	local package_url="$1"
+	local ret_val=0
 
-	# Validate inputs
+	# Validate input
 	if [[ -z "$package_url" ]]; then
 		printf "Usage: install_autoforge_package <package_url>\n"
 		return 1
 	fi
 
-	# Simple in-place text logging helper
+	# In-place status message helper
 	_log_line() {
 		echo -ne "\r$(tput el)$*"
 	}
 
-	# Print all error blocks (starting with ERROR: and any indented lines after)
-	# Note avoiding 'awk' for better compatability.
-	_print_pip_error_block() {
-		local in_error=0
-		while IFS= read -r line || [ -n "$line" ]; do
-			case "$line" in
-				ERROR:*)
-					in_error=1
-					printf "%s\n" "$line"
-					;;
-				"")
-					if [ "$in_error" -eq 1 ]; then
-						echo    # print the empty line
-						in_error=0
-					fi
-					;;
-				[A-Z]*:*)
-					# Detected a new top-level log line like 'Collecting:' or 'Installing:'
-					if [ "$in_error" -eq 1 ]; then
-						in_error=0
-					fi
-					;;
-				*)
-					if [ "$in_error" -eq 1 ]; then
-						printf "%s\n" "$line"
-					fi
-					;;
-			esac
+	# Print all lines starting from the first "ERROR:" and onward
+	# Avoids awk/sed for maximum compatibility
+	_print_errors_to_end() {
+		local error_found=0
+		while IFS= read -r line || [[ -n "$line" ]]; do
+			if [[ $error_found -eq 0 && "$line" == ERROR:* ]]; then
+				error_found=1
+			fi
+			if [[ $error_found -eq 1 ]]; then
+				echo "$line"
+			fi
 		done <"$1"
 	}
 
-	# Check for Python 3.9 or higher
+	# Require Python 3.9 or higher
 	if ! python3 --version | grep -qE 'Python 3\.(9|[1-9][0-9])'; then
 		_log_line "Error: Python 3.9 or higher is required."
 		return 1
 	fi
 
-	# Upgrade pip silently
+	# Upgrade pip quietly
 	python3 -m pip install --upgrade pip --break-system-packages --no-warn-script-location >/dev/null 2>&1 || {
-		_log_line "Error: Python 'pip' could not be upgraded."
+		_log_line "Error: Failed to upgrade pip."
 		return 1
 	}
 
-	# Quietly uninstall auto_forge if it exists
+	# Attempt to uninstall any existing auto_forge package
 	pip3 uninstall -y auto_forge &>/dev/null
 
-	# Install and log to a temporary file
-	# Get system temp dir in a safe, portable way
+	# Determine a writable temp directory
 	tmp_dir="${TMPDIR:-$(getconf DARWIN_USER_TEMP_DIR 2>/dev/null || echo /tmp)}"
+	[[ -w "$tmp_dir" ]] || tmp_dir="/tmp"
 
-	# Fall back to /tmp if all else fails or the directory is not writable
-	if [[ ! -w "$tmp_dir" ]]; then
-		tmp_dir="/tmp"
-	fi
-
-	# Define the full path to the log file
+	# Define log file path using the package defined prefix
 	log_file="${tmp_dir}/__AUTO_FORGE_bootstrap.log"
 
-	if pip3 install git+"$package_url" -q --force-reinstall --break-system-packages --no-warn-script-location 2>"$log_file"; then
-		if pip3 list 2>/dev/null | grep -q 'auto_forge'; then
-			rm -f "$log_file"
-			return 0
-		else
-			_log_line "Error: Package was not found post installation."
-			rm -f "$log_file"
-			return 1
+	# Attempt installation and capture stderr to log
+	if pip3 install "git+$package_url" -q --force-reinstall --break-system-packages --no-warn-script-location 2>"$log_file"; then
+		if ! pip3 list 2>/dev/null | grep -q 'auto_forge'; then
+			_log_line "Error: Package appears to be missing after installation."
+			ret_val=1
 		fi
 	else
-		_log_line "Error: 'pip install' did not complete successfully."
+		_log_line "Error: 'pip install' did not complete successfully. Showing the final lines of output:"
 		echo
-		_print_pip_error_block "$log_file"
+		_print_errors_to_end "$log_file"
 		echo
-		return 1
+		ret_val=1
 	fi
+
+	# Clean up
+	rm -f "$log_file" 2>/dev/null
+	return $ret_val
 }
 
 #
@@ -221,12 +201,29 @@ main() {
 	"${autoforge_cmd[@]}"
 	ret_val=$?
 
-	# Quietly uninstall auto_forge from the global scope to restrict it as possible  only to virtual environments.
+	# Quietly uninstall auto_forge from the global scope to restrict it as possible
+	# only to virtual environments.
 	pip3 uninstall -y auto_forge &>/dev/null
 	echo -ne '\e[?25h' # Restore cursor.
 
+	# Best-effort: silently move residual sequence logs to workspace log path
+	local destination_path="$PWD/$workspace_path/build/logs"
+	local source_path
+	source_path="$(dirname "$PWD/$workspace_path")"
+
+	if [[ -d "$destination_path" ]]; then
+		shopt -s nullglob
+		for file in "$source_path"/*sequence.log; do
+			[[ -e "$file"   ]] && mv -f -- "$file" "$destination_path/" 2>/dev/null
+		done
+		shopt -u nullglob
+	fi
+
 	# Restore original directory
-	cd "$original_dir" || return 1
+	if ! cd "$original_dir"; then
+		echo "Error: Failed to return to original directory: $original_dir"
+		exit 1
+	fi
 
 	return $ret_val
 }

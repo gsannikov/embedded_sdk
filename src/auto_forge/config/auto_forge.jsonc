@@ -273,6 +273,7 @@
         // List of commands that require interactive terminal behavior.
         // These commands typically control the terminal screen, use input prompts,
         // or produce continuous output unsuitable for standard command capture.
+
         "apt*",
         "bash",
         "zsh",
@@ -288,7 +289,9 @@
         "sudo",
         "top",
         "vi",
-        "vim"
+        "vim",
+        "pip",
+        "python*"
     ],
 
     "path_completion_rules": {
@@ -408,7 +411,7 @@
         "STYLE_HIDDEN"              : "\u001b[8m",
         "STYLE_STRIKETHROUGH"       : "\u001b[9m",
 
-        // Foreground colors (Colorama: Fore)
+        // Foreground colors
         "FORE_BLACK"               : "\u001b[30m",
         "FORE_RED"                 : "\u001b[31m",
         "FORE_GREEN"               : "\u001b[32m",
@@ -419,7 +422,7 @@
         "FORE_WHITE"               : "\u001b[37m",
         "FORE_RESET"               : "\u001b[39m",
 
-        // Background colors (Colorama: Back)
+        // Background colors
         "BACK_BLACK"               : "\u001b[40m",
         "BACK_RED"                 : "\u001b[41m",
         "BACK_GREEN"               : "\u001b[42m",
@@ -616,8 +619,8 @@
     //
     // -----------------------------------------------------------------------------------------------------------------
 
-    "proxy_timout":  10,    // Max time in seconds we allow for getting a dummy resource
-    "proxy_auto_update": false,   // Update environment with the best proxy
+    "proxy_timout":  10,        // Max time in seconds we allow for getting a dummy resource
+    "proxy_auto_update": false, // Update environment with the best proxy
 
     "proxy_servers": [
         // List of proxy server

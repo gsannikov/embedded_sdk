@@ -10,7 +10,7 @@
 */
 
 {
-  "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
+  "format_off": "# @formatter:off",         // Instruct PyCharm not to format this file.
     "status_title_length": 60,              // Limit the title field width
     "status_add_time_prefix": true,         // Adds a timestamp (down to milliseconds) to each step in the status log.
     "status_new_line": true,                // Enables multi-line status output instead of in-place updates
@@ -24,7 +24,7 @@
 
     "steps": [
         {
-            "description": "Looking for 'python' 3.9.0 or greater",
+            "description": "Looking for 'python'",
             "method": "validate_prerequisite",
             "status_on_error": {
                 "fedora": "Run 'sudo dnf install python3'",
@@ -221,7 +221,7 @@
             "method": "python_package_add",
             "arguments": {
                 "venv_path": ".venv",
-                "package_or_requirements": "colorama json5 jsonschema tabulate psutil toml gitpython wheel"
+                "package_or_requirements": "json5 tabulate toml wheel"
             }
         },
         {
@@ -231,7 +231,7 @@
             // By using this persistent location, we avoid cluttering the workspace with executables and large packages,
             // and prevent redundant tool installations every time a new workspace is created.
 
-            "description": "Check if we have ARM AArch64 toolchain",
+            "description": "Looking for ARM AArch64 toolchain",
             "method": "conditional",
             "arguments": {
                 "condition": {
@@ -271,7 +271,6 @@
             //
             // This step now installs AutoForge properly inside the new Python virtual environment ('.venv')
             // created within the workspace, this is where it should live going forward.
-            //
             // Note: The initial shell script ('bootstrap.sh') is designed to clean up and remove the temporary AutoForge 
             // installation from the global Python environment once this setup completes.
 

@@ -20,7 +20,7 @@ At its core, **AutoForge** transforms JSON-based declarative definitions into fu
 It handles everything from environment setup and configuration validation to build orchestration,
 structured logging, error recovery, and post-build analytics.
 Whether you're compiling a single RTOS image or coordinating cross-platform
-toolchains, this tool offers a unified interface to get the job done efficiently.
+tool-chains, this tool offers a unified interface to get the job done efficiently.
 
 ### Key Features
 
@@ -42,7 +42,8 @@ toolchains, this tool offers a unified interface to get the job done efficiently
   Structured, colorized logs and build-time telemetry for auditability and debugging across local and CI environments.
 
 - **Environment Virtualization & Probing**  
-  Automated setup and teardown of environment variables, toolchains, and paths including native detection of SDKs, tool
+  Automated setup and tear-down of environment variables, tool-chains, and paths including native detection of SDKs,
+  tool
   versions, and platform capabilities.
 
 - **Plugin-Based Extensibility**  
@@ -69,6 +70,19 @@ This makes this tool particularly suitable for advanced workflows involving inte
 assistants and automated analysis tools.
 
 ---
+
+## The Demo Project
+
+For detailed instructions and structure, refer
+to: [The Userspace Demo Project](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/tree/main/src/auto_forge/resources/samples/userspace/README.md)
+
+## Additional Resources
+
+- **Package Details:**  
+  [About AutoForge](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/blob/main/src/auto_forge/resources/help/package/about.md)
+
+- **SDK Integration Roadmap – Modular Breakdown:**  
+  [Intel Wiki](https://wiki.ith.intel.com/x/1Jp98w)
 
 <div style="text-align: center;">
   <img src="src/auto_forge/resources/package/clip_art/fork.png" alt="Get Involved">

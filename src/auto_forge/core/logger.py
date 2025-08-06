@@ -501,7 +501,7 @@ class CoreLogger(CoreModuleInterface):
         # Update child loggers
         self._reconfigure_all_known_loggers()
 
-    def flush_memory_logs(self, destination_handler: LogHandlersType):
+    def flush_memory_logs(self, destination_handler: LogHandlersType) -> bool:
         """
         Flushes buffered memory logs to the specified destination handler and disables
         the memory handler afterward.
@@ -514,25 +514,22 @@ class CoreLogger(CoreModuleInterface):
 
         # Prevent self-flushing (makes no sense)
         if destination_handler == LogHandlersType.MEMORY_HANDLER:
-            raise ValueError("Cannot flush memory logs into MEMORY_HANDLER.")
+            return False  # Cannot flush memory logs into MEMORY_HANDLER.
 
         # Ensure only a single bit is set (i.e., a single handler type)
         value = int(destination_handler)  # preferred over .value
         if value & (value - 1) != 0:
-            raise ValueError("Expected a single handler flag, got multiple.")
+            return False  # Expected a single handler flag, got multiple.
 
         if destination_handler not in self._enabled_handlers:
-            raise ValueError(f"Destination handler {destination_handler.name} is not enabled.")
+            return False  # Destination handler is not enabled.
 
         if LogHandlersType.MEMORY_HANDLER not in self._enabled_handlers:
-            raise RuntimeError("Memory handler is not enabled — nothing to flush.")
+            return False  # Memory handler is not enabled — nothing to flush.
 
         destination_stream_handler = self._get_stream_handler_by_type(handler_type=destination_handler)
         if destination_stream_handler is None:
-            raise RuntimeError(
-                f"No active stream handler found for {destination_handler.name}, "
-                f"even though it is marked as enabled."
-            )
+            return False  # No active stream handler found for destination even though it is marked as enabled.
 
         # Flush memory buffer to the destination stream
         for entry in self._memory_logs_buffer:
@@ -545,6 +542,7 @@ class CoreLogger(CoreModuleInterface):
         self._internal_logger.debug(
             f"Flushed {len(self._memory_logs_buffer)} memory record(s) to the destination logger.")
         self._memory_logs_buffer.clear()
+        return True
 
     def write(self, message: str):
         """

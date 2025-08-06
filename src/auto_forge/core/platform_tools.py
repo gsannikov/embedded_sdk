@@ -710,7 +710,8 @@ class CorePlatform(CoreModuleInterface):
             truncate_text: bool = True, use_pty: bool = True, searched_token: Optional[str] = None, check: bool = True,
             shell: bool = True, cwd: Optional[str] = None, env: Optional[Mapping[str, str]] = None,
             max_read_chunk: Optional[int] = 1024, apply_colorization: Optional[bool] = False,
-            expand_command: Optional[bool] = False) -> Optional[CommandResultType]:
+            expand_command: Optional[bool] = False,
+            override_interactive: Optional[bool] = None) -> Optional[CommandResultType]:
         """
         Executes a shell command with specified arguments and configuration settings.
         Args:
@@ -729,6 +730,10 @@ class CorePlatform(CoreModuleInterface):
             apply_colorization (Optional[bool]): Whether to highlight common build status keywords (e.g., "error:", "warning:") 
                     using ANSI colors in the output.
             expand_command (Optional[bool]): Whether to expand commands before executing them. Defaults to False.
+            override_interactive (Optional[bool]):  
+                If specified, this value explicitly determines whether the command is treated as interactive or non-interactive,  
+                overriding the default behavior based on the `_interactive_commands` pattern list from the configuration.
+
         Returns:
             Optional[CommandResultType]: A result object containing the command output and return code,
             or None if an exception was raised.
@@ -927,16 +932,23 @@ class CorePlatform(CoreModuleInterface):
             full_command = command_list[0]  # The command
             command = os.path.basename(full_command)
 
-            # -----------------------------------------------------------------------
+            # Determine interactive / non-interactive execution
+            is_interactive = (
+                override_interactive if override_interactive is not None
+                else any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands)
+            )
+
+            # ------------------------------------------------------------------
             #
             # Full TTY hand off for interactive apps
             #
-            # -----------------------------------------------------------------------
+            # ------------------------------------------------------------------
 
-            if any(fnmatch.fnmatch(command, pattern) for pattern in self._interactive_commands):
-                self._logger.debug(f"Executing: {command_and_args} (Full TTY)")
+            if is_interactive:
+                self._logger.debug(f"Executing: {command_and_args} (Full TTY - Interactive)")
                 results = self.execute_fullscreen_shell_command(command_and_args=command_and_args, env=proc_env,
                                                                 timeout=timeout)
+                print()  # Print empty line when executing full screen command
                 if check and results and results.return_code != 0:
                     results.command = command
                     raise CommandFailedException(results=results)
@@ -957,11 +969,11 @@ class CorePlatform(CoreModuleInterface):
                     kwargs = dict()
                     kwargs['executable'] = env_shell
 
-            # -----------------------------------------------------------------------
+            # ------------------------------------------------------------------
             #
             # Execute PTY / Normal.
             #
-            # -----------------------------------------------------------------------
+            # ------------------------------------------------------------------
 
             if use_pty:
                 self._logger.debug(f"Executing: {command_and_args} (PTY)")
@@ -1169,6 +1181,7 @@ class CorePlatform(CoreModuleInterface):
 
                 results = self.execute_shell_command(
                     command_and_args=self._flatten_command(command=command, arguments=cmd_args),
+                    override_interactive=False,
                     cwd=cwd)
 
                 if results.response is None:
@@ -1369,7 +1382,7 @@ class CorePlatform(CoreModuleInterface):
 
             command_and_args = self._flatten_command(command=python_binary, arguments=f"-m venv {created_venv_path}")
 
-            return self.execute_shell_command(command_and_args=command_and_args)
+            return self.execute_shell_command(command_and_args=command_and_args, override_interactive=False)
 
         except Exception as py_error:
             raise Exception(f"Failed to create virtual environment at '{venv_path}': {py_error}") from py_error
@@ -1391,7 +1404,7 @@ class CorePlatform(CoreModuleInterface):
             arguments = "-m pip install --upgrade pip"
             command_and_args = self._flatten_command(command=python_binary, arguments=arguments)
 
-            results = self.execute_shell_command(command_and_args=command_and_args)
+            results = self.execute_shell_command(command_and_args=command_and_args, override_interactive=False)
             return results
 
         except Exception as py_env_error:
@@ -1429,7 +1442,7 @@ class CorePlatform(CoreModuleInterface):
             # Execute the command
             results = (
                 self.execute_shell_command(command_and_args=self._flatten_command(command=command, arguments=arguments),
-                                           shell=False))
+                                           shell=False, override_interactive=False))
             return results
 
         except Exception as python_pip_error:
@@ -1459,7 +1472,8 @@ class CorePlatform(CoreModuleInterface):
 
             # Execute the command
             results = self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments), shell=False)
+                command_and_args=self._flatten_command(command=command, arguments=arguments),
+                shell=False, override_interactive=False)
 
             return results
 
@@ -1488,7 +1502,8 @@ class CorePlatform(CoreModuleInterface):
             # Construct and execute the command
             arguments = f"-m pip show {package}"
             results = (self.execute_shell_command(
-                command_and_args=self._flatten_command(command=command, arguments=arguments)))
+                command_and_args=self._flatten_command(command=command, arguments=arguments),
+                override_interactive=False))
 
             if results.response is not None:
                 # Attempt to extract the version out of the text
@@ -1643,7 +1658,7 @@ class CorePlatform(CoreModuleInterface):
         try:
             for file_info in files:
                 if file_info['type'] != 'file':
-                    continue  # Skip subdirectories (for now)
+                    continue  # Skip sub-directories (for now)
 
                 filename = file_info['name']
                 # If allowed_extensions is specified, filter

@@ -6,7 +6,7 @@
 # Script Name:    installer.sh
 # Description:    Auxiliary script for installing AutoForge using bootstrap.
 #                 Note: This script could be sourced or directly invoked.
-# Version:        1.3
+# Version:        1.5
 #
 # ------------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ is_sourced() {
 install_auto_forge() {
 
 	local dest_workspace_path="" # Path for the new workspace
-	local solution_name=""       # In this context: also the sample path name
+	local solution_name=""     # In this context: also the sample path name
 	local solution_package=""
 	local sequence_name="workspace_sequence"
 	local bootstrap_url="${GITHUB_RAW}/${GITHUB_REPO}/main/${GITHUB_PATH}"
@@ -99,51 +99,51 @@ install_auto_forge() {
 	# Parse command-line arguments.
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
-		-w | --workspace)
-			dest_workspace_path="$2"
-			shift 2
-			;;
-		-n | --name)
-			solution_name="$2"
-			shift 2
-			;;
-		-p | --packge)
-			solution_package="$2"
-			shift 2
-			;;
-		-b | --bootstrap)
-			bootstrap_url="$2"
-			shift 2
-			;;
-		-s | --sequence)
-			sequence_name="$2"
-			shift 2
-			;;
-		--auto_start)
-			auto_start=true
-			shift
-			;;
-		--allow_non_empty)
-			allow_non_empty=true
-			shift
-			;;
-		--no_token)
-			no_token=true
-			shift
-			;;
-		--verbose)
-			verbose=true
-			shift
-			;;
-		-h | --help)
-			_display_help
-			return 0
-			;;
-		*)
-			printf "\nError: Unknown option: %s\n\n" "$1"
-			_display_help
-			return 1
-			;;
+			-w | --workspace)
+				dest_workspace_path="$2"
+				shift 2
+				;;
+			-n | --name)
+				solution_name="$2"
+				shift 2
+				;;
+			-p | --packge)
+				solution_package="$2"
+				shift 2
+				;;
+			-b | --bootstrap)
+				bootstrap_url="$2"
+				shift 2
+				;;
+			-s | --sequence)
+				sequence_name="$2"
+				shift 2
+				;;
+			--auto_start)
+				auto_start=true
+				shift
+				;;
+			--allow_non_empty)
+				allow_non_empty=true
+				shift
+				;;
+			--no_token)
+				no_token=true
+				shift
+				;;
+			--verbose)
+				verbose=true
+				shift
+				;;
+			-h | --help)
+				_display_help
+				return 0
+				;;
+			*)
+				printf "\nError: Unknown option: %s\n\n" "$1"
+				_display_help
+				return 1
+				;;
 		esac
 	done
 
@@ -214,7 +214,7 @@ install_auto_forge() {
 
 	# Attempt to acquire Git token using 'dt'
 	if [[ "$no_token" == false ]]; then
-		if output="$(dt github print-token 2> /dev/null)"; then
+		if output="$(dt github print-token 2>/dev/null)"; then
 			token="$output"
 			_verbose_print "Using GitHub token."
 		else

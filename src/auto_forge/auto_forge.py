@@ -286,9 +286,20 @@ class AutoForge(CoreModuleInterface):
                 self._log_file_name = self._tool_box.append_timestamp_to_path(self._log_file_name)
 
         # Initialize logger, do not disable memory logger, it will be auto disabled by flush_memory_logs()
-        self._core_logger.set_log_file_name(self._log_file_name)
-        self._core_logger.set_handlers(
-            LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
+        if not PackageGlobals.SPAWNED:
+            self._core_logger.set_log_file_name(self._log_file_name)
+            self._core_logger.set_handlers(
+                LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
+        else:
+            # When spawned by a parent AutoForge process, we disable file logging and formatting.
+            # Log lines are written as plain, unformatted text directly to the terminal. This allows
+            # the parent logger to capture them as subprocess output and apply its own formatting,
+            # avoiding duplicated prefixes like:
+            #   10:00:00 Warning Module: 10:00:00 Warning Module: Logged line
+
+            self._core_logger.set_handlers(
+                LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER)
+            self._core_logger.set_formatter(enable_formatting=False)  # No formatting
 
         self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=allow_console_output)
 
@@ -298,10 +309,6 @@ class AutoForge(CoreModuleInterface):
         # Bring the logger to the front of the stage and drop ANSI colors when in automating one command mode
         if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             self._core_logger.set_output(logger=None, state=True)
-
-        # When we are a child process spawned by another instance of AutoForge switch to raw logging
-        if PackageGlobals.SPAWNED:
-            self._core_logger.set_formatter(enable_formatting=False)
 
         self._logger.info(f"AutoForge{' (child)' if PackageGlobals.SPAWNED else ''} "
                           f"version: {PackageGlobals.VERSION} starting")

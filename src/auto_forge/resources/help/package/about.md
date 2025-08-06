@@ -22,7 +22,7 @@ By interpreting the solution package, AutoForge can:
 - Interface with AI agents and CI/CD systems via machine-readable exports
 
 At its core, AutoForge provides a clean separation between **logic (AutoForge engine)** and **project intent (solution
-package)**, making it ideal for teams working across diverse platforms and toolchains.
+package)**, making it ideal for teams working across diverse platforms and tool-chains.
 
 ---
 
@@ -79,7 +79,7 @@ AutoForge can create a solution-specific workspace based on a sequence file (e.g
 - Verifying tool availability
 - Creating a Python virtual environment
 - Cloning sources
-- Downloading toolchains
+- Downloading tool-chains
 - Executing external commands
 - Invoking methods from the AutoForge SDK
 
@@ -113,7 +113,7 @@ This mode is designed for **CI/CD tools or AI agents**. The caller specifies a r
 
 ---
 
-### 4. AI – Export Package Context File
+### 4. AI-Export Package Context File
 
 AutoForge can generate an **AI-friendly JSON summary** that includes:
 

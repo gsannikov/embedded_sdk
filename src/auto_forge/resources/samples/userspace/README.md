@@ -6,7 +6,7 @@ development environment by running a fully functional build/test loop on a refac
 
 ---
 
-## ✨ Introduction
+## Introduction
 
 This demo provides a **non-intrusive** way to evaluate the `userspace` project safely. All operations are performed
 within an isolated workspace, without modifying your existing project clone — allowing you to test AutoForge without
@@ -26,7 +26,7 @@ replacing your current `userspace` build flow.
 
 ---
 
-## 🚀Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -94,7 +94,7 @@ curl -sSL \
 
 ---
 
-## ⚖️ Evaluation First Steps
+## Evaluation First Steps
 
 * Launch the `Userspace` solution in an interactive shell by typing:  `us` .
 * Inside the shell, run the `usgen` command. This will:
@@ -111,7 +111,7 @@ curl -sSL \
 
 ---
 
-## 📁 Files in the Userspace Demo
+## Files in the Userspace Demo
 
 | File Name                  | Description                                                                                                     |
 |----------------------------|-----------------------------------------------------------------------------------------------------------------|

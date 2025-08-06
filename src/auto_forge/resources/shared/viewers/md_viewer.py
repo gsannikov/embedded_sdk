@@ -30,11 +30,9 @@ with suppress(ImportError):
     from textual.widgets import Footer, MarkdownViewer
     from textual import events
 
-    # Force only Textual 0.4.x (e.g., 0.4.0 to 0.4.999)
-    required_range = (version.parse("0.4.0"), version.parse("0.5.0"))
-
-    if not (required_range[0] <= version.parse(textual.__version__) < required_range[1]):
-        print(f"Error: AutoForge Help Viewer requires Textual 0.4.xm, found {textual.__version__}")
+    # Force only Textual 4.0.0
+    if textual.__version__ != "4.0.0":
+        print(f"Error: AutoForge Help Viewer requires Textual 0.4.0, found {textual.__version__}")
         sys.exit(1)
 
     class MarkdownApp(App):

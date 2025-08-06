@@ -147,7 +147,11 @@ class ProgressTracker:
             text = text[:max(0, truncate_length)]  # Truncate text if necessary
 
         if self._add_time_prefix:
-            formatted_text = f"{Fore.LIGHTBLUE_EX}{time_string}{Style.RESET_ALL}{text} {dots} "
+            formatted_text = (
+                f"{Fore.LIGHTBLUE_EX}{time_string}{Style.RESET_ALL}"
+                f"{text} "
+                f"{Style.BRIGHT}{Fore.BLACK}{dots}{Style.RESET_ALL} "
+            )
         else:
             formatted_text = f"{text} {dots} "
 
