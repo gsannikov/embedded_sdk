@@ -29,6 +29,23 @@ install_autoforge_package() {
 		echo -ne "\r$(tput el)$*"
 	}
 
+	# Print all error blocks (starting with ERROR: and any indented lines after)
+	_print_error_block() {
+		local in_error=0
+		while IFS= read -r line; do
+			if printf "%s\n" "$line" | grep -q '^ERROR:'; then
+				in_error=1
+				printf "%s\n" "$line"
+			elif [ "$in_error" -eq 1 ]; then
+				if printf "%s" "$line" | grep -q '^[[:space:]]'; then
+					printf "%s\n" "$line"
+				else
+					in_error=0
+				fi
+			fi
+		done < "$1"
+	}
+
 	# Check for Python 3.9 or higher
 	if ! python3 --version | grep -qE 'Python 3\.(9|[1-9][0-9])'; then
 		_log_line "Error: Python 3.9 or higher is required."
@@ -68,8 +85,7 @@ install_autoforge_package() {
 	else
 		_log_line "Error: 'pip install' did not complete successfully."
 		echo
-		grep '^ERROR:' "$log_file"
-		echo "🔍 Full pip output logged at: $log_file"
+		_print_error_block "$log_file"
 		echo
 		return 1
 	fi
