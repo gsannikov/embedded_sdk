@@ -130,7 +130,7 @@ pip install --upgrade pip
 #### Step 5: Install AutoForge from Git
 
 ```bash
-pip install git+https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge.git
+pip install git+https://github.com/emichael72/auto_forge.git
 ```
 
 #### Step 6: Run AutoForge in Bare Solution Mode
