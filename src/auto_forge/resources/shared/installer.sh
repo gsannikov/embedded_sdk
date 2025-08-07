@@ -45,7 +45,7 @@ is_sourced() {
 install_auto_forge() {
 
 	local dest_workspace_path="" # Path for the new workspace
-	local solution_name=""     # In this context: also the sample path name
+	local solution_name=""   # In this context: also the sample path name
 	local solution_package=""
 	local sequence_name="workspace_sequence"
 	local bootstrap_url="${GITHUB_RAW}/${GITHUB_REPO}/main/${GITHUB_PATH}"

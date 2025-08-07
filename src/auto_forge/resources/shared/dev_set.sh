@@ -141,8 +141,9 @@ main() {
 
 	# Construct paths based on arguments
 	local activation_script="$venv_path/bin/activate"
-	local requirements_file="$auto_forge_path/requirements-dev.txt" # Optional addition requirements
 
+	# Addition requirements specified in the package
+	local requirements_file="$auto_forge_path/src/auto_forge/resources/shared/requirements-dev.txt"
 	# Verifying project paths
 	if [ ! -d "$auto_forge_path" ]; then
 		printf "Error: auto forge project clone path '%s' not found.\n" "$auto_forge_path"
