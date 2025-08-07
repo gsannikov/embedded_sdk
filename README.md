@@ -71,7 +71,77 @@ assistants and automated analysis tools.
 
 ---
 
-## The Demo Project
+## Getting Started in Bare Solution Mode
+
+While **AutoForge** is primarily designed for managing and building projects via a well-defined **solution file**, it
+can also be executed in a special _bare solution mode_.  
+In this mode, AutoForge loads a minimal internal (crippled) solution that doesn't allow building—but it **does** enable
+you to explore and run many of its commands. Think of it as a way to **test-drive the framework at your own pace**.
+
+This is particularly useful for:
+
+- Experimenting with available commands
+- Exploring the CLI features
+- Understanding the workspace lifecycle
+- Trying out logging, configuration, and diagnostic tools
+
+---
+
+### Setup Instructions (Linux: Fedora, Ubuntu, or WSL)
+
+> 💡 **Pre-requisites**
+> - Make sure your development environment was previously initialized using `dt` (your org’s dev-tools setup).
+> - You must have access to the Intel [intel-innersource](https://github.com/intel-innersource) GitHub server.
+
+> ℹ️ If you are behind a proxy, make sure your `http_proxy` and `https_proxy` environment variables are configured
+> correctly.
+---
+
+#### Step 1: Ensure Python Version
+
+AutoForge requires **Python 3.9 to 3.12**, inclusive.
+
+Check your version:
+
+```bash
+python3 --version
+```
+
+#### Step 2: Create a Virtual Environment
+
+This isolates AutoForge from other Python packages on your system:
+
+```bash
+python3 -m venv .venv
+```
+
+#### Step 3: Activate the Virtual Environment
+
+```bash
+source .venv/bin/activate
+```
+
+#### Step 4: Upgrade Pip
+
+```bash
+pip install --upgrade pip
+```
+
+#### Step 5: Install AutoForge from Git
+
+```bash
+pip install git+https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge.git
+```
+
+#### Step 6: Run AutoForge in Bare Solution Mode
+
+```bash
+autoforge --bare
+```
+
+---
+
+## The 'userspace' Demo Project
 
 For detailed instructions and structure, refer
 to: [The Userspace Demo Project](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/tree/main/src/auto_forge/resources/samples/userspace/README.md)
