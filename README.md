@@ -89,10 +89,6 @@ This is particularly useful for:
 
 ### Setup Instructions (Linux: Fedora, Ubuntu, or WSL)
 
-> 💡 **Pre-requisites**
-> - Make sure your development environment was previously initialized using `dt` (your org’s dev-tools setup).
-> - You must have access to the Intel [intel-innersource](https://github.com/intel-innersource) GitHub server.
-
 > ℹ️ If you are behind a proxy, make sure your `http_proxy` and `https_proxy` environment variables are configured
 > correctly.
 ---
@@ -140,19 +136,6 @@ autoforge --bare
 ```
 
 ---
-
-## The 'userspace' Demo Project
-
-For detailed instructions and structure, refer
-to: [The Userspace Demo Project](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/tree/main/src/auto_forge/resources/samples/userspace/README.md)
-
-## Additional Resources
-
-- **Package Details:**  
-  [About AutoForge](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/blob/main/src/auto_forge/resources/help/package/about.md)
-
-- **SDK Integration Roadmap – Modular Breakdown:**  
-  [Intel Wiki](https://wiki.ith.intel.com/x/1Jp98w)
 
 <div style="text-align: center;">
   <img src="src/auto_forge/resources/package/clip_art/fork.png" alt="Get Involved">
