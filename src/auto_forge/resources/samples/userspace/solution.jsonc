@@ -11,41 +11,37 @@
 {
   // Solutions
   "solutions": [
-    {
-      "format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
-            "name": "userspace",                    // This solution name
-            "description": "Userspace CMake port",  // Mandatory description
+	{
+	  		"format_off": "# @formatter:off",       	// Instruct PyCharm not to format this file.
+            "name": "userspace",                    	// This solution name
+            "description": "Userspace CMake port", 	 	// Mandatory description
 
             // Specify a sequence of setup operation required for initiating a new workspace
             "workspace_sequence": "<$include>workspace_sequence.jsonc",
 
-            // Include additional project specific commands
-            "aliases": "<$include>aliases.jsonc",
-
-            // Include solution specific variables
-            "variables": "<$include>variables.jsonc",
-
-            "workspace": "$PROJ_WORKSPACE",         // Base path from which all other path variables are derived.
-            "build_path": "$BUILD_OUT",             // Directory for compilation intermediates and output artifacts.
-            "default_editor": "*code*",             // Editor selector: 1-based index or name pattern with wildcards (e.g., "*sublime*").
-            "schema": "1.0",                        // Version used to validate this and other related JSON files.
-            "banner": "Userspace",                  // Optional: ASCII banner shown in prompt mode. Remove to disable.
-            "ai_auto_advise": true,                 // Optional: Enables AI-based build advice. Remove or set to false to disable.
-
+            "aliases": "<$include>aliases.jsonc",		// Include additional project specific commands
+            "variables": "<$include>variables.jsonc",	// Include solution specific variables
+            "workspace": "$PROJ_WORKSPACE",         	// Base path from which all other path variables are derived.
+            "build_path": "$BUILD_OUT",             	// Directory for compilation intermediates and output artifacts.
+            "default_editor": "*code*",             	// Editor selector: 1-based index or name pattern with wildcards (e.g., "*sublime*").
+            "schema": "1.0",                        	// Version used to validate this and other related JSON files.
+            "banner": "Userspace",                  	// Optional: ASCII banner shown in prompt mode. Remove to disable.
+            "ai_auto_advise": true,                 	// Optional: Enables AI-based build advice. Remove or set to false to disable.
+			"xray_enabled": true,                 	 	// Activate XRay SQLite daba-base
 
             "xray_excluded_path": [
-                "*kernel/[0-9]*",                   // Versioned kernel trees like kernel/6.6.4
-                "*linux-[0-9]*",                    // Directories like linux-5.10, linux-6.1.1
-                "*include/uapi/*",                  // UAPI headers (often duplicated)
-                "*kernel-old*",                     // Backup or archived kernel folders
-                "*backups/*",                       // Generic backup directories
-                "*tmp/*",                           // Temporary code storage
-                "*linux-kernel/*",                  // Any full kernel repository copy
-                "*external/linux*",                 // External embedded kernel sources
-                "*vendor/kernel*",                  // Vendor kernel branches
-                "*mirror/linux*",                   // Mirrors or forks of the Linux kernel
-                "*export/linux*",                   // Exported versions of kernel sources
-                "*source/kernels/*"                 // Centralized kernel storage paths
+                "*kernel/[0-9]*",                   	// Versioned kernel trees like kernel/6.6.4
+                "*linux-[0-9]*",                    	// Directories like linux-5.10, linux-6.1.1
+                "*include/uapi/*",                  	// UAPI headers (often duplicated)
+                "*kernel-old*",                     	// Backup or archived kernel folders
+                "*backups/*",                       	// Generic backup directories
+                "*tmp/*",                           	// Temporary code storage
+                "*linux-kernel/*",                  	// Any full kernel repository copy
+                "*external/linux*",                 	// External embedded kernel sources
+                "*vendor/kernel*",                  	// Vendor kernel branches
+                "*mirror/linux*",                   	// Mirrors or forks of the Linux kernel
+                "*export/linux*",                   	// Exported versions of kernel sources
+                "*source/kernels/*"                 	// Centralized kernel storage paths
             ],
 
             // List of one or more toolchains used by the 'userspace' solution projects.

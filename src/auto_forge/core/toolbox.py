@@ -322,7 +322,7 @@ class CoreToolBox(CoreModuleInterface):
 
     @staticmethod
     def format_productivity(events_per_minute: Optional[Union[float, int]], total_seconds: Optional[float] = None) -> \
-    Optional[str]:
+            Optional[str]:
         """
         Translates raw events-per-minute into a mysterious productivity descriptor,
         using a pseudo-scientific algorithm known only to ancient CI monks.
@@ -707,7 +707,7 @@ class CoreToolBox(CoreModuleInterface):
         raise ValueError(f"cannot convert '{value}' to an integer.")
 
     @staticmethod
-    def get_expanded_path(path: str, to_absolute: bool = True) -> str:
+    def get_expanded_path(path: Optional[Union[Path, str]], to_absolute: bool = True) -> Optional[Any]:
         """
         Expands environment variables and user symbols in the given path.
         Args:
@@ -716,10 +716,16 @@ class CoreToolBox(CoreModuleInterface):
         Returns:
             str: The expanded (and optionally absolute) path.
         """
-        if not path.strip():
-            return ""  # do NOT expand empty string
 
-        expanded_path = os.path.expanduser(os.path.expandvars(path))
+        if not isinstance(path, (Path, str)) or not str(path).strip():
+            return path  # do NOT expand empty string
+
+        path = str(path)
+        # Auto resolve local globals
+        expanded_path = PackageGlobals.expand(path)
+
+        # Normal variables resolve
+        expanded_path = os.path.expanduser(os.path.expandvars(expanded_path))
 
         # Only call abspath if it's safe
         if to_absolute and not expanded_path.endswith(os.sep + '.'):
@@ -1011,8 +1017,9 @@ class CoreToolBox(CoreModuleInterface):
         """
         try:
             temp_path = tempfile.mkdtemp(prefix=PackageGlobals.TEMP_PREFIX)
-            if not create_path:  # Typically we're only interested ony in a temporary name without creating the path
-                os.rmdir(temp_path)
+            shutil.rmtree(temp_path, ignore_errors=True)  # Make sure it does not exists
+            if create_path:
+                os.makedirs(temp_path, exist_ok=True)
             return temp_path
         except Exception:
             raise

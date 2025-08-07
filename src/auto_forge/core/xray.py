@@ -120,12 +120,21 @@ class CoreXRayDB(CoreModuleInterface):
                         self._tool_box, self._telemetry, self._registry, self.auto_forge.configuration):
                 raise RuntimeError("failed to instantiate critical dependencies")
 
-            self._get_and_validate_paths()
-
             # Retrieve AutoForge package configuration
             self._configuration = self.auto_forge.configuration
             if self._configuration is None:
                 raise RuntimeError("package configuration data not available")
+
+            # Check if we're allowed to run by configuration where bare mode is no go for this module
+            self._xray_enabled = self._configuration.get("xray_enabled", True)
+            if self.auto_forge.bare_solution:
+                self._xray_enabled = False
+
+            if not self._xray_enabled:
+                self._logger.warning("Module disabled")
+                return
+
+            self._get_and_validate_paths()
 
             self._db_indexed_file_types = self._configuration.get("db_indexed_file_types")
             if not isinstance(self._db_indexed_file_types, list) or len(self._db_indexed_file_types) < 1:
@@ -495,8 +504,8 @@ class CoreXRayDB(CoreModuleInterface):
 
             # Log few of the 'meta' table properties.
             self._logger.debug(f"DB Metadata: engine v{existing_db_version}, "
-                              f"created by AutoForge v{self._db_meta_data.get('auto_forge_version')} "
-                              f"for solution '{self._db_meta_data.get('solution_name')}'")
+                               f"created by AutoForge v{self._db_meta_data.get('auto_forge_version')} "
+                               f"for solution '{self._db_meta_data.get('solution_name')}'")
 
             # Get current records (indexed files) count in the 'files' table
             cursor.execute("SELECT COUNT(*) FROM files")

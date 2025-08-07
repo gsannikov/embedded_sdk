@@ -52,6 +52,7 @@ class AutoForge(CoreModuleInterface):
         """
 
         self._initial_path: Path = Path.cwd().resolve()  # Store our initial works path
+        self._invocation_args: Optional[str] = " ".join(sys.argv)
         self._exit_code: int = 0
         self._registry: Optional[CoreRegistry] = None
         self._telemetry: Optional[CoreTelemetry] = None
@@ -70,6 +71,7 @@ class AutoForge(CoreModuleInterface):
         self._log_file_name: Optional[str] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
+        self._bare_solution_mode: Optional[bool] = None
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[CoreSystemInfo] = None
         self._linux_aliases: Optional[CoreLinuxAliases] = None
@@ -78,7 +80,6 @@ class AutoForge(CoreModuleInterface):
         self._periodic_timer: Optional[threading.Timer] = None
         self._events_sync_thread: Optional[threading.Thread] = None
         self._periodic_timer_interval: float = 5.0  # 5-seconds timer
-        self._secrets: Optional[dict] = None
 
         # Startup arguments
         self._configuration: Optional[dict[str, Any]] = None
@@ -156,6 +157,9 @@ class AutoForge(CoreModuleInterface):
         self._tool_box = CoreToolBox()
         self._linux_aliases = CoreLinuxAliases()
 
+        # Remove any generated temporary files.
+        self._tool_box.clear_residual_files()
+
         # Handle command-line arguments to determine the work mode ? for example,
         # whether we're running in automation mode, interactive shell mode, or using
         # other user-defined startup flags.
@@ -190,9 +194,6 @@ class AutoForge(CoreModuleInterface):
         # This includes methods for executing processes (individually or in sequence), performing essential Git operations,
         # working with the file system, and more.
         self._platform = CorePlatform(workspace_path=self._workspace_path)
-
-        # Remove any previously generated temporary files.
-        self._tool_box.clear_residual_files()
 
         # The last core module to be instantiated is the solution module. It comes last because it depends
         # on most of the other core modules to function correctly. Its task is to load the solution file(s),
@@ -286,7 +287,6 @@ class AutoForge(CoreModuleInterface):
             logger_setting.flush_memory_logs = False
 
             if PackageGlobals.SPAWNED:
-
                 # -------------------------------------------------------------------------------------------
                 # When spawned by a parent AutoForge process, we disable file logging and formatting.
                 # Log lines are written as plain, unformatted text directly to the terminal. This allows
@@ -328,6 +328,7 @@ class AutoForge(CoreModuleInterface):
 
         self._logger.info(f"AutoForge{' (spawned)' if PackageGlobals.SPAWNED else ''} "
                           f"version: {PackageGlobals.VERSION} starting")
+        self._logger.info(f"Invoked with '{self._invocation_args}'")
 
     def _init_arguments(  # noqa: C901 # Acceptable complexity
             self, *_args, **kwargs) -> None:
@@ -358,8 +359,13 @@ class AutoForge(CoreModuleInterface):
                 # If the solution package isn't provided explicitly, attempt to resolve it
                 # from the package configuration, which should define its default install path.
                 # Note: Variable resolution isn't fully available at this early stage.
-                local_package_files = self._configuration.get("local_solution_package_files")
+                if not self._bare_solution_mode:
+                    local_package_files = self._configuration.get("local_solution_package_files")
+                else:
+                    local_package_files = self._configuration.get("local_bare_solution_package_files")
+
                 if isinstance(local_package_files, str):
+                    local_package_files = self._tool_box.get_expanded_path(path=local_package_files, to_absolute=False)
                     solution_package = (
                         local_package_files.strip().replace("$PROJ_WORKSPACE", self._workspace_path).replace(
                             "$SOLUTION_NAME", self._solution_name))
@@ -429,8 +435,18 @@ class AutoForge(CoreModuleInterface):
             self.set_proxy_server(proxy_server=kwargs.get("proxy_server", None), silent=False)
 
         # Retrieve all arguments from kwargs
-        self._solution_name = kwargs.get("solution_name")  # Required argument
-        self._workspace_path = kwargs.get("workspace_path")  # Required argument
+
+        # We can work with either bare mode , or both workspace_path and solution_name are provided.
+        # solution_package is optional, but only allowed in workspace mode
+
+        self._bare_solution_mode = kwargs.get("bare", False)
+        if self._bare_solution_mode:
+            self._solution_name = "bare"
+            self._workspace_path = self._tool_box.get_temp_pathname(create_path=True)
+        else:
+            self._solution_name = kwargs.get("solution_name")  # Required argument
+            self._workspace_path = kwargs.get("workspace_path")  # Required argument
+
         self._log_file_name = kwargs.get("log_file")  # Optional set specific log file name
 
         # ---------------------------------------------------------------------
@@ -452,7 +468,7 @@ class AutoForge(CoreModuleInterface):
                 self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION
                 self._logger.debug(f"Run command: {self._raw_command}")
 
-                #--------------------------------------------------------------
+                # --------------------------------------------------------------
                 # Split the raw string into individual commands:
                 # - Split by comma
                 # - Strip surrounding white-space
@@ -471,9 +487,10 @@ class AutoForge(CoreModuleInterface):
             raise ValueError(f"the specified path '{self._workspace_path}' does not look like a valid Unix path")
 
         self._logger.debug(f"Workspace path '{self._workspace_path}'")
-        self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path, raise_exception=False)
+        self._workspace_exist = self._tool_box.validate_path(text=self._workspace_path)
+
         # Move to the workspace path of we have it
-        if self._workspace_exist:
+        if self._workspace_exist and not self._bare_solution_mode:
             os.chdir(self._workspace_path)
 
         # Process other arguments
@@ -696,7 +713,6 @@ class AutoForge(CoreModuleInterface):
         """
         Load a solution and fire the AutoForge shell.
         """
-
         try:
 
             if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
@@ -720,7 +736,7 @@ class AutoForge(CoreModuleInterface):
                 # Start user prompt loop
                 self._build_shell.cmdloop()
                 self._exit_code = self._build_shell.last_result
-                return self._exit_code
+
             else:
 
                 # -------------------------------------------------------------
@@ -820,9 +836,9 @@ class AutoForge(CoreModuleInterface):
         return self._watchdog
 
     @property
-    def secrets(self) -> Optional[dict]:
-        """ Returns stored secrets """
-        return self._secrets
+    def bare_solution(self) -> bool:
+        """ Running with bare solution? """
+        return self._bare_solution_mode
 
     @property
     def work_mode(self) -> Optional[AutoForgeWorkModeType]:
@@ -851,11 +867,13 @@ def auto_forge_start(args: argparse.Namespace) -> Optional[int]:
     except Exception as runtime_error:
         # Retrieve information about the original exception that triggered this handler.
         file_name, line_number = ExceptionGuru().get_context()
+        invocation = " ".join(sys.argv)
         # If we can get a logger, use it to log the error.
         logger_instance = CoreLogger.get_base_logger()
         if logger_instance is not None:
             logger_instance.error(f"Exception: {runtime_error}.File: {file_name}, Line: {line_number}")
-        print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}\n")
+        print(f"\n{Fore.RED}Exception:{Style.RESET_ALL} {runtime_error}.\nFile: {file_name}\nLine: {line_number}")
+        print(f"Invocation: {invocation}\n")
     finally:
         CoreToolBox.set_terminal_input(state=True)  # Restore terminal input
 

@@ -332,7 +332,7 @@
 			"action_on_error": "resume",
 			"arguments": {
 				"alias": "usd",
-				"command": "$PROJ_WORKSPACE/env.sh --debug_host localhost --debug_port 5678 --verbose"
+				"command": "$PROJ_WORKSPACE/env.sh --debug-host localhost --debug-port 5678 --verbose"
 			}
 		},
 		{
@@ -341,7 +341,7 @@
 			"action_on_error": "resume",
 			"arguments": {
 				"alias": "usr",
-				"command": "$PROJ_WORKSPACE/env.sh --run_command"
+				"command": "$PROJ_WORKSPACE/env.sh --run-command"
 			}
 		},
 		{

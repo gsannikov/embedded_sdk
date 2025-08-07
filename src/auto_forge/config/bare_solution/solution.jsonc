@@ -1,0 +1,57 @@
+/*
+    AutoForge solution configuration file
+    -------------------------------------
+    Use 'sln -t' to view a full tutorial regarding the solution file structure.
+
+    Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
+    This allows for improved readability and documentation which are not valid standard JSON.
+
+*/
+
+{
+  // Solutions
+  "solutions": [
+	{
+	  		"format_off": "# @formatter:off",       // Instruct PyCharm not to format this file.
+            "name": "bare",                   		// This solution name
+            "description": "Default bare solution", // Mandatory description
+            "workspace_sequence": null, 			// Specify a sequence of setup operation required for initiating a new workspace
+			"aliases": null, 						// Include additional project specific commands
+			"variables": null, 						// Include solution specific variables
+            "workspace": null,                      // Base path from which all other path variables are derived.
+            "default_editor": "*code*",             // Editor selector: 1-based index or name pattern with wildcards (e.g., "*sublime*").
+            "schema": "1.0",                        // Version used to validate this and other related JSON files.
+            "banner": "bare",                       // Optional: ASCII banner shown in prompt mode. Remove to disable.
+            "ai_auto_advise": true,                 // Optional: Enables AI-based build advice. Remove or set to false to disable.
+	  		"xray_enabled": false,                  // Do not activate XRay SQLite daba-base
+
+            // No toolchains in bare solution
+            "tool_chains": [
+                {
+                    "name": "Bare dummy toolchain",
+                    "platform": "linux",
+                    "description": "Dummy inactive toolchain",
+                    "architecture": null,
+                    "build_system": null
+				}
+            ],
+
+            // Single dummy project belongs to the 'bare' solution
+            "projects": [
+                {
+                    "name": "null",
+                    "description": "Dummy projects",
+                    "tool_chain": "<$ref_solutions[].tool_chains[Bare dummy toolchain]>",
+
+                    // List of configurations (discrete build elements) belonging to the 'mev_imc' project
+                    "configurations": [
+					  {
+                            "name": "null",
+                            "build_path": null
+					  }
+					]
+                }
+            ]
+        }
+    ]
+}

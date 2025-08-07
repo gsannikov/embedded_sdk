@@ -330,7 +330,8 @@ class CoreVariables(CoreModuleInterface):
             self.add(key="SOLUTION_NAME", value=self._solution_name, description="Solution name", is_path=False)
             self.add(key="PROJ_WORKSPACE", value=self._workspace_path, description="Workspace path",
                      create_path_if_not_exist=False)
-            create_path_if_not_exist: bool = True
+
+            create_path_if_not_exist: bool = False
             path_must_exist: bool = True
 
             # Add all the package constants
@@ -338,13 +339,10 @@ class CoreVariables(CoreModuleInterface):
                 # Tag internal packager internal help path
                 if "HELP_PATH" in key:
                     folder_type = AutoForgFolderType.HELP
-                    create_path_if_not_exist = False
                 elif "COMMANDS_PATH" in key:
                     folder_type = AutoForgFolderType.COMMANDS
-                    create_path_if_not_exist = False
                 elif "BUILDERS_PATH" in key:
                     folder_type = AutoForgFolderType.BUILDERS
-                    create_path_if_not_exist = False
                 else:
                     folder_type = AutoForgFolderType.UNKNOWN
 
@@ -664,6 +662,7 @@ class CoreVariables(CoreModuleInterface):
 
             if not self._ignore_path_errors:
                 if new_var.create_path_if_not_exist:
+                    # This flow ensures no errors whne the path should exist and also should be created.
                     os.makedirs(new_var.value, exist_ok=True)
 
                 if new_var.path_must_exist:

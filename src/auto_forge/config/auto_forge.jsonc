@@ -89,7 +89,6 @@
         ["BUILD_IMAGES",        "$BUILD_BASE/images",                           "Compiled binaries",                           null,    null,   "IMAGES"            ],
         ["BUILD_LOGS",          "$BUILD_BASE/logs",                             "Runtime build logs",                          null,    null,   "LOGS"              ],
         ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",                      "Foreign resources",                           null,    null,   "EXTERNALS"         ],
-        ["PYTHON_VENV",         "$PROJ_WORKSPACE/.venv",                        "Python virtual environment",                  true,    false,  null                ],
         ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Project base path",                           null,    null,   null                ],
         ["DOCS_BASE",           "$PROJ_BASE/docs",                              "Project Documents",                           null,    null,   "DOCUMENTS"         ],
         ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                           "Project scripts",                             null,    null,   "SCRIPTS"           ],
@@ -197,6 +196,7 @@
     // other than the workspace path and the solution name.
 
     "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
+    "local_bare_solution_package_files": "$PACKAGE_CONFIG_PATH/bare_solution",
 
     // -----------------------------------------------------------------------------------------------------------------
     //

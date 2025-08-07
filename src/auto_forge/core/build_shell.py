@@ -1408,6 +1408,10 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         build <project>.<config>
         The user is expected to type dots manually, not inserted by completions.
         """
+
+        if self.auto_forge.bare_solution:
+            return []  # Build command is disabled in bare solution mode
+
         try:
             import shlex
             tokens = shlex.split(line[:begin_idx])
@@ -1640,6 +1644,10 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         """
 
         self.last_result = 1
+
+        if self.auto_forge.bare_solution:
+            self.perror("Build is disabled when running bare solution mode")
+            return
 
         try:
             args = shlex.split(arg)

@@ -13,8 +13,8 @@ print_help() {
 	echo "Usage: $(basename "$0") [OPTION]"
 	echo ""
 	echo "Options:"
-	echo "  -d, --debug_port PORT   Optional set remote debugging port."
-	echo "  -h, --debug_host        Optional set remote debugging host (default: localhost)"
+	echo "  -d, --debug-port PORT   Optional set remote debugging port."
+	echo "  -h, --debug-host        Optional set remote debugging host (default: localhost)"
 	echo "  -r, --run-command       Optional: execute one or more commands separated by commas"
 	echo "      --verbose           Enable detailed output."
 	echo "  -?, --help              Show this help message"
@@ -110,11 +110,11 @@ main() {
 	while [[ $# -gt 0 ]]; do
 		if $parsing; then
 			case "$1" in
-				-d | --debug_port)
+				-d | --debug-port | --debug_port)
 					debug_port="$2"
 					shift 2
 					;;
-				-h | --debug_host)
+				-h | --debug-host | --debug_host)
 					debug_host="$2"
 					shift 2
 					;;
@@ -122,7 +122,7 @@ main() {
 					verbose=true
 					shift
 					;;
-				-r | --run_command)
+				-r | --run-command | --run_command)
 					run_command_triggered=true
 					shift
 					parsing=false

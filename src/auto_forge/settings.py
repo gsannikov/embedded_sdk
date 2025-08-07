@@ -27,6 +27,7 @@ class PackageGlobals:
     REPO: Optional[str] = None
     VERSION: Optional[str] = None
     TEMP_PREFIX: Optional[str] = None
+    VENV_PATH: Optional[Path] = None
     PACKAGE_PATH: Optional[Path] = None  # Package installation path
     CONFIG_PATH: Optional[Path] = None
     CONFIG_FILE: Optional[Path] = None
@@ -83,6 +84,10 @@ class PackageGlobals:
             if os.environ.get('PACKAGE_SESSION_ID'):
                 cls.SPAWNED = True
 
+            # Locate virtual environment Python path
+            if hasattr(sys, "real_prefix") or sys.prefix != sys.base_prefix:
+                cls.VENV_PATH = Path(sys.prefix)
+
             cls.SESSION_ID = str(uuid.uuid4())
             cls.PACKAGE_PATH = package_path
             cls.VERSION = version(package_name)
@@ -126,6 +131,30 @@ class PackageGlobals:
             for k in vars(cls)
             if k.isupper() and not k.startswith("__")
         }
+
+    @classmethod
+    def expand(cls, var: Optional[str] = None) -> Optional[str]:
+        """
+        Expand variables of the form $PACKAGE_<FIELD> using PackageGlobals.<FIELD>.
+        Only attributes defined in this class (without the PACKAGE_ prefix) are supported.
+        Args:
+            var (Optional[str]): Input string containing zero or more $PACKAGE_XXX patterns.
+        Returns:
+            Optional[str]: String with all valid $PACKAGE_XXX patterns expanded, or None if input is None.
+        """
+        if not isinstance(var, str):
+            return None
+
+        pattern = re.compile(r"\$PACKAGE_([A-Z0-9_]+)")
+
+        def _replacer(match):
+            attr_name = match.group(1)
+            value = getattr(cls, attr_name, None)
+            if value is None:
+                return match.group(0)  # Leave as-is if not found
+            return str(value)
+
+        return pattern.sub(_replacer, var)
 
 
 # Singleton instance

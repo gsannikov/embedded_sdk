@@ -1,30 +1,30 @@
-# `hello` Command
+# `hello` Sample Command.
 
-A sample `hello` command demonstrating how to create, register, and implement a custom command within the **AutoForge
-SDK**. This command prints a simple greeting and serves as a developer reference for building new commands.
+A sample `hello` command demonstrating how to create, register, and implement a custom command within the **SDK**.
+This command echo a message back to the terminal and servers as a developer reference for building new commands.
 
 ## Usage
 
 ```bash
-hello --text "World"
+hello --m "Hello world!"
 ```
 
 ### Options
 
 | Option             | Description                                      |
 |--------------------|--------------------------------------------------|
-| `-h`, `--help`     | Show help message and exit.                      |
-| `-t`, `--text`     | Optional text to print in the console greeting.  |
-| `-v`, `--version`  | Show version and exit.                           |
+| `-h`,  `--help`    | Show help message and exit.                      |
+| `-m`,  `--message` | Message to print back.                           |
+| `-v`,  `--version` | Show version and exit.                           |
 | `-vv`, `--verbose` | Show more information while running the command. |
 
 ---
 
 ## Developer Notes
 
-This command serves as a template for implementing your own commands using the **AutoForge SDK**.
+This command serves as a template for implementing your own commands using the **SDK**.
 
-### 1. Base Interface: `CommandInterface`
+### 1. Interface: `CommandInterface`
 
 All commands must inherit from the abstract base class `CommandInterface`:
 
@@ -34,17 +34,22 @@ from auto_forge import (CommandInterface)
 
 
 class HelloCommand(CommandInterface):
+    ...
 ```
 
 This ensures a consistent API and lifecycle across all commands.
 
 ---
 
-### 2. Required Constructor Initialization
+### 2. Constructor
 
 Each command must call the base class constructor using `super()`, passing the command name and type:
 
 ```python
+from typing import Any, Optional
+from auto_forge import (AutoForgCommandType)
+
+
 def __init__(self, **_kwargs: Any):
     """
     Initializes the HelloCommand class.
@@ -63,9 +68,12 @@ Each command must implement **two** key methods:
 Defines expected arguments using `argparse`. For example:
 
 ```python
+import argparse
+
+
 def create_parser(self, parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("-t", "--text", type=str,
-                        help="Optional text to print in the console greeting.")
+    parser.add_argument("-m", "--message", type=str,
+                        help="Message to print")
 ```
 
 #### `run(self, args: argparse.Namespace) -> int`
@@ -73,11 +81,15 @@ def create_parser(self, parser: argparse.ArgumentParser) -> None:
 Executes the command using parsed arguments:
 
 ```python
+import argparse
+from auto_forge import (CommandInterface)
+
+
 def run(self, args: argparse.Namespace) -> int:
     return_code: int = 0
 
-    if args.text:
-        print(f"Hello '{args.text}' 😎")
+    if args.message:
+        print(f"Hello '{args.text}' ?")
     else:
         # Error: no arguments
         return_code = CommandInterface.COMMAND_ERROR_NO_ARGUMENTS

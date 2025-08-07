@@ -8,6 +8,7 @@ Description:
 """
 import argparse
 import sys
+from argparse import ArgumentParser
 from contextlib import suppress
 from typing import Optional
 
@@ -26,6 +27,33 @@ def arguments_process() -> Optional[argparse.Namespace]:
         Optional[argparse.Namespace]: Command line arguments namespace when successfully parsed, None otherwise.
     """
 
+    def _validate_workspace_or_bare(_args, _parser: ArgumentParser):
+        """
+        Ensure that either --bare is used alone, or both --workspace-path and --solution-name are provided.
+        --solution-package is optional, but only allowed in workspace mode.
+        """
+        has_workspace = bool(_args.workspace_path)
+        has_solution = bool(_args.solution_name)
+        has_package = bool(_args.solution_package)
+        is_bare = _args.bare
+
+        if is_bare:
+            if has_workspace or has_solution or has_package:
+                _parser.error(
+                    "--bare cannot be used together with --workspace-path, --solution-name, or --solution-package.")
+            return  # Valid bare mode with no extras
+
+        # Not in bare mode: workspace and solution name are mandatory
+        if not has_workspace or not has_solution:
+            missing = []
+            if not has_workspace:
+                missing.append("--workspace-path")
+            if not has_solution:
+                missing.append("--solution-name")
+            _parser.error(
+                f"Missing required arguments for workspace mode: {', '.join(missing)}.\n"
+                "You must provide both --workspace-path and --solution-name unless using --bare.")
+
     with suppress(Exception):
         version_string = f"{PackageGlobals.NAME} Ver {PackageGlobals.VERSION}"
 
@@ -35,27 +63,28 @@ def arguments_process() -> Optional[argparse.Namespace]:
             sys.exit(0)
 
         # Normal arguments handling
-        parser = argparse.ArgumentParser(prog="autoforge",
-                                         description=f"{version_string} arguments:")
+        parser = argparse.ArgumentParser(prog="autoforge", description=f"{version_string} arguments:")
 
         # Required argument specifying the workspace path. This can point to an existing workspace
         # or a new one to be created by AutoForge, depending on the solution definition.
-        parser.add_argument("-w", "--workspace-path", required=True,
+        parser.add_argument("-w", "--workspace-path",
                             help="Path to an existing or new workspace to be used by AutoForge.")
 
-        parser.add_argument("-n", "--solution-name", required=True,
+        parser.add_argument("-n", "--solution-name",
                             help="Name of the solution to use. It must exist in the solution file.")
 
         # AutoForge requires a solution to operate. This can be provided either as a pre-existing local ZIP archive,
         # or as a Git URL pointing to a directory containing the necessary solution JSON files.
-
-        parser.add_argument("-p", "--solution-package", required=False,
+        parser.add_argument("-p", "--solution-package",
                             help=("Path to an AutoForge solution package. This can be either:\n"
                                   "- Path to an existing .zip archive file.\n"
                                   "- Path to an existing directory containing solution files.\n"
                                   "- Github URL pointing to git path which contains the solution files.\n"
                                   "The package path will be validated at runtime, if not specified, the solution will "
                                   "be searched for in the local solution workspace path under 'scripts/solution'"))
+
+        # Bare mode enables a limited AutoForge operation and is mutually exclusive with (-w, -n, -p) arguments.
+        parser.add_argument("-b", "--bare", action="store_true", help="Use bare solution")
 
         # Other optional configuration arguments
         parser.add_argument("-d", "--remote-debugging", type=str, required=False,
@@ -75,17 +104,20 @@ def arguments_process() -> Optional[argparse.Namespace]:
         # (2) Running a single command from an existing workspace.
         # Only one of these modes may be used at a time.
 
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument(
+        op_mode_group = parser.add_mutually_exclusive_group()
+        op_mode_group.add_argument(
             "-s", "--run-sequence", type=str, required=False,
             help="Solution properties name which points to a sequence of operations")
-        group.add_argument(
+        op_mode_group.add_argument(
             "-r", "--run-command",
             nargs=argparse.REMAINDER,
             help="One or more commands separated by ','"
         )
 
         args = parser.parse_args()
+
+        # Manual mutual-exclusiveness validation between bare solution and normal solution
+        _validate_workspace_or_bare(_args=args, _parser=parser)
 
         if args.run_command:
             # Remove '--' if was injected by shell

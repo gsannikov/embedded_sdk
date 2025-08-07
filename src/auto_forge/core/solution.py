@@ -386,13 +386,13 @@ class CoreSolution(CoreModuleInterface):
         variables_config_file_name = self._resolve_include(element="variables", context=solution_data,
                                                            search_path=self._config_file_path, return_path=True)
         if variables_config_file_name is None:
-            raise RuntimeError("'variables' mandatory include file could not be resolved")
-
-        # Initialize the variables core module based on the configuration file we got
-
-        if self._schema_files is not None and self._schema_files.get("variables"):
-            variables_schema = self._processor.render(file_name=self._schema_files.get("variables"))
-        self._variables.load_from_file(config_file_name=variables_config_file_name, variables_schema=variables_schema)
+            self._logger.warning("'variables' include file could not be resolved")
+        else:
+            # Initialize the variables core module based on the configuration file we got
+            if self._schema_files is not None and self._schema_files.get("variables"):
+                variables_schema = self._processor.render(file_name=self._schema_files.get("variables"))
+            self._variables.load_from_file(config_file_name=variables_config_file_name,
+                                           variables_schema=variables_schema)
 
         if self._schema_files is not None and self._schema_files.get("signatures"):
             # Instantiate the optional signatures core module based on the configuration file we got
