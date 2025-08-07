@@ -21,6 +21,7 @@ import sys
 import tempfile
 from collections.abc import Sequence
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime
 from html import unescape
 from typing import Any
@@ -34,7 +35,7 @@ from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, FieldColorType, LogHandlersType, PackageGlobals)
 
 AUTO_FORGE_MODULE_NAME = "Logger"
-AUTO_FORGE_MODULE_DESCRIPTION = "Central Logging"
+AUTO_FORGE_MODULE_DESCRIPTION = "Central Logging module"
 
 
 # ------------------------------------------------------------------------------
@@ -45,6 +46,16 @@ AUTO_FORGE_MODULE_DESCRIPTION = "Central Logging"
 #   portability and prevent circular import issues.
 #
 # ------------------------------------------------------------------------------
+
+@dataclass
+class LoggerSettingsType:
+    """ Handy container that packs several logger setup properties into a single type """
+    handlers: LogHandlersType = LogHandlersType.NO_HANDLERS
+    log_file: Optional[str] = None
+    enable_console_output = False
+    enable_colors: bool = False
+    enable_formatting: bool = False
+    flush_memory_logs: bool = False
 
 
 class _PausableFilter(logging.Filter):
@@ -96,7 +107,7 @@ class _ColorFormatter(logging.Formatter):
             raise ValueError(f"formatter expected 'CoreLogger', got '{type(parent_logger).__name__}' instead.")
 
         self._auto_logger: CoreLogger = parent_logger
-        self._clean_tokens = self._auto_logger.cleanup_patterns_list
+        self._cleanup_patterns: Optional[list] = parent_logger.cleanup_patterns
 
     def clean_log_line(self, line: str) -> str:
         """
@@ -104,17 +115,15 @@ class _ColorFormatter(logging.Formatter):
         For each pattern in self._clean_tokens (if set), attempts to remove matching parts
         from the line. All exceptions are suppressed to ensure robustness. If a pattern fails,
         the line is returned as-is for that case.
-
         Args:
             line (str): The input log line.
-
         Returns:
             str: The cleaned log line.
         """
-        if not self._clean_tokens:
+        if not isinstance(self._cleanup_patterns, list) or len(self._cleanup_patterns) == 0:
             return line
 
-        for pattern in self._clean_tokens:
+        for pattern in self._cleanup_patterns:
             with suppress(Exception):
                 line = re.sub(pattern, "", line).lstrip()
         return line
@@ -283,6 +292,8 @@ class CoreLogger(CoreModuleInterface):
         self._enabled_handlers: LogHandlersType = LogHandlersType.NO_HANDLERS
         self._enable_colors: bool = True
         self._enable_formatting: bool = True
+        self._configuration: Optional[dict[str, Any]] = None
+        self._cleanup_patterns: Optional[list] = None
 
         super().__init__(*args, **kwargs)
 
@@ -291,8 +302,7 @@ class CoreLogger(CoreModuleInterface):
                     output_state: bool = True,
                     erase_exiting_file: bool = True,
                     exclusive: bool = True,
-                    enable_memory_logger: bool = True,
-                    configuration_data: Optional[dict[str, Any]] = None) -> None:
+                    enable_memory_logger: bool = True) -> None:
 
         """
         Initializes the CoreLogger with default logging level and handler configuration.
@@ -303,7 +313,6 @@ class CoreLogger(CoreModuleInterface):
             erase_exiting_file (bool): If True, na exiting log file will be erased.
             exclusive (bool): If True, disables all other non-CoreLogger loggers.
             enable_memory_logger (bool): If True, enables memory logger.
-            configuration_data (dict, optional): Global AutoForge JSON configuration data.
         """
 
         self._logger: Optional[logging.Logger] = None
@@ -317,13 +326,8 @@ class CoreLogger(CoreModuleInterface):
         self._stream_memory_handler: Optional[logging.StreamHandler] = None
         self._memory_logs_buffer = []  # List[str] of formatted log lines
         self._enable_colors: bool = enable_colors
-        self._output_state: bool = output_state
+        self._enable_console_output: bool = output_state
         self._exclusive: bool = exclusive
-
-        # Attempt to get the cleanup regex pattern from the configuration object
-        self.cleanup_patterns_list: Optional[list] = None
-        if configuration_data is not None:
-            self.cleanup_patterns_list = configuration_data.get('log_cleanup_patterns', [])
 
         # noinspection SpellCheckingInspection
         self._log_format: str = '[%(asctime)s %(levelname)-8s] %(name)-14s: %(message)s'
@@ -415,9 +419,7 @@ class CoreLogger(CoreModuleInterface):
 
         if LogHandlersType.MEMORY_HANDLER in handlers and self._stream_memory_handler is None:
             # ------------------------------------------------------------------------------
-            #
             #  Create logger memory handler
-            #
             # ------------------------------------------------------------------------------
 
             formatter: Optional[_ColorFormatter] = (_ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
@@ -431,16 +433,14 @@ class CoreLogger(CoreModuleInterface):
 
         if LogHandlersType.CONSOLE_HANDLER in handlers and self._stream_console_handler is None:
             # ------------------------------------------------------------------------------
-            #
             #  Create logger console handler
-            #
             # ------------------------------------------------------------------------------
 
             formatter: Optional[_ColorFormatter] = (_ColorFormatter(fmt=self._log_format, datefmt=self._date_format,
                                                                     parent_logger=self,
                                                                     handler=LogHandlersType.CONSOLE_HANDLER))
             pause_filer = _PausableFilter()
-            pause_filer.enabled = self._output_state
+            pause_filer.enabled = self._enable_console_output
 
             self._stream_console_handler = logging.StreamHandler(sys.stdout)
             self._stream_console_handler.setFormatter(formatter)
@@ -450,9 +450,7 @@ class CoreLogger(CoreModuleInterface):
 
         if LogHandlersType.FILE_HANDLER in handlers and self._stream_file_handler is None:
             # ------------------------------------------------------------------------------
-            #
             #  Create logger file handler
-            #
             # ------------------------------------------------------------------------------
 
             if not self._log_file_name:
@@ -540,7 +538,7 @@ class CoreLogger(CoreModuleInterface):
         # Disable and clear memory handler after flush
         self._disable_handlers(LogHandlersType.MEMORY_HANDLER)
         self._internal_logger.debug(
-            f"Flushed {len(self._memory_logs_buffer)} memory record(s) to the destination logger.")
+            f"Flushed {len(self._memory_logs_buffer)} memory record(s) to the destination logger")
         self._memory_logs_buffer.clear()
         return True
 
@@ -695,6 +693,22 @@ class CoreLogger(CoreModuleInterface):
         local_instance = CoreLogger.get_instance()
         return local_instance._logger if (local_instance and local_instance._logger) else None
 
+    def set_configuration(self, config_data: Optional[dict[str, Any]] = None):
+        """
+        Apply configuration settings to the logger using the provided configuration dictionary.
+        Note:
+            Unlike other core modules where configuration is typically passed during instantiation,
+            the logger starts as early as possible—before configuration is fully loaded.
+            Therefore, this method supports lazy configuration injection after initialization.
+        Args:
+            config_data (Optional[dict[str, Any]]): Configuration dictionary from the package JSON.
+        """
+        if not isinstance(config_data, dict):
+            return
+
+        self._configuration = config_data
+        self._cleanup_patterns = config_data.get('log_cleanup_patterns', [])
+
     @staticmethod
     def set_output(logger: Optional[logging.Logger] = None, state: bool = True) -> None:
         """
@@ -719,17 +733,17 @@ class CoreLogger(CoreModuleInterface):
         if target_logger == CoreLogger.get_base_logger():
             local_instance = CoreLogger.get_instance()
             if local_instance is not None:
-                local_instance._output_state = state
+                local_instance._enable_console_output = state
 
     def get_logger(self, name: Optional[str] = None, log_level: Optional[int] = None,
-                   console_stdout: Optional[bool] = None) -> logging.Logger:
+                   enable_console_output: Optional[bool] = None) -> logging.Logger:
         """
         Returns a logger instance. If a name is provided, returns a named logger
         sharing the same handlers and config as the CoreLogger.
         Args:
             name (Optional[str]): Custom display name for the logger (overrides .name).
             log_level (Optional[int]): Override for logger level.
-            console_stdout (Optional[bool]): Sets the initial state of the console streamer.
+            enable_console_output (Optional[bool]): Sets the initial state of the console streamer.
         Returns:
             logging.Logger: Configured logger instance.
         """
@@ -753,11 +767,11 @@ class CoreLogger(CoreModuleInterface):
             self._known_logger_names.add(custom_logger.name)  # Track locally created loggers
 
         # Use the base logger console state flag if not specified
-        if console_stdout is None:
-            console_stdout = self._output_state
+        if enable_console_output is None:
+            enable_console_output = self._enable_console_output
 
         # Set initial output state
-        self.set_output(logger=returned_instance, state=console_stdout)
+        self.set_output(logger=returned_instance, state=enable_console_output)
         return returned_instance
 
     def set_colors(self, enable_colors: bool = True):
@@ -802,3 +816,8 @@ class CoreLogger(CoreModuleInterface):
     def formatting(self) -> bool:
         """Get the state of the logs formater."""
         return self._enable_formatting
+
+    @property
+    def cleanup_patterns(self) -> Optional[list[str]]:
+        """Get Optional cleanup patterns."""
+        return self._cleanup_patterns

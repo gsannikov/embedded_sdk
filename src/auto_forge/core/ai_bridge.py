@@ -102,12 +102,15 @@ class CoreAIBridge(CoreModuleInterface):
         """
         try:
 
-            self._batman = self._variables.get("AF_STORAGE_BATMAN")
-            self._robin = self._variables.get("AF_STORAGE_ROBIN")
+            volt_path = self._variables.get("AF_AI_VOLT")
             preferred_provider_name = self._variables.get("AF_AI_PROVIDER")
 
-            if None in (self._batman, self._robin):
-                raise RuntimeError("Required necessities ware missing")
+            self._batman: Path = Path(volt_path) / "batman.txt"
+            self._robin: Path = Path(volt_path) / "robin.txt"
+
+            missing = [p for p in (self._batman, self._robin) if not p.exists()]
+            if missing:
+                raise FileNotFoundError(f"Required components ware missing")
 
             # Initialize Crypto with robin creating it if needed
             crypto = Crypto(key_file=self._robin, create_as_needed=True)
@@ -123,17 +126,17 @@ class CoreAIBridge(CoreModuleInterface):
                 if not isinstance(joker_data, dict):
                     raise FileNotFoundError(f"Providers file '{joker}' cold be converted to a dictionary")
                 os.unlink(self._batman) if os.path.exists(self._batman) else None
-                crypto.create_or_load_encrypted_dict(filename=self._batman, default_data=joker_data)
+                crypto.create_or_load_encrypted_dict(filename=str(self._batman), default_data=joker_data)
 
             # Read the storage or create a fresh storage if we could not read it.
-            storage_data: Optional[dict] = crypto.create_or_load_encrypted_dict(filename=self._batman)
+            storage_data: Optional[dict] = crypto.create_or_load_encrypted_dict(filename=str(self._batman))
             storage_version: Optional[str] = storage_data.get('version') if isinstance(storage_data, dict) else None
 
             if not isinstance(storage_version, str) or storage_version != self._providers.version:
                 self._logger.warning("Storage version mismatch, generating new one")
                 os.unlink(self._batman) if os.path.exists(self._batman) else None
                 storage_data = crypto.create_or_load_encrypted_dict(
-                    filename=self._batman, default_data=self._providers.to_dict())
+                    filename=str(self._batman), default_data=self._providers.to_dict())
                 storage_version = storage_data.get('version') if isinstance(storage_data, dict) else None
 
             # Second time around after generating a fresh data with defaults

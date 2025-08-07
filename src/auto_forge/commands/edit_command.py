@@ -283,9 +283,7 @@ class EditCommand(CommandInterface):
             None: If no editors are detected.
         """
         self._logger.debug(f"Resolving editor using '{editor_identifier}'")
-
         if not self._detected_editors:
-            self._logger.warning("No editors detected.")
             return None
 
         # Numeric selection (1-based index)

@@ -34,7 +34,7 @@ class HelloCommand(CommandInterface):
         Command specific initialization, will be executed lastly by the interface class
         after all other initializers.
         """
-        self._logger.info("Initializing 'HelloCommand'..")
+        self._logger.debug("Initializing 'HelloCommand'..")
         return True
 
     def create_parser(self, parser: argparse.ArgumentParser) -> None:

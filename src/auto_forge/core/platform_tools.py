@@ -117,7 +117,7 @@ class CorePlatform(CoreModuleInterface):
         self._build_colorize_keywords: list = self._configuration.get('build_colorize_keywords', [])
 
         # Logger similarity filtering rules
-        self._log_similarity_filter:Optional[dict] = self._configuration.get('log_similarity_filter')
+        self._log_similarity_filter: Optional[dict] = self._configuration.get('log_similarity_filter')
 
         # Allow to override default execution timeout of a sub-processes in configuration
         self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
@@ -597,9 +597,9 @@ class CorePlatform(CoreModuleInterface):
         if searched_token not in env_value:
             raise ValueError(f"token '{searched_token}' not found in environment variable '{name}'.")
 
-    def execute_python_method(self, method_name: str, arguments: Optional[Union[str, dict]] = None,
-                              quiet: bool = False) -> Optional[
-        CommandResultType]:
+    def execute_python_method(self, method_name: str,
+                              arguments: Optional[Union[str, dict]] = None,
+                              quiet: bool = False) -> Optional[CommandResultType]:
         """
         Dynamically execute an arbitrary method using its name and arguments read from JSON step.
         Args:
@@ -663,7 +663,8 @@ class CorePlatform(CoreModuleInterface):
             results = execution_error.results
 
             if isinstance(results, CommandResultType):
-                exception_message = f"command '{results.command}' returned {results.return_code}, message: {results.message}"
+                command_prefix = f"command '{results.command}'" if results.command else f"method '{method_name}()'"
+                exception_message = f"{command_prefix} returned {results.return_code}, message: {results.message}"
             else:
                 exception_message = f"caught execution exception with no data"
             if quiet:
@@ -743,8 +744,8 @@ class CorePlatform(CoreModuleInterface):
         """
 
         polling_interval: float = 0.1
-        similarity_filter: float = 0.85 # Used to filter similar lines from being logged
-        buffer_size:int = 0 # Sub-process buffer size
+        similarity_filter: float = 0.85  # Used to filter similar lines from being logged
+        buffer_size: int = 0  # Sub-process buffer size
         kwargs: Optional[dict[str, Any]] = {}
         line_buffer = bytearray()
         lines_queue = deque(maxlen=1024)  # Storing upto the last 100 output lines
@@ -760,7 +761,7 @@ class CorePlatform(CoreModuleInterface):
         # Force no echo when automating a command, in which case it's output will be captured and logged
         if self.auto_forge.work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
             echo_type = TerminalEchoType.NONE
-            similarity_filter = 1.0 # Do not filter anything in this mode
+            similarity_filter = 1.0  # Do not filter anything in this mode
 
         def _safe_quote(_arg: str) -> str:
             """ Allow simple expansions or globs, quote all else """
@@ -984,7 +985,8 @@ class CorePlatform(CoreModuleInterface):
             if use_pty:
                 self._logger.debug(f"Executing: {command_and_args} (PTY)")
                 master_fd, slave_fd = pty.openpty()
-                process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, bufsize=buffer_size,
+                process = subprocess.Popen(_command, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+                                           bufsize=buffer_size,
                                            shell=shell, cwd=cwd, env=proc_env, **kwargs)
                 flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
                 fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -992,7 +994,8 @@ class CorePlatform(CoreModuleInterface):
             else:  # Non PTY process open
                 self._logger.debug(f"Executing: {command_and_args}")
                 process = subprocess.Popen(_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT, bufsize=buffer_size, shell=shell, cwd=cwd, env=proc_env,
+                                           stderr=subprocess.STDOUT, bufsize=buffer_size, shell=shell, cwd=cwd,
+                                           env=proc_env,
                                            **kwargs)
             start_time = time.time()
             output_ready = False
@@ -1213,7 +1216,6 @@ class CorePlatform(CoreModuleInterface):
             path (str): The absolute path of the directory to be deleted.
             allow_non_empty (bool): If False and the path is a non-empty directory, the operation is canceled.
             raise_exception_if_not_exist(bool): If True, raises an exception if the path does not exist.
-
         Returns:
             None, raising exception on error.
         """
@@ -1306,7 +1308,7 @@ class CorePlatform(CoreModuleInterface):
         try:
             if not isinstance(path, (Path, str)):
                 raise CommandFailedException(
-                    results=CommandResultType(return_code=1, command="path_check_exist",
+                    results=CommandResultType(return_code=1,
                                               message="'path' is not a valid string or Path object"))
 
             # Expand and convert to Path object
@@ -1315,30 +1317,29 @@ class CorePlatform(CoreModuleInterface):
 
             if not path.exists():
                 raise CommandFailedException(
-                    results=CommandResultType(return_code=1, command="path_check_exist",
+                    results=CommandResultType(return_code=1,
                                               message=f"path does not exist: '{str(path)}'"))
 
             if path.is_file():
                 raise CommandFailedException(
-                    results=CommandResultType(return_code=1, command="path_check_exist",
+                    results=CommandResultType(return_code=1,
                                               message=f"path is a file, not a directory: '{str(path)}'"))
 
             if not path.is_dir():
                 raise CommandFailedException(results=CommandResultType(return_code=1,
-                                                                       command="path_check_exist",
-                                                                       message=f"path exists but is not a regular directory: '{str(path)}'"))
+                                                                       message=f"path exists but is not a directory: '{str(path)}'"))
             if not_empty:
                 try:
                     if not any(path.iterdir()):
                         raise CommandFailedException(
-                            results=CommandResultType(return_code=1, command="path_check_exist",
+                            results=CommandResultType(return_code=1,
                                                       message=f"directory is empty: '{str(path)}'"))
                 except PermissionError:
                     raise CommandFailedException(
-                        results=CommandResultType(return_code=1, command="path_check_exist",
+                        results=CommandResultType(return_code=1,
                                                   message=f"permission denied when accessing: '{str(path)}'"))
 
-            return CommandResultType(return_code=0, command="path_check_exist")
+            return CommandResultType(return_code=0)
 
         except PermissionError:
             raise CommandFailedException(

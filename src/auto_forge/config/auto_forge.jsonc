@@ -82,6 +82,7 @@
         ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",                    "Persistent solution indexes",                 null,    null,   "INDEX"             ],
         ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                        "Persistent solution binaries",                null,    null,   null                ],
         ["AF_AI_PROVIDER",      "azure_openai",                                 "AI Preferred provider name",                  null,    null,   null                ],
+	  	["AF_AI_VOLT",          "$PACKAGE_SHARED_PATH/volt",                    "AI Volt",                                     true,    false,  null                ],
         ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Solution root directory",                     null,    null,   null                ],
         ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                        "Base path for compilers outputs",             null,    null,   null                ],
         ["BUILD_OUT",           "$BUILD_BASE/out",                              "Compilation outputs",                         null,    null,   "BUILD"             ],
@@ -102,7 +103,7 @@
     //
     // -----------------------------------------------------------------------------------------------------------------
 
-    "log_similarity_filter": {
+  	"log_similarity_filter": {
         
         "default_threshold": 0.85,  // Default similarity threshold for all tools
         "enabled": true,            // Optional: global enable/disable flag
@@ -120,9 +121,20 @@
                 "suppress_similar_lines": true
             }
         }
-    },
+	},
 
-    // -----------------------------------------------------------------------------------------------------------------
+  	"log_cleanup_patterns": [
+
+        // log_cleanup_patterns:
+        // This list defines regular expression patterns used to clean or filter noisy lines
+        // from command output logs. Lines matching any of these patterns will be removed
+        // before displaying logs to the user.
+
+        "^remote: Counting objects:\\s*",
+        "^━+.*?━+\\s*"
+    ],
+
+  	// -----------------------------------------------------------------------------------------------------------------
     //
     // SQLIte data-base configuration attributes.
     //
@@ -228,17 +240,6 @@
         "$AF_SOLUTION_BIN", // AutoForge persistent solution specific binaries
         "$HOME/bin"
       ],
-
-    "log_cleanup_patterns": [
-
-        // log_cleanup_patterns:
-        // This list defines regular expression patterns used to clean or filter noisy lines
-        // from command output logs. Lines matching any of these patterns will be removed
-        // before displaying logs to the user.
-
-        "^remote: Counting objects:\\s*",
-        "^━+.*?━+\\s*"
-    ],
 
     "builtin_aliases": [
 

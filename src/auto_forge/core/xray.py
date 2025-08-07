@@ -321,7 +321,7 @@ class CoreXRayDB(CoreModuleInterface):
             except Exception as sql_error:
                 self._logger.warning(f"Existing index is invalid or incompatible: {sql_error}")
                 try:
-                    self._logger.info(f"Delinting corrupted SQLite database, deleting '{str(self._db_file)}'")
+                    self._logger.warning(f"Delinting corrupted SQLite database, deleting '{str(self._db_file)}'")
                     self._db_file.unlink(missing_ok=True)
                     self._clean_slate = True
 
@@ -489,19 +489,19 @@ class CoreXRayDB(CoreModuleInterface):
                             parsed_date = parsed_date.replace(tzinfo=UTC)  # assume UTC if not present
                         self._db_last_indexed_date = parsed_date
                         self._db_last_indexed_age_days = (datetime.now(UTC) - parsed_date).days
-                        self._logger.info(f"Database was last indexed {self._db_last_indexed_age_days} days ago")
+                        self._logger.debug(f"Database was last indexed {self._db_last_indexed_age_days} days ago")
                     except ValueError:
                         raise RuntimeError(f"invalid datetime format for 'db_last_indexed_date': {raw_date}")
 
             # Log few of the 'meta' table properties.
-            self._logger.info(f"DB Metadata: engine v{existing_db_version}, "
+            self._logger.debug(f"DB Metadata: engine v{existing_db_version}, "
                               f"created by AutoForge v{self._db_meta_data.get('auto_forge_version')} "
                               f"for solution '{self._db_meta_data.get('solution_name')}'")
 
             # Get current records (indexed files) count in the 'files' table
             cursor.execute("SELECT COUNT(*) FROM files")
             self._db_row_count = cursor.fetchone()[0]
-            self._logger.info(f"DB row count in 'files': {self._db_row_count}")
+            self._logger.debug(f"DB row count in 'files': {self._db_row_count}")
             if not self._db_row_count:
                 self._logger.warning(f"Empty 'files', forcing clean slate")
                 self._clean_slate = True
@@ -730,7 +730,7 @@ class CoreXRayDB(CoreModuleInterface):
                     rate = int(total_processed / elapsed) if elapsed > 0 else 0
                     total_processed += processed_count
                     details = f"{total_processed:>7,d} files indexed ({rate:>6,d} files/sec)"
-                    self._logger.info(f"Summary: {details}")
+                    self._logger.debug(f"Summary: {details}")
 
                 # Reset counters but not the start time
                 read_stats.processed = read_stats.errors = 0
@@ -754,7 +754,7 @@ class CoreXRayDB(CoreModuleInterface):
                 self._logger.info(f"DB is synchronized")
                 return  # Nothing to remove
 
-            self._logger.info(f"Removing {len(stale_paths)} stale entries from the DB")
+            self._logger.debug(f"Removing {len(stale_paths)} stale entries from the DB")
 
             try:
                 _conn = self._get_sql_connection()
@@ -922,7 +922,7 @@ class CoreXRayDB(CoreModuleInterface):
 
                         # Refresh current records (indexed files) count in the 'files' table post our indexing operation.
                         self._db_row_count = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-                        self._logger.info(f"DB row count in 'files': {self._db_row_count}")
+                        self._logger.debug(f"DB row count in 'files': {self._db_row_count}")
 
                     except Exception as sql_error:
                         self._logger.error(f"Final batch insert failed: {sql_error}")
@@ -947,9 +947,9 @@ class CoreXRayDB(CoreModuleInterface):
             self._logger.debug("No files matched indexing criteria — queue is empty.")
             return True  # Nothing to do
 
-        self._logger.info(f"Found approximately {queued_files} files..")
+        self._logger.debug(f"Found approximately {queued_files} files..")
         if self._db_filter_files_content:
-            self._logger.info("Indexed files will be normalized prior to indexing")
+            self._logger.debug("Indexed files will be normalized prior to indexing")
 
         # Create worker threads.
         readers = [Thread(target=_reader_worker, daemon=True, name="IndexerReader") for _ in range(XRAY_NUM_READERS)]
@@ -1019,7 +1019,7 @@ class CoreXRayDB(CoreModuleInterface):
                     )
 
                     if has_recently_indexed:
-                        self._logger.info("Database was recently indexed, skipping.")
+                        self._logger.debug("Database was recently indexed, skipping.")
                     else:
                         self._set_state(XRayStateType.DB_INDEXING)
                         self._tool_box.show_status(

@@ -45,22 +45,6 @@
             "path_must_exist": true,
             "create_path_if_not_exist": false,
             "folder_type": "HELP"
-        },
-        {
-            "name": "AF_STORAGE_BATMAN",
-            "value": "$SCRIPTS_SOLUTION/storage/batman.txt",
-            "description": "AI necessities",
-            "path_must_exist": true,
-            "create_path_if_not_exist": false,
-            "folder_type": "MISFITS"
-        },
-        {
-            "name": "AF_STORAGE_ROBIN",
-            "value": "$SCRIPTS_SOLUTION/storage/robin.txt",
-            "description": "AI necessities",
-            "path_must_exist": true,
-            "create_path_if_not_exist": false,
-            "folder_type": "MISFITS"
         }
     ]
 }

@@ -33,7 +33,7 @@ from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreAIBridge, CoreBuildShell, CoreContext, CoreDynamicLoader, CoreGUI,
     CoreJSONCProcessor, CoreLinuxAliases, CoreLogger, CoreModuleInterface, CorePlatform, CoreRegistry,
     CoreSolution, CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog, CoreXRayDB,
-    EventManager, ExceptionGuru, LogHandlersType, PackageGlobals, StatusNotifType,
+    EventManager, ExceptionGuru, LogHandlersType, LoggerSettingsType, PackageGlobals, StatusNotifType,
 )
 
 AUTO_FORGE_MODULE_NAME = "AutoForge"
@@ -127,8 +127,8 @@ class AutoForge(CoreModuleInterface):
         # Obtain a logger instance as early as possible, configured to support memory-based logging.
         # Later, once we determine whether to use file and/or console output, all buffered memory logs
         # will be flushed to the appropriate active handlers.
-        self._core_logger = CoreLogger(log_level=logging.DEBUG, configuration_data=self._configuration)
-        self._logger: logging.Logger = self._core_logger.get_logger(console_stdout=False)
+        self._core_logger = CoreLogger(log_level=logging.DEBUG)
+        self._logger: logging.Logger = self._core_logger.get_logger(enable_console_output=False)
         self._logger.debug("System initializing..")
         self._logger.debug(f"Started from '{os.getcwd()}', editable package '{PackageGlobals.EDITABLE}'")
 
@@ -259,63 +259,71 @@ class AutoForge(CoreModuleInterface):
     def _init_logger(self):
         """ Finalize logger initialization based on Auto|Forge execution mode """
 
-        handlers: LogHandlersType = LogHandlersType.NO_HANDLERS
-        log_file: Optional[str] = None
-        enable_console_output = False
-        enable_colors: bool = False
-        enable_formatting: bool = True
-        flush_memory_logs: bool = False
+        logger_setting: LoggerSettingsType = LoggerSettingsType()
 
+        # Interactive user shell: background logging
         if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
-
             # Determine if we have a workspace which could she log file
             logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
-            handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            logger_setting.handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
             base_file_name = os.path.join(logs_workspace_path, f"{PackageGlobals.PROJ_NAME}.log")
 
             # Patch the log file name with timestamp so we will have dedicated log for each build system run.
-            log_file = self._tool_box.append_timestamp_to_path(base_file_name)
-            enable_colors = True
-            enable_console_output = False
-            flush_memory_logs = True
+            logger_setting.log_file = self._tool_box.append_timestamp_to_path(base_file_name)
+            logger_setting.enable_formatting = True
+            logger_setting.enable_colors = True
+            logger_setting.enable_console_output = False
+            logger_setting.flush_memory_logs = True
 
+        # Automation mode: tool output is suppressed, but logs are emitted to the terminal as they are generated
         elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION or PackageGlobals.SPAWNED:
             # Spawned mode is similar to automation profile
-            handlers = LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
-            log_file = None
-            enable_colors = False
-            enable_console_output = True
-            flush_memory_logs = False
+            logger_setting.handlers = LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            logger_setting.log_file = None
+            logger_setting.enable_formatting = True
+            logger_setting.enable_colors = False
+            logger_setting.enable_console_output = True
+            logger_setting.flush_memory_logs = False
+
             if PackageGlobals.SPAWNED:
+
+                # -------------------------------------------------------------------------------------------
                 # When spawned by a parent AutoForge process, we disable file logging and formatting.
                 # Log lines are written as plain, unformatted text directly to the terminal. This allows
                 # the parent logger to capture them as subprocess output and apply its own formatting,
                 # avoiding duplicated prefixes like:
                 #   10:00:00 Warning Module: 10:00:00 Warning Module: Logged line
+                # -------------------------------------------------------------------------------------------
 
-                enable_formatting = False
+                logger_setting.enable_formatting = False
 
+        # Sequence execution: background logging using alternative output file name
         elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
-            handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
-            log_file = str(self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
-            enable_colors = True
-            enable_console_output = False
-            flush_memory_logs = True
+            logger_setting.handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            logger_setting.log_file = str(
+                self._initial_path / f"{self._solution_name}.{self._run_sequence_ref_name}.log")
+            logger_setting.enable_formatting = True
+            logger_setting.enable_colors = True
+            logger_setting.enable_console_output = False
+            logger_setting.flush_memory_logs = True
+        else:
+            raise RuntimeError(f"Invalid work mode: {self._work_mode}")
 
-        # Now, re-initialize the logger based on the configured properties.
-        # Note: Do not disable memory logger, it will be auto disabled by flush_memory_logs()
-        if log_file:
-            self._core_logger.set_log_file_name(log_file)
-            self._log_file_name = log_file
+        # Reinitialize logger with configured properties.
+        # Note: Memory logger is auto-disabled by flush_memory_logs(); do not disable it manually.
+        if logger_setting.log_file:
+            self._core_logger.set_log_file_name(logger_setting.log_file)
+            self._log_file_name = logger_setting.log_file
 
-        self._core_logger.set_handlers(handlers)
-        self._core_logger.set_colors(enable_colors=enable_colors)
-        self._core_logger.set_formatter(enable_formatting=enable_formatting)
-        self._core_logger.set_output(logger=None, state=enable_console_output)
-        self._logger = self._core_logger.get_logger(console_stdout=enable_console_output)
+        self._core_logger.set_handlers(logger_setting.handlers)
+        self._core_logger.set_colors(enable_colors=logger_setting.enable_colors)
+        self._core_logger.set_formatter(enable_formatting=logger_setting.enable_formatting)
+        self._core_logger.set_output(logger=None, state=logger_setting.enable_console_output)
+        self._core_logger.set_configuration(self._configuration)
+        self._logger = self._core_logger.get_logger(enable_console_output=logger_setting.enable_console_output)
 
-        # Flush memory logs and disable memory logger
-        if flush_memory_logs:
+        # Flush accumulated memory logs and disable memory logger
+        if logger_setting.flush_memory_logs:
             self._core_logger.flush_memory_logs(LogHandlersType.FILE_HANDLER)
 
         self._logger.info(f"AutoForge{' (spawned)' if PackageGlobals.SPAWNED else ''} "
@@ -425,11 +433,11 @@ class AutoForge(CoreModuleInterface):
         self._workspace_path = kwargs.get("workspace_path")  # Required argument
         self._log_file_name = kwargs.get("log_file")  # Optional set specific log file name
 
-        # ==============================================================
+        # ---------------------------------------------------------------------
         # Interactive vs. non-interactive mode selection.
         # If no non-interactive mode is specified, the interactive
         # prompt starts.
-        # ==============================================================
+        # ---------------------------------------------------------------------
 
         self._run_sequence_ref_name = kwargs.get("run_sequence")
         if self._run_sequence_ref_name is not None:
@@ -444,10 +452,13 @@ class AutoForge(CoreModuleInterface):
                 self._work_mode = AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION
                 self._logger.debug(f"Run command: {self._raw_command}")
 
+                #--------------------------------------------------------------
                 # Split the raw string into individual commands:
                 # - Split by comma
                 # - Strip surrounding white-space
                 # - Skip empty entries
+                # -------------------------------------------------------------
+
                 self._run_commands = [cmd.strip() for cmd in self._raw_command.split(',') if cmd.strip()]
 
         # If none of non-interactive modes was detected we fall-down to 'interactive'.
@@ -693,10 +704,10 @@ class AutoForge(CoreModuleInterface):
                 # Start events loop thread
                 self._events_sync_thread.start()
 
-                # ==============================================================
+                # -------------------------------------------------------------
                 # User interactive shell.
                 # Indefinite loop until user exits the shell using 'quit'
-                # ==============================================================
+                # -------------------------------------------------------------
 
                 self._logger.debug("Running in interactive user shell mode")
 
@@ -712,17 +723,17 @@ class AutoForge(CoreModuleInterface):
                 return self._exit_code
             else:
 
-                # ==============================================================
+                # -------------------------------------------------------------
                 #  Execute a command or sequence of operations in non-
                 #  interactive mode and exit.
-                # ==============================================================
+                # -------------------------------------------------------------
 
                 if self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION:
 
-                    # ==========================================================
+                    # ---------------------------------------------------------
                     #  Running one or more commands from an existing workspace
                     #  in non-interactive, automatic mode.
-                    # ==========================================================
+                    # ---------------------------------------------------------
 
                     commands_count = len(self._run_commands)
                     self._logger.debug(f"Running {commands_count} command(s) in automatic non-interactive mode")
@@ -744,10 +755,10 @@ class AutoForge(CoreModuleInterface):
 
                 elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_SEQUENCE:
 
-                    # ==============================================================
+                    # ---------------------------------------------------------
                     #  Running sequence of operations in non interactive-mode,
                     #  typically for creating a new workspace.
-                    # ==============================================================
+                    # ---------------------------------------------------------
 
                     self._logger.debug("Running in sequence execution non-interactive mode")
 

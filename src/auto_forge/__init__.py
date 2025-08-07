@@ -76,7 +76,7 @@ try:
     # WARNING: Core modules — import order is critical. Do not reorder.
     from auto_forge.core.registry import (CoreRegistry)
     from auto_forge.core.telemetry import (CoreTelemetry, TelemetryTrackedCounter)
-    from auto_forge.core.logger import (CoreLogger)
+    from auto_forge.core.logger import (CoreLogger, LoggerSettingsType)
     from auto_forge.core.system_info import (CoreSystemInfo)
     from auto_forge.core.watchdog import (CoreWatchdog)
     from auto_forge.core.jsonc_processor import (CoreJSONCProcessor)
@@ -119,7 +119,7 @@ __all__ = [
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",
     "FieldColorType", "GCCLogAnalyzer", "HasConfigurationProtocol",
     "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
-    "LinuxShellType", "LogHandlersType",
+    "LinuxShellType", "LogHandlersType", "LoggerSettingsType",
     "MessageBoxType", "MethodLocationType", "ModuleInfoType",
     "PackageGlobals", "ProgressTracker", "PromptStatusType", "ProxyServerType",
     "SDKType", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",

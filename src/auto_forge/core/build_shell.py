@@ -523,7 +523,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
             else:
                 # Ensure parent directory exists so cmd2 can write to it later
                 os.makedirs(os.path.dirname(self._history_file_name), exist_ok=True)
-            self._logger.info(f"Using history file from '{self._history_file_name}'")
+            self._logger.debug(f"Using history file from '{self._history_file_name}'")
             return True
         return False  # Probably suppressed exception
 
@@ -619,7 +619,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
             name (str): Name of the command (e.g., 'hello', 'build').
             patch_doc (bool): If True and 'description' is present, also updates the function's docstring.
             **metadata: Arbitrary keyword arguments to store in the command's metadata.
-                       Common keys include: 'description', 'command_type', 'hidden', 'is_alias', etc.
+                       Common keys include: 'description', 'cmd_type', 'hidden', 'is_alias', etc.
         """
         # Try to get the bound method from the instance
         method = getattr(self, f"do_{name}", None)
@@ -866,7 +866,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                 "command": method_name,
                 "description": doc,
                 "hidden": hidden,
-                "command_type": cmd_type,
+                "cmd_type": cmd_type,
                 **metadata
             }
 
@@ -1579,14 +1579,6 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         except Exception as change_dir_error:
             self.perror(f"cd: {change_dir_error}")
             self.last_result = 1  # Set return code explicitly
-
-    def do_motd(self, _arg: Any) -> None:
-        """
-        Display the AutoForge greeting file ("motd").
-        This is the equivalent of a classic "message of the day" - a friendly introduction
-        for developers and CI engineers.
-        """
-        self._tool_box.show_markdown_file("motd/motd.md")
 
     def do_help(self, arg: Any) -> None:
         """

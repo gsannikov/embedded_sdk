@@ -8,7 +8,8 @@ Description:
 """
 import json
 import os
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 # Third-party
 from cryptography.fernet import Fernet, InvalidToken
@@ -24,12 +25,13 @@ class Crypto:
     modify, and delete entries within encrypted files.
     """
 
-    def __init__(self, key_file: str, create_as_needed: bool = True, force_new_key: bool = False):
+    def __init__(self, key_file: Optional[Union[Path, str]], create_as_needed: bool = True,
+                 force_new_key: bool = False):
         """
         Initializes the Crypto class by loading or generating a Fernet key from a file.
 
         Args:
-            key_file (str): The path to the file where the Fernet key is or will be stored.
+            key_file (Path, str): The path to the file where the Fernet key is or will be stored.
             create_as_needed (bool): If True, and the key file does not exist, a new key
                                      will be generated and stored in `key_file`.
                                      If False and the file does not exist, a FileNotFoundError is raised.
@@ -39,30 +41,34 @@ class Crypto:
                                   if the file exists, but will still raise FileNotFoundError
                                   if the file does not exist and `create_as_needed` is False.
         """
-        self.key_file = key_file
+
+        if not isinstance(key_file, (str, Path)):
+            raise TypeError("invalid 'key_file' argument")
+
+        self.key_file = Path(key_file)
         key_bytes = None
 
-        if os.path.exists(self.key_file):
+        if self.key_file.exists():
             if force_new_key:
                 try:
                     os.unlink(self.key_file)
                     # File removed, proceed to create new
                     key_bytes = self._generate_fernet_key(path=self.key_file)
                 except OSError as e:
-                    raise RuntimeError(f"Error unlinking existing key file '{self.key_file}': {e}")
+                    raise RuntimeError(f"Error unlinking existing key file '{str(self.key_file)}': {e}")
             else:
                 # Load existing key
                 try:
                     with open(self.key_file, 'rb') as f:
                         key_bytes = f.read()
                 except IOError as e:
-                    raise RuntimeError(f"Error reading key file '{self.key_file}': {e}")
+                    raise RuntimeError(f"Error reading key file '{str(self.key_file)}': {e}")
         else:  # Key file does not exist
             if create_as_needed:
                 key_bytes = self._generate_fernet_key(path=self.key_file)
             else:
                 raise FileNotFoundError(
-                    f"Key file '{self.key_file}' not found and 'create_as_needed' is False."
+                    f"Key file '{str(self.key_file)}' not found and 'create_as_needed' is False."
                 )
 
         if not key_bytes:
@@ -71,29 +77,30 @@ class Crypto:
         try:
             self.fernet = Fernet(key_bytes)
         except Exception as e:
-            raise ValueError(f"Invalid Fernet key loaded/generated from '{self.key_file}': {e}. "
-                             "Ensure it's a base64 URL-safe encoded 32-byte key.")
+            raise ValueError(f"fernet key error: {e}")
 
     @staticmethod
-    def _generate_fernet_key(path: str = None) -> bytes:
+    def _generate_fernet_key(path: Optional[Union[str, Path]] = None) -> bytes:
         """
-        Generates a new URL-safe Fernet key. (Internal static method)
+        Generates a new URL-safe Fernet key.
         If a path is provided, the key will be stored in the specified file.
-        This method is now primarily called internally by the __init__ method.
         Args:
-            path (str, optional): The file path where the key will be stored.
-                                  If None, the key is returned but not saved.
+            path (Optional[Union[str, Path]]): The file path where the key will be stored.
+                                               If None, the key is returned but not saved.
         Returns:
             bytes: A new Fernet key.
-
         """
         key = Fernet.generate_key()
-        if path:
-            try:
-                with open(path, 'wb') as f:
-                    f.write(key)
-            except IOError as e:
-                raise RuntimeError(f"Error storing key to file '{path}': {e}")
+        if path is None:
+            return key
+
+        path = Path(path)
+        try:
+            with path.open('wb') as f:
+                f.write(key)
+        except IOError as e:
+            raise RuntimeError(f"Error storing key to file '{path}': {e}")
+
         return key
 
     def _encrypt_dict(self, data: Optional[dict[str, Any]]) -> bytes:
