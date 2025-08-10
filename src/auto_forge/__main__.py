@@ -35,12 +35,14 @@ def arguments_process() -> Optional[argparse.Namespace]:
         has_workspace = bool(_args.workspace_path)
         has_solution = bool(_args.solution_name)
         has_package = bool(_args.solution_package)
+        has_mcp_service = bool(_args.mcp_service)
+
         is_bare = _args.bare
 
         if is_bare:
-            if has_workspace or has_solution or has_package:
+            if has_workspace or has_solution or has_package or has_mcp_service:
                 _parser.error(
-                    "--bare cannot be used together with --workspace-path, --solution-name, or --solution-package.")
+                    "--bare cannot be used together with --workspace-path, --solution-name, --mcp-service or --solution-package.")
             return  # Valid bare mode with no extras
 
         # Not in bare mode: workspace and solution name are mandatory
@@ -83,7 +85,7 @@ def arguments_process() -> Optional[argparse.Namespace]:
                                   "The package path will be validated at runtime, if not specified, the solution will "
                                   "be searched for in the local solution workspace path under 'scripts/solution'"))
 
-        # Bare mode enables a limited AutoForge operation and is mutually exclusive with (-w, -n, -p) arguments.
+        # Bare mode enables a limited AutoForge operation and is mutually exclusive with (-w, -n, -p, -m) arguments.
         parser.add_argument("-b", "--bare", action="store_true", help="Use bare solution")
 
         # Other optional configuration arguments
@@ -102,6 +104,7 @@ def arguments_process() -> Optional[argparse.Namespace]:
         # AutoForge supports two mutually exclusive non-interactive modes:
         # (1) Running step recipe data (typically used to set up a fresh workspace),
         # (2) Running a single command from an existing workspace.
+        # (3) Running in MCP service compatability mode.
         # Only one of these modes may be used at a time.
 
         op_mode_group = parser.add_mutually_exclusive_group()
@@ -110,13 +113,13 @@ def arguments_process() -> Optional[argparse.Namespace]:
             help="Solution properties name which points to a sequence of operations")
         op_mode_group.add_argument(
             "-r", "--run-command",
-            nargs=argparse.REMAINDER,
-            help="One or more commands separated by ','"
-        )
+            nargs=argparse.REMAINDER, help="One or more commands separated by ','")
+        op_mode_group.add_argument(
+            "-m", "--mcp-service", action="store_true", help="MCP service mode")
 
         args = parser.parse_args()
 
-        # Manual mutual-exclusiveness validation between bare solution and normal solution
+        # Manual mutual-exclusiveness validation between 'bare solution' and 'normal solution'
         _validate_workspace_or_bare(_args=args, _parser=parser)
 
         if args.run_command is not None:

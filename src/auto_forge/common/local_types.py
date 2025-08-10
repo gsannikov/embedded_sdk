@@ -27,8 +27,9 @@ class AutoForgeWorkModeType(Enum):
     """ Enumeration of known AutoForge run modes. """
     UNKNOWN = 0
     INTERACTIVE = 1  # Normal interactive shell
-    NON_INTERACTIVE_SEQUENCE = 3  # Executing sequence non interactively
-    NON_INTERACTIVE_AUTOMATION = 4  # Executing single command, used in automation mode
+    NON_INTERACTIVE_SEQUENCE = 2  # Executing sequence non interactively
+    NON_INTERACTIVE_AUTOMATION = 3  # Executing single command, used in automation mode
+    MCP_SERVICE = 4 #  Model Context Protocol compatible server to be used by AI mcp agents
 
 
 class AutoForgeModuleType(Enum):

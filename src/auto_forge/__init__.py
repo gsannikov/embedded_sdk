@@ -91,6 +91,7 @@ try:
     from auto_forge.core.platform_tools import (CorePlatform)
     from auto_forge.core.xray import (CoreXRayDB)
     from auto_forge.core.build_shell import (CoreBuildShell)
+    from auto_forge.core.mcp_service import (CoreMCPService)
 
     # Last, AutoForg main class
     if TYPE_CHECKING:
@@ -113,7 +114,7 @@ __all__ = [
     "CommandFailedException", "CommandInterface", "CommandInterfaceProtocol", "CommandResultType",
     "CoreAIBridge", "CoreBuildShell", "CoreContext", "CoreDynamicLoader", "CoreGUI", "CoreJSONCProcessor",
     "CoreJSONCProcessorProtocol", "CoreLinuxAliases", "CoreLinuxAliasesProtocol", "CoreLogger",
-    "CoreLoggerProtocol", "CoreModuleInterface", "CorePlatform", "CoreRegistry", "CoreSignatures",
+    "CoreLoggerProtocol", "CoreMCPService", "CoreModuleInterface", "CorePlatform", "CoreRegistry", "CoreSignatures",
     "CoreSolution", "CoreSystemInfo", "CoreTelemetry", "CoreToolBox", "CoreToolBoxProtocol",
     "CoreVariables", "CoreVariablesProtocol", "CoreWatchdog", "CoreXRayDB", "Crypto",
     "DataSizeFormatter", "EventManager", "ExceptionGuru", "ExecutionModeType", "ExpectedVersionInfoType",

@@ -20,6 +20,7 @@
     "watchdog_timeout": 10.0,                                           // Default timeout (in seconds) for sub-process execution.
     "productivity_assist": true,                                        // Productivity assist flag
     "max_inspection_size_bytes": 16384,                                 // Upper limit to an AI inspected file size
+  	"allow_x11_ui": false,												// Allow the core UI (tkinter / X11) core module
 
     // Build auto generated files
     "build_error_context_file": "build_error_context.json",

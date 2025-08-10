@@ -31,7 +31,7 @@ from colorama import Fore, Style
 # AutoForge imports
 from auto_forge import (
     AddressInfoType, AutoForgeWorkModeType, CoreAIBridge, CoreBuildShell, CoreContext, CoreDynamicLoader, CoreGUI,
-    CoreJSONCProcessor, CoreLinuxAliases, CoreLogger, CoreModuleInterface, CorePlatform, CoreRegistry,
+    CoreJSONCProcessor, CoreLinuxAliases, CoreLogger, CoreMCPService, CoreModuleInterface, CorePlatform, CoreRegistry,
     CoreSolution, CoreSystemInfo, CoreTelemetry, CoreToolBox, CoreVariables, CoreWatchdog, CoreXRayDB,
     EventManager, ExceptionGuru, LogHandlersType, LoggerSettingsType, PackageGlobals, StatusNotifType,
 )
@@ -64,6 +64,7 @@ class AutoForge(CoreModuleInterface):
         self._gui: Optional[CoreGUI] = None
         self._loader: Optional[CoreDynamicLoader] = None
         self._build_shell: Optional[CoreBuildShell] = None
+        self._mcp: Optional[CoreMCPService] = None
         self._xray: Optional[CoreXRayDB] = None
         self._ai_bridge: Optional[CoreAIBridge] = None
         self._work_mode: AutoForgeWorkModeType = AutoForgeWorkModeType.UNKNOWN
@@ -71,6 +72,7 @@ class AutoForge(CoreModuleInterface):
         self._log_file_name: Optional[str] = None
         self._solution_file: Optional[str] = None
         self._solution_name: Optional[str] = None
+        self._mcp_service_mode: Optional[bool] = None
         self._bare_solution_mode: Optional[bool] = None
         self._steps_file: Optional[str] = None
         self._sys_info: Optional[CoreSystemInfo] = None
@@ -276,6 +278,20 @@ class AutoForge(CoreModuleInterface):
             logger_setting.enable_console_output = False
             logger_setting.flush_memory_logs = True
 
+        # MCP (model context protocol) service mode.
+        elif self._work_mode == AutoForgeWorkModeType.MCP_SERVICE:
+            # Determine if we have a workspace which could she log file
+            logs_workspace_path = self._variables.expand(f'$BUILD_LOGS')
+            logger_setting.handlers = LogHandlersType.FILE_HANDLER | LogHandlersType.CONSOLE_HANDLER | LogHandlersType.MEMORY_HANDLER
+            base_file_name = os.path.join(logs_workspace_path, f"{PackageGlobals.PROJ_NAME}_mcp.log")
+
+            # Patch the log file name with timestamp so we will have dedicated log for each build system run.
+            logger_setting.log_file = self._tool_box.append_timestamp_to_path(base_file_name)
+            logger_setting.enable_formatting = True
+            logger_setting.enable_colors = False
+            logger_setting.enable_console_output = False
+            logger_setting.flush_memory_logs = True
+
         # Automation mode: tool output is suppressed, but logs are emitted to the terminal as they are generated
         elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION or PackageGlobals.SPAWNED:
             # Spawned mode is similar to automation profile
@@ -444,6 +460,8 @@ class AutoForge(CoreModuleInterface):
             self._solution_name = "bare"
             self._workspace_path = self._tool_box.get_temp_pathname(create_path=True)
         else:
+
+            self._mcp_service_mode = kwargs.get("mcp_service", False)  # MCP service mode?
             self._solution_name = kwargs.get("solution_name")  # Required argument
             self._workspace_path = kwargs.get("workspace_path")  # Required argument
 
@@ -479,7 +497,10 @@ class AutoForge(CoreModuleInterface):
 
         # If none of non-interactive modes was detected we fall-down to 'interactive'.
         if self._work_mode == AutoForgeWorkModeType.UNKNOWN:
-            self._work_mode = AutoForgeWorkModeType.INTERACTIVE
+            if self._mcp_service_mode:
+                self._work_mode = AutoForgeWorkModeType.MCP_SERVICE
+            else:  # If nothing else, then:
+                self._work_mode = AutoForgeWorkModeType.INTERACTIVE
 
         # Expand and check if the workspace exists
         self._workspace_path = self._tool_box.get_expanded_path(self._workspace_path)
@@ -727,8 +748,11 @@ class AutoForge(CoreModuleInterface):
 
                 self._logger.debug("Running in interactive user shell mode")
 
-                self._gui: CoreGUI = CoreGUI()
                 self._build_shell = CoreBuildShell()
+
+                # The GUI core module uses Tkinter (X11) and must be explicitly enabled in the configuration
+                if self._configuration.get("allow_x11_ui", False):
+                    self._gui: CoreGUI = CoreGUI()
 
                 # Start XRay SQLite background indexing service.
                 self._xray.start()
@@ -736,6 +760,19 @@ class AutoForge(CoreModuleInterface):
                 # Start user prompt loop
                 self._build_shell.cmdloop()
                 self._exit_code = self._build_shell.last_result
+
+            elif self._work_mode == AutoForgeWorkModeType.MCP_SERVICE:
+
+                # -------------------------------------------------------------
+                # MCP (model context protocol) service mode.
+                #
+                # -------------------------------------------------------------
+
+                self._logger.debug("Running in MCP service mode")
+
+                self._build_shell = CoreBuildShell()
+                self._mcp = CoreMCPService()
+                self._exit_code = 0
 
             else:
 
