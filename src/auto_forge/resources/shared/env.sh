@@ -4,7 +4,7 @@
 #
 # Script Name:    env.sh
 # Description:    AutoForge shell environment initiator.
-# Version:        1.5
+# Version:        1.6
 #
 # ------------------------------------------------------------------------------
 
@@ -15,6 +15,7 @@ print_help() {
 	echo "Options:"
 	echo "  -d, --debug-port PORT   Optional set remote debugging port."
 	echo "  -h, --debug-host        Optional set remote debugging host (default: localhost)"
+	echo "  -m, --mcp-service       Optional: run in MCP (model context protocol) agent service mode"
 	echo "  -r, --run-command       Optional: execute one or more commands separated by commas"
 	echo "      --verbose           Enable detailed output."
 	echo "  -?, --help              Show this help message"
@@ -82,6 +83,7 @@ main() {
 	local debug_host="localhost"
 	local debug_port=""
 	local verbose=false
+	local mcp_service=false
 	local -a run_command=()
 	local run_command_triggered=false
 	local parsing=true
@@ -117,6 +119,10 @@ main() {
 				-h | --debug-host | --debug_host)
 					debug_host="$2"
 					shift 2
+					;;
+				-m | --mcp-service | --mcp_service)
+					mcp_service=true
+					shift
 					;;
 				--verbose)
 					verbose=true
@@ -171,6 +177,10 @@ main() {
 	local cmd=(autoforge -n "$solution_name" -w .)
 	if [[ -n "$debug_port" ]]; then
 		cmd+=(--remote-debugging "$debug_host:$debug_port")
+	fi
+
+	if [[ "$mcp_service" == true ]]; then
+		cmd+=(--mcp-service)
 	fi
 
 	if [[ ${#run_command[@]} -gt 0 ]]; then

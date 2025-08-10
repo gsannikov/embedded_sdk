@@ -13,7 +13,7 @@ from contextlib import suppress
 from typing import Optional
 
 # Globally initialize colorama library
-from colorama import init
+from colorama import (init, deinit)
 
 # AutoForge imports
 from auto_forge import PackageGlobals
@@ -146,13 +146,15 @@ def main() -> int:
         Shell status, 0 success, else failure.
     """
     # Package command line starter.
+    return_code = 1
     init(autoreset=True, strip=False)  # Required by colorama
 
     arguments = arguments_process()
     if arguments is not None:
-        return _start(arguments)
-    else:
-        return 1  # Arguments processing error
+        return_code = _start(arguments)
+
+    deinit()
+    return return_code  # Arguments processing error
 
 
 if __name__ == "__main__":

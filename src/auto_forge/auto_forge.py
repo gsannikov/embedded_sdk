@@ -772,7 +772,7 @@ class AutoForge(CoreModuleInterface):
 
                 self._build_shell = CoreBuildShell()
                 self._mcp = CoreMCPService()
-                self._exit_code = 0
+                self._exit_code = self._mcp.start()
 
             else:
 

@@ -59,7 +59,7 @@ try:
     # Protocols
     from auto_forge.core.protocols.protocols import (
         CoreJSONCProcessorProtocol, CoreVariablesProtocol, CoreLinuxAliasesProtocol, CoreToolBoxProtocol,
-        CommandInterfaceProtocol, CoreLoggerProtocol, HasConfigurationProtocol)
+        CommandInterfaceProtocol, CoreLoggerProtocol, HasConfigurationProtocol, MCPServerProtocol)
 
     # Context providers
     from auto_forge.core.protocols.context import (CoreContext)
@@ -121,7 +121,7 @@ __all__ = [
     "FieldColorType", "GCCLogAnalyzer", "HasConfigurationProtocol",
     "InputBoxButtonType", "InputBoxLineType", "InputBoxTextType",
     "LinuxShellType", "LogHandlersType", "LoggerSettingsType",
-    "MessageBoxType", "MethodLocationType", "ModuleInfoType",
+    "MessageBoxType", "MethodLocationType", "MCPServerProtocol", "ModuleInfoType",
     "PackageGlobals", "ProgressTracker", "PromptStatusType", "ProxyServerType",
     "SDKType", "SequenceErrorActionType", "Signature", "SignatureFieldType", "SignatureFileHandler",
     "SignatureSchemaType", "SourceFileInfoType", "SourceFileLanguageType", "StatusNotifType",
