@@ -119,7 +119,7 @@ def arguments_process() -> Optional[argparse.Namespace]:
         # Manual mutual-exclusiveness validation between bare solution and normal solution
         _validate_workspace_or_bare(_args=args, _parser=parser)
 
-        if args.run_command:
+        if args.run_command is not None:
             # Remove '--' if was injected by shell
             cleaned = [arg for arg in args.run_command if arg != "--"]
             if not cleaned or not any(a.strip() for a in cleaned):
