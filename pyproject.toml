@@ -77,10 +77,6 @@ packages = ["auto_forge",
     "auto_forge.builders.analyzers"
 ]
 
-# AI agent initial context 
-[tool.setuptools.data-files]
-"." = ["autoforge.agent.json"]
-
 # Extended package properties should only be placed here to ensure compliance with PEP 621.
 [tool.autoforge_metadata]
 fancy_name = "AutoForge"
