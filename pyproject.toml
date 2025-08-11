@@ -54,7 +54,7 @@ dependencies = [
     "tree-sitter-c==0.24.1",
     "tiktoken==0.10.0",
     "textual==4.0.0",
-    "mcp[cli]==1.12.4",
+    "aiohttp==3.12.15",
     "cmd2==2.3.3"]
 
 [project.urls]

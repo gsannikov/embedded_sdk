@@ -11,7 +11,7 @@ Description:
 """
 import logging
 from pathlib import Path
-from typing import Protocol, Union, Optional, Any, runtime_checkable, Sequence, Callable
+from typing import Protocol, Union, Optional, Any, runtime_checkable, Sequence
 
 # AutoForge imports
 from auto_forge import (AutoForgFolderType, ModuleInfoType, FieldColorType)
@@ -100,22 +100,3 @@ class CommandInterfaceProtocol(Protocol):
     def get_info(self) -> ModuleInfoType: ...
 
     def update_info(self, command_info: ModuleInfoType) -> None: ...
-
-@runtime_checkable
-class MCPServerProtocol(Protocol):
-    def tool(
-        self,
-        name: Optional[str] = None,
-        desc: Optional[str] = None
-    ) -> Callable[[Callable[..., Any]], None]:
-        """Return a decorator that registers a function as an MCP tool."""
-        ...
-
-    def add_tool(
-        self,
-        name: str,
-        desc: str,
-        func: Callable[..., Any]
-    ) -> None:
-        """Register a function directly as an MCP tool."""
-        ...
