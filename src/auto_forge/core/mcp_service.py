@@ -277,6 +277,7 @@ class CoreMCPService(CoreModuleInterface):
 
             _ip_address: str = self._mcp_config.host
             _port: int = self._mcp_config.port
+            curl_get_syntax: str = f"curl --noproxy {_ip_address} -X GET http://{_ip_address}:{_port}"
 
             print(f"\nAutoForge: MCP SSE server running on {_ip_address}:{_port}")
             print(
@@ -284,11 +285,11 @@ class CoreMCPService(CoreModuleInterface):
                 "All the solution commands are accessible via tool routes in the form:\n"
                 "    af.cmd.<command_name>\n"
                 "You can test it with the following examples:\n"
-                f"•  curl --noproxy {_ip_address} -X GET http://{_ip_address}:{_port}/tool/version\n"
-                f"•  curl --noproxy {_ip_address} -X GET http://{_ip_address}:{_port}/tool/list\n"
-                f"•  curl --noproxy localhost -X GET http://localhost:{_port}/tool/af.cmd.busd\n"
+                f"•  {curl_get_syntax}/tool/version\n"
+                f"•  {curl_get_syntax}/tool/list\n"
+                f"•  {curl_get_syntax}/tool/af.cmd.busd\n"
                 "       assuming your solution defines a 'busd' command.\n"
-                f"•  curl --noproxy localhost -X GET http://localhost:{_port}/shutdown\n\n")
+                f"•  {curl_get_syntax}/shutdown\n\n")
 
         try:
             with contextlib.suppress(Exception):
