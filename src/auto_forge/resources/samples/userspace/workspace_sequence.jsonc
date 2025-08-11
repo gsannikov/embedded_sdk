@@ -345,6 +345,15 @@
 			}
 		},
 		{
+			"description": "Adding shell alias 'usmcp' to the solution",
+			"method": "create_alias",
+			"action_on_error": "resume",
+			"arguments": {
+				"alias": "usr",
+				"command": "$PROJ_WORKSPACE/env.sh --mcp-service"
+			}
+		},
+		{
 			"description": "Adding shell alias 'us' to the solution",
 			"method": "create_alias",
 			"action_on_error": "resume",
