@@ -278,6 +278,7 @@ class CoreMCPService(CoreModuleInterface):
             _ip_address: str = self._mcp_config.host
             _port: int = self._mcp_config.port
             curl_get_syntax: str = f"curl --noproxy {_ip_address} -X GET http://{_ip_address}:{_port}"
+            curl_post_syntax: str = f"curl --noproxy {_ip_address} -X POST http://{_ip_address}:{_port}"
 
             print(f"\nAutoForge: MCP SSE server running on {_ip_address}:{_port}")
             print(
@@ -287,9 +288,9 @@ class CoreMCPService(CoreModuleInterface):
                 "You can test it with the following examples:\n"
                 f"•  {curl_get_syntax}/tool/version\n"
                 f"•  {curl_get_syntax}/tool/list\n"
-                f"•  {curl_get_syntax}/tool/af.cmd.busd\n"
+                f"•  {curl_post_syntax}/tool/af.cmd.busd\n"
                 "       assuming your solution defines a 'busd' command.\n"
-                f"•  {curl_get_syntax}/shutdown\n\n")
+                f"•  {curl_post_syntax}/shutdown\n\n")
 
         try:
             with contextlib.suppress(Exception):
@@ -325,8 +326,7 @@ class CoreMCPService(CoreModuleInterface):
         await site.start()
 
         try:
-            while True:
-                # Wait until /shutdown is called
-                await self._shutdown_event.wait()
+            # Wait until /shutdown is called
+            await self._shutdown_event.wait()
         finally:
             await runner.cleanup()
