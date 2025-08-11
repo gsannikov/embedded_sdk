@@ -682,7 +682,5 @@
 	//
 	// -----------------------------------------------------------------------------------------------------------------
 
-	"mcp_host": "localhost",	// Used for SSE (Server-Sent Events)
-	"mcp_port": 6274,			// Used for SSE
-	"mcp_transport": "sse"  	// "stdio" | "sse"
+	"mcp_port": 6274			// Local port to listen on used for SSE
 }
