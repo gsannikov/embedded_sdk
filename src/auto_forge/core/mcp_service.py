@@ -13,8 +13,9 @@ import json
 import os
 import socket
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any, Callable, Awaitable
 
+from aiohttp import ContentTypeError
 # Third‑party
 from aiohttp import web
 
@@ -24,7 +25,7 @@ from auto_forge import (AutoForgeModuleType, CoreBuildShell, CoreLogger, CoreMod
 
 AUTO_FORGE_MODULE_NAME = "MCP"
 AUTO_FORGE_MODULE_DESCRIPTION = "MCP (Model Context Protocol) integration for AutoForge"
-
+AUTO_FORGE_MAX_BATCH_MCP_COMMANDS = 64
 
 @dataclass
 class _CoreMCPConfigType:
@@ -32,6 +33,49 @@ class _CoreMCPConfigType:
     host: Optional[str] = None
     port: int = 6274
     readonly: bool = False
+
+
+@dataclass
+class _CoreMCPToolType:
+    """
+    Represents a callable MCP (Model Context Protocol) tool.
+
+    Attributes:
+        name (str): Unique tool name as exposed to MCP clients.
+        description (str): Short human-readable description of the tool's purpose.
+        input_schema (dict[str, Any]): JSON Schema describing the tool's expected input
+            parameters (used for validation and discovery in MCP clients).
+        handler (Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]):
+            Async or sync callable that executes the tool logic.
+            Accepts a dictionary of parameters matching `input_schema` and returns
+            a result dictionary (arbitrary structure, but JSON-serializable).
+
+    Methods:
+        call(params):
+            Executes the tool handler with the given parameters.
+            Supports both asynchronous and synchronous handlers.
+    """
+    name: str
+    description: str
+    input_schema: dict[str, Any]  # JSON Schema
+    handler: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]  # Params -> result (may be async)
+
+    async def call(self, params: dict[str, Any]) -> dict[str, Any]:
+        """
+        Invoke the tool with the given parameters.
+        Args:
+            params (dict[str, Any]): Parameters to pass to the tool's handler.
+                Must conform to the tool's `input_schema`.
+        Returns:
+            dict[str, Any]: The tool's result payload.
+        Notes:
+            - Supports both synchronous and asynchronous handler callables.
+            - Caller is responsible for schema validation before invoking.
+        """
+        res = self.handler(params)
+        if hasattr(res, "__await__"):  # async handler
+            res = await res
+        return res
 
 
 class CoreMCPService(CoreModuleInterface):
@@ -55,6 +99,7 @@ class CoreMCPService(CoreModuleInterface):
         self._configuration = self.auto_forge.get_instance().configuration
         self._tool_prefix = "af.cmd."
         self._shutdown_event = asyncio.Event()
+        self._tools_registry: dict[str, _CoreMCPToolType] = {}
 
         # Allow to override default port with package configuration
         self._mcp_config.port = self._configuration.get("mcp_port", self._mcp_config.port)
@@ -66,11 +111,10 @@ class CoreMCPService(CoreModuleInterface):
         self._register_all_commands()
 
         # Manual endpoints
-        self._app.router.add_get("/status", self.status_handler)
-        self._app.router.add_get("/tool/list", self.list_tools_handler)
-        self._app.router.add_get("/tool/version", self.version_handler)
-        self._app.router.add_get("/tool/{name}", self.tool_meta_handler)
-        self._app.router.add_post("/shutdown", self.shutdown_handler)
+        self._app.router.add_get("/status", self._status_handler)
+        self._app.router.add_post("/shutdown", self._shutdown_handler)
+        self._app.router.add_get("/sse", self._sse_handler)
+        self._app.router.add_post("/message", self._rpc_handler)
 
         CoreRegistry.get_instance().register_module(
             name="MCP",
@@ -79,54 +123,7 @@ class CoreMCPService(CoreModuleInterface):
         )
         self._telemetry.mark_module_boot(module_name="MCP")
 
-    async def version_handler(self, _request: web.Request) -> web.Response:
-        """
-        Return the AutoForge version in a JSON payload.
-
-        Returns:
-            200 OK with {"version": "<version-string>"}.
-        """
-        return self._json_response({"version": str(self.auto_forge.version)})
-
-    async def list_tools_handler(self, _request: web.Request) -> web.Response:
-        """
-        Enumerate registered tool endpoints.
-        Scans the router for POST routes under `/tool/{self._tool_prefix}*`
-        (e.g., `/tool/af.cmd.build`) and returns their path, canonical name,
-        and description (if available) from `self._commands_data`.
-
-        Returns:
-            200 OK with JSON: {"tools": [{path, name, description}, ...]}
-        """
-        result = []
-        prefix = "/tool/" + self._tool_prefix  # usually "/tool/af.cmd."
-
-        for route in self._app.router.routes():
-            # Only list POST tool routes
-            method = getattr(route, "method", None)
-            if method != "POST":
-                continue
-
-            # Extract canonical path; fall back safely if attribute not present
-            path = getattr(getattr(route, "resource", None), "canonical", None)
-            if not isinstance(path, str):
-                info = getattr(getattr(route, "resource", None), "get_info", lambda: {})()
-                path = info.get("path") or ""
-            if not path.startswith(prefix):
-                continue
-
-            # Extract the command key and metadata
-            cmd_key = path[len("/tool/") + len(self._tool_prefix):]
-            entry = self._commands_data.get(cmd_key, {})
-            result.append({
-                "path": path,
-                "name": f"{self._tool_prefix}{cmd_key}",
-                "description": entry.get("description", "(no description)")
-            })
-
-        return self._json_response({"tools": result})
-
-    async def status_handler(self, _request):
+    async def _status_handler(self, _request):
         """Basic runtime status (no secrets)."""
         return self._json_response({
             "host": self._mcp_config.host,
@@ -137,22 +134,7 @@ class CoreMCPService(CoreModuleInterface):
             )
         })
 
-    async def tool_meta_handler(self, request):
-        """Metadata for a single tool."""
-        name = request.match_info.get("name", "")
-        entry = self._commands_data.get(name)
-        if not entry:
-            return self._json_response({"error": "unknown tool"}, status=404)
-        return self._json_response({
-            "name": f"{self._tool_prefix}{name}",
-            "description": entry.get("description", "(no description)"),
-            "hidden": bool(entry.get("hidden", False)),
-            "command": entry.get("command"),
-            "usage": entry.get("usage"),
-            "examples": entry.get("examples"),
-        })
-
-    async def shutdown_handler(self, _request: web.Request) -> web.Response:
+    async def _shutdown_handler(self, _request: web.Request) -> web.Response:
         """
         Initiate a graceful shutdown of the MCP server.
         Returns:
@@ -166,8 +148,200 @@ class CoreMCPService(CoreModuleInterface):
         self._shutdown_event.set()
         return self._json_response({"status": "shutting_down"})
 
+    async def _broadcast(self, obj: dict[str, Any]) -> None:
+        """
+        Broadcast a JSON-serializable object to all connected SSE clients.
+        Args:
+            obj (dict[str, Any]): The message payload to send. Must be JSON-serializable.
+        Behavior:
+            - Encodes the object as compact JSON (no extra whitespace).
+            - Frames the data per SSE spec: prefix with "data: " and terminate
+              with a double newline.
+            - Attempts to send to all active SSE clients; one failing client will
+              not disrupt others (exceptions are suppressed).
+            - If the client stream supports `.flush()`, it is called after writing.
+            - Sending is asynchronous: writes are awaited (or scheduled with
+              `asyncio.create_task`) so the server does not block.
+
+        Notes:
+            - This is a best-effort broadcast; slow or disconnected clients may
+              miss events if they cannot keep up.
+            - Assumes `self._sse_clients` is a set of `aiohttp.web.StreamResponse`
+              instances that have been prepared by `_sse_handler()`.
+        """
+        if not hasattr(self, "_sse_clients"):
+            return
+        frame = (b"data: " + json.dumps(obj, separators=(",", ":")).encode("utf-8") + b"\n\n")
+        for ws in list(self._sse_clients):
+            with contextlib.suppress(Exception):
+                await ws.write(frame)
+                if hasattr(ws, "flush"):
+                    await ws.flush()
+
+    async def _sse_handler(self, request: web.Request) -> web.StreamResponse:
+        """
+        Handle a Server-Sent Events (SSE) client connection.
+        Behavior:
+            - Prepares an SSE-compatible HTTP response with required headers.
+            - Adds the connection to `self._sse_clients` for use by `_broadcast()`.
+            - Sends an initial `: connected` comment to confirm the stream is active.
+            - Periodically sends a `heartbeat` event every 15 seconds until shutdown.
+            - Suppresses all exceptions from the write loop to avoid noisy disconnect errors.
+            - Removes the connection from the active client set on exit.
+        Args:
+            request (web.Request): The aiohttp request object.
+        Returns:
+            web.StreamResponse: The prepared SSE response that will remain open
+            until the client disconnects or the server shuts down.
+        """
+        resp = web.StreamResponse(
+            status=200,
+            headers={
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+        await resp.prepare(request)
+
+        if not hasattr(self, "_sse_clients"):
+            self._sse_clients = set()
+        self._sse_clients.add(resp)
+
+        with contextlib.suppress(Exception):
+            # Send initial connection comment
+            await resp.write(b": connected\n\n")
+            if hasattr(resp, "flush"):
+                await resp.flush()
+
+            # Periodic heartbeat
+            while not self._shutdown_event.is_set():
+                await asyncio.sleep(15)
+                await resp.write(b"event: heartbeat\ndata: {}\n\n")
+                if hasattr(resp, "flush"):
+                    await resp.flush()
+
+        self._sse_clients.discard(resp)
+        return resp
+
+    async def _rpc_handler(self, request: web.Request) -> web.Response:
+        """
+        JSON-RPC endpoint for MCP over HTTP POST.
+        Supports:
+          - Single requests and batches per JSON-RPC 2.0
+          - Methods: initialize, tools/list, tools/call, ping
+          - Notifications (requests without 'id'): no HTTP response item is emitted
+            for those entries (but server may broadcast via SSE).
+
+        Error behavior:
+          - Returns 400 for invalid/malformed JSON bodies.
+          - Uses JSON-RPC error envelopes for method and internal errors.
+        """
+        # --- Parse JSON body (strict) ---
+        try:
+            payload = await request.json()
+        except (json.JSONDecodeError, ContentTypeError, UnicodeDecodeError):
+            return self._json_response({"error": "invalid json"}, status=400)
+
+        if request.method != "POST":
+            return self._json_response({"error": "method not allowed"}, status=405)
+
+        async def _handle_one(m: dict[str, Any]) -> dict[str, Any] | None:
+            """
+            Handle a single JSON-RPC message. Returns a response dict,
+            or None if the input was a notification (no 'id').
+            """
+            jid = m.get("id", None)
+            is_notification = jid is None
+            method = m.get("method")
+            params = m.get("params") or {}
+
+            if is_notification:
+                def ok(_result: Any) -> None:
+                    return None
+
+                def err(_code: int, _message: str) -> None:
+                    return None
+            else:
+                def ok(_result: Any) -> dict[str, Any]:
+                    return {"jsonrpc": "2.0", "id": jid, "result": _result}
+
+                def err(code: int, message: str) -> dict[str, Any]:
+                    return {"jsonrpc": "2.0", "id": jid, "error": {"code": code, "message": message}}
+
+            if not isinstance(m, dict) or not isinstance(method, str):
+                return err(-32600, "invalid request")
+            if not isinstance(params, dict):  # <-- simplified
+                return err(-32602, "invalid params")
+
+            try:
+                if method == "initialize":
+                    info = {
+                        "protocolVersion": "2024-07-01",
+                        "serverInfo": {"name": "AutoForge MCP", "version": str(self.auto_forge.version)},
+                        "capabilities": {"tools": True, "resources": False, "prompts": False},
+                    }
+                    await  self._broadcast({"jsonrpc": "2.0", "method": "server/ready", "params": info})
+                    return ok(info)
+
+                if method == "tools/list":
+                    return ok(self._rpc_tools_list())
+
+                if method == "tools/call":
+                    result = await self._rpc_tools_call(params)
+                    await self._broadcast({
+                        "jsonrpc": "2.0",
+                        "method": "tools/result",
+                        "params": {"name": params.get("name"), "result": result}
+                    })
+                    return ok(result)
+
+                if method == "ping":
+                    return ok({"pong": True})
+
+                return err(-32601, f"unknown method: {method}")
+
+            except KeyError as ke:
+                return err(-32601, str(ke))
+            except Exception as ex:
+                await self._broadcast({
+                    "jsonrpc": "2.0",
+                    "method": "tools/error",
+                    "params": {"error": str(ex)}
+                })
+                return err(-32000, "internal error")
+
+        # Single vs batch
+        if isinstance(payload, list):
+            if len(payload) > AUTO_FORGE_MAX_BATCH_MCP_COMMANDS:
+                return self._json_response(
+                    {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "batch too large"}},
+                    status=400,
+                )
+            replies = [r for r in [await _handle_one(m) for m in payload] if r is not None]
+            return self._json_response(replies)
+        else:
+            reply = await _handle_one(payload)
+            if reply is None:
+                return web.Response(status=204)
+            return self._json_response(reply)
+
+    def _add_tool(self, tool: _CoreMCPToolType):
+        """
+        Register a new MCP tool in the server's tool registry.
+        Args:
+            tool (_CoreMCPToolType): The tool instance to register. The `name`
+                attribute is used as the registry key.
+        Notes:
+            - If a tool with the same name already exists, it will be overwritten.
+            - Registered tools are discoverable via `tools/list` and callable via
+              `tools/call` in the MCP JSON-RPC API.
+        """
+        self._tools_registry[tool.name] = tool
+
     @staticmethod
-    def _json_response(data: dict) -> web.Response:
+    def _json_response(data: Any, status: int = 200) -> web.Response:
         """
         Create a consistent JSON response with indentation.
         Args:
@@ -177,27 +351,14 @@ class CoreMCPService(CoreModuleInterface):
         """
         return web.json_response(
             data,
-            dumps=lambda x: json.dumps(x, indent=2) + "\n")
+            status=status,
+            dumps=lambda x: json.dumps(x, indent=2, ensure_ascii=False) + "\n",
+        )
 
-    def _register_all_commands(self):
-        """
-        Register all loaded commands as HTTP POST endpoints in the MCP SSE server.
-        This method:
-            1. Iterates through `self._commands_data` to find commands that should be
-               exposed as HTTP endpoints (skips entries marked as `hidden`).
-            2. Supports both single-command strings and lists of commands per entry.
-            3. For each command set, constructs a handler bound to `/tool/{tool_name}`.
-            4. Each handler:
-                - Optionally reads a JSON payload with `"args"` (string).
-                - Expands any environment variables in the command(s).
-                - Executes each command line through the `CoreBuildShell` interface,
-                  capturing logs and execution status.
-                - Returns a JSON response with command results, or an error message
-                  if execution fails..
-        """
+    async def _run_one_cmdline_async(self, line: str) -> dict[str, Any]:
+        """Run a single command line and return status, logs, and a summary."""
 
-        def _run_one_cmdline(line: str):
-            """Run a single command line and return status, logs, and a summary."""
+        def _do_run() -> dict[str, Any]:
             runner = (
                     getattr(self._build_shell, "execute_cmdline", None)
                     or getattr(self._build_shell, "execute_line", None)
@@ -211,14 +372,36 @@ class CoreMCPService(CoreModuleInterface):
             with contextlib.redirect_stdout(command_response):
                 runner(line)
 
-            log_capture: list = self._core_logger.get_log_capture()
+            log_capture: list[str] = self._core_logger.get_log_capture()
             status = self._build_shell.last_result
-
             return {
                 "status": int(status) if isinstance(status, int) else 0,
                 "logs": log_capture,
-                "summary": f"Executed: {line}"
+                "summary": f"Executed: {line}",
             }
+
+        return await asyncio.to_thread(_do_run)
+
+    def _register_all_commands(self) -> None:
+        """
+        Register all loaded commands both as MCP tools (for SSE JSON-RPC)
+        and, optionally, as REST POST endpoints under /tool/<name>.
+        """
+
+        # JSON Schema used by MCP tools: allow string OR array for args
+        base_schema = {
+            "type": "object",
+            "properties": {
+                "args": {
+                    "oneOf": [
+                        {"type": "string"},
+                        {"type": "array", "items": {"type": "string"}}
+                    ],
+                    "description": "Extra arguments appended to command lines."
+                }
+            },
+            "additionalProperties": False
+        }
 
         for key, entry in self._commands_data.items():
             if entry.get("hidden"):
@@ -231,85 +414,107 @@ class CoreMCPService(CoreModuleInterface):
                 continue
 
             tool_name = f"{self._tool_prefix}{key}"
-            route = f"/tool/{tool_name}"
+            description = entry.get("description") or f"Run '{key}' command(s)."
 
-            async def make_handler(_cmds, expand=os.path.expandvars):
+            # Freeze per-iteration values to avoid late binding in closures
+            _cmds_tuple = tuple(cmds)
+
+            async def _tool_handler(params: dict[str, Any], _cmds=_cmds_tuple) -> dict[str, Any]:
+                # Normalize args
+                raw_args = params.get("args", "")
+                if isinstance(raw_args, list):
+                    extra = " ".join(str(a) for a in raw_args).strip()
+                else:
+                    extra = str(raw_args).strip()
+
+                lines = []
+                for raw in _cmds:
+                    line = raw
+                    if raw.startswith("do_") and extra:
+                        line = f"{raw} {extra}"
+                    line = os.path.expandvars(line)
+                    lines.append(line)
+
+                results = [await self._run_one_cmdline_async(line) for line in lines]
+                return {"results": results}
+
+            # Register as MCP tool
+            self._add_tool(_CoreMCPToolType(
+                name=tool_name,
+                description=description,
+                input_schema=base_schema,
+                handler=_tool_handler
+            ))
+
+            # Keep REST route for compatibility, but FIX the factory:
+            def make_handler(_cmds=_cmds_tuple):
                 async def handler(request):
                     payload = {}
                     with contextlib.suppress(Exception):
                         payload = await request.json()
 
-                    args = payload.get("args", "").strip()
+                    raw_args = payload.get("args", "")
+                    if isinstance(raw_args, list):
+                        extra = " ".join(str(a) for a in raw_args).strip()
+                    else:
+                        extra = str(raw_args).strip()
+
                     lines = []
-                    for cmd in _cmds:
-                        if cmd.startswith("do_") and args:
-                            cmd = f"{cmd} {args}"
-                        lines.append(expand(cmd))
+                    for raw in _cmds:
+                        line = raw
+                        if raw.startswith("do_") and extra:
+                            line = f"{raw} {extra}"
+                        line = os.path.expandvars(line)
+                        lines.append(line)
 
                     try:
-                        results = [_run_one_cmdline(line) for line in lines]
+                        results = [await self._run_one_cmdline_async(line) for line in lines]
                         return self._json_response({"results": results})
                     except Exception as e:
                         return self._json_response({"error": str(e)}, status=500)
 
                 return handler
 
-            # Bind the handler coroutine directly to the route
-            self._app.router.add_post(route, asyncio.run(make_handler(cmds)))
+            route = f"/tool/{tool_name}"
+            # NOTE: do NOT use asyncio.run() here; just pass the async function object
+            self._app.router.add_post(route, make_handler())
 
-    def start(self) -> int:
+    async def _rpc_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         """
-        Start the MCP server in SSE (Server-Sent Events) mode.
-
-        This method:
-        1. Retrieves the configured host and port from `self._mcp_config`.
-        2. Attempts to determine the system's primary external IPv4 address
-           (non-loopback) by connecting to a known public IP (Google DNS at 8.8.8.8).
-           This does not require actual network reachability — no data is sent.
-        3. Prints the server's bind address and the detected external IP for reference.
-        4. Runs the asynchronous SSE server loop until interrupted.
-
+        Invoke a registered MCP tool by name.
+        Args:
+            params (dict[str, Any]): JSON-RPC parameters with:
+                - "name" (str): The registered tool's name.
+                - "arguments" (dict): Arguments to pass to the tool's handler.
+                  Must conform to the tool's `input_schema`.
         Returns:
-            int: 0 if the server started successfully, 1 if an exception occurred.
+            dict[str, Any]: The tool's result payload (JSON-serializable).
         """
+        name = params.get("name")
+        arguments = params.get("arguments") or {}
+        tool = self._tools_registry.get(name)
+        if not tool:
+            raise KeyError(f"unknown tool: {name}")
+        # Optionally validate 'arguments' against tool.input_schema here.
+        return await tool.handler(arguments)
 
-        def _show_start_message():
+    def _rpc_tools_list(self) -> dict[str, Any]:
+        """
+        List all registered MCP tools.
+        Returns:
+            dict[str, Any]: A dictionary with key "tools" containing a list of
+            tool descriptors, where each descriptor includes:
+                - "name" (str): Tool name.
+                - "description" (str): Tool description.
+                - "inputSchema" (dict): JSON Schema for the tool's input.
+        """
+        tools = [{
+            "name": t.name,
+            "description": t.description,
+            "inputSchema": t.input_schema
+        } for t in self._tools_registry.values()]
 
-            _ip_address: str = self._mcp_config.host
-            _port: int = self._mcp_config.port
-            curl_get_syntax: str = f"curl --noproxy {_ip_address} -X GET http://{_ip_address}:{_port}"
-            curl_post_syntax: str = f"curl --noproxy {_ip_address} -X POST http://{_ip_address}:{_port}"
-
-            print(f"\nAutoForge: MCP SSE server running on {_ip_address}:{_port}")
-            print(
-                "Note: MCP SSE mode is experimental.\n"
-                "All the solution commands are accessible via tool routes in the form:\n"
-                "    af.cmd.<command_name>\n"
-                "You can test it with the following examples:\n"
-                f"•  {curl_get_syntax}/tool/version\n"
-                f"•  {curl_get_syntax}/tool/list\n"
-                f"•  {curl_post_syntax}/tool/af.cmd.busd\n"
-                "       assuming your solution defines a 'busd' command.\n"
-                f"•  {curl_post_syntax}/shutdown\n\n")
-
-        try:
-            with contextlib.suppress(Exception):
-                # Determine the primary external IP address (not localhost)
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                    # Google's public DNS — connection attempt is enough; no packets sent
-                    s.connect(("8.8.8.8", 80))
-                    self._mcp_config.host = s.getsockname()[0]
-
-            if not isinstance(self._mcp_config.host, str):
-                raise RuntimeError("can't determine local IP address")
-
-            _show_start_message()
-            asyncio.run(self._run_sse())
-            return 0
-
-        except Exception as e:
-            print(f"MCP Error: {e}")
-            return 1
+        return {"tools": tools}
 
     async def _run_sse(self):
         """
@@ -330,3 +535,77 @@ class CoreMCPService(CoreModuleInterface):
             await self._shutdown_event.wait()
         finally:
             await runner.cleanup()
+
+    def start(self) -> int:
+        """
+        Start the MCP server in SSE (Server-Sent Events) mode.
+
+        This method:
+        1. Retrieves the configured host and port from `self._mcp_config`.
+        2. Attempts to determine the system's primary external IPv4 address
+           (non-loopback) by connecting to a known public IP (Google DNS at 8.8.8.8).
+           This does not require actual network reachability — no data is sent.
+        3. Prints the server's bind address and the detected external IP for reference.
+        4. Runs the asynchronous SSE server loop until interrupted.
+
+        Returns:
+            int: 0 if the server started successfully, 1 if an exception occurred.
+        """
+
+        # noinspection SpellCheckingInspection
+        def _show_start_message():
+            _ip = self._mcp_config.host
+            _port = self._mcp_config.port
+            base = f"http://{_ip}:{_port}"
+
+            print(f"\nAutoForge: MCP SSE server running on {_ip}:{_port}")
+            print(
+                "MCP endpoints:\n"
+                f"• SSE stream:            GET  {base}/sse\n"
+                f"• JSON-RPC message bus:  POST {base}/message\n"
+                "\n"
+                "Quick tests:\n"
+                "1) Open the SSE stream (heartbeat every ~15s):\n"
+                f"   curl -N --noproxy {_ip} {base}/sse\n"
+                "\n"
+                "2) Initialize (also emits 'server/ready' on SSE):\n"
+                f"   curl --noproxy {_ip} -s -X POST {base}/message \\\n"
+                "     -H 'Content-Type: application/json' \\\n"
+                "     -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}'\n"
+                "\n"
+                "3) List tools:\n"
+                f"   curl --noproxy {_ip} -s -X POST {base}/message \\\n"
+                "     -H 'Content-Type: application/json' \\\n"
+                "     -d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}'\n"
+                "\n"
+                "4) Call a tool (example: af.cmd.call with --help):\n"
+                f"   curl --noproxy {_ip} -s -X POST {base}/message \\\n"
+                "     -H 'Content-Type: application/json' \\\n"
+                "     -d '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\","
+                "\"params\":{\"name\":\"af.cmd.call\",\"arguments\":{\"args\":[\"--help\"]}}}'\n"
+                "\n"
+                "Optional ops:\n"
+                f"• Liveness check:  GET  {base}/status\n"
+                f"• Shutdown (dev):  POST {base}/shutdown\n"
+            )
+
+        try:
+            with contextlib.suppress(Exception):
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.connect(("8.8.8.8", 80))
+                    self._mcp_config.host = s.getsockname()[0]
+            if not isinstance(self._mcp_config.host, str):
+                raise RuntimeError("can't determine local IP address")
+
+            _show_start_message()
+
+            try:
+                asyncio.get_running_loop()
+                # We're already in an event loop: schedule and return
+                asyncio.create_task(self._run_sse())
+            except RuntimeError:
+                asyncio.run(self._run_sse())
+            return 0
+        except Exception as e:
+            print(f"MCP Error: {e}")
+            return 1
