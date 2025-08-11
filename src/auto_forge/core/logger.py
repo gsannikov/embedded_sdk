@@ -12,6 +12,7 @@ Description:
     nothing is lost during early-stage initialization.
 """
 
+import io
 import json
 import logging
 import os
@@ -793,6 +794,19 @@ class CoreLogger(CoreModuleInterface):
 
         self._enable_formatting = enable_formatting
 
+    def start_log_capture(self) -> None:
+        """Enable memory capture by enabling the memory handler and clearing the buffer."""
+        if LogHandlersType.MEMORY_HANDLER not in self._enabled_handlers:
+            self._enable_handlers(LogHandlersType.MEMORY_HANDLER)
+        self._memory_logs_buffer.clear()
+
+    def get_log_capture(self, clear: bool = True) -> list[str]:
+        """Retrieve current memory buffer logs. Optionally clear after retrieval."""
+        logs = self._memory_logs_buffer[:]
+        if clear:
+            self._memory_logs_buffer.clear()
+        return logs
+    
     def close(self):
         """
         Close and remove all active logging handlers.

@@ -290,7 +290,7 @@ class AutoForge(CoreModuleInterface):
             logger_setting.enable_formatting = True
             logger_setting.enable_colors = False
             logger_setting.enable_console_output = False
-            logger_setting.flush_memory_logs = True
+            logger_setting.flush_memory_logs = False
 
         # Automation mode: tool output is suppressed, but logs are emitted to the terminal as they are generated
         elif self._work_mode == AutoForgeWorkModeType.NON_INTERACTIVE_AUTOMATION or PackageGlobals.SPAWNED:

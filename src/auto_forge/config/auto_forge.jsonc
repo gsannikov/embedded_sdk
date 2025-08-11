@@ -1,678 +1,688 @@
 /*
-    AutoForge package internal configuration.
-    -----------------------------------------
+	AutoForge package internal configuration.
+	-----------------------------------------
 
-    Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
-    This allows for improved readability and documentation which are not valid standard JSON.
+	Note: This file uses JSONC — an extended JSON format that supports inline comments and multi-line strings.
+	This allows for improved readability and documentation which are not valid standard JSON.
 */
 
 {
-  	"format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // General
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "git_token_environment_var": "NONE",                                // Optional name of the environment variable that may hold the user's Git token
-    "subprocess_execution_timout": 300.0,                               // Default timeout (in seconds) for sub-process execution.
-    "watchdog_timeout": 10.0,                                           // Default timeout (in seconds) for sub-process execution.
-    "productivity_assist": true,                                        // Productivity assist flag
-    "max_inspection_size_bytes": 16384,                                 // Upper limit to an AI inspected file size
-  	"allow_x11_ui": false,												// Allow the core UI (tkinter / X11) core module
-
-    // Build auto generated files
-    "build_error_context_file": "build_error_context.json",
-    "build_duplicate_symbols_file": "build_duplicate_symbols.json",
-    "build_ai_response_file": "build_ai_response.md",
-    
-    // Recognized keywords in build output that should be colorized using ANSI colors
-    // to improve clarity during visual inspection
-    "build_colorize_keywords": [
-        {
-            "keyword": "error:",
-            "color": "red"
-        },
-        {
-            "keyword": "fatal:",
-            "color": "red"
-        },
-        {
-            "keyword": "warning:",
-            "color": "yellow"
-        },
-        {
-            "keyword": "FAILED:",
-            "color": "red"
-        }
-    ],
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // Mandatory environment variables.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    // List of variable names that must be defined in the "variables" section.
-    // These variables are critical for proper project configuration.
-    // Each entry in the "variables" array must be an object with a matching "name" field.
-    // Validation will fail if any required variables are missing.
-    //
-    // Fields:
-    //   - key:                         Unique variable name.
-    //   - value:                       The value assigned to the variable.
-    //   - description:                 (Optional, default: "Not provided") A human-readable description.
-    //   - path_must_exist:             (Optional, default: true) If the variable represents a file system path,
-    //                                  this flag indicates whether the path is expected to exist.
-    //   - create_path_if_not_exist:    (Optional, default: true) If the path does not exist and this flag is set,
-    //                                  it will be created automatically.
-    //   - folder_type:                 (Optional, default: "UNKNOWN") Describes the folder type.
-    //                                  Valid values: UNKNOWN, BUILD, SOURCES, DOCUMENTS, SCRIPTS, EXTERNALS, IMAGES.
-
-    "auto_categorize": true,            // Auto-detect and set the 'is_path' attribute.
-    "essential_variables": [
-        //
-        //   Key                 Value                               Description                                       Path must exist, Crate path, Folder type
-	    //-----------------------------------------------------------------------------------------------------------------------------------------------------------
-
-        ["AF_BASE",             "$HOME/.auto_forge",                            "AutoForge persistent directory",              null,    null,   "PERSIST"           ],
-        ["AF_BIN",              "$AF_BASE/bin",                                 "Persistent binaries path",                    null,    null,   null                ],
-        ["AF_TOOL_CHAINS",      "$AF_BASE/tool_chains",                         "Persistent tool-chains",                      null,    null,   null                ],
-        ["AF_SOLUTION_BASE",    "$AF_BASE/$SOLUTION_NAME",                      "Persistent solution resources",               null,    null,   null                ],
-        ["AF_SOLUTION_INDEX",   "$AF_SOLUTION_BASE/indexes",                    "Persistent solution indexes",                 null,    null,   "INDEX"             ],
-        ["AF_SOLUTION_BIN",     "$AF_SOLUTION_BASE/bin",                        "Persistent solution binaries",                null,    null,   null                ],
-        ["AF_AI_PROVIDER",      "azure_openai",                                 "AI Preferred provider name",                  null,    null,   null                ],
-	    ["AF_AI_VOLT",          "$PACKAGE_SHARED_PATH/volt",                    "AI Volt",                                     true,    false,  null                ],
-        ["SOLUTION_BASE",       "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Solution root directory",                     null,    null,   null                ],
-        ["BUILD_BASE",          "$PROJ_WORKSPACE/build",                        "Base path for compilers outputs",             null,    null,   null                ],
-        ["BUILD_OUT",           "$BUILD_BASE/out",                              "Compilation outputs",                         null,    null,   "BUILD"             ],
-        ["BUILD_IMAGES",        "$BUILD_BASE/images",                           "Compiled binaries",                           null,    null,   "IMAGES"            ],
-        ["BUILD_LOGS",          "$BUILD_BASE/logs",                             "Runtime build logs",                          null,    null,   "LOGS"              ],
-        ["EXTERN_BASE",         "$PROJ_WORKSPACE/externs",                      "Foreign resources",                           null,    null,   "EXTERNALS"         ],
-        ["PROJ_BASE",           "$PROJ_WORKSPACE/$SOLUTION_NAME",               "Project base path",                           null,    null,   null                ],
-        ["DOCS_BASE",           "$PROJ_BASE/docs",                              "Project Documents",                           null,    null,   "DOCUMENTS"         ],
-        ["SCRIPTS_BASE",        "$PROJ_BASE/scripts",                           "Project scripts",                             null,    null,   "SCRIPTS"           ],
-        ["SCRIPTS_SOLUTION",    "$SCRIPTS_BASE/solution",                       "Solution JSONs",                              null,    null,   "SCRIPTS"           ],
-        ["SOURCE_BASE",         "$PROJ_BASE/src",                               "Sources base path",                           null,    null,   "SOURCES"           ]
-    ],
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // Logger options.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "log_similarity_filter": {
-        
-        "default_threshold": 0.85,  // Default similarity threshold for all tools
-        "enabled": true,            // Optional: global enable/disable flag
-
-        // Tool-specific overrides
-        "overrides": {
-            "ninja": {
-                "suppress_similar_lines": false
-            },
-            "git": {
-                "suppress_similar_lines": true,
-                "similarity_threshold": 0.92
-            },
-            "curl": {
-                "suppress_similar_lines": true
-            }
-        }
-    },
-
-    "log_cleanup_patterns": [
-
-    	// log_cleanup_patterns:
-    	// This list defines regular expression patterns used to clean or filter noisy lines
-    	// from command output logs. Lines matching any of these patterns will be removed
-    	// before displaying logs to the user.
-
-        "^remote: Counting objects:\\s*",
-        "^━+.*?━+\\s*"
-    ],
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // SQLIte data-base configuration attributes.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "db_version": "1.0",                        // Should match the 'db_version' value stored in the 'meta' table.
-    "db_max_indexed_file_size_kb": 1024,        // Max file size (KB)
-    "db_min_indexed_file_size_bytes": 10,       // Min file size (bytes)
-    "db_extra_log_verbosity": false,            // Log skipped/warnings
-    "db_filter_files_content": true,            // Slightly optimize files content before indexing
-    "db_indexing_log_frequency":10000,          // How often we should log indexing progress
-    "db_max_index_age_days":30,                 // Skip re-indexing if the data was indexed within the last N days
-
-    "db_meta_schema": {
-
-        // Schema definition for persistent metadata stored in the 'meta' table.
-        // Each key represents a metadata field to be stored.
-        // - "required": whether this key must be present during metadata creation.
-        // - "type": the expected value type, currently supports: "str" and "date-time".
-
-        "db_version":           {   "required": true,  "type": "str" },
-        "db_creation_date":     {   "required": true,  "type": "datetime" },
-        "db_last_indexed_date": {   "required": false, "type": "datetime" },
-        "solution_name":        {   "required": true,  "type": "str" },
-        "user_name":            {   "required": false, "type": "str" },
-        "host_name":            {   "required": false, "type": "str" },
-        "platform":             {   "required": false, "type": "str" },
-        "xray_version":         {   "required": true,  "type": "str" },
-        "auto_forge_version":   {   "required": true,  "type": "str" }
-    },
-
-    "db_indexed_file_types": [
-        // List of file extensions and special filenames to index for fast content search
-        "c", "h",                                   // C/C++ source and headers
-        "py",                                       // Python
-        "CMakeLists.txt", "cmake",                  // CMake main file + *.cmake scripts
-        "make", "Makefile",                         // Makefiles
-        "sh",                                       // Shell and Windows scripts
-        "json", "jsonc", "yaml", "yml", "toml" ,    // Config/data
-        "txt", "md", "rst", "cfg", "conf", "ini"    // Misc text formats
-    ],
-
-    "db_non_indexed_path_patterns": [
-        ".git", ".svn", ".hg",          // version control
-        ".venv", "__pycache__",         // Python junk
-        ".mypy_cache", ".pytest_cache",
-        ".idea", ".vscode", ".DS_Store",
-        "tmp", "temp", "build", "out"   // build and temp dirs
-    ],
-
-    "db_non_indexed_file_patterns": [
-        ".*csr_.*\\.h$",                // CSR headers
-        ".*_regs\\.h$",                 // Auto-generated register headers
-        ".*_regs_regs\\.h$",            // Double-regs headers
-        ".*buildhistory.*\\.txt$"
-    ],
-
-    // Expected location of solution files in an installed environment.
-    // This variable is read during an early initialization stage, please avoid using any local variables
-    // other than the workspace path and the solution name.
-
-    "local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
-    "local_bare_solution_package_files": "$PACKAGE_CONFIG_PATH/bare_solution",
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // Prompt engine properties.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "complete_while_typing": true,                              // Controls how aggressively prompt-toolkit attempts tab-completion while typing
-    "prompt_history_file": "$AF_BASE/.auto_forge.history",      // Path to store persistent prompt-toolkit history
-    "prompt_max_completion_results": 100,                       // Maximum number of tab-completion results; higher values may slow down completion in large directories
-
-    // Commands hidden from the user menu, typically useful for clearing up the cmd2 builtin commands.
-    "hidden_commands": [
-        "macro",
-        "edit",
-        "run_pyscript",
-        "run_script",
-        "_relative_run_script",
-        "shortcuts",
-        "history",
-        "shell",
-        "set",
-        "alias",
-        "quit",
-        "help"
-    ],
-
-    // Search paths used when the prompt attempts to autocomplete a typed command.
-    // This list typically mirrors the system's PATH variable and defines where
-    // the prompt will look for executable binaries during command completion.
-
-    "prompt_search_path": [
-        "/usr/local/sbin",
-        "/usr/local/bin",
-        "/usr/sbin",
-        "/usr/bin",
-        "/sbin",
-        "/bin",
-        "/snap/bin",
-        "$AF_BIN/",         // AutoForge persistent binaries path
-        "$AF_SOLUTION_BIN", // AutoForge persistent solution specific binaries
-        "$HOME/bin"
-      ],
-
-    "builtin_aliases": [
-
-        // Built-in shell aliases that map shorthand commands to predefined behaviors.
-        // Each entry includes:
-        // - "name": The shortcut or symbol used by the user (e.g., ".", "..").
-        // - "target_command": The actual command that will be executed.
-        // - "description": A user-friendly description (supports Unicode symbols).
-        // - "cmd_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
-
-        { "name": "$",            "command": "cd $PROJ_WORKSPACE",                                      "cmd_type": "NAVIGATE",     "description": "Go to workspace directory",                 "hidden": true  },
-        { "name": ".",            "command": "start -p .",                                              "cmd_type": "NAVIGATE",     "description": "📂 Open current folder in file manager"                     },
-        { "name": "..",           "command": "cd ..",                                                   "cmd_type": "NAVIGATE",     "description": "Go up one directory"                                        },
-        { "name": "...",          "command": "cd ../../",                                               "cmd_type": "NAVIGATE",     "description": "Go up two directories"                                      },
-        { "name": "....",         "command": "cd ../../../",                                            "cmd_type": "NAVIGATE",     "description": "Go up three directories"                                    },
-        { "name": "say",          "command": "ai",                                                      "cmd_type": "AI",           "description": "Send free text to an AI"                                    },
-        { "name": "cls",          "command": "clear",                                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true  },
-        { "name": "cln",          "command": "clear",                                                   "cmd_type": "SYSTEM",       "description": "Clear screen",                              "hidden": true  },
-        { "name": "ctx",          "command": "sln --show-json $BUILD_LOGS/build_error_context.json",    "cmd_type": "BUILD",        "description": "Show build analyzed context"                                },
-        { "name": "e",            "command": "edit -p",                                                 "cmd_type": "UTILITY",      "description": "📝 Open file or path in default editor"                     },
-        { "name": "er",           "command": "edit --error-context",                                    "cmd_type": "UTILITY",      "description": "📝 Edit Files from Last Build Errors"                       },
-        { "name": "exit",         "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                            "hidden": true  },
-        { "name": "xfind",        "command": "xray -c -l",                                              "cmd_type": "UTILITY",      "description": "Files finding utility"                                      },
-        { "name": "aifind",       "command": "ai --query-from-prompt",                                  "cmd_type": "AI",           "description": "Natural language DB files search"                           },
-        { "name": "aisum",        "command": "ai --get-source-summary",                                 "cmd_type": "AI",           "description": "Generate a high-level description of a source module"       },
-        { "name": "ga",           "command": "git add .",                                               "cmd_type": "GIT",          "description": "Git add all"                                                },
-        { "name": "gc",           "command": "git commit -m",                                           "cmd_type": "GIT",          "description": "Git commit"                                                 },
-        { "name": "gob",          "command": "cd $BUILD_OUT",                                           "cmd_type": "NAVIGATE",     "description": "Go to build output directory"                               },
-        { "name": "goi",          "command": "cd $BUILD_IMAGES",                                        "cmd_type": "NAVIGATE",     "description": "Go to build products directory"                             },
-        { "name": "gologs",       "command": "cd $BUILD_LOGS",                                          "cmd_type": "NAVIGATE",     "description": "Go to the build logs path",                 "hidden": true  },
-        { "name": "gop",          "command": "cd $PROJ_WORKSPACE/$SOLUTION_NAME",                       "cmd_type": "NAVIGATE",     "description": "Go to project root path"                                    },
-        { "name": "goss",         "command": "cd $SCRIPTS_SOLUTION",                                    "cmd_type": "NAVIGATE",     "description": "Go to the solution JSONs path"                              },
-        { "name": "gos",          "command": "cd $SCRIPTS_BASE",                                        "cmd_type": "NAVIGATE",     "description": "Go to scripts directory"                                    },
-        { "name": "gow",          "command": "cd $PROJ_WORKSPACE",                                      "cmd_type": "NAVIGATE",     "description": "Go to workspace root path"                                  },
-        { "name": "gp",           "command": "git push",                                                "cmd_type": "GIT",          "description": "Git push"                                                   },
-        { "name": "gs",           "command": "git status",                                              "cmd_type": "GIT",          "description": "Git status"                                                 },
-        { "name": "j",            "command": "sln --show-json",                                         "cmd_type": "SYSTEM",       "description": "JSON viewer"                                                },
-        { "name": "m",            "command": "sln --show-mark-down",                                    "cmd_type": "SYSTEM",       "description": "Markdown viewer"                                            },
-        { "name": "l",            "command": "lsd -g",                                                  "cmd_type": "SYSTEM",       "description": "List files (fancy) using 'lsd'"                             },
-        { "name": "ll",           "command": "/bin/ls -la --color=auto -F",                             "cmd_type": "SYSTEM",       "description": "List (long) using built-in 'ls'"                            },
-        { "name": "log",          "command": "sln --show-log",                                          "cmd_type": "UTILITY",      "description": "Show recent logs"                                           },
-        { "name": "ls",           "command": "/bin/ls --color=auto -F",                                 "cmd_type": "SYSTEM",       "description": "List (short) using built-in 'ls"                            },
-        { "name": "q",            "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                             "hidden": true },
-        { "name": "rep",          "command": "sln --show-mark-down $BUILD_LOGS/build_ai_response.md",   "cmd_type": "AI",           "description": "Show AI error report"                                       },
-        { "name": "showeditors",  "command": "edit -l",                                                 "cmd_type": "UTILITY",      "description": "Show all detected editors"                                  },
-        { "name": "showenv",      "command": "sln --show-environment-variables",                        "cmd_type": "UTILITY",      "description": "Show managed variables tables"                              },
-        { "name": "showsln",      "command": "sln --show-solution",                                     "cmd_type": "UTILITY",      "description": "Show resolved solution JSON"                                },
-        { "name": "showtelem",    "command": "sln --show-telemetry",                                    "cmd_type": "UTILITY",      "description": "Show stored telemetry"                                      },
-        { "name": "about",        "command": "sln --show-mark-down package/about.md",                   "cmd_type": "HELP",         "description": "About AutoForge"                                            },
-        { "name": "src",          "command": "cd $SOURCE_BASE",                                         "cmd_type": "NAVIGATE",     "description": "Go to sources root directory"                               },
-        { "name": "x",            "command": "quit",                                                    "cmd_type": "SYSTEM",       "description": "Exit the shell",                             "hidden": true },
-        { "name": "~",            "command": "cd $HOME",                                                "cmd_type": "NAVIGATE",     "description": "🏠 Go to home directory"                                    }
-
-    ],
-
-    "interactive_commands": [
-
-        // List of commands that require interactive terminal behavior.
-        // These commands typically control the terminal screen, use input prompts,
-        // or produce continuous output unsuitable for standard command capture.
-
-        "apt*",
-        "bash",
-        "zsh",
-        "btop",
-        "bat",
-        "cat",
-        "clear",
-        "dnf*",
-        "htop",
-        "less",
-        "nano",
-        "pico",
-        "sudo",
-        "top",
-        "vi",
-        "vim",
-        "pip",
-        "python*"
-    ],
-
-    "path_completion_rules": {
-
-        // Mapping of shell-like commands to their completion behavior.
-        // Commands supporting path completion specify whether only directories
-        // should be suggested when completing arguments.
-
-        "alias"           : { "path_completion": false                        },
-        "apt"             : { "path_completion": false                        },
-        "cat"             : { "path_completion": true , "only_dirs": false    },
-        "e"               : { "path_completion": true , "only_dirs": false    }, // Package 'edit' command alias
-        "j"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.jsonc", "*.json"]  },
-        "aisum"           : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.sh", "*.py", "*.c", "*.json", "*.jsonc"]  },
-        "m"               : { "path_completion": true , "only_dirs": false,   "filter_glob": ["*.md"]  },
-        "cd"              : { "path_completion": true , "only_dirs": true     },
-        "clear"           : { "path_completion": false                        },
-        "cmake"           : { "path_completion": true , "only_dirs": true     },
-        "cp"              : { "path_completion": true , "only_dirs": false    },
-        "curl"            : { "path_completion": false                        },
-        "dnf"             : { "path_completion": false                        },
-        "echo"            : { "path_completion": false                        },
-        "export"          : { "path_completion": false                        },
-        "git"             : { "path_completion": false                        },
-        "gunzip"          : { "path_completion": true , "only_dirs": false    },
-        "gzip"            : { "path_completion": true , "only_dirs": false    },
-        "head"            : { "path_completion": true , "only_dirs": false    },
-        "help"            : { "path_completion": false                        },
-        "history"         : { "path_completion": false                        },
-        "less"            : { "path_completion": true , "only_dirs": false    },
-        "ls"              : { "path_completion": true , "only_dirs": false    },
-        "make"            : { "path_completion": true , "only_dirs": false,   "allowed_names": ["Makefile", "GNUmakefile", "makefile"] },
-        "mkdir"           : { "path_completion": true , "only_dirs": true     },
-        "more"            : { "path_completion": true , "only_dirs": false    },
-        "mv"              : { "path_completion": true , "only_dirs": false    },
-        "nano"            : { "path_completion": true , "only_dirs": false    },
-        "ninja"           : { "path_completion": true , "only_dirs": false    },
-        "pip"             : { "path_completion": false                        },
-        "pip3"            : { "path_completion": false                        },
-        "ping"            : { "path_completion": false                        },
-        "popd"            : { "path_completion": false                        },
-        "prettier"        : { "path_completion": false                        },
-        "pushd"           : { "path_completion": true , "only_dirs": true     },
-        "python"          : { "path_completion": true , "only_dirs": false,   "filter_glob": "*.py" },
-        "python3"         : { "path_completion": true , "only_dirs": false,   "filter_glob": "*.py" },
-        "pytest"          : { "path_completion": true , "only_dirs": false    },
-        "rm"              : { "path_completion": true , "only_dirs": false    },
-        "rmdir"           : { "path_completion": true , "only_dirs": true     },
-        "set"             : { "path_completion": false                        },
-        "stat"            : { "path_completion": true , "only_dirs": false    },
-        "tail"            : { "path_completion": true , "only_dirs": false    },
-        "tar"             : { "path_completion": true , "only_dirs": false    },
-        "touch"           : { "path_completion": true , "only_dirs": false    },
-        "traceroute"      : { "path_completion": false                        },
-        "unzip"           : { "path_completion": true , "only_dirs": false    },
-        "unalias"         : { "path_completion": false                        },
-        "vi"              : { "path_completion": true , "only_dirs": false    },
-        "vim"             : { "path_completion": true , "only_dirs": false    },
-        "wc"              : { "path_completion": true , "only_dirs": false    },
-        "wget"            : { "path_completion": false                        },
-        "yum"             : { "path_completion": false                        },
-        "zip"             : { "path_completion": true , "only_dirs": false    }
-    },
-
-    // Defines visual styles for auto completed paths.
-    "dynamic_prompt_styles": {
-
-        // Default background for all completions (light gray tone)
-        "background": "d1d1d1",
-
-        // Styles for each token category used in completion rendering
-        "tokens": {
-            // Executables (e.g. system commands)
-            "executable": "fg:#228b22 bold",         // Forest green text
-            // Built-in (do_) commands
-            "builtins": "fg:#1e90ff bold",           // Dodger blue
-            // Dynamic commands
-            "commands": "fg:#6600cc bold italic",    // Deep violet, elegant and highly readable
-            // Aliases (shortcut commands)
-            "aliases": "fg:#6666cc italic",          // Soft lavender
-            // Regular files
-            "file": "fg:#666666",                    // Medium gray
-            // Directories
-            "directory": "fg:#0088cc bold",          // Cool cyan-blue
-            // Passive system messages
-            "completion-meta": "fg:#888888 italic",  // Subtle gray
-            // Alerts or user warnings
-            "alert": "fg:#aa0000 bold",              // Soft red
-            // Hodden (starts with '.')
-            "hidden-file-path": "fg:#666666 italic"  // softer gray, clearly visible on light background
-        }
-    },
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // Terminal related.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "ansi_codes": {
-
-        // ANSI color and style codes following Colorama-style naming.
-        // These codes are useful for logging, and text decoration.
-
-        // Screen control
-        "SCREEN_CLS"               : "\u001b[H\u001b[2J",
-        "SCREEN_CLS_SB"            : "\u001b[2J\u001b[3J\u001b[H",
-
-        // Text style (Colorama: Style)
-        "STYLE_RESET_ALL"           : "\u001b[0m",
-        "STYLE_BRIGHT"              : "\u001b[1m",
-        "STYLE_DIM"                 : "\u001b[2m",
-        "STYLE_ITALIC"              : "\u001b[3m",
-        "STYLE_UNDERLINE"           : "\u001b[4m",
-        "STYLE_BLINK"               : "\u001b[5m",
-        "STYLE_INVERT"              : "\u001b[7m",
-        "STYLE_HIDDEN"              : "\u001b[8m",
-        "STYLE_STRIKETHROUGH"       : "\u001b[9m",
-
-        // Foreground colors
-        "FORE_BLACK"               : "\u001b[30m",
-        "FORE_RED"                 : "\u001b[31m",
-        "FORE_GREEN"               : "\u001b[32m",
-        "FORE_YELLOW"              : "\u001b[33m",
-        "FORE_BLUE"                : "\u001b[34m",
-        "FORE_MAGENTA"             : "\u001b[35m",
-        "FORE_CYAN"                : "\u001b[36m",
-        "FORE_WHITE"               : "\u001b[37m",
-        "FORE_RESET"               : "\u001b[39m",
-
-        // Background colors
-        "BACK_BLACK"               : "\u001b[40m",
-        "BACK_RED"                 : "\u001b[41m",
-        "BACK_GREEN"               : "\u001b[42m",
-        "BACK_YELLOW"              : "\u001b[43m",
-        "BACK_BLUE"                : "\u001b[44m",
-        "BACK_MAGENTA"             : "\u001b[45m",
-        "BACK_CYAN"                : "\u001b[46m",
-        "BACK_WHITE"               : "\u001b[47m",
-        "BACK_RESET"               : "\u001b[49m",
-
-        // Bright foreground colors
-        "FORE_LIGHTBLACK_EX"      : "\u001b[90m",
-        "FORE_LIGHTRED_EX"        : "\u001b[91m",
-        "FORE_LIGHTGREEN_EX"      : "\u001b[92m",
-        "FORE_LIGHTYELLOW_EX"     : "\u001b[93m",
-        "FORE_LIGHTBLUE_EX"       : "\u001b[94m",
-        "FORE_LIGHTMAGENTA_EX"    : "\u001b[95m",
-        "FORE_LIGHTCYAN_EX"       : "\u001b[96m",
-        "FORE_LIGHTWHITE_EX"      : "\u001b[97m",
-
-        // Bright background colors
-        "BACK_LIGHTBLACK_EX"      : "\u001b[100m",
-        "BACK_LIGHTRED_EX"        : "\u001b[101m",
-        "BACK_LIGHTGREEN_EX"      : "\u001b[102m",
-        "BACK_LIGHTYELLOW_EX"     : "\u001b[103m",
-        "BACK_LIGHTBLUE_EX"       : "\u001b[104m",
-        "BACK_LIGHTMAGENTA_EX"    : "\u001b[105m",
-        "BACK_LIGHTCYAN_EX"       : "\u001b[106m",
-        "BACK_LIGHTWHITE_EX"      : "\u001b[107m"
-    },
-
-    "terminal_icons": {
-
-        // Source Code
-        ".py"                : { "icon": "\ue606", "description": "Python source file",      "color": "FORE_YELLOW"          },
-        ".c"                 : { "icon": "\ue61e", "description": "C source file",           "color": "BACK_LIGHTBLUE_EX"    },
-        ".cpp"               : { "icon": "\ue61d", "description": "C++ source file",         "color": "BACK_LIGHTBLUE_EX"    },
-        ".h"                 : { "icon": "\ue61e", "description": "C/C++ header",            "color": "BACK_LIGHTBLUE_EX"    },
-        ".hpp"               : { "icon": "\ue61d", "description": "C++ header",              "color": "BACK_LIGHTBLUE_EX"    },
-        ".java"              : { "icon": "\ue256", "description": "Java source file",        "color": "FORE_RED"             },
-        ".js"                : { "icon": "\ue74e", "description": "JavaScript file",         "color": "FORE_YELLOW"          },
-        ".ts"                : { "icon": "\ue628", "description": "TypeScript file",         "color": "FORE_CYAN"            },
-        ".go"                : { "icon": "\ue627", "description": "Go source file",          "color": "FORE_CYAN"            },
-        ".rs"                : { "icon": "\ue7a8", "description": "Rust source file",        "color": "FORE_RED"             },
-        ".swift"             : { "icon": "\ue755", "description": "Swift source file",       "color": "FORE_MAGENTA"         },
-
-        // Scripts & Shell
-        ".sh"                : { "icon": "\uf489", "description": "Shell script",            "color": "FORE_GREEN"           },
-        ".bash"              : { "icon": "\uf489", "description": "Bash script",             "color": "FORE_GREEN"           },
-        ".zsh"               : { "icon": "\uf489", "description": "Zsh script",              "color": "FORE_GREEN"           },
-        ".ps1"               : { "icon": "\ue795", "description": "PowerShell script",       "color": "FORE_CYAN"            },
-
-        // Config & Markup
-        ".json"              : { "icon": "\ue60b", "description": "JSON file",               "color": "FORE_CYAN"            },
-        ".jsonc"             : { "icon": "\ue60b", "description": "JSON with comments",      "color": "FORE_CYAN"            },
-        ".yaml"              : { "icon": "\ue615", "description": "YAML config file",        "color": "FORE_CYAN"            },
-        ".yml"               : { "icon": "\ue615", "description": "YAML config file",        "color": "FORE_CYAN"            },
-        ".toml"              : { "icon": "\ue615", "description": "TOML config file",        "color": "FORE_CYAN"            },
-        ".ini"               : { "icon": "\ue615", "description": "INI config file",         "color": "FORE_CYAN"            },
-        ".conf"              : { "icon": "\ue615", "description": "Configuration file",      "color": "FORE_CYAN"            },
-        ".env"               : { "icon": "\uf4a2", "description": "Environment settings",    "color": "FORE_GREEN"           },
-
-        // Markup & Docs
-        ".md"                : { "icon": "\uf48a", "description": "Markdown file",           "color": "FORE_BLUE"            },
-        ".txt"               : { "icon": "\uf49e", "description": "Text file",               "color": "FORE_LIGHTBLACK_EX"   },
-        ".rst"               : { "icon": "\ue5da", "description": "reStructuredText",        "color": "FORE_BLUE"            },
-        ".html"              : { "icon": "\ue60e", "description": "HTML document",           "color": "FORE_MAGENTA"         },
-        ".xml"               : { "icon": "\ufabf", "description": "XML document",            "color": "FORE_MAGENTA"         },
-        ".pdf"               : { "icon": "\uf724", "description": "PDF document",            "color": "FORE_RED"             },
-
-        // Logs
-        ".log"               : { "icon": "\uf4cd", "description": "Log file",                "color": "FORE_LIGHTBLACK_EX"   },
-
-        // Archives
-        ".zip"               : { "icon": "\uf490", "description": "ZIP archive",             "color": "FORE_MAGENTA"         },
-        ".tar"               : { "icon": "\uf490", "description": "TAR archive",             "color": "FORE_MAGENTA"         },
-        ".gz"                : { "icon": "\uf490", "description": "GZ archive",              "color": "FORE_MAGENTA"         },
-        ".bz2"               : { "icon": "\uf490", "description": "BZIP2 archive",           "color": "FORE_MAGENTA"         },
-        ".7z"                : { "icon": "\uf490", "description": "7-Zip archive",           "color": "FORE_MAGENTA"         },
-
-        // Media
-        ".jpg"               : { "icon": "\uf03e", "description": "JPEG image",              "color": "FORE_YELLOW"          },
-        ".jpeg"              : { "icon": "\uf03e", "description": "JPEG image",              "color": "FORE_YELLOW"          },
-        ".png"               : { "icon": "\uf03e", "description": "PNG image",               "color": "FORE_YELLOW"          },
-        ".gif"               : { "icon": "\uf03e", "description": "GIF image",               "color": "FORE_YELLOW"          },
-        ".svg"               : { "icon": "\uf81f", "description": "SVG vector image",        "color": "FORE_CYAN"            },
-        ".mp3"               : { "icon": "\uf001", "description": "MP3 audio file",          "color": "FORE_MAGENTA"         },
-        ".wav"               : { "icon": "\uf001", "description": "WAV audio file",          "color": "FORE_MAGENTA"         },
-        ".mp4"               : { "icon": "\uf03d", "description": "MP4 video file",          "color": "FORE_BLUE"            },
-        ".mkv"               : { "icon": "\uf03d", "description": "MKV video file",          "color": "FORE_BLUE"            },
-
-        // Compiled
-        ".exe"               : { "icon": "\ue70f", "description": "Windows executable",      "color": "FORE_RED"             },
-        ".out"               : { "icon": "\ue795", "description": "Compiled binary",         "color": "FORE_RED"             },
-        ".class"             : { "icon": "\ue256", "description": "Java class file",         "color": "FORE_LIGHTBLACK_EX"   },
-        ".o"                 : { "icon": "\ue795", "description": "Object file",             "color": "FORE_LIGHTBLACK_EX"   },
-
-        // Special filenames
-        "Makefile"           : { "icon": "\ue761", "description": "Makefile",                "color": "FORE_CYAN"            },
-        "Dockerfile"         : { "icon": "\ue790", "description": "Dockerfile",              "color": "FORE_BLUE"            },
-        "LICENSE"            : { "icon": "\uf016", "description": "License file",            "color": "white"                },
-        "README"             : { "icon": "\uf7dd", "description": "README file",             "color": "FORE_BLUE"            },
-
-        // Fallbacks
-        "default_dir"        : { "icon": "\uf115", "description": "Directory",               "color": "FORE_BLUE"            },
-        "default_file"       : { "icon": "\uf016", "description": "Generic file",            "color": "white"                }
-    },
-
-    "terminal_sign_out_message": [
-
-        // A variety of "goodbye" phrases in common and less common languages,
-        // randomly shown when signing out for a friendly multilingual touch..
-
-        { "language": "English",    "phrase": "Goodbye"},
-        { "language": "Hebrew",     "phrase": "להתראות"},
-        { "language": "Hindi",      "phrase": "अलविदा"},
-        { "language": "Russian",    "phrase": "До свидания"},
-        { "language": "Yiddish",    "phrase": "זיך געזען"},
-        { "language": "French",     "phrase": "Au revoir"},
-        { "language": "Spanish",    "phrase": "Adiós"},
-        { "language": "German",     "phrase": "Auf Wiedersehen"},
-        { "language": "Italian",    "phrase": "Arrivederci"},
-        { "language": "Japanese",   "phrase": "さようなら"},
-        { "language": "Chinese",    "phrase": "再见"},
-        { "language": "Portuguese", "phrase": "Adeus"},
-        { "language": "Korean",     "phrase": "안녕히 가세요"},
-        { "language": "Greek",      "phrase": "Αντίο"},
-        { "language": "Turkish",    "phrase": "Hoşça kal"},
-        { "language": "Dutch",      "phrase": "Vaarwel"},
-        { "language": "Polish",     "phrase": "Do widzenia"},
-        { "language": "Swedish",    "phrase": "Adjö"},
-        { "language": "Swahili",    "phrase": "Kwaheri"}
-    ],
-
-    "editors_fallback_search_paths": [
-
-        // Fallback search paths for locating editors not found in the system's executable PATH.
-        // Each entry may include:
-        // - "path": A string path to search.
-        // - "wsl_path": true if the path refers to a WSL-mounted Windows location (e.g., /mnt/c/...),
-        //               which will only be searched when running inside WSL and the target alias ends with '.exe'.
-
-        { "path": "/snap/bin"                                                                   },
-        { "path": "/var/lib/flatpak/exports/bin"                                                },
-        { "path": "~/.var/app"                                                                  },
-        { "path":  "~/bin"                                                                      },
-        { "path": "/mnt/c/Program Files/Sublime Text",                       "wsl_path": true   },
-        { "path": "/mnt/c/Program Files/Microsoft VS Code",                  "wsl_path": true   },
-        { "path": "$WSL_HOMEPATH/AppData/Local/Programs/Microsoft VS Code",  "wsl_path": true   },
-        { "path": "$WSL_C_MOUNT/Program Files (x86)/Notepad++",              "wsl_path": true   },
-        { "path": "$WSL_C_MOUNT/Program Files/Notepad++",                    "wsl_path": true   },
-        { "path": "$WSL_C_MOUNT/Windows",                                    "wsl_path": true   }
-    ],
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // Metadata to allow for dynamically location installed editors.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "searched_editors": [
-
-        // A list of supported editors that will be searched for during startup.
-        // Each object should define:
-        // - "name": A unique identifier for the editor.
-        // - "aliases": A list of possible executable names to check (e.g., commands or symlinks).
-        // - "type": "terminal" or "gui", used to categorize the editor.
-        // - "executable": Preferred alias name used when launching the editor.
-
-        { "name": "vi",           "aliases": ["vi", "vii"],                               "type": "terminal", "executable": "vi",           "args": [] },
-        { "name": "vim",          "aliases": ["vim", "vim.basic", "vim.tiny"],            "type": "terminal", "executable": "vim",          "args": ["-u", "NONE"] },
-        { "name": "gvim",         "aliases": ["gvim", "gvim.exe"],                        "type": "gui",      "executable": "gvim",         "args": [] },
-        { "name": "nano",         "aliases": ["nano"],                                    "type": "terminal", "executable": "nano",         "args": ["--ignorercfiles"] },
-        { "name": "pico",         "aliases": ["pico"],                                    "type": "terminal", "executable": "pico",         "args": [] },
-        { "name": "emacs",        "aliases": ["emacs"],                                   "type": "terminal", "executable": "emacs",        "args": ["-nw"] },
-        { "name": "micro",        "aliases": ["micro"],                                   "type": "terminal", "executable": "micro",        "args": [] },
-        { "name": "gedit",        "aliases": ["gedit"],                                   "type": "gui",      "executable": "gedit",        "args": ["--new-window"] },
-        { "name": "leafpad",      "aliases": ["leafpad"],                                 "type": "gui",      "executable": "leafpad",      "args": [] },
-        { "name": "mousepad",     "aliases": ["mousepad"],                                "type": "gui",      "executable": "mousepad",     "args": [] },
-        { "name": "pluma",        "aliases": ["pluma"],                                   "type": "gui",      "executable": "pluma",        "args": [] },
-        { "name": "atom",         "aliases": ["atom", "Atom.exe"],                        "type": "gui",      "executable": "atom",         "args": ["--new-window"] },
-        { "name": "bluefish",     "aliases": ["bluefish"],                                "type": "gui",      "executable": "bluefish",     "args": [] },
-        { "name": "kate",         "aliases": ["kate"],                                    "type": "gui",      "executable": "kate",         "args": ["--new"] },
-        { "name": "xed",          "aliases": ["xed"],                                     "type": "gui",      "executable": "xed",          "args": [] },
-        { "name": "sublime_text", "aliases": ["subl", "sublime_text", "subl.exe"],        "type": "gui",      "executable": "subl",         "args": [] },
-        { "name": "vscode",       "aliases": ["code", "code-insiders", "Code.exe"],       "type": "gui",      "executable": "code",         "args": ["--reuse-window"] },
-        { "name": "notepad++",    "aliases": ["notepad++.exe"],                           "type": "gui",      "executable": "notepad++.exe","args": [] },
-        { "name": "notepad",      "aliases": ["notepad.exe"],                             "type": "gui",      "executable": "notepad",      "args": [] }
-    ],
-
-    // -----------------------------------------------------------------------------------------------------------------
-    //
-    // Proxy servers.
-    //
-    // -----------------------------------------------------------------------------------------------------------------
-
-    "proxy_timout":  10,        // Max time in seconds we allow for getting a dummy resource
-    "proxy_auto_update": false, // Update environment with the best proxy
-
-    "proxy_servers": [
-        // List of proxy server
-        { "host": "proxy-dmz.intel.com",    "port": 911, "https": false },
-        { "host": "proxy-iil.intel.com",    "port": 912, "https": false },
-        { "host": "child-prc.intel.com",    "port": 912, "https": false },
-        { "host": "proxy-chain.intel.com",  "port": 912, "https": false },
-        { "host": "proxy-us.intel.com",     "port": 912, "https": false },
-        { "host": "ftpgw.fm.intel.com",     "port": 911, "https": false },
-        { "host": "proxy-jf.intel.com",     "port": 912, "https": false },
-        { "host": "proxy-fm.intel.com",     "port": 912, "https": false },
-        { "host": "proxy-iind.intel.com",   "port": 912, "https": false },
-        { "host": "proxy-ir.intel.com",     "port": 912, "https": false },
-        { "host": "child-jf.intel.com",     "port": 912, "https": false },
-        { "host": "proxy1-iil.intel.com",   "port": 912, "https": false },
-        { "host": "proxy2-iil.intel.com",   "port": 912, "https": false },
-        { "host": "proxy-png.intel.com",    "port": 912, "https": false }
-    ],
-
-    "proxy_dummy_files": [
-        // Downloadable resources 100Mb each
-        { "url": "http://speed.hetzner.de/100MB.bin",                   "size": 100000,    "name": "Hetzner Online"    },
-        { "url": "http://ipv4.download.thinkbroadband.com/100MB.zip",   "size": 100000,    "name": "ThinkBroadband"    },
-        { "url": "http://speedtest.tokyo2.linode.com/100MB-tokyo.bin",  "size": 100000,    "name": "Linode"            },
-        { "url": "http://proof.ovh.net/files/100Mb.dat",                "size": 100000,    "name": "OVH Speed Test"    }
-    ]
+	"format_off": "# @formatter:off", // Instruct PyCharm not to format this file.
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// General
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"git_token_environment_var": "NONE",							// Optional name of the environment variable that may hold the user's Git token
+	"subprocess_execution_timout": 300.0,							// Default timeout (in seconds) for sub-process execution.
+	"watchdog_timeout": 10.0,										// Default timeout (in seconds) for sub-process execution.
+	"productivity_assist": true,									// Productivity assist flag
+	"max_inspection_size_bytes": 16384,								// Upper limit to an AI inspected file size
+	"allow_x11_ui": false,											// Allow the core UI (tkinter / X11) core module
+
+	// Build auto generated files
+	"build_error_context_file": "build_error_context.json",
+	"build_duplicate_symbols_file": "build_duplicate_symbols.json",
+	"build_ai_response_file": "build_ai_response.md",
+
+	// Recognized keywords in build output that should be colorized using ANSI colors
+	// to improve clarity during visual inspection
+	"build_colorize_keywords": [
+		{
+			"keyword": "error:",
+			"color": "red"
+		},
+		{
+			"keyword": "fatal:",
+			"color": "red"
+		},
+		{
+			"keyword": "warning:",
+			"color": "yellow"
+		},
+		{
+			"keyword": "FAILED:",
+			"color": "red"
+		}
+	],
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// Mandatory environment variables.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	// List of variable names that must be defined in the "variables" section.
+	// These variables are critical for proper project configuration.
+	// Each entry in the "variables" array must be an object with a matching "name" field.
+	// Validation will fail if any required variables are missing.
+	//
+	// Fields:
+	//	 - key:							Unique variable name.
+	//	 - value:						The value assigned to the variable.
+	//	 - description:					(Optional, default: "Not provided") A human-readable description.
+	//	 - path_must_exist:				(Optional, default: true) If the variable represents a file system path,
+	//									this flag indicates whether the path is expected to exist.
+	//	 - create_path_if_not_exist:	(Optional, default: true) If the path does not exist and this flag is set,
+	//									it will be created automatically.
+	//	 - folder_type:					(Optional, default: "UNKNOWN") Describes the folder type.
+	//									Valid values: UNKNOWN, BUILD, SOURCES, DOCUMENTS, SCRIPTS, EXTERNALS, IMAGES.
+
+	"auto_categorize": true,			// Auto-detect and set the 'is_path' attribute.
+	"essential_variables": [
+		//
+		//	 Key				Value								Description						Path must exist, Crate path, Folder type
+		//---------------------------------------------------------------------------------------------------------------------------------------
+
+		["AF_BASE",				"$HOME/.auto_forge",				"AutoForge persistent directory",		null,	null,	"PERSIST"			],
+		["AF_BIN",				"$AF_BASE/bin",						"Persistent binaries path",				null,	null,	null				],
+		["AF_TOOL_CHAINS",		"$AF_BASE/tool_chains",				"Persistent tool-chains",				null,	null,	null				],
+		["AF_SOLUTION_BASE",	"$AF_BASE/$SOLUTION_NAME",			"Persistent solution resources",		null,	null,	null				],
+		["AF_SOLUTION_INDEX",	"$AF_SOLUTION_BASE/indexes",		"Persistent solution indexes",			null,	null,	"INDEX"				],
+		["AF_SOLUTION_BIN",		"$AF_SOLUTION_BASE/bin",			"Persistent solution binaries",			null,	null,	null				],
+		["AF_AI_PROVIDER",		"azure_openai",						"AI Preferred provider name",			null,	null,	null				],
+		["AF_AI_VOLT",			"$PACKAGE_SHARED_PATH/volt",		"AI Volt",								true,	false,	null				],
+		["SOLUTION_BASE",		"$PROJ_WORKSPACE/$SOLUTION_NAME",	"Solution root directory",				null,	null,	null				],
+		["BUILD_BASE",			"$PROJ_WORKSPACE/build",			"Base path for compilers outputs",		null,	null,	null				],
+		["BUILD_OUT",			"$BUILD_BASE/out",					"Compilation outputs",					null,	null,	"BUILD"				],
+		["BUILD_IMAGES",		"$BUILD_BASE/images",				"Compiled binaries",					null,	null,	"IMAGES"			],
+		["BUILD_LOGS",			"$BUILD_BASE/logs",					"Runtime build logs",					null,	null,	"LOGS"				],
+		["EXTERN_BASE",			"$PROJ_WORKSPACE/externs",			"Foreign resources",					null,	null,	"EXTERNALS"			],
+		["PROJ_BASE",			"$PROJ_WORKSPACE/$SOLUTION_NAME",	"Project base path",					null,	null,	null				],
+		["DOCS_BASE",			"$PROJ_BASE/docs",					"Project Documents",					null,	null,	"DOCUMENTS"			],
+		["SCRIPTS_BASE",		"$PROJ_BASE/scripts",				"Project scripts",						null,	null,	"SCRIPTS"			],
+		["SCRIPTS_SOLUTION",	"$SCRIPTS_BASE/solution",			"Solution JSONs",						null,	null,	"SCRIPTS"			],
+		["SOURCE_BASE",			"$PROJ_BASE/src",					"Sources base path",					null,	null,	"SOURCES"			]
+	],
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// Logger options.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"log_similarity_filter": {
+
+		"default_threshold": 0.85,	// Default similarity threshold for all tools
+		"enabled": true,			// Optional: global enable/disable flag
+
+		// Tool-specific overrides
+		"overrides": {
+			"ninja": {
+				"suppress_similar_lines": false
+			},
+			"git": {
+				"suppress_similar_lines": true,
+				"similarity_threshold": 0.92
+			},
+			"curl": {
+				"suppress_similar_lines": true
+			}
+		}
+	},
+
+	"log_cleanup_patterns": [
+
+		// This list defines regular expression patterns used to clean or filter noisy lines
+		// from command output logs. Lines matching any of these patterns will be removed
+		// before displaying logs to the user.
+
+		"^remote: Counting objects:\\s*",
+		"^━+.*?━+\\s*"
+	],
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// SQLIte data-base configuration attributes.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"db_version": "1.0",					// Should match the 'db_version' value stored in the 'meta' table.
+	"db_max_indexed_file_size_kb": 1024,	// Max file size (KB)
+	"db_min_indexed_file_size_bytes": 10,	// Min file size (bytes)
+	"db_extra_log_verbosity": false,		// Log skipped/warnings
+	"db_filter_files_content": true,		// Slightly optimize files content before indexing
+	"db_indexing_log_frequency":10000,		// How often we should log indexing progress
+	"db_max_index_age_days":30,				// Skip re-indexing if the data was indexed within the last N days
+
+	"db_meta_schema": {
+
+		// Schema definition for persistent metadata stored in the 'meta' table.
+		// Each key represents a metadata field to be stored.
+		// - "required": whether this key must be present during metadata creation.
+		// - "type": the expected value type, currently supports: "str" and "date-time".
+
+		"db_version":			{	"required": true,  "type": "str"		},
+		"db_creation_date":		{	"required": true,  "type": "datetime"	},
+		"db_last_indexed_date": {	"required": false, "type": "datetime"	},
+		"solution_name":		{	"required": true,  "type": "str"		},
+		"user_name":			{	"required": false, "type": "str"		},
+		"host_name":			{	"required": false, "type": "str"		},
+		"platform":				{	"required": false, "type": "str"		},
+		"xray_version":			{	"required": true,  "type": "str"		},
+		"auto_forge_version":	{	"required": true,  "type": "str"		}
+	},
+
+	"db_indexed_file_types": [
+		// List of file extensions and special filenames to index for fast content search
+		"c", "h",									// C/C++ source and headers
+		"py",										// Python
+		"CMakeLists.txt", "cmake",					// CMake main file + *.cmake scripts
+		"make", "Makefile",							// Makefiles
+		"sh",										// Shell and Windows scripts
+		"json", "jsonc", "yaml", "yml", "toml" ,	// Config/data
+		"txt", "md", "rst", "cfg", "conf", "ini"	// Misc text formats
+	],
+
+	"db_non_indexed_path_patterns": [
+		".git", ".svn", ".hg",						// Version control
+		".venv", "__pycache__",						// Python junk
+		".mypy_cache", ".pytest_cache",
+		".idea", ".vscode", ".DS_Store",
+		"tmp", "temp", "build", "out"				// Build and temp dirs
+	],
+
+	"db_non_indexed_file_patterns": [
+		".*csr_.*\\.h$",							// CSR headers
+		".*_regs\\.h$",								// Auto-generated register headers
+		".*_regs_regs\\.h$",						// Double-regs headers
+		".*buildhistory.*\\.txt$"
+	],
+
+	// Expected location of solution files in an installed environment.
+	// This variable is read during an early initialization stage, please avoid using any local variables
+	// other than the workspace path and the solution name.
+
+	"local_solution_package_files": "$PROJ_WORKSPACE/$SOLUTION_NAME/scripts/solution",
+	"local_bare_solution_package_files": "$PACKAGE_CONFIG_PATH/bare_solution",
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// Prompt engine properties.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"complete_while_typing": true,							// Controls how aggressively prompt-toolkit attempts tab-completion while typing
+	"prompt_history_file": "$AF_BASE/.auto_forge.history",	// Path to store persistent prompt-toolkit history
+	"prompt_max_completion_results": 100,					// Maximum number of tab-completion results; higher values may slow down completion in large directories
+
+	// Commands hidden from the user menu, typically useful for clearing up the cmd2 built-in commands.
+	"hidden_commands": [
+		"macro",
+		"edit",
+		"run_pyscript",
+		"run_script",
+		"_relative_run_script",
+		"shortcuts",
+		"history",
+		"shell",
+		"set",
+		"alias",
+		"quit",
+		"help"
+	],
+
+	// Search paths used when the prompt attempts to autocomplete a typed command.
+	// This list typically mirrors the system's PATH variable and defines where
+	// the prompt will look for executable binaries during command completion.
+
+	"prompt_search_path": [
+		"/usr/local/sbin",
+		"/usr/local/bin",
+		"/usr/sbin",
+		"/usr/bin",
+		"/sbin",
+		"/bin",
+		"/snap/bin",
+		"$AF_BIN/",		 // AutoForge persistent binaries path
+		"$AF_SOLUTION_BIN", // AutoForge persistent solution specific binaries
+		"$HOME/bin"
+	  ],
+
+	"builtin_aliases": [
+
+		// Built-in shell aliases that map shorthand commands to predefined behaviors.
+		// Each entry includes:
+		// - "name": The shortcut or symbol used by the user (e.g., ".", "..").
+		// - "target_command": The actual command that will be executed.
+		// - "description": A user-friendly description (supports Unicode symbols).
+		// - "cmd_type": A logical category or behavior group (e.g., "NAVIGATE", "EDIT", "SYSTEM").
+
+		{ "name": "$",			"command": "cd $PROJ_WORKSPACE",									"cmd_type": "NAVIGATE",	"description": "Go to workspace directory",					"hidden": true	},
+		{ "name": ".",			"command": "start -p .",											"cmd_type": "NAVIGATE",	"description": "📂 Open current folder in file manager"						},
+		{ "name": "..",			"command": "cd ..",													"cmd_type": "NAVIGATE",	"description": "Go up one directory"										},
+		{ "name": "...",		"command": "cd ../../",												"cmd_type": "NAVIGATE",	"description": "Go up two directories"										},
+		{ "name": "....",		"command": "cd ../../../",											"cmd_type": "NAVIGATE",	"description": "Go up three directories"									},
+		{ "name": "say",		"command": "ai",													"cmd_type": "AI",		"description": "Send free text to an AI"									},
+		{ "name": "cls",		"command": "clear",													"cmd_type": "SYSTEM",	"description": "Clear screen",								"hidden": true	},
+		{ "name": "cln",		"command": "clear",													"cmd_type": "SYSTEM",	"description": "Clear screen",								"hidden": true	},
+		{ "name": "ctx",		"command": "sln --show-json $BUILD_LOGS/build_error_context.json",	"cmd_type": "BUILD",	"description": "Show build analyzed context"								},
+		{ "name": "e",			"command": "edit -p",												"cmd_type": "UTILITY",	"description": "📝 Open file or path in default editor"						},
+		{ "name": "er",			"command": "edit --error-context",									"cmd_type": "UTILITY",	"description": "📝 Edit Files from Last Build Errors"						},
+		{ "name": "exit",		"command": "quit",													"cmd_type": "SYSTEM",	"description": "Exit the shell",							"hidden": true	},
+		{ "name": "xfind",		"command": "xray -c -l",											"cmd_type": "UTILITY",	"description": "Files finding utility"										},
+		{ "name": "aifind",		"command": "ai --query-from-prompt",								"cmd_type": "AI",		"description": "Natural language DB files search"							},
+		{ "name": "aisum",		"command": "ai --get-source-summary",								"cmd_type": "AI",		"description": "Generate a high-level description of a source module"		},
+		{ "name": "ga",			"command": "git add .",												"cmd_type": "GIT",		"description": "Git add all"												},
+		{ "name": "gc",			"command": "git commit -m",											"cmd_type": "GIT",		"description": "Git commit"													},
+		{ "name": "gob",		"command": "cd $BUILD_OUT",											"cmd_type": "NAVIGATE",	"description": "Go to build output directory"								},
+		{ "name": "goi",		"command": "cd $BUILD_IMAGES",										"cmd_type": "NAVIGATE",	"description": "Go to build products directory"								},
+		{ "name": "gologs",		"command": "cd $BUILD_LOGS",										"cmd_type": "NAVIGATE",	"description": "Go to the build logs path",					"hidden": true	},
+		{ "name": "gop",		"command": "cd $PROJ_WORKSPACE/$SOLUTION_NAME",						"cmd_type": "NAVIGATE",	"description": "Go to project root path"									},
+		{ "name": "goss",		"command": "cd $SCRIPTS_SOLUTION",									"cmd_type": "NAVIGATE",	"description": "Go to the solution JSONs path"								},
+		{ "name": "gos",		"command": "cd $SCRIPTS_BASE",										"cmd_type": "NAVIGATE",	"description": "Go to scripts directory"									},
+		{ "name": "gow",		"command": "cd $PROJ_WORKSPACE",									"cmd_type": "NAVIGATE",	"description": "Go to workspace root path"									},
+		{ "name": "gp",			"command": "git push",												"cmd_type": "GIT",		"description": "Git push"													},
+		{ "name": "gs",			"command": "git status",											"cmd_type": "GIT",		"description": "Git status"													},
+		{ "name": "j",			"command": "sln --show-json",										"cmd_type": "SYSTEM",	"description": "JSON viewer"												},
+		{ "name": "m",			"command": "sln --show-mark-down",									"cmd_type": "SYSTEM",	"description": "Markdown viewer"											},
+		{ "name": "l",			"command": "lsd -g",												"cmd_type": "SYSTEM",	"description": "List files (fancy) using 'lsd'"								},
+		{ "name": "ll",			"command": "/bin/ls -la --color=auto -F",							"cmd_type": "SYSTEM",	"description": "List (long) using built-in 'ls'"							},
+		{ "name": "log",		"command": "sln --show-log",										"cmd_type": "UTILITY",	"description": "Show recent logs"											},
+		{ "name": "ls",			"command": "/bin/ls --color=auto -F",								"cmd_type": "SYSTEM",	"description": "List (short) using built-in 'ls"							},
+		{ "name": "q",			"command": "quit",													"cmd_type": "SYSTEM",	"description": "Exit the shell",							 "hidden": true },
+		{ "name": "rep",		"command": "sln --show-mark-down $BUILD_LOGS/build_ai_response.md",	"cmd_type": "AI",		"description": "Show AI error report"										},
+		{ "name": "showeditors","command": "edit -l",												"cmd_type": "UTILITY",	"description": "Show all detected editors"									},
+		{ "name": "showenv",	"command": "sln --show-environment-variables",						"cmd_type": "UTILITY",	"description": "Show managed variables tables"								},
+		{ "name": "showsln",	"command": "sln --show-solution",									"cmd_type": "UTILITY",	"description": "Show resolved solution JSON"								},
+		{ "name": "showtelem",	"command": "sln --show-telemetry",									"cmd_type": "UTILITY",	"description": "Show stored telemetry"										},
+		{ "name": "about",		"command": "sln --show-mark-down package/about.md",					"cmd_type": "HELP",		"description": "About AutoForge"											},
+		{ "name": "src",		"command": "cd $SOURCE_BASE",										"cmd_type": "NAVIGATE",	"description": "Go to sources root directory"								},
+		{ "name": "x",			"command": "quit",													"cmd_type": "SYSTEM",	"description": "Exit the shell",							 "hidden": true },
+		{ "name": "~",			"command": "cd $HOME",												"cmd_type": "NAVIGATE",	"description": "🏠 Go to home directory"									}
+
+	],
+
+	"interactive_commands": [
+
+		// List of commands that require interactive terminal behavior.
+		// These commands typically control the terminal screen, use input prompts,
+		// or produce continuous output unsuitable for standard command capture.
+
+		"apt*",
+		"bash",
+		"zsh",
+		"btop",
+		"bat",
+		"cat",
+		"clear",
+		"dnf*",
+		"htop",
+		"less",
+		"nano",
+		"pico",
+		"sudo",
+		"top",
+		"vi",
+		"vim",
+		"pip",
+		"python*"
+	],
+
+	"path_completion_rules": {
+
+		// Mapping of shell-like commands to their completion behavior.
+		// Commands supporting path completion specify whether only directories
+		// should be suggested when completing arguments.
+
+		"alias"			: { "path_completion": false																						},
+		"apt"			: { "path_completion": false																						},
+		"cat"			: { "path_completion": true , "only_dirs": false																	},
+		"e"				: { "path_completion": true , "only_dirs": false	/* Package 'edit' command alias */								},
+		"j"				: { "path_completion": true , "only_dirs": false,	"filter_glob": ["*.jsonc", "*.json"]  							},
+		"aisum"			: { "path_completion": true , "only_dirs": false,	"filter_glob": ["*.sh", "*.py", "*.c", "*.json", "*.jsonc"]		},
+		"m"				: { "path_completion": true , "only_dirs": false,	"filter_glob": ["*.md"]	 										},
+		"cd"			: { "path_completion": true , "only_dirs": true																		},
+		"clear"			: { "path_completion": false																						},
+		"cmake"			: { "path_completion": true , "only_dirs": true																		},
+		"cp"			: { "path_completion": true , "only_dirs": false																	},
+		"curl"			: { "path_completion": false																						},
+		"dnf"			: { "path_completion": false																						},
+		"echo"			: { "path_completion": false																						},
+		"export"		: { "path_completion": false																						},
+		"git"			: { "path_completion": false																						},
+		"gunzip"		: { "path_completion": true , "only_dirs": false																	},
+		"gzip"			: { "path_completion": true , "only_dirs": false																	},
+		"head"			: { "path_completion": true , "only_dirs": false																	},
+		"help"			: { "path_completion": false																						},
+		"history"		: { "path_completion": false																						},
+		"less"			: { "path_completion": true , "only_dirs": false																	},
+		"ls"			: { "path_completion": true , "only_dirs": false																	},
+		"make"			: { "path_completion": true , "only_dirs": false,	"allowed_names": ["Makefile", "GNUmakefile", "makefile"] 		},
+		"mkdir"			: { "path_completion": true , "only_dirs": true																		},
+		"more"			: { "path_completion": true , "only_dirs": false																	},
+		"mv"			: { "path_completion": true , "only_dirs": false																	},
+		"nano"			: { "path_completion": true , "only_dirs": false																	},
+		"ninja"			: { "path_completion": true , "only_dirs": false																	},
+		"pip"			: { "path_completion": false																						},
+		"pip3"			: { "path_completion": false																						},
+		"ping"			: { "path_completion": false																						},
+		"popd"			: { "path_completion": false																						},
+		"prettier"		: { "path_completion": false																						},
+		"pushd"			: { "path_completion": true , "only_dirs": true																		},
+		"python"		: { "path_completion": true , "only_dirs": false,	"filter_glob": "*.py" 											},
+		"python3"		: { "path_completion": true , "only_dirs": false,	"filter_glob": "*.py" 											},
+		"pytest"		: { "path_completion": true , "only_dirs": false																	},
+		"rm"			: { "path_completion": true , "only_dirs": false																	},
+		"rmdir"			: { "path_completion": true , "only_dirs": true																		},
+		"set"			: { "path_completion": false																						},
+		"stat"			: { "path_completion": true , "only_dirs": false																	},
+		"tail"			: { "path_completion": true , "only_dirs": false																	},
+		"tar"			: { "path_completion": true , "only_dirs": false																	},
+		"touch"			: { "path_completion": true , "only_dirs": false																	},
+		"traceroute"	: { "path_completion": false																						},
+		"unzip"			: { "path_completion": true , "only_dirs": false																	},
+		"unalias"		: { "path_completion": false																						},
+		"vi"			: { "path_completion": true , "only_dirs": false																	},
+		"vim"			: { "path_completion": true , "only_dirs": false																	},
+		"wc"			: { "path_completion": true , "only_dirs": false																	},
+		"wget"			: { "path_completion": false																						},
+		"yum"			: { "path_completion": false																						},
+		"zip"			: { "path_completion": true , "only_dirs": false																	}
+	},
+
+	// Defines visual styles for auto completed paths.
+	"dynamic_prompt_styles": {
+
+		// Default background for all completions (light gray tone)
+		"background": "d1d1d1",
+
+		// Styles for each token category used in completion rendering
+		"tokens": {
+			// Executables (e.g. system commands)
+			"executable": "fg:#228b22 bold",		// Forest green text
+			// Built-in (do_) commands
+			"builtins": "fg:#1e90ff bold",			// Dodger blue
+			// Dynamic commands
+			"commands": "fg:#6600cc bold italic",	// Deep violet, elegant and highly readable
+			// Aliases (shortcut commands)
+			"aliases": "fg:#6666cc italic",			// Soft lavender
+			// Regular files
+			"file": "fg:#666666",					// Medium gray
+			// Directories
+			"directory": "fg:#0088cc bold",			// Cool cyan-blue
+			// Passive system messages
+			"completion-meta": "fg:#888888 italic",	// Subtle gray
+			// Alerts or user warnings
+			"alert": "fg:#aa0000 bold",				// Soft red
+			// Hodden (starts with '.')
+			"hidden-file-path": "fg:#666666 italic"	 // softer gray, clearly visible on light background
+		}
+	},
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// Terminal related.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"ansi_codes": {
+
+		// ANSI color and style codes following Colorama-style naming.
+		// These codes are useful for logging, and text decoration.
+
+		// Screen control
+		"SCREEN_CLS"				: "\u001b[H\u001b[2J",
+		"SCREEN_CLS_SB"				: "\u001b[2J\u001b[3J\u001b[H",
+
+		// Text style (Colorama: Style)
+		"STYLE_RESET_ALL"			: "\u001b[0m",
+		"STYLE_BRIGHT"				: "\u001b[1m",
+		"STYLE_DIM"					: "\u001b[2m",
+		"STYLE_ITALIC"				: "\u001b[3m",
+		"STYLE_UNDERLINE"			: "\u001b[4m",
+		"STYLE_BLINK"				: "\u001b[5m",
+		"STYLE_INVERT"				: "\u001b[7m",
+		"STYLE_HIDDEN"				: "\u001b[8m",
+		"STYLE_STRIKETHROUGH"		: "\u001b[9m",
+
+		// Foreground colors
+		"FORE_BLACK"				: "\u001b[30m",
+		"FORE_RED"					: "\u001b[31m",
+		"FORE_GREEN"				: "\u001b[32m",
+		"FORE_YELLOW"				: "\u001b[33m",
+		"FORE_BLUE"					: "\u001b[34m",
+		"FORE_MAGENTA"				: "\u001b[35m",
+		"FORE_CYAN"					: "\u001b[36m",
+		"FORE_WHITE"				: "\u001b[37m",
+		"FORE_RESET"				: "\u001b[39m",
+
+		// Background colors
+		"BACK_BLACK"				: "\u001b[40m",
+		"BACK_RED"					: "\u001b[41m",
+		"BACK_GREEN"				: "\u001b[42m",
+		"BACK_YELLOW"				: "\u001b[43m",
+		"BACK_BLUE"					: "\u001b[44m",
+		"BACK_MAGENTA"				: "\u001b[45m",
+		"BACK_CYAN"					: "\u001b[46m",
+		"BACK_WHITE"				: "\u001b[47m",
+		"BACK_RESET"				: "\u001b[49m",
+
+		// Bright foreground colors
+		"FORE_LIGHTBLACK_EX"		: "\u001b[90m",
+		"FORE_LIGHTRED_EX"			: "\u001b[91m",
+		"FORE_LIGHTGREEN_EX"		: "\u001b[92m",
+		"FORE_LIGHTYELLOW_EX"		: "\u001b[93m",
+		"FORE_LIGHTBLUE_EX"			: "\u001b[94m",
+		"FORE_LIGHTMAGENTA_EX"		: "\u001b[95m",
+		"FORE_LIGHTCYAN_EX"			: "\u001b[96m",
+		"FORE_LIGHTWHITE_EX"		: "\u001b[97m",
+
+		// Bright background colors
+		"BACK_LIGHTBLACK_EX"		: "\u001b[100m",
+		"BACK_LIGHTRED_EX"			: "\u001b[101m",
+		"BACK_LIGHTGREEN_EX"		: "\u001b[102m",
+		"BACK_LIGHTYELLOW_EX"		: "\u001b[103m",
+		"BACK_LIGHTBLUE_EX"			: "\u001b[104m",
+		"BACK_LIGHTMAGENTA_EX"		: "\u001b[105m",
+		"BACK_LIGHTCYAN_EX"			: "\u001b[106m",
+		"BACK_LIGHTWHITE_EX"		: "\u001b[107m"
+	},
+
+	"terminal_icons": {
+
+		// Source Code
+		".py"			: { "icon": "\ue606", "description": "Python source file",		"color": "FORE_YELLOW"			},
+		".c"			: { "icon": "\ue61e", "description": "C source file",			"color": "BACK_LIGHTBLUE_EX"	},
+		".cpp"			: { "icon": "\ue61d", "description": "C++ source file",			"color": "BACK_LIGHTBLUE_EX"	},
+		".h"			: { "icon": "\ue61e", "description": "C/C++ header",			"color": "BACK_LIGHTBLUE_EX"	},
+		".hpp"			: { "icon": "\ue61d", "description": "C++ header",				"color": "BACK_LIGHTBLUE_EX"	},
+		".java"			: { "icon": "\ue256", "description": "Java source file",		"color": "FORE_RED"				},
+		".js"			: { "icon": "\ue74e", "description": "JavaScript file",			"color": "FORE_YELLOW"			},
+		".ts"			: { "icon": "\ue628", "description": "TypeScript file",			"color": "FORE_CYAN"			},
+		".go"			: { "icon": "\ue627", "description": "Go source file",			"color": "FORE_CYAN"			},
+		".rs"			: { "icon": "\ue7a8", "description": "Rust source file",		"color": "FORE_RED"				},
+		".swift"		: { "icon": "\ue755", "description": "Swift source file",		"color": "FORE_MAGENTA"			},
+
+		// Scripts & Shell
+		".sh"			: { "icon": "\uf489", "description": "Shell script",			"color": "FORE_GREEN"			},
+		".bash"			: { "icon": "\uf489", "description": "Bash script",				"color": "FORE_GREEN"			},
+		".zsh"			: { "icon": "\uf489", "description": "Zsh script",				"color": "FORE_GREEN"			},
+		".ps1"			: { "icon": "\ue795", "description": "PowerShell script",		"color": "FORE_CYAN"			},
+
+		// Config & Markup
+		".json"			: { "icon": "\ue60b", "description": "JSON file",				"color": "FORE_CYAN"			},
+		".jsonc"		: { "icon": "\ue60b", "description": "JSON with comments",		"color": "FORE_CYAN"			},
+		".yaml"			: { "icon": "\ue615", "description": "YAML config file",		"color": "FORE_CYAN"			},
+		".yml"			: { "icon": "\ue615", "description": "YAML config file",		"color": "FORE_CYAN"			},
+		".toml"			: { "icon": "\ue615", "description": "TOML config file",		"color": "FORE_CYAN"			},
+		".ini"			: { "icon": "\ue615", "description": "INI config file",			"color": "FORE_CYAN"			},
+		".conf"			: { "icon": "\ue615", "description": "Configuration file",		"color": "FORE_CYAN"			},
+		".env"			: { "icon": "\uf4a2", "description": "Environment settings",	"color": "FORE_GREEN"			},
+
+		// Markup & Docs
+		".md"			: { "icon": "\uf48a", "description": "Markdown file",			"color": "FORE_BLUE"			},
+		".txt"			: { "icon": "\uf49e", "description": "Text file",				"color": "FORE_LIGHTBLACK_EX"	},
+		".rst"			: { "icon": "\ue5da", "description": "reStructuredText",		"color": "FORE_BLUE"			},
+		".html"			: { "icon": "\ue60e", "description": "HTML document",			"color": "FORE_MAGENTA"			},
+		".xml"			: { "icon": "\ufabf", "description": "XML document",			"color": "FORE_MAGENTA"			},
+		".pdf"			: { "icon": "\uf724", "description": "PDF document",			"color": "FORE_RED"				},
+
+		// Logs
+		".log"			: { "icon": "\uf4cd", "description": "Log file",				"color": "FORE_LIGHTBLACK_EX"	},
+
+		// Archives
+		".zip"			: { "icon": "\uf490", "description": "ZIP archive",				"color": "FORE_MAGENTA"			},
+		".tar"			: { "icon": "\uf490", "description": "TAR archive",				"color": "FORE_MAGENTA"			},
+		".gz"			: { "icon": "\uf490", "description": "GZ archive",				"color": "FORE_MAGENTA"			},
+		".bz2"			: { "icon": "\uf490", "description": "BZIP2 archive",			"color": "FORE_MAGENTA"			},
+		".7z"			: { "icon": "\uf490", "description": "7-Zip archive",			"color": "FORE_MAGENTA"			},
+
+		// Media
+		".jpg"			: { "icon": "\uf03e", "description": "JPEG image",				"color": "FORE_YELLOW"			},
+		".jpeg"			: { "icon": "\uf03e", "description": "JPEG image",				"color": "FORE_YELLOW"			},
+		".png"			: { "icon": "\uf03e", "description": "PNG image",				"color": "FORE_YELLOW"			},
+		".gif"			: { "icon": "\uf03e", "description": "GIF image",				"color": "FORE_YELLOW"			},
+		".svg"			: { "icon": "\uf81f", "description": "SVG vector image",		"color": "FORE_CYAN"			},
+		".mp3"			: { "icon": "\uf001", "description": "MP3 audio file",			"color": "FORE_MAGENTA"			},
+		".wav"			: { "icon": "\uf001", "description": "WAV audio file",			"color": "FORE_MAGENTA"			},
+		".mp4"			: { "icon": "\uf03d", "description": "MP4 video file",			"color": "FORE_BLUE"			},
+		".mkv"			: { "icon": "\uf03d", "description": "MKV video file",			"color": "FORE_BLUE"			},
+
+		// Compiled
+		".exe"			: { "icon": "\ue70f", "description": "Windows executable",	  "color": "FORE_RED"				},
+		".out"			: { "icon": "\ue795", "description": "Compiled binary",		 "color": "FORE_RED"				},
+		".class"		: { "icon": "\ue256", "description": "Java class file",		 "color": "FORE_LIGHTBLACK_EX"		},
+		".o"			: { "icon": "\ue795", "description": "Object file",			 "color": "FORE_LIGHTBLACK_EX"		},
+
+		// Special filenames
+		"Makefile"		: { "icon": "\ue761", "description": "Makefile",				"color": "FORE_CYAN"			},
+		"Dockerfile"	: { "icon": "\ue790", "description": "Dockerfile",			  "color": "FORE_BLUE"				},
+		"LICENSE"		: { "icon": "\uf016", "description": "License file",			"color": "white"				},
+		"README"		: { "icon": "\uf7dd", "description": "README file",			 "color": "FORE_BLUE"				},
+
+		// Fallbacks
+		"default_dir"	: { "icon": "\uf115", "description": "Directory",			   "color": "FORE_BLUE"				},
+		"default_file"	: { "icon": "\uf016", "description": "Generic file",			"color": "white"				}
+	},
+
+	"terminal_sign_out_message": [
+
+		// A variety of "goodbye" phrases in common and less common languages,
+		// randomly shown when signing out for a friendly multilingual touch..
+
+		{ "language": "English",	"phrase": "Goodbye"			},
+		{ "language": "Hebrew",		"phrase": "להתראות"			},
+		{ "language": "Hindi",		"phrase": "अलविदा"			},
+		{ "language": "Russian",	"phrase": "До свидания"		},
+		{ "language": "Yiddish",	"phrase": "זיך געזען"		},
+		{ "language": "French",		"phrase": "Au revoir"		},
+		{ "language": "Spanish",	"phrase": "Adiós"			},
+		{ "language": "German",		"phrase": "Auf Wiedersehen"	},
+		{ "language": "Italian",	"phrase": "Arrivederci"		},
+		{ "language": "Japanese",	"phrase": "さようなら"		},
+		{ "language": "Chinese",	"phrase": "再见"				},
+		{ "language": "Portuguese",	"phrase": "Adeus"			},
+		{ "language": "Korean",		"phrase": "안녕히 가세요"		},
+		{ "language": "Greek",		"phrase": "Αντίο"			},
+		{ "language": "Turkish",	"phrase": "Hoşça kal"		},
+		{ "language": "Dutch",		"phrase": "Vaarwel"			},
+		{ "language": "Polish",		"phrase": "Do widzenia"		},
+		{ "language": "Swedish",	"phrase": "Adjö"			},
+		{ "language": "Swahili",	"phrase": "Kwaheri"			}
+	],
+
+	"editors_fallback_search_paths": [
+
+		// Fallback search paths for locating editors not found in the system's executable PATH.
+		// Each entry may include:
+		// - "path": A string path to search.
+		// - "wsl_path": true if the path refers to a WSL-mounted Windows location (e.g., /mnt/c/...),
+		//	which will only be searched when running inside WSL and the target alias ends with '.exe'.
+
+		{ "path": "/snap/bin"																	},
+		{ "path": "/var/lib/flatpak/exports/bin"												},
+		{ "path": "~/.var/app"																	},
+		{ "path":  "~/bin"																		},
+		{ "path": "/mnt/c/Program Files/Sublime Text",						"wsl_path": true	},
+		{ "path": "/mnt/c/Program Files/Microsoft VS Code",					"wsl_path": true	},
+		{ "path": "$WSL_HOMEPATH/AppData/Local/Programs/Microsoft VS Code",	"wsl_path": true	},
+		{ "path": "$WSL_C_MOUNT/Program Files (x86)/Notepad++",				"wsl_path": true	},
+		{ "path": "$WSL_C_MOUNT/Program Files/Notepad++",					"wsl_path": true	},
+		{ "path": "$WSL_C_MOUNT/Windows",									"wsl_path": true	}
+	],
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// Metadata to allow for dynamically location installed editors.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"searched_editors": [
+
+		// A list of supported editors that will be searched for during startup.
+		// Each object should define:
+		// - "name": A unique identifier for the editor.
+		// - "aliases": A list of possible executable names to check (e.g., commands or symlinks).
+		// - "type": "terminal" or "gui", used to categorize the editor.
+		// - "executable": Preferred alias name used when launching the editor.
+
+		{ "name": "vi",		   		"aliases": ["vi", "vii"],							"type": "terminal", "executable": "vi",		   		"args": [] 					},
+		{ "name": "vim",		  	"aliases": ["vim", "vim.basic", "vim.tiny"],		"type": "terminal", "executable": "vim",		  	"args": ["-u", "NONE"] 		},
+		{ "name": "gvim",		 	"aliases": ["gvim", "gvim.exe"],					"type": "gui",	  	"executable": "gvim",			"args": [] 					},
+		{ "name": "nano",		 	"aliases": ["nano"],								"type": "terminal", "executable": "nano",		 	"args": ["--ignorercfiles"] },
+		{ "name": "pico",		 	"aliases": ["pico"],								"type": "terminal", "executable": "pico",		 	"args": []				 	},
+		{ "name": "emacs",			"aliases": ["emacs"],								"type": "terminal", "executable": "emacs",			"args": ["-nw"] 			},
+		{ "name": "micro",			"aliases": ["micro"],								"type": "terminal", "executable": "micro",			"args": [] 					},
+		{ "name": "gedit",			"aliases": ["gedit"],								"type": "gui",	  	"executable": "gedit",			"args": ["--new-window"] 	},
+		{ "name": "leafpad",	  	"aliases": ["leafpad"],								"type": "gui",	  	"executable": "leafpad",	  	"args": [] 					},
+		{ "name": "mousepad",	 	"aliases": ["mousepad"],							"type": "gui",	  	"executable": "mousepad",	 	"args": [] 					},
+		{ "name": "pluma",			"aliases": ["pluma"],								"type": "gui",	  	"executable": "pluma",			"args": [] 					},
+		{ "name": "atom",		 	"aliases": ["atom", "Atom.exe"],					"type": "gui",	  	"executable": "atom",		 	"args": ["--new-window"] 	},
+		{ "name": "bluefish",	 	"aliases": ["bluefish"],							"type": "gui",	  	"executable": "bluefish",	 	"args": [] 					},
+		{ "name": "kate",		 	"aliases": ["kate"],								"type": "gui",	  	"executable": "kate",		 	"args": ["--new"] 			},
+		{ "name": "xed",		  	"aliases": ["xed"],									"type": "gui",	  	"executable": "xed",		  	"args": [] 					},
+		{ "name": "sublime_text",	"aliases": ["subl", "sublime_text", "subl.exe"],	"type": "gui",	  	"executable": "subl",		 	"args": [] 					},
+		{ "name": "vscode",	   		"aliases": ["code", "code-insiders", "Code.exe"],	"type": "gui",	  	"executable": "code",		 	"args": ["--reuse-window"] 	},
+		{ "name": "notepad++",		"aliases": ["notepad++.exe"],						"type": "gui",	  	"executable": "notepad++.exe",	"args": [] 					},
+		{ "name": "notepad",	  	"aliases": ["notepad.exe"],							"type": "gui",	  	"executable": "notepad",	  	"args": []	 				}
+	],
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// Proxy servers.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"proxy_timout":	 10,		// Max time in seconds we allow for getting a dummy resource
+	"proxy_auto_update": false, // Update environment with the best proxy
+
+	"proxy_servers": [
+		// List of proxy server
+		{ "host": "proxy-dmz.intel.com",	"port": 911, "https": false },
+		{ "host": "proxy-iil.intel.com",	"port": 912, "https": false },
+		{ "host": "child-prc.intel.com",	"port": 912, "https": false },
+		{ "host": "proxy-chain.intel.com",	"port": 912, "https": false },
+		{ "host": "proxy-us.intel.com",	 	"port": 912, "https": false },
+		{ "host": "ftpgw.fm.intel.com",	 	"port": 911, "https": false },
+		{ "host": "proxy-jf.intel.com",	 	"port": 912, "https": false },
+		{ "host": "proxy-fm.intel.com",	 	"port": 912, "https": false },
+		{ "host": "proxy-iind.intel.com",	"port": 912, "https": false },
+		{ "host": "proxy-ir.intel.com",	 	"port": 912, "https": false },
+		{ "host": "child-jf.intel.com",	 	"port": 912, "https": false },
+		{ "host": "proxy1-iil.intel.com",	"port": 912, "https": false },
+		{ "host": "proxy2-iil.intel.com",	"port": 912, "https": false },
+		{ "host": "proxy-png.intel.com",	"port": 912, "https": false }
+	],
+
+	"proxy_dummy_files": [
+		// Downloadable resources 100Mb each
+		{ "url": "http://speed.hetzner.de/100MB.bin",				  	"size": 100000,	"name": "Hetzner Online"	},
+		{ "url": "http://ipv4.download.thinkbroadband.com/100MB.zip",	"size": 100000,	"name": "ThinkBroadband"	},
+		{ "url": "http://speedtest.tokyo2.linode.com/100MB-tokyo.bin",	"size": 100000,	"name": "Linode"			},
+		{ "url": "http://proof.ovh.net/files/100Mb.dat",				"size": 100000,	"name": "OVH Speed Test"	}
+	],
+
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//
+	// MCP service variables.
+	//
+	// -----------------------------------------------------------------------------------------------------------------
+
+	"mcp_host": "localhost",	// Used for SSE (Server-Sent Events)
+	"mcp_port": 6274,			// Used for SSE
+	"mcp_transport": "sse"  	// "stdio" | "sse"
 }
