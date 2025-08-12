@@ -3,7 +3,8 @@ Script:         mcp_service.py
 Author:         AutoForge Team
 
 Description:
-    Lightweight MCP adapter enabling AutoForge to operate as a Model Context Protocol (MCP) server.
+    Lightweight MCP adapter enabling AutoForge to operate as a 'Model Context Protocol' (MCP) server, allowing external
+    MCP clients like VSCode to interact with AutoForge natively.
 """
 
 import asyncio
@@ -11,12 +12,16 @@ import contextlib
 import io
 import json
 import os
+import re
+import signal
 import socket
 from dataclasses import dataclass
-from typing import Optional, Any, Callable, Awaitable
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, Any, Callable, Awaitable, Union
 
 from aiohttp import ContentTypeError
-# Third‑party
+# Third?party
 from aiohttp import web
 
 # AutoForge imports
@@ -26,6 +31,7 @@ from auto_forge import (AutoForgeModuleType, CoreBuildShell, CoreLogger, CoreMod
 AUTO_FORGE_MODULE_NAME = "MCP"
 AUTO_FORGE_MODULE_DESCRIPTION = "MCP (Model Context Protocol) integration for AutoForge"
 AUTO_FORGE_MAX_BATCH_MCP_COMMANDS = 64
+
 
 @dataclass
 class _CoreMCPConfigType:
@@ -97,7 +103,7 @@ class CoreMCPService(CoreModuleInterface):
         self._build_shell = CoreBuildShell.get_instance()
         self._telemetry = CoreTelemetry.get_instance()
         self._configuration = self.auto_forge.get_instance().configuration
-        self._tool_prefix = "af.cmd."
+        self._tool_prefix = "af_"
         self._shutdown_event = asyncio.Event()
         self._tools_registry: dict[str, _CoreMCPToolType] = {}
 
@@ -116,12 +122,67 @@ class CoreMCPService(CoreModuleInterface):
         self._app.router.add_get("/sse", self._sse_handler)
         self._app.router.add_post("/message", self._rpc_handler)
 
+        # HTTP (streamable) at base URL:
+        self._app.router.add_post("/", self._rpc_handler)
+
+        # SSE at base URL:
+        self._app.router.add_get("/", self._sse_handler)
+
         CoreRegistry.get_instance().register_module(
             name="MCP",
             description=AUTO_FORGE_MODULE_DESCRIPTION,
             auto_forge_module_type=AutoForgeModuleType.CORE
         )
         self._telemetry.mark_module_boot(module_name="MCP")
+
+    @staticmethod
+    def _generate_vscode_config(output_path: Union[Path, str],
+                                host_ip: str,
+                                overwrite_existing: bool = False,
+                                create_parents: bool = False) -> None:
+        """
+        Generate a VS Code JSON config file for AutoForge SSE server.
+        Args:
+            output_path (Union[Path, str]): Destination file path.
+            host_ip (str): Host IP address to insert into the URL.
+            overwrite_existing (bool): If True, overwrite file if it exists.
+            create_parents (bool): If True, create parent directories if they don't exist.
+        """
+        path = Path(output_path)
+
+        # Create parent dirs if requested
+        if create_parents:
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+        if path.exists() and not overwrite_existing:
+            raise FileExistsError(f"File '{path}' already exists and overwrite is disabled.")
+
+        config = {
+            "servers": {
+                "autoforge": {
+                    "type": "sse",
+                    "url": f"http://{host_ip}:6274"
+                }
+            },
+            "inputs": [
+                {
+                    "id": "args",
+                    "type": "promptString",
+                    "description": "Extra arguments"
+                }
+            ]
+        }
+
+        path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+    @staticmethod
+    def _log_line(msg: str):
+        try:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            print(f"{ts} [info] {msg}", flush=True)
+        except Exception as e:
+            # Fall back to plain print so it never kills the server
+            print(f"MCP Service log error: {e!r} | original message: {msg!r}", flush=True)
 
     async def _status_handler(self, _request):
         """Basic runtime status (no secrets)."""
@@ -238,9 +299,15 @@ class CoreMCPService(CoreModuleInterface):
           - Returns 400 for invalid/malformed JSON bodies.
           - Uses JSON-RPC error envelopes for method and internal errors.
         """
-        # --- Parse JSON body (strict) ---
+        self._log_line("Received /message POST")
+
+        # Parse JSON body (strict)
         try:
             payload = await request.json()
+            # formatted_payload = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
+            # self._log_line(f"Payload:\n\n{formatted_payload}\n")
+            self._log_line(f"RPC handler got payload")
+
         except (json.JSONDecodeError, ContentTypeError, UnicodeDecodeError):
             return self._json_response({"error": "invalid json"}, status=400)
 
@@ -256,6 +323,8 @@ class CoreMCPService(CoreModuleInterface):
             is_notification = jid is None
             method = m.get("method")
             params = m.get("params") or {}
+
+            self._log_line(f"Incoming method: {method}, id: {jid}")
 
             if is_notification:
                 def ok(_result: Any) -> None:
@@ -289,12 +358,19 @@ class CoreMCPService(CoreModuleInterface):
                     return ok(self._rpc_tools_list())
 
                 if method == "tools/call":
+                    tool_name = params.get("name", "<?>")
+                    self._log_line(f"Calling tool: {tool_name} with: {params}")
+
                     result = await self._rpc_tools_call(params)
+
+                    self._log_line(f"Tool '{tool_name}' completed, result keys: {list(result.keys())}")
+
                     await self._broadcast({
                         "jsonrpc": "2.0",
                         "method": "tools/result",
-                        "params": {"name": params.get("name"), "result": result}
+                        "params": {"name": tool_name, "result": result}
                     })
+
                     return ok(result)
 
                 if method == "ping":
@@ -324,7 +400,8 @@ class CoreMCPService(CoreModuleInterface):
         else:
             reply = await _handle_one(payload)
             if reply is None:
-                return web.Response(status=204)
+                # VS Code compatibility: return 200 with empty JSON instead of 204
+                return self._json_response({})
             return self._json_response(reply)
 
     def _add_tool(self, tool: _CoreMCPToolType):
@@ -386,25 +463,13 @@ class CoreMCPService(CoreModuleInterface):
         """
         Register all loaded commands both as MCP tools (for SSE JSON-RPC)
         and, optionally, as REST POST endpoints under /tool/<name>.
+
+        Commands marked as hidden or of type 'NAVIGATE' are skipped.
+        Tool names are prefixed and must match MCP naming rules [a-z0-9_-].
         """
 
-        # JSON Schema used by MCP tools: allow string OR array for args
-        base_schema = {
-            "type": "object",
-            "properties": {
-                "args": {
-                    "oneOf": [
-                        {"type": "string"},
-                        {"type": "array", "items": {"type": "string"}}
-                    ],
-                    "description": "Extra arguments appended to command lines."
-                }
-            },
-            "additionalProperties": False
-        }
-
         for key, entry in self._commands_data.items():
-            if entry.get("hidden"):
+            if entry.get("hidden") or entry.get("cmd_type", "").upper() == "NAVIGATE":
                 continue
 
             cmds = entry.get("command")
@@ -414,13 +479,30 @@ class CoreMCPService(CoreModuleInterface):
                 continue
 
             tool_name = f"{self._tool_prefix}{key}"
-            description = entry.get("description") or f"Run '{key}' command(s)."
+            if not re.fullmatch(r"[a-z0-9_-]+", tool_name):
+                continue  # Skip tools with MCP-invalid names
 
-            # Freeze per-iteration values to avoid late binding in closures
+            description = entry.get("description") or f"Run '{key}' command(s)."
             _cmds_tuple = tuple(cmds)
 
+            # MCP-compatible JSON schema
+            input_schema = {
+                "type": "object",
+                "properties": {
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional command-line arguments",
+                    }
+                },
+                "required": [],  # Accepts empty args by default
+                "additionalProperties": False
+            }
+
             async def _tool_handler(params: dict[str, Any], _cmds=_cmds_tuple) -> dict[str, Any]:
-                # Normalize args
+                """
+                Execute one or more registered command lines with optional arguments.
+                """
                 raw_args = params.get("args", "")
                 if isinstance(raw_args, list):
                     extra = " ".join(str(a) for a in raw_args).strip()
@@ -442,11 +524,11 @@ class CoreMCPService(CoreModuleInterface):
             self._add_tool(_CoreMCPToolType(
                 name=tool_name,
                 description=description,
-                input_schema=base_schema,
+                input_schema=input_schema,
                 handler=_tool_handler
             ))
 
-            # Keep REST route for compatibility, but FIX the factory:
+            # Legacy REST fallback
             def make_handler(_cmds=_cmds_tuple):
                 async def handler(request):
                     payload = {}
@@ -475,9 +557,7 @@ class CoreMCPService(CoreModuleInterface):
 
                 return handler
 
-            route = f"/tool/{tool_name}"
-            # NOTE: do NOT use asyncio.run() here; just pass the async function object
-            self._app.router.add_post(route, make_handler())
+            self._app.router.add_post(f"/tool/{tool_name}", make_handler())
 
     async def _rpc_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         """
@@ -539,73 +619,65 @@ class CoreMCPService(CoreModuleInterface):
     def start(self) -> int:
         """
         Start the MCP server in SSE (Server-Sent Events) mode.
-
-        This method:
-        1. Retrieves the configured host and port from `self._mcp_config`.
-        2. Attempts to determine the system's primary external IPv4 address
-           (non-loopback) by connecting to a known public IP (Google DNS at 8.8.8.8).
-           This does not require actual network reachability — no data is sent.
-        3. Prints the server's bind address and the detected external IP for reference.
-        4. Runs the asynchronous SSE server loop until interrupted.
+        Attempts to determine the system's primary external IPv4 address
+        (non-loopback) by connecting to a known public IP (Google DNS at 8.8.8.8).
+        This does not require actual network reachability — no data is sent.
+        Runs the asynchronous SSE server loop until interrupted.
 
         Returns:
             int: 0 if the server started successfully, 1 if an exception occurred.
         """
 
-        # noinspection SpellCheckingInspection
+        # Attach signal handlers so Ctrl+C triggers shutdown cleanly
+        def _handle_term_signal():
+            print("\nInterrupted by user, shutting down...")
+            os.kill(os.getpid(), signal.SIGKILL)
+
         def _show_start_message():
             _ip = self._mcp_config.host
             _port = self._mcp_config.port
             base = f"http://{_ip}:{_port}"
 
-            print(f"\nAutoForge: MCP SSE server running on {_ip}:{_port}")
+            print("\033[2J\033[3J\033[H", end="")
+            print(f"\nAutoForge: MCP SSE server running on local host {_ip}:{_port}")
+            print("Press Ctrl+C to stop MCP service.\n")
             print(
-                "MCP endpoints:\n"
-                f"• SSE stream:            GET  {base}/sse\n"
-                f"• JSON-RPC message bus:  POST {base}/message\n"
-                "\n"
-                "Quick tests:\n"
-                "1) Open the SSE stream (heartbeat every ~15s):\n"
-                f"   curl -N --noproxy {_ip} {base}/sse\n"
-                "\n"
-                "2) Initialize (also emits 'server/ready' on SSE):\n"
-                f"   curl --noproxy {_ip} -s -X POST {base}/message \\\n"
-                "     -H 'Content-Type: application/json' \\\n"
-                "     -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}'\n"
-                "\n"
-                "3) List tools:\n"
-                f"   curl --noproxy {_ip} -s -X POST {base}/message \\\n"
-                "     -H 'Content-Type: application/json' \\\n"
-                "     -d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}'\n"
-                "\n"
-                "4) Call a tool (example: af.cmd.call with --help):\n"
-                f"   curl --noproxy {_ip} -s -X POST {base}/message \\\n"
-                "     -H 'Content-Type: application/json' \\\n"
-                "     -d '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\","
-                "\"params\":{\"name\":\"af.cmd.call\",\"arguments\":{\"args\":[\"--help\"]}}}'\n"
-                "\n"
-                "Optional ops:\n"
-                f"• Liveness check:  GET  {base}/status\n"
-                f"• Shutdown (dev):  POST {base}/shutdown\n"
-            )
+                "MCP Endpoints:\n"
+                f"- SSE stream:            GET  {base}/sse\n"
+                f"- JSON-RPC message bus:  POST {base}/message\n")
 
         try:
+            # Determine local outward-facing IP
             with contextlib.suppress(Exception):
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                     s.connect(("8.8.8.8", 80))
                     self._mcp_config.host = s.getsockname()[0]
+
             if not isinstance(self._mcp_config.host, str):
-                raise RuntimeError("can't determine local IP address")
+                raise RuntimeError("Can't determine local IP address")
 
             _show_start_message()
 
+            # Prepare asyncio loop
             try:
-                asyncio.get_running_loop()
-                # We're already in an event loop: schedule and return
-                asyncio.create_task(self._run_sse())
+                loop = asyncio.get_running_loop()
             except RuntimeError:
-                asyncio.run(self._run_sse())
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            # Attach signal handlers so Ctrl+C triggers shutdown cleanly
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                # noinspection PyTypeChecker
+                loop.add_signal_handler(sig, _handle_term_signal)
+
+            # Run the SSE server
+            if loop.is_running():
+                asyncio.create_task(self._run_sse())
+            else:
+                loop.run_until_complete(self._run_sse())
+
             return 0
+
         except Exception as e:
             print(f"MCP Error: {e}")
             return 1
