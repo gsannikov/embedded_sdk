@@ -3,8 +3,12 @@ Script:         mcp_service.py
 Author:         AutoForge Team
 
 Description:
-    Lightweight MCP adapter enabling AutoForge to operate as a 'Model Context Protocol' (MCP) server, allowing external
-    MCP clients like VSCode to interact with AutoForge natively.
+    Lightweight MCP adapter that allows AutoForge to function as a
+    Model Context Protocol (MCP) server, exposing its commands and
+    features over the MCP SSE transport. Designed for quick integration
+    with compatible clients (e.g., VS Code, MCP CLI) without requiring
+    full AutoForge deployment, while maintaining clean startup, shutdown,
+    and request handling.
 """
 
 import asyncio
@@ -17,8 +21,7 @@ import signal
 import socket
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, Any, Callable, Awaitable, Union
+from typing import Optional, Any, Callable, Awaitable
 
 from aiohttp import ContentTypeError
 # Third?party
@@ -134,46 +137,6 @@ class CoreMCPService(CoreModuleInterface):
             auto_forge_module_type=AutoForgeModuleType.CORE
         )
         self._telemetry.mark_module_boot(module_name="MCP")
-
-    @staticmethod
-    def _generate_vscode_config(output_path: Union[Path, str],
-                                host_ip: str,
-                                overwrite_existing: bool = False,
-                                create_parents: bool = False) -> None:
-        """
-        Generate a VS Code JSON config file for AutoForge SSE server.
-        Args:
-            output_path (Union[Path, str]): Destination file path.
-            host_ip (str): Host IP address to insert into the URL.
-            overwrite_existing (bool): If True, overwrite file if it exists.
-            create_parents (bool): If True, create parent directories if they don't exist.
-        """
-        path = Path(output_path)
-
-        # Create parent dirs if requested
-        if create_parents:
-            path.parent.mkdir(parents=True, exist_ok=True)
-
-        if path.exists() and not overwrite_existing:
-            raise FileExistsError(f"File '{path}' already exists and overwrite is disabled.")
-
-        config = {
-            "servers": {
-                "autoforge": {
-                    "type": "sse",
-                    "url": f"http://{host_ip}:6274"
-                }
-            },
-            "inputs": [
-                {
-                    "id": "args",
-                    "type": "promptString",
-                    "description": "Extra arguments"
-                }
-            ]
-        }
-
-        path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
     @staticmethod
     def _log_line(msg: str):
@@ -628,17 +591,18 @@ class CoreMCPService(CoreModuleInterface):
             int: 0 if the server started successfully, 1 if an exception occurred.
         """
 
-        # Attach signal handlers so Ctrl+C triggers shutdown cleanly
         def _handle_term_signal():
-            print("\nInterrupted by user, shutting down...")
-            os.kill(os.getpid(), signal.SIGKILL)
+            # Attach signal handlers so Ctrl+C triggers shutdown cleanly
+            print("\033]0;\007\nInterrupted by user, shutting down...")
+            os.kill(os.getpid(), signal.SIGKILL)  # ToDo: less aggressive approach
 
         def _show_start_message():
+            # Greetings, usage and examples
             _ip = self._mcp_config.host
             _port = self._mcp_config.port
             base = f"http://{_ip}:{_port}"
 
-            print("\033[2J\033[3J\033[H", end="")
+            print("\033]0;AutoForge MCP Service\007\033[2J\033[3J\033[H", end="")  # Clear screen, set title
             print(f"\nAutoForge: MCP SSE server running on local host {_ip}:{_port}")
             print("Press Ctrl+C to stop MCP service.\n")
             print(
