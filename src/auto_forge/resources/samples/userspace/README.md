@@ -74,6 +74,9 @@ SOLUTION_PACKAGE="<SAMPLES_PATH>/userspace"
 GITHUB_REPO="intel-innersource/firmware.ethernet.devops.auto_forge"
 GITHUB_TOKEN=$(dt github print-token https://github.com/${GITHUB_REPO})
 
+# Create the workspace path
+mkdir -p ws 
+
 curl -sSL \
   -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Cache-Control: no-store" \
