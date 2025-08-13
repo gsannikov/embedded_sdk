@@ -662,7 +662,7 @@ class CoreVariables(CoreModuleInterface):
 
             if not self._ignore_path_errors:
                 if new_var.create_path_if_not_exist:
-                    # This flow ensures no errors whne the path should exist and also should be created.
+                    # This flow ensures no errors when the path should exist and also should be created.
                     os.makedirs(new_var.value, exist_ok=True)
 
                 if new_var.path_must_exist:

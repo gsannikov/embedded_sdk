@@ -411,7 +411,7 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         self._builtin_commands = set(self.get_all_commands())  # Ger cmd2 builtin commands
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
         self._work_mode: Optional[AutoForgeWorkModeType] = self.auto_forge.work_mode
-        self._configuration: Optional[dict[str, Any]]= self.auto_forge.get_instance().configuration
+        self._configuration: Optional[dict[str, Any]] = self.auto_forge.get_instance().configuration
 
         # Disable user input until the prompt is active
         self._tool_box.set_terminal_input()

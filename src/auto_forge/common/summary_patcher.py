@@ -137,6 +137,7 @@ class _LanguageAnalysis:
 
         file_info.suggested_start_line = _suggest_patch_start_line(file_info.source_code_lines)
 
+        # noinspection PyPep8Naming
         SHELL_LANGUAGE = Language(ts_bash.language())
         parser = Parser(SHELL_LANGUAGE)
         tree = parser.parse(file_info.source_code)
@@ -188,6 +189,7 @@ class _LanguageAnalysis:
 
         file_info.suggested_start_line = _suggest_patch_start_line(file_info.source_code_lines)
 
+        # noinspection PyPep8Naming
         GROOVY_LANGUAGE = Language(ts_groovy.language())
         parser = Parser(GROOVY_LANGUAGE)
         tree = parser.parse(file_info.source_code)
@@ -274,6 +276,7 @@ class _LanguageAnalysis:
         # Default suggestion: after shebang or at top
         file_info.suggested_start_line = _suggest_patch_start_line(file_info.source_code_lines)
 
+        # noinspection PyPep8Naming
         PY_LANGUAGE = Language(ts_python.language())
         parser = Parser(PY_LANGUAGE)
         tree = parser.parse(file_info.source_code)
@@ -343,7 +346,7 @@ class _LanguageAnalysis:
 
             file_info.programming_language = mapping.get(language_name, SourceFileLanguageType.UNKNOWN)
             if file_info.programming_language == SourceFileLanguageType.UNKNOWN:
-                raise RuntimeError(f"language mapping returned unknown languge")
+                raise RuntimeError(f"language mapping returned unknown language")
 
             # Handle the source file based onb the detected language
             if file_info.programming_language == SourceFileLanguageType.PYTHON:

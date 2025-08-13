@@ -561,7 +561,7 @@
 	"terminal_sign_out_message": [
 
 		// A variety of "goodbye" phrases in common and less common languages,
-		// randomly shown when signing out for a friendly multilingual touch..
+		// randomly shown when signing out for a friendly multilingual touch.
 
 		{ "language": "English",	"phrase": "Goodbye"			},
 		{ "language": "Hebrew",		"phrase": "להתראות"			},

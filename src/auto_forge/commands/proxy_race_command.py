@@ -226,7 +226,7 @@ class ProxyRaceCommand(CommandInterface):
             print("No valid proxy entries found.")
             return
 
-        # Pick proxy with highest avg_speed_kbps
+        # Pick proxy with the highest avg_speed_kbps
         best = max(valid_entries, key=lambda r: r['avg_speed_kbps'])
         host = best['proxy']['host']
         port = best['proxy']['port']

@@ -78,7 +78,7 @@ class AICommand(CommandInterface):
             - Normalizing indentation and removing aligned padding.
             - Collapsing excessive internal whitespace to a single space.
             """
-            # Remove markdown code fences
+            # Remove Markdown code fences
             _query = re.sub(r"```sql\s*|```", "", _query.strip(), flags=re.IGNORECASE)
 
             # Remove extra indentation/padding from each line
@@ -240,7 +240,7 @@ class AICommand(CommandInterface):
 
         base_filename = os.path.basename(filename)
 
-        # Normalize the AI response which is auto- rendering to markdown
+        # Normalize the AI response which is auto-rendering to markdown
         code_review_response = _strip_code_fence(code_review_response)
 
         if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.INTERACTIVE:

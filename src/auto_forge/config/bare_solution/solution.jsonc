@@ -22,7 +22,7 @@
             "default_editor": "*code*",             // Editor selector: 1-based index or name pattern with wildcards (e.g., "*sublime*").
             "schema": "1.0",                        // Version used to validate this and other related JSON files.
             "banner": "bare",                       // Optional: ASCII banner shown in prompt mode. Remove to disable.
-            "ai_auto_advise": true,                 // Optional: Enables AI-based build advice. Remove or set to false to disable.
+            "ai_auto_advise": true,                 // Optional: Enables AI-based build advice. Remove or false to disable.
 	  		"xray_enabled": false,                  // Do not activate XRay SQLite daba-base
 
             // No toolchains in bare solution

@@ -183,7 +183,7 @@ class CoreAIBridge(CoreModuleInterface):
                     f"({AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT} seconds)")
                 self._provider.request_time_out = AUTO_FORGE_AI_DEFAULT_REQ_TIMEOUT
 
-            # Some providers insists on no proxy be used when accessing their host
+            # Some providers insist on no proxy be used when accessing their host
             if self._provider.proxy_allowed and self._provider.proxy_server:
                 self._proxy_config = self._provider.proxy_server.url()
 
@@ -497,7 +497,7 @@ class CoreAIBridge(CoreModuleInterface):
             except Exception as format_error:
                 self._logger.warning(f"Failed to format context: {format_error}")
 
-            # Append the the AI request context ("You are an amazing assistant") if we have it.
+            # Append the AI request context ("You are an amazing assistant") if we have it.
             if isinstance(context, str) and context:
                 md_lines.append("## 🛫 Outgoing Context")
                 md_lines.append("")
