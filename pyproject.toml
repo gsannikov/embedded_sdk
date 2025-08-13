@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_forge"
-version = "0.2.1"
+version = "0.2.2"
 description = "AutoForge: Bulid System"
 readme = "README.md"
 authors = [{ name = "Michaelson, Eitan", email = "eitanm@me.com" }]
@@ -34,7 +34,7 @@ dependencies = [
     "pyfiglet==1.0.3",
     "psutil==7.0.0",
     "toml==0.10.2",
-    "gitpython==3.1.40",
+    "gitpython>=3.1.40",
     "jsonpath-ng==1.7.0",
     "json5==0.9.14",
     "jsonschema==4.25.0",
