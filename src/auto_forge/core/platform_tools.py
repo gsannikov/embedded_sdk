@@ -623,7 +623,7 @@ class CorePlatform(CoreModuleInterface):
         if arguments is None:
             arguments = {}
 
-        # Step 3: Retrieve the method
+        # Retrieve the method
         method = getattr(self, method_name, None)
         if not callable(method):
             raise ValueError(f"Method '{method_name}' not found in '{self.__class__.__name__}'")
@@ -1679,7 +1679,7 @@ class CorePlatform(CoreModuleInterface):
         try:
             for file_info in files:
                 if file_info['type'] != 'file':
-                    continue  # Skip sub-directories (for now)
+                    continue  # Skip subdirectories (for now)
 
                 filename = file_info['name']
                 # If allowed_extensions is specified, filter

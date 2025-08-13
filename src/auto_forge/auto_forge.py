@@ -189,7 +189,7 @@ class AutoForge(CoreModuleInterface):
         # which will be used from this point onward.
         self._init_logger()
 
-        # Load all supported dynamic modules ? currently includes: command handlers and build plugins
+        # Load all supported dynamic modules for example: command handlers and build plugins
         self._loader = CoreDynamicLoader()
 
         # Instantiate the platform module, which provides key utilities for interacting with the user's platform.
@@ -197,10 +197,10 @@ class AutoForge(CoreModuleInterface):
         # working with the file system, and more.
         self._platform = CorePlatform(workspace_path=self._workspace_path)
 
-        # The last core module to be instantiated is the solution module. It comes last because it depends
-        # on most of the other core modules to function correctly. Its task is to load the solution file(s),
-        # pre-process them, and resolve all references, pointers, and variables into a clean, validated JSON.
-        # This JSON acts as the "DNA" that defines how the entire build system will behave.
+        # Instantiate the solution module, it comes almost last because it depends on most of the other core modules
+        # to function correctly. Its task is to load the solution file(s), pre-process them, and resolve all references,
+        # pointers, and variables into a clean, validated JSON.
+        # Finally, This JSON acts as the "DNA" that defines how the entire build system will behave.
         self._init_solution()
 
         # The next core modules are dependent on the solution module

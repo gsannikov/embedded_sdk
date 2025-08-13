@@ -1,5 +1,5 @@
 """
-Script:         help_viewer.py
+Script:         md_viewer.py
 Author:         AutoForge Team
 Version         1.2
 

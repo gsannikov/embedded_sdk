@@ -87,7 +87,7 @@ curl -sSL \
 
 ### What Happens Next:
 
-- A new workspace will be created under a directory named `ws`, relative to the location where you ran the install
+- A new workspace will be created under a directory named `ws`, relative to the location where you ran the installation
   command.
 - Your shell startup file (e.g., `.bashrc` for Bash) will be patched with an alias for quick access to `UserSpace`.
 - You’ll be prompted to reopen your terminal for the new alias to take effect.
@@ -100,13 +100,13 @@ curl -sSL \
 * Inside the shell, run the `usgen` command. This will:
     1. Populate the otherwise bare workspace with source files based on the restructuring rules
        in [refactor.jsonc](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/blob/main/src/auto_forge/resources/samples/userspace/refactor.jsonc).
-    2. Inject missing CMake files by executing the deploy steps defined
+    2. Inject missing CMake files by executing the deployment steps defined
        in [deploy.jsonc](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/blob/main/src/auto_forge/resources/samples/userspace/deploy.jsonc).
 * 🧪 Interesting Commands to Try
     * ? or help: Show available commands via the integrated Markdown viewer.
     * `showsln`: View the preprocessed Userspace solution file using the JSON viewer.
     * `shoenv`: Display the augmented environment variables table.
-    * `busb`, `busr`: Build the Userspace libraries in release or debug mode.
+    * `busd`, `busr`: Build the Userspace libraries in release or debug mode.
     * `showtelem`: Show runtime telemetry data from recent operations.
 
 ---
@@ -124,7 +124,6 @@ curl -sSL \
 | `solution.jsonc`           | Main solution descriptor — defines workspace structure and targets                                              |
 | `variables.jsonc`          | User-defined and system-injected variables used throughout the flow                                             |
 | `workspace_sequence.jsonc` | Defines the initialization and command sequence for setting up the workspace                                    |
-| `storage`                  | Temporary path for AI related resources                                                                         |
 
 ---
 
