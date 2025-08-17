@@ -143,6 +143,10 @@ autoforge --bare
 
 Got ideas or improvements?<br>Jump in and help make **AutoForge** even better - contributions are always welcome!
 
+## More Information
+
+[AutoForge Q&A](https://github.com/intel-innersource/firmware.ethernet.devops.auto_forge/blob/main/src/auto_forge/resources/help/package/q_n_a.md)
+
 ## License
 
-This project is licensed under the MIT License—see the LICENSE file for details.
+This project is licensed under the MIT License see the LICENSE file for details.
