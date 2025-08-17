@@ -16,7 +16,7 @@
 	// -----------------------------------------------------------------------------------------------------------------
 
 	"git_token_environment_var": "NONE",							// Optional name of the environment variable that may hold the user's Git token
-	"subprocess_execution_timout": 300.0,							// Default timeout (in seconds) for sub-process execution.
+	"subprocess_execution_timeout": 300.0,							// Default timeout (in seconds) for sub-process execution.
 	"watchdog_timeout": 10.0,										// Default timeout (in seconds) for sub-process execution.
 	"productivity_assist": true,									// Productivity assist flag
 	"max_inspection_size_bytes": 16384,								// Upper limit to an AI inspected file size

@@ -105,7 +105,7 @@ class CorePlatform(CoreModuleInterface):
 
         self._package_manager: Optional[str] = None
         self._workspace_path: str = workspace_path
-        self._subprocess_execution_timout: float = 60.0  # Time allowed for executed shell command
+        self._subprocess_execution_timeout: float = 60.0  # Time allowed for executed shell command
         self._configuration: dict[str, Any] = self.auto_forge.configuration
 
         # Get the interactive commands from package configuration or use defaults if not available
@@ -120,8 +120,8 @@ class CorePlatform(CoreModuleInterface):
         self._log_similarity_filter: Optional[dict] = self._configuration.get('log_similarity_filter')
 
         # Allow to override default execution timeout of a sub-processes in configuration
-        self._subprocess_execution_timout = self._configuration.get("subprocess_execution_timout",
-                                                                    self._subprocess_execution_timout)
+        self._subprocess_execution_timeout = self._configuration.get("subprocess_execution_timeout",
+                                                                     self._subprocess_execution_timeout)
 
         # Register this module with the package registry
         self._registry.register_module(name=AUTO_FORGE_MODULE_NAME, description=AUTO_FORGE_MODULE_DESCRIPTION,
@@ -750,7 +750,7 @@ class CorePlatform(CoreModuleInterface):
         line_buffer = bytearray()
         lines_queue = deque(maxlen=1024)  # Storing upto the last 100 output lines
         master_fd: Optional[int] = None  # PTY master descriptor
-        timeout = self._subprocess_execution_timout if timeout is None else timeout  # Set default timeout when not provided
+        timeout = self._subprocess_execution_timeout if timeout is None else timeout  # Set default timeout when not provided
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
         max_read_chunk = 1024 if max_read_chunk < 1 else max_read_chunk  # Normalize bad user input
         results: Optional[CommandResultType] = None
@@ -1102,13 +1102,13 @@ class CorePlatform(CoreModuleInterface):
 
             return results
 
-        except subprocess.TimeoutExpired as timout_exception:
+        except subprocess.TimeoutExpired as timeout_exception:
             process.kill()
             if not isinstance(results, CommandResultType):
                 results = CommandResultType(return_code=-9, command=command)
 
-            results.message = str(timout_exception)
-            raise CommandFailedException(results=results) from timout_exception
+            results.message = str(timeout_exception)
+            raise CommandFailedException(results=results) from timeout_exception
 
         finally:
             if master_fd is not None:  # Close PTY descriptor

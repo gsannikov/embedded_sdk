@@ -12,7 +12,6 @@ Description:
     nothing is lost during early-stage initialization.
 """
 
-import io
 import json
 import logging
 import os
@@ -806,7 +805,7 @@ class CoreLogger(CoreModuleInterface):
         if clear:
             self._memory_logs_buffer.clear()
         return logs
-    
+
     def close(self):
         """
         Close and remove all active logging handlers.

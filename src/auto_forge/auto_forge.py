@@ -531,7 +531,7 @@ class AutoForge(CoreModuleInterface):
 
         attached: bool = False
 
-        def _find_pydev_helper() -> str | None:
+        def _find_pydev_helper() -> Optional[str]:
             env_path = os.environ.get("PYCHARM_DEBUG_PATH")
             if env_path and (Path(env_path) / "pydevd.py").exists():
                 return env_path

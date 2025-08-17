@@ -946,7 +946,7 @@ class CoreToolBox(CoreModuleInterface):
             if len(parts) >= 2 and parts[0].lower() == 'wsl.localhost':
                 distro = parts[1]
                 relative_path = linux_path.lstrip('/')
-                return f"\\\\wsl.localhost\\{distro}\\{relative_path.replace('/', '\\')}"
+                return "\\\\wsl.localhost\\" + distro + "\\" + relative_path.replace('/', '\\')
 
         return None
 

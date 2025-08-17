@@ -277,7 +277,7 @@ class CoreMCPService(CoreModuleInterface):
         if request.method != "POST":
             return self._json_response({"error": "method not allowed"}, status=405)
 
-        async def _handle_one(m: dict[str, Any]) -> dict[str, Any] | None:
+        async def _handle_one(m: dict[str, Any]) -> Optional[dict[str, Any]]:
             """
             Handle a single JSON-RPC message. Returns a response dict,
             or None if the input was a notification (no 'id').
