@@ -13,6 +13,7 @@ Description:
 import argparse
 import base64
 import json
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,7 +25,7 @@ from rich.table import Table
 from rich.text import Text
 
 # AutoForge imports
-from auto_forge import (AutoForgFolderType, CommandInterface, FieldColorType, VariableType)
+from auto_forge import (AutoForgFolderType, AutoForgeWorkModeType, CommandInterface, FieldColorType, VariableType)
 
 AUTO_FORGE_MODULE_NAME = "sln"
 AUTO_FORGE_MODULE_DESCRIPTION = "Solution utilities"
@@ -57,8 +58,9 @@ class SolutionCommand(CommandInterface):
 
     def _show_environment_variables(self) -> Optional[int]:
         """
-        Display the list of managed variables in a styled table using Rich.
-        This method is fully compatible with cmd2 and does not rely on self.console.
+        Display the list of managed variables.
+        - In normal/CLI modes: pretty Rich table
+        - In MCP_SERVICE mode: print a JSON structure to stdout (no colors)
         """
         console = Console(force_terminal=True)
 
@@ -69,9 +71,69 @@ class SolutionCommand(CommandInterface):
 
         if not isinstance(project_workspace, str) or not isinstance(solution_name, str):
             raise RuntimeError("could not get our solution name or project workspace or both")
-
         if not isinstance(var_list, list) or not var_list:
             raise RuntimeError("no variables to display")
+
+        # MCP service: emit JSON
+        if self.sdk.auto_forge.work_mode == AutoForgeWorkModeType.MCP_SERVICE:
+            out = {
+                "solution": solution_name,
+                "workspace": project_workspace,
+                "home": home_directory,
+                "variables": []
+            }
+
+            for var in var_list:
+                key = str(var.get("key", "") or "")
+                description = str(var.get("description", "") or "")
+                value = var.get("value", "")
+                folder_type = var.get("folder_type", AutoForgFolderType.UNKNOWN)
+                var_type: VariableType = var.get("type", VariableType.UNKNOWN)
+
+                folder_type_str = folder_type.name if isinstance(folder_type, AutoForgFolderType) else "-"
+                var_type_str = var_type.name if isinstance(var_type, VariableType) else "UNKNOWN"
+
+                is_path = var_type in (VariableType.PATH, VariableType.FILE)
+
+                # Defaults
+                exists: Optional[bool] = None
+                display_value = value
+
+                if is_path and isinstance(value, str):
+                    p = Path(value)
+                    exists = p.exists()
+
+                    # normalized string used to detect if aliasing succeeded
+                    normalized = value.replace("\\", "/")
+                    display_value = normalized
+
+                    # Prefer workspace alias if applicable
+                    with suppress(ValueError):
+                        rel_ws = p.relative_to(project_workspace)
+                        display_value = "$/" + rel_ws.as_posix()
+
+                    # If workspace alias didn't apply, try home alias
+                    if display_value == normalized:
+                        with suppress(ValueError):
+                            rel_home = p.relative_to(home_directory)
+                            display_value = "~/" + rel_home.as_posix()
+
+                out["variables"].append({
+                    "key": key,
+                    "value": value,
+                    "display_value": display_value,  # used here
+                    "description": description,
+                    "type": var_type_str,
+                    "folder": folder_type_str,
+                    "is_path": bool(is_path),
+                    "exists": exists if isinstance(exists, bool) else None,
+                    "create": bool(var.get("create_path_if_not_exist", False)),
+                })
+
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
+
+        # CLI/Other modes: Rich table
         try:
             table = Table(title=f"{solution_name.capitalize()}: Managed Variables", box=box.ROUNDED)
 
@@ -121,9 +183,15 @@ class SolutionCommand(CommandInterface):
                 except ValueError:
                     value_text = Text(str(value))
 
-                table.add_row(key, value_text, description, self._bool_emoji(is_file_or_path),
-                              self._bool_emoji(var.get("create_path_if_not_exist")), folder_type_str,
-                              var_type.name.capitalize())
+                table.add_row(
+                    key,
+                    value_text,
+                    description,
+                    self._bool_emoji(is_file_or_path),
+                    self._bool_emoji(var.get("create_path_if_not_exist")),
+                    folder_type_str,
+                    var_type.name.capitalize() if isinstance(var_type, VariableType) else "Unknown"
+                )
 
             console.print('\n', table)
             return 0
@@ -209,7 +277,10 @@ class SolutionCommand(CommandInterface):
                         FieldColorType(field_name="ToolBox", color=Fore.LIGHTYELLOW_EX),
                         FieldColorType(field_name="AIBridge", color=Fore.LIGHTGREEN_EX), ]
         try:
-            self._core_logger.show(cheerful=cheerful, field_colors=field_colors)
+            if self.sdk.auto_forge.work_mode != AutoForgeWorkModeType.MCP_SERVICE:
+                self._core_logger.show(cheerful=cheerful, field_colors=field_colors)
+            else:
+                self._core_logger.show_as_json()
             return 0
 
         except Exception as log_error:

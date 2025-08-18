@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_forge"
-version = "0.2.3"
+version = "0.2.4"
 description = "AutoForge: Bulid System"
 readme = "README.md"
 authors = [{ name = "Michaelson, Eitan", email = "eitanm@me.com" }]

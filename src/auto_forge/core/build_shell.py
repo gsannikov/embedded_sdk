@@ -760,10 +760,10 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                     raise RuntimeError(f"command {name} has an unsupported argument type: {type(arg)}")
 
                 result = self._loader.execute_command(name, args)
-                if self._work_mode != AutoForgeWorkModeType.INTERACTIVE:
-                    # Retrieve the executed command’s raw output from the core loader module
-                    # and log it when running in non-interactive mode. This ensures that
-                    # internal AutoForge commands are also captured in logs during automated runs.
+                if self._work_mode not in (AutoForgeWorkModeType.INTERACTIVE, AutoForgeWorkModeType.MCP_SERVICE):
+                    # Retrieve the executed command raw output from the  core loader module
+                    # and log it when running in non-interactive / non MCP modes. This ensures that
+                    # internal AutoForge commands are also captured in logs during automated runs..
                     command_output = self._loader.get_last_output()
                     if isinstance(command_output, str):
                         self._logger.debug(

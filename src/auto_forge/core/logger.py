@@ -7,7 +7,7 @@ Description:
     including memory, console, and file logging. Supports dynamic enabling and disabling of handlers,
     customizable log formatting, and transparent in-memory logging.
 
-    Memory-based logging allows the application to capture logs early—before a final destination
+    Memory-based logging allows the application to capture logs early before a final destination
     (e.g., file or console) is known. Logs can later be flushed to any enabled handler, ensuring
     nothing is lost during early-stage initialization.
 """
@@ -604,9 +604,9 @@ class CoreLogger(CoreModuleInterface):
         Enables the specified log handlers and disables all others.
         Args:
             handlers (LogHandlersType): A bitmask of handler types to enable.
-                                         Use bitwise OR to combine multiple handlers.
-                                         Example:
-                                             LogHandlersTypes.CONSOLE_HANDLER | LogHandlersTypes.FILE_HANDLER
+                Use bitwise OR to combine multiple handlers.
+                Example:
+                    LogHandlersTypes.CONSOLE_HANDLER | LogHandlersTypes.FILE_HANDLER
         """
         to_disable = self._enabled_handlers & ~handlers
         to_enable = handlers & ~self._enabled_handlers
@@ -616,6 +616,69 @@ class CoreLogger(CoreModuleInterface):
 
         if to_enable:
             self._enable_handlers(to_enable)
+
+    def show_as_json(self,
+                     *,
+                     max_entries: Optional[int] = None,
+                     indent: Optional[int] = 2,
+                     include_unparsed: bool = True) -> None:
+        """
+        Parse the log file and return a JSON string of entries.
+        Each parsed entry has:
+          - timestamp: str
+          - level: str  (DEBUG|INFO|WARNING|ERROR|CRITICAL)
+          - module: str
+          - message: str  ("> " prefix removed if present)
+          - from_child: bool  (True if original message started with '> ')
+
+        Args:
+            max_entries: If set, return only the last N entries.
+            indent: JSON indentation (use None for a compact single line).
+            include_unparsed: If True, lines that don't match the pattern are
+                             included as {"raw": "<line>"}.
+        """
+        if not self._log_file_name or not os.path.isfile(self._log_file_name):
+            # Return a minimal JSON array to keep the contract predictable
+            print(json.dumps(
+                [{"error": "No log file available."}],
+                ensure_ascii=False,
+                indent=indent))
+
+        level_pattern = re.compile(
+            r"\[(.*?)\s+(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+] (\S+\s*): (.*)"
+        )
+
+        entries = []
+        with open(self._log_file_name, encoding="utf-8", errors="replace") as f:
+            for raw_line in f:
+                line = raw_line.rstrip("\n")
+
+                m = level_pattern.match(line)
+                if not m:
+                    if include_unparsed and line:
+                        entries.append({"raw": line})
+                    continue
+
+                timestamp, level, module, message = m.groups()
+                module = module.strip()
+
+                from_child = False
+                if message.startswith("> "):
+                    from_child = True
+                    message = message[2:]  # strip the "> " prefix
+
+                entries.append({
+                    "timestamp": timestamp,
+                    "level": level,
+                    "module": module,
+                    "message": message,
+                    "from_child": from_child,
+                })
+
+        if max_entries is not None and max_entries >= 0:
+            entries = entries[-max_entries:]
+
+        print(json.dumps(entries, ensure_ascii=False, indent=indent))
 
     def show(self, cheerful: bool = False, field_colors: Optional[Sequence[FieldColorType]] = None) -> None:
         """
@@ -827,7 +890,7 @@ class CoreLogger(CoreModuleInterface):
 
     @property
     def formatting(self) -> bool:
-        """Get the state of the logs formater."""
+        """Get the state of the logs formatter."""
         return self._enable_formatting
 
     @property

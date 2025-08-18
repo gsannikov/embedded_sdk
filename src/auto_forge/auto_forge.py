@@ -771,7 +771,7 @@ class AutoForge(CoreModuleInterface):
                 self._logger.debug("Running in MCP service mode")
 
                 self._build_shell = CoreBuildShell()
-                self._mcp = CoreMCPService(mcp_server_name=self._solution_name,tools_prefix="")
+                self._mcp = CoreMCPService(mcp_server_name=self._solution_name, tools_prefix="")
                 self._exit_code = self._mcp.start()
 
             else:

@@ -3,14 +3,13 @@ Script:         mcp_service.py
 Author:         AutoForge Team
 
 Description:
-    Lightweight MCP adapter that allows AutoForge to function as a
-    Model Context Protocol (MCP) server, exposing its commands and
-    features over the MCP SSE transport. Designed for quick integration
-    with compatible clients (e.g., VS Code, MCP CLI) without requiring
-    full AutoForge deployment, while maintaining clean startup, shutdown,
-    and request handling.
+    Lightweight MCP adapter that allows AutoForge to function as a model Context Protocol (MCP) server,
+    exposing its commands and features over the MCP SSE transport. Designed for quick integration with compatible
+    clients (e.g., VS Code, MCP CLI) without requiring full AutoForge deployment, while maintaining
+    clean startup, shutdown, and request handling.
 """
 
+import ast
 import asyncio
 import contextlib
 import io
@@ -25,13 +24,12 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Optional, Any, Callable, Awaitable, Union
 
-from aiohttp import ContentTypeError
-# Third?party
+# Third-party
 from aiohttp import web
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreBuildShell, CoreLogger, CoreModuleInterface,
-                        CoreTelemetry, CoreRegistry, CoreVariables)
+                        CoreTelemetry, CoreRegistry, CoreDynamicLoader, CoreVariables)
 
 AUTO_FORGE_MODULE_NAME = "MCP"
 AUTO_FORGE_MODULE_DESCRIPTION = "MCP (Model Context Protocol) integration for AutoForge"
@@ -111,6 +109,7 @@ class CoreMCPService(CoreModuleInterface):
         self._logger = self._core_logger.get_logger("MCP")
         self._build_shell = CoreBuildShell.get_instance()
         self._telemetry = CoreTelemetry.get_instance()
+        self._loader = CoreDynamicLoader.get_instance()
         self._variables = CoreVariables.get_instance()
         self._configuration = self.auto_forge.get_instance().configuration
         self._shutdown_event = asyncio.Event()
@@ -148,12 +147,11 @@ class CoreMCPService(CoreModuleInterface):
         self._telemetry.mark_module_boot(module_name="MCP")
 
     @staticmethod
-    def _log_line(msg: str):
+    def _log_line(msg: str, level: str = "info", **_ignored) -> None:
         try:
             ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            print(f"{ts} [info] {msg}", flush=True)
+            print(f"{ts} [{level}] {msg}", flush=True)
         except Exception as e:
-            # Fall back to plain print so it never kills the server
             print(f"MCP Service log error: {e!r} | original message: {msg!r}", flush=True)
 
     async def _status_handler(self, _request):
@@ -172,7 +170,7 @@ class CoreMCPService(CoreModuleInterface):
         Initiate a graceful shutdown of the MCP server.
         Returns:
             200 OK with {"status": "shutting_down"} when accepted.
-            403 if server is in readonly mode.
+            403 if server is in read-only mode.
         """
         if getattr(self._mcp_config, "readonly", False):
             return self._json_response({"error": "readonly mode"}, status=403)
@@ -264,66 +262,91 @@ class CoreMCPService(CoreModuleInterface):
         Supports:
           - Single requests and batches per JSON-RPC 2.0
           - Methods: initialize, tools/list, tools/call, ping
-          - Notifications (requests without 'id'): no HTTP response item is emitted
-            for those entries (but server may broadcast via SSE).
-
+          - Notifications (no 'id'): returns 200 with {} for VS Code compat.
         Error behavior:
-          - Returns 400 for invalid/malformed JSON bodies.
-          - Uses JSON-RPC error envelopes for method and internal errors.
+          - Always HTTP 200 with JSON-RPC error envelope (-32700, -32600, -32603).
+          - Never lets exceptions bubble to aiohttp (prevents HTTP 500).
         """
-        self._log_line("Received /message POST")
 
-        # Parse JSON body (strict)
-        try:
-            payload = await request.json()
-            # formatted_payload = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
-            # self._log_line(f"Payload:\n\n{formatted_payload}\n")
-            self._log_line(f"RPC handler got payload")
+        # Helper builders (avoid repeating structure everywhere)
+        def _jr_ok(_jid: Any, _result: Any) -> dict[str, Any]:
+            return {"jsonrpc": "2.0", "id": _jid, "result": _result}
 
-        except (json.JSONDecodeError, ContentTypeError, UnicodeDecodeError):
-            return self._json_response({"error": "invalid json"}, status=400)
+        def _jr_err(_jid: Any, _code: int, _message: str, _data: Any = None) -> dict[str, Any]:
+            err: dict[str, Any] = {"code": _code, "message": _message}
+            if _data is not None:
+                err["data"] = _data
+            return {"jsonrpc": "2.0", "id": _jid, "error": err}
 
+        with contextlib.suppress(Exception):
+            self._log_line(msg="POST /message", level="debug")
+
+        # Method gate first (cheap)
         if request.method != "POST":
-            return self._json_response({"error": "method not allowed"}, status=405)
+            error_body = _jr_err(jid=None, code=-32600, message="method not allowed")
+            return web.json_response(error_body)
 
-        async def _handle_one(m: dict[str, Any]) -> Optional[dict[str, Any]]:
+        # Read body defensively
+        raw = await request.read()
+        if not raw:
+            error_body = _jr_err(jid=None, code=-32600, message="Empty request")
+            return web.json_response(error_body)
+
+        try:
+            payload: Any = json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            error_body = _jr_err(jid=None, code=-32700, message="Parse error", data=str(e))
+            return web.json_response(error_body)
+
+        with contextlib.suppress(Exception):
+            self._log_line(msg="RPC handler got payload", level="debug")
+            pretty = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
+            self._log_line(msg=f"Request:\n{pretty}", level="debug")
+
+        async def _handle_one(msg: dict[str, Any]) -> Optional[dict[str, Any]]:
             """
             Handle a single JSON-RPC message. Returns a response dict,
-            or None if the input was a notification (no 'id').
+            or None if input was a notification (no 'id').
             """
-            jid = m.get("id", None)
+            jid = msg.get("id", None)
             is_notification = jid is None
-            method = m.get("method")
-            params = m.get("params") or {}
+            method = msg.get("method")
+            params = msg.get("params") or {}
 
-            self._log_line(f"Incoming method: {method}, id: {jid}")
+            with contextlib.suppress(Exception):
+                self._log_line(msg=f"Incoming method: {method}, id: {jid}", level="debug")
 
+            # Inline helpers return proper envelopes only when id is present
             if is_notification:
-                def ok(_result: Any) -> None:
+                def ok(_: Any) -> None:  # type: ignore[override]
                     return None
 
-                def err(_code: int, _message: str) -> None:
+                def make_error(_: int, __: str) -> None:  # type: ignore[override]
                     return None
             else:
                 def ok(_result: Any) -> dict[str, Any]:
-                    return {"jsonrpc": "2.0", "id": jid, "result": _result}
+                    return _jr_ok(jid, _result)
 
-                def err(code: int, message: str) -> dict[str, Any]:
-                    return {"jsonrpc": "2.0", "id": jid, "error": {"code": code, "message": message}}
+                def make_error(_code: int, _message: str) -> dict[str, Any]:
+                    return _jr_err(jid, _code, _message)
 
-            if not isinstance(m, dict) or not isinstance(method, str):
-                return err(-32600, "invalid request")
-            if not isinstance(params, dict):  # <-- simplified
-                return err(-32602, "invalid params")
+            if not isinstance(msg, dict) or not isinstance(method, str):
+                return make_error(-32600, "invalid request")
+            if not isinstance(params, dict):
+                return make_error(-32602, "invalid params")
 
             try:
                 if method == "initialize":
                     info = {
                         "protocolVersion": "2024-07-01",
-                        "serverInfo": {"name": {self._mcp_server_name}, "version": str(self.auto_forge.version)},
+                        "serverInfo": {
+                            "name": str(self._mcp_server_name),
+                            "version": str(self.auto_forge.version),
+                        },
                         "capabilities": {"tools": True, "resources": False, "prompts": False},
                     }
-                    await  self._broadcast({"jsonrpc": "2.0", "method": "server/ready", "params": info})
+                    with contextlib.suppress(Exception):
+                        await self._broadcast({"jsonrpc": "2.0", "method": "server/ready", "params": info})
                     return ok(info)
 
                 if method == "tools/list":
@@ -331,50 +354,71 @@ class CoreMCPService(CoreModuleInterface):
 
                 if method == "tools/call":
                     tool_name = params.get("name", "<?>")
-                    self._log_line(f"Calling tool: {tool_name} with: {params}")
+                    with contextlib.suppress(Exception):
+                        self._log_line(msg=f"Calling tool: {tool_name} with: {params}", level="debug")
 
                     result = await self._rpc_tools_call(params)
 
-                    self._log_line(f"Tool '{tool_name}' completed, result keys: {list(result.keys())}")
-
-                    await self._broadcast({
-                        "jsonrpc": "2.0",
-                        "method": "tools/result",
-                        "params": {"name": tool_name, "result": result}
-                    })
-
+                    with contextlib.suppress(Exception):
+                        self._log_line(msg=f"Tool '{tool_name}' result keys: {list(result.keys())}", level="debug")
+                        await self._broadcast({
+                            "jsonrpc": "2.0",
+                            "method": "tools/result",
+                            "params": {"name": tool_name, "result": result},
+                        })
                     return ok(result)
 
                 if method == "ping":
                     return ok({"pong": True})
 
-                return err(-32601, f"unknown method: {method}")
+                return make_error(-32601, f"unknown method: {method}")
 
             except KeyError as ke:
-                return err(-32601, str(ke))
+                return make_error(-32601, str(ke))
             except Exception as ex:
-                await self._broadcast({
-                    "jsonrpc": "2.0",
-                    "method": "tools/error",
-                    "params": {"error": str(ex)}
-                })
-                return err(-32000, "internal error")
+                with contextlib.suppress(Exception):
+                    await self._broadcast({"jsonrpc": "2.0", "method": "tools/error", "params": {"error": str(ex)}})
+                    self._log_line(f"_handle_one crash: {ex!r}", level="error")
+                return make_error(-32603, "Internal error")
 
         # Single vs batch
-        if isinstance(payload, list):
-            if len(payload) > AUTO_FORGE_MAX_BATCH_MCP_COMMANDS:
-                return self._json_response(
-                    {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "batch too large"}},
-                    status=400,
-                )
-            replies = [r for r in [await _handle_one(m) for m in payload] if r is not None]
-            return self._json_response(replies)
-        else:
+        try:
+            if isinstance(payload, list):
+                # Empty batch is invalid
+                if len(payload) == 0:
+                    error_body = _jr_err(jid=None, code=-32600, message="invalid request (empty batch)")
+                    return web.json_response(error_body)
+
+                if len(payload) > AUTO_FORGE_MAX_BATCH_MCP_COMMANDS:
+                    error_body = _jr_err(jid=None, code=-32600, message="batch too large")
+                    return web.json_response(error_body)
+
+                replies: list[dict[str, Any]] = []
+                for item in payload:
+                    resp = await _handle_one(item if isinstance(item, dict) else {})
+                    if resp is not None:
+                        replies.append(resp)
+
+                if replies:
+                    return web.json_response(replies)
+                # All were notifications, return {} (VS Code compat)
+                return web.json_response({})
+
+            # Single message
+            if not isinstance(payload, dict):
+                error_body = _jr_err(jid=None, code=-32600, message="invalid request")
+                return web.json_response(error_body)
+
             reply = await _handle_one(payload)
             if reply is None:
-                # VS Code compatibility: return 200 with empty JSON instead of 204
-                return self._json_response({})
-            return self._json_response(reply)
+                return web.json_response({})
+            return web.json_response(reply)
+
+        except Exception as e:
+            with contextlib.suppress(Exception):
+                self._log_line(f"/message handler crash (outer): {e!r}", level="error")
+            error_body = _jr_err(jid=None, code=-32603, message="Internal error")
+            return web.json_response(error_body)
 
     def _add_tool(self, tool: _CoreMCPToolType):
         """
@@ -407,6 +451,32 @@ class CoreMCPService(CoreModuleInterface):
     async def _run_one_cmdline_async(self, line: str) -> dict[str, Any]:
         """Run a single command line and return status, logs, and a summary."""
 
+        def _parse_output(output: str) -> Union[dict, list, str]:
+            """
+            Try to parse a string into dict or list (JSON first, then Python literal).
+            If parsing fails, return the original string.
+            """
+            if not output or not isinstance(output, str):
+                return output
+
+            # JSON parse attempt
+            try:
+                parsed = json.loads(output)
+                if isinstance(parsed, (dict, list)):
+                    return parsed
+            except (ValueError, TypeError):
+                pass
+
+            # Python literal parse attempt (e.g., "{'a': 1}" or "[1, 2, 3]")
+            try:
+                parsed = ast.literal_eval(output)
+                if isinstance(parsed, (dict, list)):
+                    return parsed
+            except (ValueError, SyntaxError):
+                pass
+
+            return output
+
         def _do_run() -> dict[str, Any]:
             runner = (
                     getattr(self._build_shell, "execute_cmdline", None)
@@ -421,13 +491,22 @@ class CoreMCPService(CoreModuleInterface):
             with contextlib.redirect_stdout(command_response):
                 runner(line)
 
+            # Some commands may return dictionary or list as a string
+            command_output = self._loader.get_last_output()
+            command_data = _parse_output(command_output)
+
             log_capture: list[str] = self._core_logger.get_log_capture()
             status = self._build_shell.last_result
-            return {
+            result = {
                 "status": int(status) if isinstance(status, int) else 0,
                 "logs": log_capture,
                 "summary": f"Executed: {line}",
             }
+
+            if isinstance(command_data, (dict, list)):
+                result["output"] = command_data
+
+            return result
 
         return await asyncio.to_thread(_do_run)
 
@@ -471,9 +550,11 @@ class CoreMCPService(CoreModuleInterface):
                 "additionalProperties": False
             }
 
-            async def _tool_handler(params: dict[str, Any], _cmds=_cmds_tuple) -> dict[str, Any]:
+            async def _tool_handler(params: dict[str, Any], _cmds=_cmds_tuple) -> Union[dict[str, Any], Any]:
                 """
                 Execute one or more registered command lines with optional arguments.
+                Returns a single result object if exactly one command is executed,
+                otherwise returns {"results": [ ... ]}.
                 """
                 raw_args = params.get("args", "")
                 if isinstance(raw_args, list):
@@ -481,15 +562,17 @@ class CoreMCPService(CoreModuleInterface):
                 else:
                     extra = str(raw_args).strip()
 
-                lines = []
+                lines: list[str] = []
                 for raw in _cmds:
-                    line = raw
-                    if raw.startswith("do_") and extra:
-                        line = f"{raw} {extra}"
-                    line = os.path.expandvars(line)
-                    lines.append(line)
+                    line = f"{raw} {extra}" if raw.startswith("do_") and extra else raw
+                    lines.append(os.path.expandvars(line))
 
+                # Run all commands (sequentially to preserve order).
                 results = [await self._run_one_cmdline_async(line) for line in lines]
+
+                # Flatten if only one; else keep array for multi-exec tools.
+                if len(results) == 1:
+                    return results[0]
                 return {"results": results}
 
             # Register as MCP tool
@@ -710,7 +793,7 @@ class CoreMCPService(CoreModuleInterface):
         Start the MCP server in SSE (Server-Sent Events) mode.
         Attempts to determine the system's primary external IPv4 address
         (non-loopback) by connecting to a known public IP (Google DNS at 8.8.8.8).
-        This does not require actual network reachability — no data is sent.
+        This does not require actual network reachability, no data is sent.
         Runs the asynchronous SSE server loop until interrupted.
 
         Returns:
@@ -728,19 +811,42 @@ class CoreMCPService(CoreModuleInterface):
             # Self terminate aggressively since its faster and we dont really care about clean shutdown.
             os.kill(os.getpid(), signal.SIGKILL)
 
+        # noinspection SpellCheckingInspection
         def _show_start_message():
             # Greetings, usage and examples
             _ip = self._mcp_config.host
             _port = self._mcp_config.port
             base = f"http://{_ip}:{_port}"
 
-            print("\033]0;AutoForge MCP Service\007\033[2J\033[3J\033[H", end="")  # Clear screen, set title
-            print(f"\nAutoForge: MCP SSE server running on local host {_ip}:{_port}, name: {self._mcp_server_name}")
-            print("Press Ctrl+C to stop the service.\n")
+            print(f"\033]0;MCP Service {self._mcp_server_name}\007\033[2J\033[3J\033[H",
+                  end="")  # Clear screen, set title
+            print(f"\n\nAutoForge SSE server running on {_ip}:{_port}")
             print(
                 "MCP Endpoints:\n"
                 f"- SSE stream:            GET  {base}/sse\n"
-                f"- JSON-RPC message bus:  POST {base}/message\n")
+                f"- JSON-RPC message bus:  POST {base}/message\n"
+            )
+
+            # Example usage
+            print("Example commands you can run in another shell:\n")
+            print("1. List available tools:")
+            print(
+                f"   curl -s --noproxy {_ip} "
+                "-H \"Content-Type: application/json\" "
+                "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"tools/list\\\",\\\"params\\\":{}}\" "
+                f"{base}/message | jq"
+            )
+
+            print("\n2. Execute tool 'busr':")
+            print(
+                f"   curl -s --noproxy {_ip} "
+                "-H \"Content-Type: application/json\" "
+                "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":2,\\\"method\\\":\\\"tools/call\\\","
+                "\\\"params\\\":{\\\"name\\\":\\\"busr\\\",\\\"arguments\\\":{}}}\" "
+                f"{base}/message | jq"
+            )
+
+            print("\nRunning ..\nPress Ctrl+C to stop\n")
 
         try:
             # Determine local outward-facing IP
