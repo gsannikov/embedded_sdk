@@ -21,7 +21,9 @@ import signal
 import socket
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Any, Callable, Awaitable
+from json import JSONDecodeError
+from pathlib import Path
+from typing import Optional, Any, Callable, Awaitable, Union
 
 from aiohttp import ContentTypeError
 # Third?party
@@ -29,7 +31,7 @@ from aiohttp import web
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreBuildShell, CoreLogger, CoreModuleInterface,
-                        CoreTelemetry, CoreRegistry)
+                        CoreTelemetry, CoreRegistry, CoreVariables)
 
 AUTO_FORGE_MODULE_NAME = "MCP"
 AUTO_FORGE_MODULE_DESCRIPTION = "MCP (Model Context Protocol) integration for AutoForge"
@@ -91,24 +93,31 @@ class CoreMCPService(CoreModuleInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _initialize(self) -> None:
+    def _initialize(self, mcp_server_name: str = "MCP Server", tools_prefix: str = "af_",
+                    patch_vscode_config: bool = False) -> None:
         """
         Initialize MCP server state and register routes.
-
         - Loads configuration (host/port).
         - Prepares the aiohttp app and registers command/tool routes.
         - Adds health and tool-list endpoints.
         - Registers the module with telemetry/registry.
+
+        Args:
+            patch_vscode_config (bool): Maintain VSCode 'mcp.json' file automatically.
+            tools_prefix (str): Prefix added to all published tools.
         """
         self._mcp_config = _CoreMCPConfigType()
         self._core_logger = CoreLogger.get_instance()
         self._logger = self._core_logger.get_logger("MCP")
         self._build_shell = CoreBuildShell.get_instance()
         self._telemetry = CoreTelemetry.get_instance()
+        self._variables = CoreVariables.get_instance()
         self._configuration = self.auto_forge.get_instance().configuration
-        self._tool_prefix = "af_"
         self._shutdown_event = asyncio.Event()
         self._tools_registry: dict[str, _CoreMCPToolType] = {}
+        self._mcp_server_name: str = mcp_server_name
+        self._patch_vscode_config: bool = patch_vscode_config
+        self._tool_prefix: str = tools_prefix
 
         # Allow to override default port with package configuration
         self._mcp_config.port = self._configuration.get("mcp_port", self._mcp_config.port)
@@ -311,7 +320,7 @@ class CoreMCPService(CoreModuleInterface):
                 if method == "initialize":
                     info = {
                         "protocolVersion": "2024-07-01",
-                        "serverInfo": {"name": "AutoForge MCP", "version": str(self.auto_forge.version)},
+                        "serverInfo": {"name": {self._mcp_server_name}, "version": str(self.auto_forge.version)},
                         "capabilities": {"tools": True, "resources": False, "prompts": False},
                     }
                     await  self._broadcast({"jsonrpc": "2.0", "method": "server/ready", "params": info})
@@ -579,6 +588,123 @@ class CoreMCPService(CoreModuleInterface):
         finally:
             await runner.cleanup()
 
+    def _remove_vscode_config(self,
+                              base_path: Optional[Union[Path, str]],
+                              host_ip: str,
+                              host_port: int,
+                              server_name: str = "autoforge") -> bool:
+        """
+        Quietly remove a server entry from an existing VS Code MCP config.
+        Args:
+            base_path (Union[Path, str], optional):
+                Workspace base directory containing the .vscode folder.
+                If None, use the solution workspace (PROJ_WORKSPACE).
+            host_ip (str): Host IP address to match in the config.
+            host_port (int): Host port to match in the config.
+            server_name (str): Server key to remove (default: "autoforge").
+
+        Returns:
+            bool: True if the config was updated or nothing needed removal,
+                  False if an error occurred.
+        """
+        if base_path is None:
+            base_path = self._variables.get("PROJ_WORKSPACE")
+
+        vscode_dir = Path(base_path).expanduser().resolve() / ".vscode"
+        config_path = vscode_dir / "mcp.json"
+
+        if not config_path.exists():
+            return True  # nothing to remove
+
+        with contextlib.suppress(json.JSONDecodeError, UnicodeDecodeError, OSError):
+            with config_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            url_to_remove = f"http://{host_ip}:{host_port}"
+            servers = data.get("servers", {})
+
+            if server_name in servers:
+                if servers[server_name].get("url") == url_to_remove:
+                    del servers[server_name]
+
+            # Clean up if servers now empty
+            if not servers:
+                data.pop("servers", None)
+
+            with contextlib.suppress(Exception):
+                config_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                return True
+
+        return False
+
+    def _generate_vscode_config(self,
+                                base_path: Optional[Union[Path, str]],
+                                host_ip: str,
+                                host_port: int,
+                                server_name: str = "autoforge",
+                                overwrite_existing: bool = True,
+                                create_parents: bool = False,
+                                ensure_inputs: bool = True) -> bool:
+        """
+        Generate/merge a VS Code MCP config without clobbering existing servers.
+        Args:
+            base_path: Base directory where '.vscode/mcp.json' will be written.
+                         If None, uses self._variables['PROJ_WORKSPACE'].
+            host_ip: IP for the SSE server.
+            host_port: Port for the SSE server.
+            server_name: Key under "servers" to write/update (default: "autoforge").
+            overwrite_existing: If True, overwrite the existing <server_name> entry
+                                if present. If False, only add it if missing.
+            create_parents: If True, create <dir>/.vscode if missing.
+            ensure_inputs: If True, add a minimal "inputs" section when absent.
+
+        Returns:
+            bool: True if the config file was written/updated, False otherwise.
+        """
+        if base_path is None:
+            base_path = self._variables.get("PROJ_WORKSPACE")
+        base_dir = Path(base_path).expanduser().resolve()
+
+        vscode_dir = base_dir / ".vscode"
+        config_path = vscode_dir / "mcp.json"
+
+        if create_parents:
+            vscode_dir.mkdir(parents=True, exist_ok=True)
+
+        data: Optional[dict] = None
+
+        if config_path.exists():
+            try:
+                data = json.loads(config_path.read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    data = {}
+            except (JSONDecodeError, UnicodeDecodeError):
+                with contextlib.suppress(Exception):
+                    config_path.rename(config_path.with_suffix(".json.bak"))
+                data = {}
+
+        if data is None:
+            data = {}
+
+        servers = data.setdefault("servers", {})
+        new_entry = {"type": "sse", "url": f"http://{host_ip}:{host_port}"}
+
+        if server_name not in servers or overwrite_existing or servers[server_name] != new_entry:
+            servers[server_name] = new_entry
+        else:
+            return False  # no change needed
+
+        if ensure_inputs and "inputs" not in data:
+            data["inputs"] = [
+                {"id": "args", "type": "promptString", "description": "Extra arguments"}
+            ]
+
+        with contextlib.suppress(Exception):
+            config_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            return True
+
+        return False
+
     def start(self) -> int:
         """
         Start the MCP server in SSE (Server-Sent Events) mode.
@@ -594,7 +720,13 @@ class CoreMCPService(CoreModuleInterface):
         def _handle_term_signal():
             # Attach signal handlers so Ctrl+C triggers shutdown cleanly
             print("\033]0;\007\nInterrupted by user, shutting down...")
-            os.kill(os.getpid(), signal.SIGKILL)  # ToDo: less aggressive approach
+
+            # Quietly remove the server entry from VScode 'mcp.json'
+            if self._generate_vscode_config:
+                self._remove_vscode_config(base_path=None, host_ip=self._mcp_config.host,
+                                           host_port=self._mcp_config.port, server_name=self._mcp_server_name)
+            # Self terminate aggressively since its faster and we dont really care about clean shutdown.
+            os.kill(os.getpid(), signal.SIGKILL)
 
         def _show_start_message():
             # Greetings, usage and examples
@@ -603,8 +735,8 @@ class CoreMCPService(CoreModuleInterface):
             base = f"http://{_ip}:{_port}"
 
             print("\033]0;AutoForge MCP Service\007\033[2J\033[3J\033[H", end="")  # Clear screen, set title
-            print(f"\nAutoForge: MCP SSE server running on local host {_ip}:{_port}")
-            print("Press Ctrl+C to stop MCP service.\n")
+            print(f"\nAutoForge: MCP SSE server running on local host {_ip}:{_port}, name: {self._mcp_server_name}")
+            print("Press Ctrl+C to stop the service.\n")
             print(
                 "MCP Endpoints:\n"
                 f"- SSE stream:            GET  {base}/sse\n"
@@ -619,6 +751,12 @@ class CoreMCPService(CoreModuleInterface):
 
             if not isinstance(self._mcp_config.host, str):
                 raise RuntimeError("Can't determine local IP address")
+
+            # Create VSCode 'mcp.json' file in the solution workspace
+            if self._generate_vscode_config:
+                self._generate_vscode_config(base_path=None, host_ip=self._mcp_config.host,
+                                             host_port=self._mcp_config.port, server_name=self._mcp_server_name,
+                                             overwrite_existing=True, create_parents=True)
 
             _show_start_message()
 
