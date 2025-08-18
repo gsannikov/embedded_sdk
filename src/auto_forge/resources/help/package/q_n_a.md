@@ -36,7 +36,7 @@ Whether to adopt it is ultimately a strategic decision.
 
 ---
 
-### Why not design alternatives that avoid a centralized framework?
+### Can we avoid using centralized framework?
 
 That could be done, but it will lead back to project-specific adaptations replicated across repositories.  
 That trend is what got us into this fragmented situation. So while AutoForge’s architectural philosophy isn’t strictly
