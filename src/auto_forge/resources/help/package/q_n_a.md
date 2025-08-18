@@ -40,8 +40,8 @@ Whether to adopt it is ultimately a strategic decision.
 
 That could be done, but it will lead back to project-specific adaptations replicated across repositories.  
 That trend is what got us into this fragmented situation. So while AutoForge’s architectural philosophy isn’t strictly
-mandatory,
-it is strongly recommended.
+mandatory, it is strongly recommended.
+
 ---
 
 ### What is the bare minimum AutoForge needs to run?
