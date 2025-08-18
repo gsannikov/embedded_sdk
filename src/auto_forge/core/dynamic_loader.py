@@ -318,6 +318,8 @@ class CoreDynamicLoader(CoreModuleInterface):
         Returns:
             Optional[int]: The result of the build process.
         """
+        self._execution_output = None
+
         class_instance = self._resolve_registered_instance(name=build_profile.build_system,
                                                            expected_type=AutoForgeModuleType.BUILDER,
                                                            required_method='build')
