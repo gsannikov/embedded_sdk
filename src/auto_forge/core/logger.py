@@ -58,6 +58,27 @@ class LoggerSettingsType:
     flush_memory_logs: bool = False
 
 
+class _MemoryCaptureHandler(logging.Handler):
+    """
+    A logging handler that writes formatted log records directly into a list buffer.
+    Ensures logs are immediately available for peek_log_capture().
+    """
+
+    def __init__(self, buffer: list[str]):
+        super().__init__()
+        self._buffer = buffer
+
+    def emit(self, record: logging.LogRecord) -> None:
+        # Suppress only formatting/append errors
+        with suppress(Exception):
+            msg = self.format(record)
+            self._buffer.append(msg)
+
+    def flush(self) -> None:
+        """For compatibility with logging.Handler — safe no-op."""
+        pass
+
+
 class _PausableFilter(logging.Filter):
     """
     A logging filter that allows dynamic pausing and resuming of log output.
@@ -323,8 +344,8 @@ class CoreLogger(CoreModuleInterface):
         self._erase_exiting_file: bool = erase_exiting_file
         self._stream_console_handler: Optional[logging.StreamHandler] = None
         self._stream_file_handler: Optional[logging.FileHandler] = None
-        self._stream_memory_handler: Optional[logging.StreamHandler] = None
-        self._memory_logs_buffer = []  # List[str] of formatted log lines
+        self._stream_memory_handler: Optional[_MemoryCaptureHandler] = None
+        self._memory_logs_buffer: list[str] = []
         self._enable_colors: bool = enable_colors
         self._enable_console_output: bool = output_state
         self._exclusive: bool = exclusive
@@ -426,7 +447,7 @@ class CoreLogger(CoreModuleInterface):
                                                                     parent_logger=self,
                                                                     handler=LogHandlersType.MEMORY_HANDLER))
             # noinspection PyTypeChecker
-            self._stream_memory_handler = logging.StreamHandler(self)
+            self._stream_memory_handler = _MemoryCaptureHandler(self._memory_logs_buffer)
             self._stream_memory_handler.setFormatter(formatter)
             self._logger.addHandler(self._stream_memory_handler)
             self._enabled_handlers |= LogHandlersType.MEMORY_HANDLER
@@ -475,7 +496,10 @@ class CoreLogger(CoreModuleInterface):
         """
 
         if LogHandlersType.MEMORY_HANDLER in handlers and self._stream_memory_handler is not None:
-            self._stream_memory_handler.flush()
+            # For MemoryCaptureHandler, flush() is harmless (but optional)
+            with suppress(Exception):
+                self._stream_memory_handler.flush()
+
             self._stream_memory_handler.close()
             self._logger.removeHandler(self._stream_memory_handler)
             self._stream_memory_handler = None
@@ -541,18 +565,6 @@ class CoreLogger(CoreModuleInterface):
             f"Flushed {len(self._memory_logs_buffer)} memory record(s) to the destination logger")
         self._memory_logs_buffer.clear()
         return True
-
-    def write(self, message: str):
-        """
-        Called exclusively by the memory StreamHandler.
-        Captures formatted log output and stores it in memory for deferred flushing.
-        """
-        if message.strip():
-            self._memory_logs_buffer.append(message.strip())
-
-    def flush(self):
-        """Required by StreamHandler interface — safe no-op."""
-        pass
 
     def set_log_file_name(self, file_name: Optional[str] = None):
         """
@@ -868,6 +880,10 @@ class CoreLogger(CoreModuleInterface):
         if clear:
             self._memory_logs_buffer.clear()
         return logs
+
+    def peek_log_capture(self) -> list[str]:
+        """Return current buffer without clearing it."""
+        return self._memory_logs_buffer[:]
 
     def close(self):
         """

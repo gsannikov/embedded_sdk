@@ -11,6 +11,7 @@ import contextlib
 import fcntl
 import fnmatch
 import io
+import json
 import logging
 import os
 import random
@@ -412,6 +413,8 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         self._project_workspace: Optional[str] = self._variables.get('PROJ_WORKSPACE', quiet=True)
         self._work_mode: Optional[AutoForgeWorkModeType] = self.auto_forge.work_mode
         self._configuration: Optional[dict[str, Any]] = self.auto_forge.get_instance().configuration
+        self._commands_json_data: Optional[
+            str] = None  # Command + help in JSON structure stored as string usable by MCP
 
         # Disable user input until the prompt is active
         self._tool_box.set_terminal_input()
@@ -1193,6 +1196,28 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
                 if cmd not in [c for c, _ in commands_by_type.setdefault(cmd_type, [])]:
                     commands_by_type[cmd_type].append((cmd, doc))
 
+            # Build centralized help data as JSON (string), to be reused later when serving help over MCP.
+            self._commands_json_data = json.dumps(
+                {
+                    "metadata": {
+                        "version": str(self.auto_forge.version),
+                        "solution": self._solution.solution_name,
+                        "generated_at": datetime.now().isoformat(timespec="seconds")
+                    },
+                    "commands": {
+                        cmd_type: [
+                            {"command": cmd, "description": desc}
+                            for cmd, desc in sorted(cmds)
+                        ]
+                        for cmd_type, cmds in commands_by_type.items()
+                    }
+                },
+                indent=2,
+                ensure_ascii=False)
+            # Emojis cleanup
+            if self._commands_json_data:
+                self._commands_json_data = self._tool_box.strip_emojis(text=self._commands_json_data)
+
             # Write to Markdown file
             with output_path.open("w", encoding="utf-8") as f:
 
@@ -1603,9 +1628,17 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
         term_width = self._tool_box.get_terminal_width()
 
         if not arg:
-            # No arguments, try to show the package commands menu using the textual app.
-            if self._help_md_file:
-                self._tool_box.show_markdown_file(self._help_md_file)
+
+            if self._work_mode == AutoForgeWorkModeType.INTERACTIVE:
+                # No arguments, try to show help using the integrated textual Markdown viewer.
+                if self._help_md_file:
+                    self._tool_box.show_markdown_file(self._help_md_file)
+            elif self._work_mode == AutoForgeWorkModeType.MCP_SERVICE:
+                # MCP service, serve the help as JSON flattened to string.
+                print(self.commands_json_metadata)
+            else:
+                raise RuntimeError(f"'help' not supported in current work-mode: {self._work_mode}")
+
             return None
 
         # Normal flow, showing help for a  specific command.
@@ -1808,6 +1841,11 @@ class CoreBuildShell(CoreModuleInterface, cmd2.Cmd):
     def commands_metadata(self) -> dict[str, Any]:
         """ Get commands metadata """
         return self._commands_metadata
+
+    @property
+    def commands_json_metadata(self) -> Optional[str]:
+        """Return centralized help data as a JSON string, or None if not yet built."""
+        return self._commands_json_data
 
     @property
     def max_completion_results(self) -> int:

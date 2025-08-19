@@ -3,10 +3,31 @@ Script:         mcp_service.py
 Author:         AutoForge Team
 
 Description:
-    Lightweight MCP adapter that allows AutoForge to function as a model Context Protocol (MCP) server,
-    exposing its commands and features over the MCP SSE transport. Designed for quick integration with compatible
-    clients (e.g., VS Code, MCP CLI) without requiring full AutoForge deployment, while maintaining
-    clean startup, shutdown, and request handling.
+    Minimal Model Context Protocol (MCP) service layer for AutoForge.
+
+    This adapter exposes AutoForge commands as MCP tools over HTTP/SSE,
+    speaking JSON-RPC 2.0. It is intended as the bridge between
+    AutoForge’s internal APIs and external MCP-aware clients
+    (e.g. VS Code, MCP CLI, automation bots).
+
+    Key design points:
+      - Single-workspace, single-flight: only one tool executes at a time,
+        concurrent calls are rejected with a JSON-RPC error.
+      - Provides clean startup/shutdown hooks and status telemetry.
+      - Returns all errors as JSON-RPC envelopes (never HTTP 500).
+      - Service does not require authentication; any MCP client
+        can connect and execute tools.
+
+    This makes AutoForge usable in distributed or IDE-driven workflows
+    without requiring full SDK integration.
+
+    Note:
+        Test using: Inspector fom https://modelcontextprotocol.io/legacy/tools/inspector
+        Install from https://github.com/modelcontextprotocol/inspector (node.js)
+        Example:
+            Using in Windows Command Prompt
+            set MCP_PROXY_AUTH_TOKEN=foobar
+            npx @modelcontextprotocol/inspector http://10.12.148.90:6274
 """
 
 import ast
@@ -29,11 +50,12 @@ from aiohttp import web
 
 # AutoForge imports
 from auto_forge import (AutoForgeModuleType, CoreBuildShell, CoreLogger, CoreModuleInterface,
-                        CoreTelemetry, CoreRegistry, CoreDynamicLoader, CoreVariables)
+                        CoreTelemetry, CoreRegistry, CoreDynamicLoader, CoreVariables, PackageGlobals)
 
 AUTO_FORGE_MODULE_NAME = "MCP"
 AUTO_FORGE_MODULE_DESCRIPTION = "MCP (Model Context Protocol) integration for AutoForge"
 AUTO_FORGE_MAX_BATCH_MCP_COMMANDS = 64
+AUTO_FORGE_BUSY_CODE = -32004
 
 
 @dataclass
@@ -89,20 +111,24 @@ class _CoreMCPToolType:
 
 class CoreMCPService(CoreModuleInterface):
     def __init__(self, *args, **kwargs):
+
+        self._single_flight = asyncio.Semaphore(1)  # Single-flight across the whole workspace
+        self._current = None  # (tool_name, started_at) for status/telemetry
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, mcp_server_name: str = "MCP Server", tools_prefix: str = "af_",
-                    patch_vscode_config: bool = False) -> None:
+    def _initialize(self, mcp_server_name: str = "MCP Server", tools_prefix: str = "",
+                    patch_vscode_config: bool = False, show_usage_examples: bool = True) -> None:
         """
         Initialize MCP server state and register routes.
         - Loads configuration (host/port).
         - Prepares the aiohttp app and registers command/tool routes.
         - Adds health and tool-list endpoints.
         - Registers the module with telemetry/registry.
-
         Args:
             patch_vscode_config (bool): Maintain VSCode 'mcp.json' file automatically.
             tools_prefix (str): Prefix added to all published tools.
+            patch_vscode_config (bool): Weather to auto-generate a VSCode 'msp.json' file.
+            show_usage_examples (bool): Show several 'curl' examples.
         """
         self._mcp_config = _CoreMCPConfigType()
         self._core_logger = CoreLogger.get_instance()
@@ -117,6 +143,10 @@ class CoreMCPService(CoreModuleInterface):
         self._mcp_server_name: str = mcp_server_name
         self._patch_vscode_config: bool = patch_vscode_config
         self._tool_prefix: str = tools_prefix
+        self._show_usage_examples: bool = show_usage_examples
+        self._shutting_down: bool = False
+        self._log_request: bool = True
+        self._brutal_termination: bool = False
 
         # Allow to override default port with package configuration
         self._mcp_config.port = self._configuration.get("mcp_port", self._mcp_config.port)
@@ -132,6 +162,7 @@ class CoreMCPService(CoreModuleInterface):
         self._app.router.add_post("/shutdown", self._shutdown_handler)
         self._app.router.add_get("/sse", self._sse_handler)
         self._app.router.add_post("/message", self._rpc_handler)
+        self._app.router.add_get("/help", self._help_handler)
 
         # HTTP (streamable) at base URL:
         self._app.router.add_post("/", self._rpc_handler)
@@ -150,9 +181,10 @@ class CoreMCPService(CoreModuleInterface):
     def _log_line(msg: str, level: str = "info", **_ignored) -> None:
         try:
             ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            print(f"{ts} [{level}] {msg}", flush=True)
+            line = f"\r{ts} [{level.title():<8}] {msg}\n".encode()
+            os.write(1, line)  # bypasses Python stream redirection
         except Exception as e:
-            print(f"MCP Service log error: {e!r} | original message: {msg!r}", flush=True)
+            os.write(1, f"MCP Service log error: {e!r} | original message: {msg!r}\n".encode())
 
     async def _status_handler(self, _request):
         """Basic runtime status (no secrets)."""
@@ -178,6 +210,19 @@ class CoreMCPService(CoreModuleInterface):
         # Signal the run loop to exit; cleanup happens in _run_sse()'s finally block.
         self._shutdown_event.set()
         return self._json_response({"status": "shutting_down"})
+
+    async def _help_handler(self, _request: web.Request) -> web.Response:
+        """
+        Return centralized help data for all commands in JSON format.
+        """
+        json_data = self._build_shell.commands_json_metadata
+        if not json_data:
+            return self._json_response({"error": "Help metadata not available"}, status=404)
+        try:
+            return self._json_response(json.loads(json_data))
+        except json.JSONDecodeError as e:
+            self._log_line(f"Invalid JSON in commands metadata: {e}", level="error")
+            return self._json_response({"error": "Internal error: invalid help data"}, status=500)
 
     async def _broadcast(self, obj: dict[str, Any]) -> None:
         """
@@ -262,7 +307,7 @@ class CoreMCPService(CoreModuleInterface):
         Supports:
           - Single requests and batches per JSON-RPC 2.0
           - Methods: initialize, tools/list, tools/call, ping
-          - Notifications (no 'id'): returns 200 with {} for VS Code compat.
+          - Notifications (no 'id'): returns 200 with {} for VSCode.
         Error behavior:
           - Always HTTP 200 with JSON-RPC error envelope (-32700, -32600, -32603).
           - Never lets exceptions bubble to aiohttp (prevents HTTP 500).
@@ -300,8 +345,10 @@ class CoreMCPService(CoreModuleInterface):
 
         with contextlib.suppress(Exception):
             self._log_line(msg="RPC handler got payload", level="debug")
-            pretty = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
-            self._log_line(msg=f"Request:\n{pretty}", level="debug")
+
+            if self._log_request:
+                pretty = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
+                self._log_line(msg=f"Request:\n{pretty}", level="debug")
 
         async def _handle_one(msg: dict[str, Any]) -> Optional[dict[str, Any]]:
             """
@@ -335,41 +382,80 @@ class CoreMCPService(CoreModuleInterface):
             if not isinstance(params, dict):
                 return make_error(-32602, "invalid params")
 
+            # Handle common MCP service methods
             try:
                 if method == "initialize":
+                    client_proto = params.get("protocolVersion", "2025-06-18")
                     info = {
-                        "protocolVersion": "2024-07-01",
+                        "protocolVersion": client_proto,
                         "serverInfo": {
                             "name": str(self._mcp_server_name),
                             "version": str(self.auto_forge.version),
                         },
-                        "capabilities": {"tools": True, "resources": False, "prompts": False},
+                        "capabilities": {
+                            "tools": {},
+                            "resources": {},
+                            "prompts": {}
+                        },
                     }
-                    with contextlib.suppress(Exception):
-                        await self._broadcast({"jsonrpc": "2.0", "method": "server/ready", "params": info})
+                    self._log_line(msg=f"Handled 'initialize'", level="debug")
                     return ok(info)
 
-                if method == "tools/list":
+                elif method == "tools/list":
                     return ok(self._rpc_tools_list())
 
-                if method == "tools/call":
+                elif method == "help":
+                    result = await self._help_handler_rpc(params)
+                    return ok(result)
+
+                elif method == "tools/call":
                     tool_name = params.get("name", "<?>")
                     with contextlib.suppress(Exception):
                         self._log_line(msg=f"Calling tool: {tool_name} with: {params}", level="debug")
 
-                    result = await self._rpc_tools_call(params)
+                    # Single flight: try to acquire immediately; reject if busy
+                    try:
+                        await asyncio.wait_for(self._single_flight.acquire(), timeout=0.001)
+                    except asyncio.TimeoutError:
+                        return make_error(
+                            AUTO_FORGE_BUSY_CODE,
+                            "Busy: another tool is currently running in this workspace")
 
-                    with contextlib.suppress(Exception):
-                        self._log_line(msg=f"Tool '{tool_name}' result keys: {list(result.keys())}", level="debug")
-                        await self._broadcast({
-                            "jsonrpc": "2.0",
-                            "method": "tools/result",
-                            "params": {"name": tool_name, "result": result},
-                        })
-                    return ok(result)
+                    self._current = (tool_name, asyncio.get_running_loop().time())
+                    try:
+                        result = await self._rpc_tools_call(params)
+                        with contextlib.suppress(Exception):
+                            self._log_line(
+                                msg=f"Tool '{tool_name}' result keys: {list(result.keys())}",
+                                level="debug"
+                            )
+                            await self._broadcast({
+                                "jsonrpc": "2.0",
+                                "method": "tools/result",
+                                "params": {"name": tool_name, "result": result},
+                            })
 
-                if method == "ping":
-                    return ok({"pong": True})
+                        # Adapt result for MCP inspector
+                        if isinstance(result, str):
+                            wrapped = {
+                                "isError": False,
+                                "content": [{"type": "text", "text": str(result)}]
+                            }
+                        else:
+                            # Dump dicts cleanly to text
+                            wrapped = {
+                                "isError": False,
+                                "content": [{"type": "text", "text": json.dumps(result, indent=2)}]
+                            }
+
+                        return ok(wrapped)
+
+                    finally:
+                        self._current = None
+                        self._single_flight.release()
+
+                elif method == "ping":
+                    return ok({})
 
                 return make_error(-32601, f"unknown method: {method}")
 
@@ -420,6 +506,31 @@ class CoreMCPService(CoreModuleInterface):
             error_body = _jr_err(jid=None, code=-32603, message="Internal error")
             return web.json_response(error_body)
 
+    async def _help_handler_rpc(self, params: dict[str, Any]) -> dict[str, Any]:
+        """
+        JSON-RPC: Return centralized help data for all commands (or a specific one).
+        """
+        json_data = self._build_shell.commands_json_metadata
+        if not json_data:
+            return {"error": "Help metadata not available"}
+
+        data = json.loads(json_data)
+        cmd = params.get("command")
+
+        if cmd:
+            for group, cmds in data.get("commands", {}).items():
+                for entry in cmds:
+                    if entry["command"] == cmd:
+                        return {
+                            "metadata": data["metadata"],
+                            "command": entry["command"],
+                            "description": entry["description"],
+                            "type": group
+                        }
+            return {"error": f"Command '{cmd}' not found"}
+
+        return data
+
     def _add_tool(self, tool: _CoreMCPToolType):
         """
         Register a new MCP tool in the server's tool registry.
@@ -449,35 +560,41 @@ class CoreMCPService(CoreModuleInterface):
         )
 
     async def _run_one_cmdline_async(self, line: str) -> dict[str, Any]:
-        """Run a single command line and return status, logs, and a summary."""
+        """
+        Run a single command line asynchronously inside the build shell.
+
+        Behavior:
+            - Executes the given `line` using whichever command runner is available.
+            - Captures logs incrementally and streams them to SSE clients as
+              `"event": "log"` messages while the command is running.
+            - Returns a final JSON-compatible dict containing:
+                * status  : exit status (int)
+                * logs    : full list of logs (list[str])
+                * summary : execution summary (str)
+                * output  : optional parsed output (dict or list, if applicable)
+            - Emits a final `"event": "done"` broadcast with the same result.
+        """
 
         def _parse_output(output: str) -> Union[dict, list, str]:
-            """
-            Try to parse a string into dict or list (JSON first, then Python literal).
-            If parsing fails, return the original string.
-            """
+            """Try to parse a string into dict/list (JSON → Python literal fallback)."""
             if not output or not isinstance(output, str):
                 return output
-
-            # JSON parse attempt
             try:
                 parsed = json.loads(output)
                 if isinstance(parsed, (dict, list)):
                     return parsed
             except (ValueError, TypeError):
                 pass
-
-            # Python literal parse attempt (e.g., "{'a': 1}" or "[1, 2, 3]")
             try:
                 parsed = ast.literal_eval(output)
                 if isinstance(parsed, (dict, list)):
                     return parsed
             except (ValueError, SyntaxError):
                 pass
-
             return output
 
-        def _do_run() -> dict[str, Any]:
+        def _do_run() -> tuple[int, list[str], Union[dict, list, str]]:
+            """Synchronous execution of the command inside the build shell."""
             runner = (
                     getattr(self._build_shell, "execute_cmdline", None)
                     or getattr(self._build_shell, "execute_line", None)
@@ -487,28 +604,69 @@ class CoreMCPService(CoreModuleInterface):
                 raise RuntimeError("No command runner found on CoreBuildShell.")
 
             self._core_logger.start_log_capture()
-            command_response = io.StringIO()
-            with contextlib.redirect_stdout(command_response):
+            with contextlib.redirect_stdout(io.StringIO()):
                 runner(line)
 
-            # Some commands may return dictionary or list as a string
-            command_output = self._loader.get_last_output()
-            command_data = _parse_output(command_output)
+            _cmd_output: str = self._loader.get_last_output()
+            _cmd_data: Any = _parse_output(_cmd_output)
+            _logs: list[str] = self._core_logger.get_log_capture()
+            _status = self._build_shell.last_result
+            return int(_status) if isinstance(_status, int) else 0, _logs, _cmd_data
 
-            log_capture: list[str] = self._core_logger.get_log_capture()
-            status = self._build_shell.last_result
-            result = {
-                "status": int(status) if isinstance(status, int) else 0,
-                "logs": log_capture,
-                "summary": f"Executed: {line}",
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(None, _do_run)  # type: ignore[arg-type]
+
+        last_idx = 0
+        try:
+            # Stream logs while command runs
+            while not future.done():
+                logs = self._core_logger.peek_log_capture()
+                if last_idx < len(logs):
+                    new_logs = logs[last_idx:]
+                    last_idx = len(logs)
+                    # Suppress errors so a broken client doesn't kill the loop
+                    with contextlib.suppress(Exception):
+                        await self._broadcast({"event": "log", "logs": new_logs})
+                        self._log_line(msg=f"Sent {len(new_logs):3d} log lines to SSE clients", level="debug")
+                await asyncio.sleep(0.5)
+
+            # Collect final result
+            status, logs, command_data = await future
+
+        except Exception as http_error:
+            # On failure: flush logs, broadcast an error, and re-raise
+            logs = self._core_logger.get_log_capture(clear=False)
+            error_result = {
+                "status": -1,
+                "logs": logs,
+                "summary": f"Execution failed: {line}",
+                "error": str(http_error),
             }
+            await self._broadcast({"event": "error", **error_result})
+            raise
 
-            if isinstance(command_data, (dict, list)):
-                result["output"] = command_data
+        # Flush any remaining logs
+        logs_peek = self._core_logger.peek_log_capture()
+        if last_idx < len(logs_peek):
+            remaining = logs_peek[last_idx:]
+            with contextlib.suppress(Exception):
+                await self._broadcast({"event": "log", "logs": logs_peek[last_idx:]})
+                self._log_line(msg=f"Flushed {len(remaining):3d} remaining log lines to SSE clients", level="debug")
 
-            return result
+        # Final result object
+        result: dict[str, Any] = {
+            "status": status,
+            "logs": logs,
+            "summary": f"Executed: {line}",
+        }
+        if isinstance(command_data, (dict, list)):
+            result["output"] = command_data
 
-        return await asyncio.to_thread(_do_run)
+        # Notify clients of completion
+        with contextlib.suppress(Exception):
+            await self._broadcast({"event": "done", **result})
+
+        return result
 
     def _register_all_commands(self) -> None:
         """
@@ -666,16 +824,20 @@ class CoreMCPService(CoreModuleInterface):
         await site.start()
 
         try:
-            # Wait until /shutdown is called
-            await self._shutdown_event.wait()
+            await self._shutdown_event.wait()  # Block until told to exit
+        except asyncio.CancelledError:
+            # Handles task.cancel() if loop is being cancelled
+            pass
         finally:
             await runner.cleanup()
+            # Give aiohttp tasks a chance to settle
+            await asyncio.sleep(1)
 
     def _remove_vscode_config(self,
                               base_path: Optional[Union[Path, str]],
                               host_ip: str,
                               host_port: int,
-                              server_name: str = "autoforge") -> bool:
+                              server_name: str = PackageGlobals.NAME.lower()) -> bool:
         """
         Quietly remove a server entry from an existing VS Code MCP config.
         Args:
@@ -724,7 +886,7 @@ class CoreMCPService(CoreModuleInterface):
                                 base_path: Optional[Union[Path, str]],
                                 host_ip: str,
                                 host_port: int,
-                                server_name: str = "autoforge",
+                                server_name: str = PackageGlobals.NAME.lower(),
                                 overwrite_existing: bool = True,
                                 create_parents: bool = False,
                                 ensure_inputs: bool = True) -> bool:
@@ -779,14 +941,72 @@ class CoreMCPService(CoreModuleInterface):
 
         if ensure_inputs and "inputs" not in data:
             data["inputs"] = [
-                {"id": "args", "type": "promptString", "description": "Extra arguments"}
-            ]
+                {"id": "args", "type": "promptString", "description": "Extra arguments"}]
 
         with contextlib.suppress(Exception):
             config_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
             return True
 
         return False
+
+    # noinspection SpellCheckingInspection
+    @staticmethod
+    def _greetings(host: str, port: int, server_name: str, show_examples: bool = False):
+        """
+        Display greetings and optionally example 'curl' commands that can be copied and run directly
+        in a console window to interact with the SSE server.
+        Args:
+            host (str): Host/IP address of the MCP server.
+            port (int): TCP port where the MCP service is listening.
+            server_name (str): Name of the MCP service
+            show_examples: If True, show example commands.
+        """
+
+        base = f"http://{host}:{port}"
+        title = f"{PackageGlobals.NAME} MCP SSE Service Info:"
+
+        # Greetings
+        print(f"\033]0;\007\033[2J\033[3J\033[H", end="")
+        print(f"\n{title}\n{'-' * len(title)}\n"
+              f"- SSE stream:            GET  {base}/sse\n"
+              f"- JSON-RPC message bus:  POST {base}/message\n"
+              f"- Name:                  {server_name}")
+
+        if show_examples:
+            # Examples
+            print("\nExample commands you can run in another shell:")
+
+            print("\n1. Listen for SSE broadcasts:")
+            print(f"   curl -s -N --noproxy {host} {base}/sse")
+
+            print("\n2. List available tools:")
+            print(f"   curl -s --noproxy {host} "
+                  "-H \"Content-Type: application/json\" "
+                  "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"tools/list\\\",\\\"params\\\":{}}\" "
+                  f"{base}/message | jq")
+
+            print("\n3. Execute tool 'log':")
+            print(f"   curl -s --noproxy {host} "
+                  "-H \"Content-Type: application/json\" "
+                  "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":2,\\\"method\\\":\\\"tools/call\\\","
+                  "\\\"params\\\":{\\\"name\\\":\\\"log\\\",\\\"arguments\\\":{}}}\" "
+                  f"{base}/message | jq")
+
+            print("\n4. Get help (all commands):")
+            print(f"   curl -s --noproxy {host} "
+                  "-H \"Content-Type: application/json\" "
+                  "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":3,\\\"method\\\":\\\"help\\\","
+                  "\\\"params\\\":{}}\" "
+                  f"{base}/message | jq")
+
+            print("\n5. Get help for a specific command (e.g. busd):")
+            print(f"   curl -s --noproxy {host} "
+                  "-H \"Content-Type: application/json\" "
+                  "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":4,\\\"method\\\":\\\"help\\\","
+                  "\\\"params\\\":{\\\"command\\\":\\\"busd\\\"}}\" "
+                  f"{base}/message | jq")
+
+        print("\nRunning... Press Ctrl+C to stop.\n")
 
     def start(self) -> int:
         """
@@ -801,52 +1021,27 @@ class CoreMCPService(CoreModuleInterface):
         """
 
         def _handle_term_signal():
-            # Attach signal handlers so Ctrl+C triggers shutdown cleanly
-            print("\033]0;\007\nInterrupted by user, shutting down...")
+            self._log_line(msg=f"Interrupted by user, shutting down", level="warning")
 
-            # Quietly remove the server entry from VScode 'mcp.json'
+            self._shutting_down = True
+            self._shutdown_event.set()
+
+            # Cancel running tasks
+            for task in asyncio.all_tasks(loop):
+                task.cancel()
+
+            # Remove VSCode config if needed
             if self._generate_vscode_config:
-                self._remove_vscode_config(base_path=None, host_ip=self._mcp_config.host,
-                                           host_port=self._mcp_config.port, server_name=self._mcp_server_name)
-            # Self terminate aggressively since its faster and we dont really care about clean shutdown.
-            os.kill(os.getpid(), signal.SIGKILL)
-
-        # noinspection SpellCheckingInspection
-        def _show_start_message():
-            # Greetings, usage and examples
-            _ip = self._mcp_config.host
-            _port = self._mcp_config.port
-            base = f"http://{_ip}:{_port}"
-
-            print(f"\033]0;MCP Service {self._mcp_server_name}\007\033[2J\033[3J\033[H",
-                  end="")  # Clear screen, set title
-            print(f"\n\nAutoForge SSE server running on {_ip}:{_port}")
-            print(
-                "MCP Endpoints:\n"
-                f"- SSE stream:            GET  {base}/sse\n"
-                f"- JSON-RPC message bus:  POST {base}/message\n"
-            )
-
-            # Example usage
-            print("Example commands you can run in another shell:\n")
-            print("1. List available tools:")
-            print(
-                f"   curl -s --noproxy {_ip} "
-                "-H \"Content-Type: application/json\" "
-                "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"tools/list\\\",\\\"params\\\":{}}\" "
-                f"{base}/message | jq"
-            )
-
-            print("\n2. Execute tool 'busr':")
-            print(
-                f"   curl -s --noproxy {_ip} "
-                "-H \"Content-Type: application/json\" "
-                "-d \"{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":2,\\\"method\\\":\\\"tools/call\\\","
-                "\\\"params\\\":{\\\"name\\\":\\\"busr\\\",\\\"arguments\\\":{}}}\" "
-                f"{base}/message | jq"
-            )
-
-            print("\nRunning ..\nPress Ctrl+C to stop\n")
+                self._remove_vscode_config(
+                    base_path=None,
+                    host_ip=self._mcp_config.host,
+                    host_port=self._mcp_config.port,
+                    server_name=self._mcp_server_name, )
+            # Terminate
+            if self._brutal_termination:
+                os.kill(os.getpid(), signal.SIGKILL)
+            else:
+                loop.stop()
 
         try:
             # Determine local outward-facing IP
@@ -864,7 +1059,9 @@ class CoreMCPService(CoreModuleInterface):
                                              host_port=self._mcp_config.port, server_name=self._mcp_server_name,
                                              overwrite_existing=True, create_parents=True)
 
-            _show_start_message()
+            # Show welcome message and usage examples
+            self._greetings(host=self._mcp_config.host, port=self._mcp_config.port,
+                            server_name=self._mcp_server_name, show_examples=self._show_usage_examples)
 
             # Prepare asyncio loop
             try:
@@ -886,6 +1083,12 @@ class CoreMCPService(CoreModuleInterface):
 
             return 0
 
+        except KeyboardInterrupt:
+            return 0
         except Exception as e:
-            print(f"MCP Error: {e}")
+            if self._shutting_down:
+                self._log_line(msg=f"MCP server terminated", level="debug")
+                print()
+                return 0
+            self._log_line(msg=f"MCP Error: {e}", level="error")
             return 1

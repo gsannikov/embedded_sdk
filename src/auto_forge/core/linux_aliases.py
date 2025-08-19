@@ -26,7 +26,7 @@ from typing import Optional, Union
 # AutoForge late imports
 from auto_forge import (
     AutoForgeModuleType, CoreModuleInterface, CoreRegistry, CoreSystemInfo, CoreTelemetry,
-    CoreLogger, LinuxShellType, VersionCompare)
+    CoreLogger, LinuxShellType, PackageGlobals, VersionCompare)
 
 AUTO_FORGE_MODULE_NAME = "LinuxAliases"
 AUTO_FORGE_MODULE_DESCRIPTION = "Linux Shell Aliases Management Auxiliary Class"
@@ -76,6 +76,7 @@ class CoreLinuxAliases(CoreModuleInterface):
         self._shell_name: Optional[str] = None
         self._shell_version: Optional[str] = None
         self._shell_rc_file: Optional[Path] = None
+        self._comment_title_width: Optional[int] = 80
         self._shell_type: LinuxShellType = LinuxShellType.UNKNOWN
         self._home_dir: Path = Path.home()
         self._rc_files_backup_path: Optional[Path] = Path(rc_files_backup_path) if rc_files_backup_path else None
@@ -83,8 +84,13 @@ class CoreLinuxAliases(CoreModuleInterface):
         if prefix_comment is None:
             # Generate default comments with dynamic date in MM-DD-YY format
             current_date = datetime.datetime.now().strftime("%m-%d-%y")
-            dashes = "-" * 21
-            prefix_comment = f"{dashes} Section was auto added on {current_date} {dashes} "
+            text = f" Added by {PackageGlobals.NAME} on {current_date} "
+
+            # Pad with dashes to fill exactly 80 chars
+            dash_count = self._comment_title_width - len(text)
+            left = dash_count // 2
+            right = dash_count - left
+            prefix_comment = f"{'-' * left}{text}{'-' * right}"
 
         if suffix_comment is None:
             suffix_comment = ("-" * (len(prefix_comment) - 1))

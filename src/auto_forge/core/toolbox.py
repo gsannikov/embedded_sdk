@@ -1457,6 +1457,37 @@ class CoreToolBox(CoreModuleInterface):
         return True
 
     @staticmethod
+    def strip_emojis(text: Optional[str]) -> Optional[str]:
+        """
+        Remove emojis and other pictographic symbols from a string.
+        Args:
+            text (Optional[str]): Input string, possibly containing emojis.
+        Returns:
+            Optional[str]: Cleaned string with emojis removed.
+        """
+        if not text:
+            return text
+
+        emoji_pattern = re.compile(
+            "["
+            "\U0001F300-\U0001F5FF"  # Symbols & pictographs
+            "\U0001F600-\U0001F64F"  # Emoticons
+            "\U0001F680-\U0001F6FF"  # Transport & map
+            "\U0001F700-\U0001F77F"  # Alchemical
+            "\U0001F780-\U0001F7FF"  # Geometric shapes extended
+            "\U0001F800-\U0001F8FF"  # Supplemental arrows
+            "\U0001F900-\U0001F9FF"  # Supplemental symbols & pictographs
+            "\U0001FA00-\U0001FA6F"  # Chess symbols, pictographs extended-A
+            "\U0001FA70-\U0001FAFF"  # Pictographs extended-B
+            "\U00002702-\U000027B0"  # Dingbats
+            "]+",
+            flags=re.UNICODE,
+        )
+
+        # Strip emojis and collapse any leftover double spaces
+        return re.sub(r"\s{2,}", " ", emoji_pattern.sub("", text)).strip()
+
+    @staticmethod
     def strip_ansi(text: Optional[str], bare_text: bool = False) -> Optional[str]:
         """
         Removes ANSI escape sequences and broken hyperlink wrappers,
