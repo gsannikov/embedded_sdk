@@ -349,7 +349,7 @@
 			"method": "create_alias",
 			"action_on_error": "resume",
 			"arguments": {
-				"alias": "usr",
+				"alias": "usmcp",
 				"command": "$PROJ_WORKSPACE/env.sh --mcp-service"
 			}
 		},
