@@ -145,7 +145,7 @@ class CoreMCPService(CoreModuleInterface):
         self._tool_prefix: str = tools_prefix
         self._show_usage_examples: bool = show_usage_examples
         self._shutting_down: bool = False
-        self._log_request: bool = True
+        self._log_request: bool = False
         self._brutal_termination: bool = False
 
         # Allow to override default port with package configuration
